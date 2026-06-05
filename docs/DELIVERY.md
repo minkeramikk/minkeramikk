@@ -79,16 +79,6 @@ Checklist di review, in ordine:
 ### Backlog
 
 
----
-
-**F02 · Personalizzazione design (step 2: pattern e colori)** — FE+BE(read) · dep: F01
-Scope: opzioni dinamiche per categoria (`kind image|color`) del design scelto; carousel
-embla; preview compositing multiply live; "Lås farger" via `sync_group`.
-AC (bozza):
-- Le categorie mostrate sono SOLO quelle del design scelto, nell'ordine `sort_order`
-- Scelgo un colore → i layer ricolorabili si aggiornano senza reload; con lock attivo le categorie dello stesso sync_group si sincronizzano (match per hex)
-- Ogni scelta è riflessa nel codice configurazione corrente
-Test: unit su sync per hex e su build del codice config · funzionale su percorso completo step 2.
 
 ---
 
@@ -208,35 +198,48 @@ Test: funzionale smoke su entrambe le lingue.
 
 ---
 
-**F01 · Scelta design (configuratore step 1)** — FE+BE(read) · dep: nessuna (infra ✅)
-Scope: pagina `/[locale]/configurator`; griglia dei design attivi da DB (oggi 6, tutti
-supplier Vietri); selezione → fornitore agganciato allo stato del configuratore; preview
-= `designs.preview_image` da Storage (il compositing live è F02); stato in URL.
+**F02 · Personalizzazione design (step 2: pattern e colori)** — FE+BE(read) · dep: F01 ✅
+Scope: step 2 del configuratore per il design agganciato: categorie dinamiche
+(`kind image|color`, ordine `sort_order`), carousel embla, preview compositing multiply
+LIVE (sostituisce la preview statica di F01 negli step ≥2), "Lås farger" via `sync_group`.
+
+**Passo 0 obbligatorio (analisi, prima di ogni UI)**: estrarre dallo snapshot legacy
+(`docs/legacy/`) la mappa configurazione→layers (`getPreviewImagesForCode`) in
+`src/lib/configurator/` come modulo TS puro con unit test (era il task 2.1), e
+VERIFICARE che gli asset PNG che la composizione referenzia esistano in Storage —
+le categorie floreal sono kind=color (solo hex): i layer-pattern su cui il multiply
+applica il colore devono esistere da qualche parte. Se mancano asset → STOP e
+segnalazione con l'elenco, non improvvisare.
 
 AC (definitivi, 2026-06-06):
-1. Dato il catalogo importato, quando apro `/no/configurator` vedo i 6 design ordinati
-   per `sort_order`, ognuno con nome e badge fornitore (OptionCard + SupplierBadge da
-   DESIGN-SYSTEM §3.3/3.9); dati letti server-side con client anon (RLS). Il nome del
-   fornitore è pubblico per ADR 0009: serve una migration additiva che esponga ad anon
-   i soli campi safe (id/name/active, righe attive) — contatti MAI; test RLS su
-   entrambi i lati (anon legge name, anon NON legge email).
-2. Quando seleziono un design, la preview mostra la sua `preview_image` (Storage,
-   transform per il resize) con skeleton durante il caricamento; la selezione è
-   riflessa nell'URL (`?design=slug`) — refresh e back/forward la conservano.
-3. Lo stato del configuratore espone `supplierId` del design scelto (sarà il filtro
-   di F02/F03); la CTA "Neste steg" è disabilitata finché nessun design è scelto.
-4. Un design con `active=false` (impostato via SQL nel test) NON compare; con la
-   lingua `en` le label UI sono inglesi (parità dizionari).
-5. Mobile 390px: griglia 2 colonne, nessun overflow orizzontale, touch target ≥44px.
+1. Con `?design=blomster-1` lo step 2 mostra SOLO le categorie di quel design,
+   ordinate per `sort_order`; kind=image → OptionCard con thumbnail, kind=color →
+   Swatch in radiogroup (DESIGN-SYSTEM §3.9/3.10).
+2. Scelgo un colore → i layer ricolorabili della preview si aggiornano senza reload
+   (multiply, ADR 0002); scelgo un pattern → il layer corrispondente cambia.
+3. Toggle "Lås farger": attivo, scegliere un colore in una categoria sincronizza le
+   categorie dello stesso `sync_group` (match per hex, comportamento legacy verificato);
+   spento, ogni categoria è indipendente. Verificare su Krabbe (sync_group `crab`);
+   se Juletre risulta senza sync_group nel DB (atteso dal legacy: pynt↔kanter),
+   segnalarlo — fix dati, non workaround in codice.
+4. Ogni scelta aggiorna lo stato del configuratore (estensione del reducer F01) e
+   l'URL; refresh ricostruisce esattamente le selezioni; "Tilbake" torna allo step 1
+   conservando il design.
+5. Categorie con UNA sola opzione (krabbe line, juletre tree): niente carousel,
+   selezione automatica, nessun controllo inutile a schermo.
+6. Mobile 390px: carousel scorrevole touch, swatch ≥44px, nessun overflow.
 
-Test richiesti: funzionale Playwright (apertura → selezione → preview e URL cambiano →
-refresh conserva) a 390/1280 · RLS: il fetch anon non vede design inattivi · unit sullo
-state reducer del configuratore (selezione design → supplierId).
-Evidenza PR: screenshot 390/768/1280 + confronto con `docs/theme/preview-frontoffice.png`.
+Test: unit su mappa code→layers e su sync per hex (incluso il caso lock off) ·
+funzionale Playwright: percorso completo step 2 su Blomster 1 e Krabbe a 390/1280 ·
+nessun colore hardcoded (gli hex arrivano SOLO dal DB).
+Evidenza PR: screenshot 390/768/1280 + confronto visivo con lo step 2 del sito live.
+
 
 
 ### In review
 *(vuota)*
 
 ### Done
-*(vuota)*
+
+**F01 · Scelta design** — merged (squash) il 2026-06-06. PR "F01 — Design selection": migration 0004 (ADR 0009), data layer anon, reducer, URL state, 28 unit + Playwright 390/1280. Review: approved al primo giro.
+
