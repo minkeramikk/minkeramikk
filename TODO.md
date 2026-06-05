@@ -44,7 +44,7 @@ dettagliate (come fase 0–2) prima di iniziarle.
 
 ## Fase 1-bis — Fondamenta UI (design system → codice)
 
-- [ ] 1.7 Portare `../docs/theme/tokens.css` in `globals.css` + `@theme inline`; Poppins via `next/font`; iniezione dei 3 token da `settings` nel layout server (un solo punto)
+- [x] 1.7 Portare `../docs/theme/tokens.css` in `globals.css` + `@theme inline`; Poppins via `next/font`; iniezione dei 3 token da `settings` nel layout server (un solo punto)
 - [ ] 1.8 Installare i componenti shadcn (button, card, badge, input, select, table, sheet, dialog) e creare le shell `PublicShell`/`AdminShell` + componenti di dominio (Stepper, OptionCard, Swatch, PreviewCanvas, SupplierBadge) come da `DESIGN-SYSTEM.md` §3-4; verifica screenshot vs baseline `preview-*.png`
 
 ## Dalle fasi ai flussi

@@ -7,39 +7,42 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-bitter);
-  --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-shrikhand);
-  --color-sidebar-ring: var(--sidebar-ring);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar: var(--sidebar);
-  --color-chart-5: var(--chart-5);
-  --color-chart-4: var(--chart-4);
-  --color-chart-3: var(--chart-3);
-  --color-chart-2: var(--chart-2);
-  --color-chart-1: var(--chart-1);
+  --font-sans: var(--font-poppins);
+  --font-mono: ui-monospace, Menlo, monospace;
+  --font-heading: var(--font-poppins);
+  --color-ink: var(--ink);
+  --color-ink-foreground: var(--ink-foreground);
+  --color-ink-muted: var(--ink-muted);
+  --color-status-new: var(--status-new);
+  --color-status-contacted: var(--status-contacted);
+  --color-status-confirmed: var(--status-confirmed);
+  --color-status-production: var(--status-production);
+  --color-status-delivered: var(--status-delivered);
+  --color-sidebar-ring: var(--ring);
+  --color-sidebar-border: var(--ink-muted);
+  --color-sidebar-accent-foreground: var(--ink-foreground);
+  --color-sidebar-accent: var(--ink);
+  --color-sidebar-primary-foreground: var(--primary-foreground);
+  --color-sidebar-primary: var(--primary);
+  --color-sidebar-foreground: var(--ink-foreground);
+  --color-sidebar: var(--ink);
   --color-ring: var(--ring);
   --color-input: var(--input);
   --color-border: var(--border);
   --color-destructive: var(--destructive);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-accent: var(--accent);
+  --color-accent-foreground: var(--secondary-foreground);
+  --color-accent: var(--secondary);
   --color-muted-foreground: var(--muted-foreground);
   --color-muted: var(--muted);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-secondary: var(--secondary);
   --color-primary-foreground: var(--primary-foreground);
   --color-primary: var(--primary);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-popover: var(--popover);
+  --color-popover-foreground: var(--card-foreground);
+  --color-popover: var(--card);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
-  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-sm: var(--radius-sm-token);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) * 1.4);
@@ -49,77 +52,51 @@
 }
 
 /*
- * Palette minkeramikk.no (estratta dal sito Squarespace attuale)
- * crema rosata  #fcf0f0 · prugna #531a4a · lavanda #ae9def
- * lavanda chiara #d1c8f4 · mattone #9b2929
+ * minkeramikk theme (ADR 0008, docs/theme/DESIGN-SYSTEM.md).
+ *
+ * THE ONLY managed values are the 3 tokens below — the admin edits them
+ * from the back-office (settings table, injected on <html> by the root
+ * layout). Everything else is DERIVED via color-mix. Never hardcode a
+ * color in a component; add a derived variable here instead.
  */
 :root {
-  --background: #fcf0f0;
-  --foreground: #531a4a;
-  --card: #fff7f7;
-  --card-foreground: #531a4a;
-  --popover: #fff7f7;
-  --popover-foreground: #531a4a;
-  --primary: #531a4a;
-  --primary-foreground: #fcf0f0;
-  --secondary: #d1c8f4;
-  --secondary-foreground: #531a4a;
-  --muted: #f3e2e2;
-  --muted-foreground: #8a5f82;
-  --accent: #ae9def;
-  --accent-foreground: #531a4a;
-  --destructive: #9b2929;
-  --border: #e9d4d4;
-  --input: #e9d4d4;
-  --ring: #ae9def;
-  --chart-1: #ae9def;
-  --chart-2: #531a4a;
-  --chart-3: #9b2929;
-  --chart-4: #d1c8f4;
-  --chart-5: #8a5f82;
-  --radius: 0.625rem;
-  --sidebar: #f7e8e8;
-  --sidebar-foreground: #531a4a;
-  --sidebar-primary: #531a4a;
-  --sidebar-primary-foreground: #fcf0f0;
-  --sidebar-accent: #d1c8f4;
-  --sidebar-accent-foreground: #531a4a;
-  --sidebar-border: #e9d4d4;
-  --sidebar-ring: #ae9def;
-}
+  /* the 3 managed tokens (defaults; runtime values come from settings) */
+  --mk-light: #fdf0e6;
+  --mk-dark: #181512;
+  --mk-accent: #de7361;
 
-.dark {
-  --background: #2e0f29;
-  --foreground: #fcf0f0;
-  --card: #3c1535;
-  --card-foreground: #fcf0f0;
-  --popover: #3c1535;
-  --popover-foreground: #fcf0f0;
-  --primary: #ae9def;
-  --primary-foreground: #2e0f29;
-  --secondary: #53306e;
-  --secondary-foreground: #fcf0f0;
-  --muted: #46203e;
-  --muted-foreground: #d3aecb;
-  --accent: #ae9def;
-  --accent-foreground: #2e0f29;
-  --destructive: #d96a6a;
-  --border: #fcf0f01a;
-  --input: #fcf0f026;
-  --ring: #ae9def;
-  --chart-1: #ae9def;
-  --chart-2: #d1c8f4;
-  --chart-3: #d96a6a;
-  --chart-4: #8a5f82;
-  --chart-5: #fcf0f0;
-  --sidebar: #3c1535;
-  --sidebar-foreground: #fcf0f0;
-  --sidebar-primary: #ae9def;
-  --sidebar-primary-foreground: #2e0f29;
-  --sidebar-accent: #53306e;
-  --sidebar-accent-foreground: #fcf0f0;
-  --sidebar-border: #fcf0f01a;
-  --sidebar-ring: #ae9def;
+  /* derived — shadcn/ui convention */
+  --background: var(--mk-light);
+  --foreground: var(--mk-dark);
+  --card: color-mix(in oklab, var(--mk-light), white 78%);
+  --card-foreground: var(--mk-dark);
+  --primary: var(--mk-accent);
+  --primary-foreground: color-mix(in oklab, var(--mk-accent), white 92%);
+  --secondary: color-mix(in oklab, var(--mk-accent) 14%, var(--mk-light));
+  --secondary-foreground: var(--mk-dark);
+  --muted: color-mix(in oklab, var(--mk-dark) 6%, var(--mk-light));
+  --muted-foreground: color-mix(in oklab, var(--mk-dark), var(--mk-light) 38%);
+  --border: color-mix(in oklab, var(--mk-dark) 13%, var(--mk-light));
+  --input: color-mix(in oklab, var(--mk-dark) 18%, var(--mk-light));
+  --ring: var(--mk-accent);
+  --destructive: #b3402e;
+
+  /* dark "ink" surfaces (public header, admin sidebar) */
+  --ink: var(--mk-dark);
+  --ink-foreground: color-mix(in oklab, var(--mk-light), white 60%);
+  --ink-muted: color-mix(in oklab, var(--mk-dark), var(--mk-light) 45%);
+
+  /* order status badges (soft style: tinted bg + darkened text) */
+  --status-new: var(--mk-accent);
+  --status-contacted: #d9a23f;
+  --status-confirmed: #6f93b8;
+  --status-production: #9b8fb8;
+  --status-delivered: #7da46f;
+
+  /* shape & elevation */
+  --radius: 16px;
+  --radius-sm-token: 11px;
+  --shadow-card: 0 2px 10px color-mix(in oklab, var(--mk-dark) 10%, transparent);
 }
 
 @layer base {
@@ -135,11 +112,6 @@
   h1,
   h2,
   h3 {
-    @apply font-heading font-normal;
+    @apply font-heading font-semibold tracking-[0.01em];
   }
-}
-
-/* Raggio asimmetrico "firma" dei bottoni del sito attuale (45px 0 45px 0) */
-@utility rounded-mk {
-  border-radius: 45px 0 45px 0;
 }
