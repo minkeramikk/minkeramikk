@@ -17,15 +17,15 @@ export function LocaleSwitcher() {
     >
       {routing.locales.map((l, i) => (
         <span key={l} className="flex items-center gap-1">
-          {i > 0 && <span className="text-accent-foreground/40">/</span>}
+          {i > 0 && <span className="text-ink-muted/60">/</span>}
           <Link
             href={pathname}
             locale={l}
             className={cn(
               "rounded px-1.5 py-1 uppercase transition-colors",
               l === locale
-                ? "text-accent-foreground underline underline-offset-4"
-                : "text-accent-foreground/60 hover:text-accent-foreground"
+                ? "text-white underline underline-offset-4"
+                : "text-ink-muted hover:text-white"
             )}
           >
             {t(l)}

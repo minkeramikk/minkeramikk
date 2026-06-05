@@ -1,34 +1,34 @@
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
-import { Button } from "@/components/ui/button";
 import { LocaleSwitcher } from "@/components/site/locale-switcher";
 
+/** Public ink header (DESIGN-SYSTEM §3.7): brand left, nav + locale right. */
 export function SiteHeader() {
   const t = useTranslations();
 
   return (
-    <header className="bg-accent">
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
-        <Link href="/" className="font-heading text-xl text-accent-foreground">
+    <header className="bg-ink text-ink-foreground">
+      <div className="mx-auto flex h-14 max-w-[1060px] items-center justify-between px-5">
+        <Link
+          href="/"
+          className="font-heading text-[19px] font-semibold tracking-[0.02em] text-white"
+        >
           {t("common.siteName")}
         </Link>
-        <nav className="flex items-center gap-6 text-sm">
+        <nav className="flex items-center gap-5 text-sm">
           <Link
             href="/products"
-            className="text-accent-foreground/80 transition-colors hover:text-accent-foreground"
+            className="text-ink-muted transition-colors hover:text-white"
           >
             {t("nav.products")}
           </Link>
           <Link
             href="/configurator"
-            className="text-accent-foreground/80 transition-colors hover:text-accent-foreground"
+            className="text-ink-muted transition-colors hover:text-white"
           >
             {t("nav.configurator")}
           </Link>
           <LocaleSwitcher />
-          <Button asChild size="sm" className="rounded-mk px-5">
-            <a href={`mailto:${t("common.email")}`}>{t("nav.contact")}</a>
-          </Button>
         </nav>
       </div>
     </header>

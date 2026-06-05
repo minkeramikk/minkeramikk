@@ -1,8 +1,12 @@
+import { AdminShell } from "@/components/shell/admin-shell";
+
 export default function AdminOrdersPage() {
   return (
-    <section>
-      <h1 className="text-2xl font-semibold tracking-tight">Ordini</h1>
-      {/* TODO: tabella ordini (shadcn Table) da Supabase */}
-    </section>
+    <AdminShell active="/admin" title="Orders">
+      {/* Orders table (flow F07) arrives with the database. */}
+      <p className="text-sm text-muted-foreground">
+        No orders yet — the orders table lands with flow F07.
+      </p>
+    </AdminShell>
   );
 }
