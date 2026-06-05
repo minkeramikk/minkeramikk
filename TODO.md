@@ -27,7 +27,7 @@ dettagliate (come fase 0–2) prima di iniziarle.
 
 ## Fase 1 — Dati: Supabase + import del catalogo esistente
 
-- [ ] 1.0 Snapshot del code block legacy in `docs/legacy/configurator-squarespace.html` (immutabile, `curl https://www.minkeramikk.no/bygg-din-design-1`) + nota di mappatura funzioni
+- [x] 1.0 Snapshot del code block legacy in `docs/legacy/configurator-squarespace.html` (immutabile, `curl https://www.minkeramikk.no/bygg-din-design-1`) + nota di mappatura funzioni
 - [ ] 1.1 Setup Supabase, riproducibile da CLI (niente click sul dashboard per ciò che può stare in git):
   - progetto su regione **EU** (clienti norvegesi → GDPR/latenza, es. `eu-north-1`)
   - `supabase init` nel repo: migrations versionate in `supabase/migrations/*.sql`, `supabase start` per il DB locale di sviluppo
