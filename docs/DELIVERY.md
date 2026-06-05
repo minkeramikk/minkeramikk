@@ -62,8 +62,10 @@ Checklist di review, in ordine:
 
 ## 4. Prerequisiti della board
 
-- [ ] Repo GitHub privato + `gh` CLI autenticato (PR via `gh pr create`)
-- [ ] CI minima su PR: `lint` + `build` + `test` (GitHub Actions)
+- [x] Repo GitHub privato + remote configurato
+- [x] CI minima su PR: `lint` + `build` + `test` (GitHub Actions)
+- [ ] Primo push di `main` (sblocca la prima run CI)
+- [ ] Secrets Supabase nel repo GitHub (URL, anon key, service role di un progetto di test) così i test RLS girano in CI invece di essere skippati
 - [ ] TODO.md fasi 0bis–1bis completate (infra) → poi le prime card passano in Ready
 
 ---

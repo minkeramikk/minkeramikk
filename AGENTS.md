@@ -56,6 +56,9 @@ Supabase (Postgres, Auth, Storage) · Resend · embla-carousel · Vercel
 - Stati ordine: `new → contacted → confirmed → in_production → delivered` (+ `cancelled`).
 - Database: nomi di tabelle e colonne SEMPRE in inglese, snake_case (`sort_order`, non `ordine`). Schema e indici normativi: `docs/adr/schema-er.md`.
 - Commit piccoli e descrittivi, in inglese. Un task di TODO.md = uno o pochi commit.
+- Database remoto: VIETATO `supabase db reset --linked` (o qualsiasi comando distruttivo
+  sul DB collegato) da quando esistono ordini reali. Le modifiche schema passano SOLO
+  da nuove migrations additive (`db push`).
 
 ## Definition of Done (ogni task)
 
