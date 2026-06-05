@@ -12,6 +12,7 @@ erDiagram
     designs ||--o{ option_categories : "has"
     option_categories ||--o{ options : "contains"
     suppliers ||--o{ products : "supplies"
+    suppliers ||--o{ order_items : "fulfills"
     orders ||--|{ order_items : "contains"
     products o|--o{ order_items : "referenced by"
 
@@ -99,6 +100,8 @@ erDiagram
     order_items {
         uuid id PK
         uuid order_id FK
+        uuid supplier_id FK "NOT NULL, RESTRICT - fatto storico della riga (ADR 0007)"
+        text supplier_name_snapshot
         uuid product_id FK "nullable, ON DELETE SET NULL"
         text product_name_snapshot
         int price_cents_snapshot
@@ -123,6 +126,11 @@ Enum `order_status`: `new → contacted → confirmed → in_production → deli
 | `option_categories.design_id` | join design → categorie |
 | `products.supplier_id` | filtro step 3 del configuratore + back-office (ADR 0007) |
 | `designs.supplier_id` | catalogo per fornitore (ADR 0007) |
+| `order_items.supplier_id` | split PDF/email per laboratorio e filtro ordini per fornitore (ADR 0007) |
+| `orders.email` | storico ordini dello stesso cliente nel back-office |
+
+Vincoli aggiuntivi: `UNIQUE(design_id, slug)` su option_categories (slug di categoria
+unici dentro il design, non globali).
 
 Niente GIN su `config_snapshot`: nessuna query dentro il jsonb prevista.
 

@@ -21,7 +21,13 @@ negozio, un solo admin): è una dimensione del catalogo.
   (ogni articolo ha il suo fornitore, implicito nel design scelto).
 - Il PDF d'ordine per il laboratorio viene generato **uno per fornitore** (split
   automatico delle righe per supplier), inviato all'email del rispettivo supplier.
-- `order_items.config_snapshot` include anche supplier (id e nome) per leggibilità storica.
+- `order_items.supplier_id` (NOT NULL, RESTRICT) + `supplier_name_snapshot`: il fornitore
+  della riga è un fatto storico di prima classe — lo split PDF/email e i filtri non
+  dipendono dal join col prodotto (che è cancellabile, SET NULL).
+- Limite accettato (MVP): lo **stato è per ordine**, non per fornitore — su un ordine
+  misto i laboratori possono procedere a velocità diverse e lo stato unico non lo
+  rappresenta; si gestisce con le note interne. Se servirà, uno stato per riga è
+  un'aggiunta additiva, non un refactor.
 - Import iniziale: tutto il catalogo esistente sotto il fornitore "Vietri" (o nome reale).
 
 ## Conseguenze
