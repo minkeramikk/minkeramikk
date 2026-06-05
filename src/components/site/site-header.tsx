@@ -14,13 +14,13 @@ export function SiteHeader() {
         </Link>
         <nav className="flex items-center gap-6 text-sm">
           <Link
-            href="/produkter"
+            href="/products"
             className="text-accent-foreground/80 transition-colors hover:text-accent-foreground"
           >
             {t("nav.products")}
           </Link>
           <Link
-            href="/bygg-din-design"
+            href="/configurator"
             className="text-accent-foreground/80 transition-colors hover:text-accent-foreground"
           >
             {t("nav.configurator")}

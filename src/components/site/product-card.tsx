@@ -9,7 +9,7 @@ export function ProductCard({ product }: { product: Product }) {
   const t = useTranslations("products");
 
   return (
-    <Link href={`/produkter/${product.slug}`}>
+    <Link href={`/products/${product.slug}`}>
       <Card className="group h-full overflow-hidden py-0 transition-shadow hover:shadow-md">
         <CardContent className="p-0">
           <div className="relative aspect-square bg-card">

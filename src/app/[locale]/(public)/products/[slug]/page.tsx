@@ -52,10 +52,10 @@ export default async function ProduktPage({ params }: Props) {
         <p className="text-muted-foreground">{t("description")}</p>
         <div className="flex flex-wrap gap-4">
           <Button asChild size="lg" className="rounded-mk px-8">
-            <Link href="/bygg-din-design">{t("ctaDesign")}</Link>
+            <Link href="/configurator">{t("ctaDesign")}</Link>
           </Button>
           <Button asChild size="lg" variant="outline" className="rounded-mk px-8">
-            <Link href="/produkter">{t("ctaAll")}</Link>
+            <Link href="/products">{t("ctaAll")}</Link>
           </Button>
         </div>
       </div>
