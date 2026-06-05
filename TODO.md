@@ -24,6 +24,7 @@ dettagliate (come fase 0–2) prima di iniziarle.
 - [ ] (fase 1) Le descrizioni dei 6 design sono hardcoded in `lib/data.ts`: spostarle nelle colonne `_no`/`_en` della tabella designs
 - [ ] (fase 5) Creare pagine `/[locale]/personopplysninger` e `/[locale]/kjopsvilkar` usando `legal.*` già nei dizionari (footer le linka già)
 - [ ] (fase 5) Header: menu mobile (hamburger) — la nav attuale è solo desktop
+- [ ] (migration additiva, prima di F10) Unicità opzioni a livello DB: unique index parziali su options `(category_id, hex) WHERE hex IS NOT NULL` e `(category_id, name)` — oggi garantita solo dall'import; col CRUD admin serve il vincolo (verifica anti-duplicati del 2026-06-05: 0 dup su 277)
 
 ## Fase 1 — Dati: Supabase + import del catalogo esistente
 
