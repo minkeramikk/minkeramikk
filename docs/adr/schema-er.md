@@ -126,6 +126,14 @@ Enum `order_status`: `new → contacted → confirmed → in_production → deli
 
 Niente GIN su `config_snapshot`: nessuna query dentro il jsonb prevista.
 
+## Semantica ON DELETE (esplicita, per la migration)
+
+| FK | Regola | Razionale |
+|---|---|---|
+| `designs.supplier_id`, `products.supplier_id` | **RESTRICT** | NOT NULL: un fornitore con catalogo non si cancella — si disattiva (`suppliers.active=false`) |
+| `order_items.product_id` | SET NULL (FK nullable) | gli ordini sono storia: sopravvivono al prodotto grazie agli snapshot |
+| `order_items.order_id`, `options.category_id`, `option_categories.design_id` | CASCADE | i figli non hanno senso senza il padre |
+
 ## Note di lettura
 
 - La configurazione di un item non ha FK verso designs/options: vive in `config_code`

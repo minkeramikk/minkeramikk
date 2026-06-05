@@ -174,7 +174,7 @@ visible, supplier) e suppliers (name, email, phone, notes); spec `docs/preview/0
 AC (bozza):
 - Creo/modifico/nascondo un prodotto → il configuratore step 3 riflette la modifica
 - Prezzo inserito in kr → salvato in cents; mai input float ambigui
-- Cancello un fornitore con prodotti → bloccato o supplier_id a NULL con avviso (ON DELETE SET NULL)
+- Cancello un fornitore con prodotti o design → operazione bloccata (RESTRICT) con messaggio che suggerisce la disattivazione (`active=false`); un fornitore senza catalogo si può cancellare
 Test: funzionale CRUD · unit conversione prezzo input→cents.
 
 ---
