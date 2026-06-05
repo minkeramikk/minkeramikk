@@ -78,16 +78,6 @@ Checklist di review, in ordine:
 
 ### Backlog
 
----
-
-**F01 · Scelta design (configuratore step 1)** — FE+BE(read) · dep: infra
-Scope: pagina `/[locale]/configurator`; griglia design di tutti i fornitori attivi da DB;
-selezione → fornitore agganciato; preview base del design.
-AC (bozza):
-- Dato il catalogo importato, quando apro il configuratore vedo i 6 design con badge fornitore
-- Quando seleziono un design, la preview mostra i suoi layer base e lo step 2 sarà filtrato sul suo fornitore
-- Design `active=false` non compaiono; mobile 390px: griglia a 2 colonne, nessun overflow
-Test: funzionale Playwright (seleziona design → preview cambia) · RLS lettura pubblica solo `active`.
 
 ---
 
@@ -212,7 +202,32 @@ AC (bozza): pagine raggiungibili dal footer in entrambe le lingue; nessuna chiav
 Test: funzionale smoke su entrambe le lingue.
 
 ### Ready
-*(vuota — si popola a infra completata)*
+
+---
+
+**F01 · Scelta design (configuratore step 1)** — FE+BE(read) · dep: nessuna (infra ✅)
+Scope: pagina `/[locale]/configurator`; griglia dei design attivi da DB (oggi 6, tutti
+supplier Vietri); selezione → fornitore agganciato allo stato del configuratore; preview
+= `designs.preview_image` da Storage (il compositing live è F02); stato in URL.
+
+AC (definitivi, 2026-06-06):
+1. Dato il catalogo importato, quando apro `/no/configurator` vedo i 6 design ordinati
+   per `sort_order`, ognuno con nome e badge fornitore (OptionCard + SupplierBadge da
+   DESIGN-SYSTEM §3.3/3.9); dati letti server-side con client anon (RLS).
+2. Quando seleziono un design, la preview mostra la sua `preview_image` (Storage,
+   transform per il resize) con skeleton durante il caricamento; la selezione è
+   riflessa nell'URL (`?design=slug`) — refresh e back/forward la conservano.
+3. Lo stato del configuratore espone `supplierId` del design scelto (sarà il filtro
+   di F02/F03); la CTA "Neste steg" è disabilitata finché nessun design è scelto.
+4. Un design con `active=false` (impostato via SQL nel test) NON compare; con la
+   lingua `en` le label UI sono inglesi (parità dizionari).
+5. Mobile 390px: griglia 2 colonne, nessun overflow orizzontale, touch target ≥44px.
+
+Test richiesti: funzionale Playwright (apertura → selezione → preview e URL cambiano →
+refresh conserva) a 390/1280 · RLS: il fetch anon non vede design inattivi · unit sullo
+state reducer del configuratore (selezione design → supplierId).
+Evidenza PR: screenshot 390/768/1280 + confronto con `docs/theme/preview-frontoffice.png`.
+
 
 ### In progress
 *(vuota)*
