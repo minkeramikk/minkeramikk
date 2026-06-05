@@ -9,7 +9,8 @@
     "lint": "eslint",
     "test": "vitest run",
     "test:watch": "vitest",
-    "db:types": "supabase gen types typescript --linked > src/lib/supabase/types.ts"
+    "db:types": "supabase gen types typescript --linked > src/lib/supabase/types.ts",
+    "import:squarespace": "tsx scripts/import-squarespace.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.10.3",
@@ -37,6 +38,7 @@
     "eslint-config-next": "^15.5.19",
     "supabase": "^2.105.0",
     "tailwindcss": "^4",
+    "tsx": "^4.22.4",
     "typescript": "^5",
     "vitest": "^4.1.8"
   }
