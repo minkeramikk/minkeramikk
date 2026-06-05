@@ -16,8 +16,8 @@ dettagliate (come fase 0–2) prima di iniziarle.
 
 ### Fase 0-bis — Specifiche post-accettazione (2026-06-05, ADR 0007/0008)
 
-- [ ] 0.7 Rinominare le route in inglese: `bygg-din-design` → `configurator`, `produkter` → `products`; la root `/[locale]` punta al configuratore (niente landing: la gestisce il cliente altrove con CTA verso il sito)
-- [ ] 0.8 Rimuovere/ridurre la home marketing attuale (hero, how-it-works…): restano configuratore, prodotti e pagine di servizio
+- [x] 0.7 Rinominare le route in inglese: `bygg-din-design` → `configurator`, `produkter` → `products`; la root `/[locale]` punta al configuratore (niente landing: la gestisce il cliente altrove con CTA verso il sito)
+- [x] 0.8 Rimuovere/ridurre la home marketing attuale (hero, how-it-works…): restano configuratore, prodotti e pagine di servizio
 
 ### Task scoperti in fase 0 (per fasi successive)
 
@@ -36,7 +36,7 @@ dettagliate (come fase 0–2) prima di iniziarle.
   - script npm `db:types`: `supabase gen types typescript` → `src/lib/supabase/types.ts` (rigenerare a ogni migration; i tipi generati non si modificano a mano)
   - utente admin di sviluppo via seed; quello del cliente si crea all'handover
 - [ ] 1.2 Prima migration (`supabase/migrations/0001_schema.sql`) con lo schema di `docs/adr/schema-er.md` (ADR 0004–0008): naming inglese, CHECK su kind/image/hex, enum `order_status`, suppliers con designs/products.supplier_id NOT NULL, tabella settings (3 token tema), indici, trigger `updated_at`; verificare con `supabase db reset` e rigenerare i tipi (`db:types`)
-- [ ] 1.2b Value object `Money` in `src/lib/money/` (somma, moltiplicazione, formattazione Intl per locale) con unit test — vedi ADR 0005
+- [x] 1.2b Value object `Money` in `src/lib/money/` (somma, moltiplicazione, formattazione Intl per locale) con unit test — vedi ADR 0005
 - [ ] 1.3 Migration RLS (`0002_rls.sql`): RLS attiva su TUTTE le tabelle; catalogo in lettura pubblica (solo righe `active`/`visible`), scrittura authenticated; orders/order_items insert pubblico + select/update authenticated; suppliers solo authenticated. Test negativi con client anon (non deve leggere ordini né suppliers)
 - [ ] 1.4 Bucket Storage `assets` pubblico in lettura (layer, prodotti), creato via migration; convenzione path `designs/{slug}/{category}/{file}.png` e `products/{slug}.png`; resize on-the-fly con render/image transform (niente varianti pre-generate)
 - [ ] 1.5 Script `scripts/import-squarespace.ts`: legge le ~20 raccolte del sito live (`/plates`, `/palettes`, `/animals-*`, `/floreal*`, `/crab*`, `/juletre*`, `/stripes`, `/hovering-colors`), estrae nome/prezzo/hex dai filename (prezzi → cents), scarica i PNG, popola DB + Storage; le raccolte colori diventano options con hex della rispettiva categoria (kind=color). Idempotente (rilanciabile senza duplicati)
