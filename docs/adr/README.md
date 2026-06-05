@@ -17,5 +17,6 @@ aggiornamento delle regole in `../../AGENTS.md`.
 | [0006](0006-suppliers-anagrafica-operativa.md) | Suppliers come anagrafica operativa, non tenant | Esteso da 0007 |
 | [0007](0007-catalogo-multi-fornitore.md) | Catalogo multi-fornitore: il design aggancia il fornitore | Accepted |
 | [0008](0008-theming-tre-token.md) | Theming: 3 token semantici dal back-office | Accepted |
+| [0009](0009-supplier-name-pubblico.md) | Il nome del fornitore è pubblico, i contatti no | Accepted |
 
 Diagramma del modello dati e indici: [schema-er.md](schema-er.md) (deriva da ADR 0004–0008).

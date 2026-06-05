@@ -147,10 +147,13 @@ Niente GIN su `config_snapshot`: nessuna query dentro il jsonb prevista.
 - La configurazione di un item non ha FK verso designs/options: vive in `config_code`
   (ricaricabile nel configuratore) e `config_snapshot` (leggibile per sempre, anche se
   il catalogo cambia). Scelta deliberata: gli ordini sono storia immutabile, il catalogo no.
-- `suppliers` non è mai esposto al pubblico: solo back-office (ADR 0006). La scelta del
+- `suppliers`: il NOME è pubblico (id/name/active su righe attive — serve al badge del
+  configuratore), i CONTATTI (email/phone/notes) sono solo authenticated (ADR 0009).
+  La scelta del
   design aggancia il fornitore per l'articolo; carrello misto consentito; PDF d'ordine
   per laboratorio generato uno per fornitore (ADR 0007).
 - `settings`: riga singola coi 3 token tema, lettura pubblica, scrittura authenticated (ADR 0008).
 - RLS: catalogo in lettura pubblica (`active`/`visible`), scrittura authenticated;
   orders/order_items insert pubblico, lettura/modifica solo authenticated;
-  suppliers solo authenticated.
+  suppliers: campi safe (id/name/active) leggibili da anon su righe attive,
+  contatti solo authenticated (ADR 0009).

@@ -213,7 +213,10 @@ supplier Vietri); selezione → fornitore agganciato allo stato del configurator
 AC (definitivi, 2026-06-06):
 1. Dato il catalogo importato, quando apro `/no/configurator` vedo i 6 design ordinati
    per `sort_order`, ognuno con nome e badge fornitore (OptionCard + SupplierBadge da
-   DESIGN-SYSTEM §3.3/3.9); dati letti server-side con client anon (RLS).
+   DESIGN-SYSTEM §3.3/3.9); dati letti server-side con client anon (RLS). Il nome del
+   fornitore è pubblico per ADR 0009: serve una migration additiva che esponga ad anon
+   i soli campi safe (id/name/active, righe attive) — contatti MAI; test RLS su
+   entrambi i lati (anon legge name, anon NON legge email).
 2. Quando seleziono un design, la preview mostra la sua `preview_image` (Storage,
    transform per il resize) con skeleton durante il caricamento; la selezione è
    riflessa nell'URL (`?design=slug`) — refresh e back/forward la conservano.
