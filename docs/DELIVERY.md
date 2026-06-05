@@ -96,16 +96,6 @@ Nota priorità: enhancement, NON sul percorso critico (F02→F05). Tirare dopo c
 
 
 
----
-
-**F03 · Scelta ceramica + carrello (step 3)** — FE+BE(read) · dep: F02
-Scope: prodotti del SOLO fornitore agganciato; quantità; carrello multi-item (fornitori
-misti ok, ADR 0007) persistito in localStorage; totale con Money.
-AC (bozza):
-- Vedo solo le ceramiche del fornitore del design scelto, con prezzo formattato per locale
-- Aggiungo al carrello, chiudo il browser, riapro: il carrello c'è ancora
-- Carrello con 2 fornitori: ogni riga mostra il suo fornitore; totale corretto (somma in cents, mai float)
-Test: unit Money (somma, ×qty, formattazione no/en) · funzionale add-to-cart e persistenza.
 
 ---
 
@@ -208,59 +198,49 @@ AC (bozza): pagine raggiungibili dal footer in entrambe le lingue; nessuna chiav
 Test: funzionale smoke su entrambe le lingue.
 
 ### Ready
+
+---
+
+**F03 · Scelta ceramica + carrello (step 3)** — FE+BE(read) · dep: F02 [DONE]
+Scope: step 3 del configuratore: scelta della ceramica tra i SOLI prodotti del fornitore
+agganciato dal design (ADR 0007), quantità, e carrello multi-articolo persistito in
+localStorage. Tutta l'aritmetica prezzi passa dal value object `Money` esistente
+(`src/lib/money/`, ADR 0005) — qui usato per la prima volta sul serio.
+
+AC (definitivi, 2026-06-06):
+1. Allo step 3 vedo SOLO le ceramiche `visible=true` del fornitore del design scelto
+   (query anon su `products.supplier_id`, RLS), prezzo via `formatMoney` (no `1 300 kr`,
+   en `NOK 1,300`). Mai un prezzo senza valuta.
+2. Scelgo ceramica + quantità → "Aggiungi al carrello" crea una riga col design
+   configurato corrente (config_code + snapshot leggibile), prodotto, quantità, prezzo unitario.
+3. Carrello persistito in localStorage: chiudo e riapro il browser → c'è ancora, identico;
+   ogni item resta legato al suo fornitore.
+4. Carrello misto (2 fornitori, ADR 0007): ogni riga mostra prodotto, design, quantità,
+   fornitore (SupplierBadge), subtotale; totale = `sum()` di Money in cents, mai float,
+   mai cross-currency.
+5. Modifica quantità e rimozione riga aggiornano totale e localStorage; carrello vuoto →
+   empty state con CTA "torna al configuratore".
+6. Mobile 390px: lista leggibile, touch target ≥44px, nessun overflow.
+
+Test: unit cart store (add, update qty, remove, persist/hydrate, totale misto) + Money
+già coperti · funzionale Playwright scegli→aggiungi→ricarica→presente a 390/1280 ·
+RLS: anon vede solo prodotti visible del fornitore.
+Evidenza PR: screenshot step 3 + carrello a 390/768/1280.
+Nota: niente checkout/pagamento (finto e-commerce) — l'invio ordine è F05.
+
 *(vuota)*
 
 ### In progress
 
----
-
-**F02 · Personalizzazione design (step 2: pattern e colori)** — FE+BE(read) · dep: F01 ✅
-Scope: step 2 del configuratore per il design agganciato: categorie dinamiche
-(`kind image|color`, ordine `sort_order`), carousel embla, preview compositing multiply
-LIVE (sostituisce la preview statica di F01 negli step ≥2), "Lås farger" via `sync_group`.
-
-**Passo 0 — ESEGUITO il 2026-06-06, esito: STOP corretto.** Mancavano ~255 asset
-pre-colorati e le sagome /animals-; modello senza riferimento al layer. Risolto con
-**ADR 0010**: colonna `options.layer_image`, CHECK aggiornato, import esteso.
-**Sblocco (1.5-bis, prerequisito del branch F02)**: migration additiva
-(layer_image + CHECK) e import esteso come da ADR 0010; rieseguire e validare
-(~255 layer + ~14 sagome popolati, idempotente). Poi Passo 0 è verde e si parte con la UI.
-
-AC (definitivi, 2026-06-06):
-1. Con `?design=blomster-1` lo step 2 mostra SOLO le categorie di quel design,
-   ordinate per `sort_order`; kind=image → OptionCard con thumbnail, kind=color →
-   Swatch in radiogroup (DESIGN-SYSTEM §3.9/3.10).
-2. Scelgo un colore → i layer ricolorabili della preview si aggiornano senza reload
-   (multiply, ADR 0002); scelgo un pattern → il layer corrispondente cambia.
-3. Toggle "Lås farger": attivo, scegliere un colore in una categoria sincronizza le
-   categorie dello stesso `sync_group` (match per hex); spento, indipendenti.
-   Verificare su Krabbe (sync_group `crab`) — unico sync nel legacy (verificato:
-   syncColors è hard-coded sulla coppia crab; il DB è fedele, ADR 0010 nota).
-4. Ogni scelta aggiorna lo stato del configuratore (estensione del reducer F01) e
-   l'URL; refresh ricostruisce esattamente le selezioni; "Tilbake" torna allo step 1
-   conservando il design.
-5. Categorie con UNA sola opzione (krabbe line, juletre tree): niente carousel,
-   selezione automatica, nessun controllo inutile a schermo.
-6. Mobile 390px: carousel scorrevole touch, swatch ≥44px, nessun overflow.
-7. **Preview composta fin dallo step 1 (fedeltà all'originale, verificato sul sito live
-   2026-06-06)**: appena scelto un design nello step 1, la PreviewCanvas mostra GIÀ la
-   composizione di default (prima opzione `sort_order` di ogni categoria del design),
-   non l'asset di preview nudo. Sostituisce la preview statica di F01 una volta che i
-   `layer_image` esistono (ADR 0010). Il default è il punto di partenza che lo step 2
-   poi personalizza. (Nota: questo supera l'AC2 di F01, che era un ripiego in assenza
-   degli asset di compositing — F01 resta merged, non si riapre.)
-
-Test: unit su mappa code→layers e su sync per hex (incluso il caso lock off) ·
-funzionale Playwright: percorso completo step 2 su Blomster 1 e Krabbe a 390/1280 ·
-nessun colore hardcoded (gli hex arrivano SOLO dal DB).
-Evidenza PR: screenshot 390/768/1280 + confronto visivo con lo step 2 del sito live.
-
+*(vuota)*
 
 
 ### In review
 *(vuota)*
 
 ### Done
+
+**F02 · Personalizzazione design** — merged il 2026-06-06 (PR #2): compositing layer (multiply; animal-shape normal in cima), lock colori per hex sui 4 casi, preview composta da step 1 (AC7), fix margine bordi. 40 unit + Playwright. Review: approved al primo giro.
 
 **F01 · Scelta design** — merged (squash) il 2026-06-06. PR "F01 — Design selection": migration 0004 (ADR 0009), data layer anon, reducer, URL state, 28 unit + Playwright 390/1280. Review: approved al primo giro.
 
