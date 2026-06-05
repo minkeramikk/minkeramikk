@@ -44,8 +44,9 @@ erDiagram
         uuid id PK
         uuid category_id FK
         text name
-        text image "valorizzata se kind=image (CHECK)"
-        text hex "valorizzato se kind=color (CHECK)"
+        text image "display/thumb - NOT NULL se kind=image (CHECK)"
+        text hex "swatch - NOT NULL se kind=color (CHECK)"
+        text layer_image "asset di compositing, Storage (ADR 0010)"
         int sort_order
         bool active
     }

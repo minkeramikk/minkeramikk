@@ -18,5 +18,6 @@ aggiornamento delle regole in `../../AGENTS.md`.
 | [0007](0007-catalogo-multi-fornitore.md) | Catalogo multi-fornitore: il design aggancia il fornitore | Accepted |
 | [0008](0008-theming-tre-token.md) | Theming: 3 token semantici dal back-office | Accepted |
 | [0009](0009-supplier-name-pubblico.md) | Il nome del fornitore è pubblico, i contatti no | Accepted |
+| [0010](0010-layer-asset-espliciti.md) | Asset di compositing espliciti (`options.layer_image`) | Accepted |
 
 Diagramma del modello dati e indici: [schema-er.md](schema-er.md) (deriva da ADR 0004–0008).

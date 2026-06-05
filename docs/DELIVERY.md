@@ -203,13 +203,12 @@ Scope: step 2 del configuratore per il design agganciato: categorie dinamiche
 (`kind image|color`, ordine `sort_order`), carousel embla, preview compositing multiply
 LIVE (sostituisce la preview statica di F01 negli step ≥2), "Lås farger" via `sync_group`.
 
-**Passo 0 obbligatorio (analisi, prima di ogni UI)**: estrarre dallo snapshot legacy
-(`docs/legacy/`) la mappa configurazione→layers (`getPreviewImagesForCode`) in
-`src/lib/configurator/` come modulo TS puro con unit test (era il task 2.1), e
-VERIFICARE che gli asset PNG che la composizione referenzia esistano in Storage —
-le categorie floreal sono kind=color (solo hex): i layer-pattern su cui il multiply
-applica il colore devono esistere da qualche parte. Se mancano asset → STOP e
-segnalazione con l'elenco, non improvvisare.
+**Passo 0 — ESEGUITO il 2026-06-06, esito: STOP corretto.** Mancavano ~255 asset
+pre-colorati e le sagome /animals-; modello senza riferimento al layer. Risolto con
+**ADR 0010**: colonna `options.layer_image`, CHECK aggiornato, import esteso.
+**Sblocco (1.5-bis, prerequisito del branch F02)**: migration additiva
+(layer_image + CHECK) e import esteso come da ADR 0010; rieseguire e validare
+(~255 layer + ~14 sagome popolati, idempotente). Poi Passo 0 è verde e si parte con la UI.
 
 AC (definitivi, 2026-06-06):
 1. Con `?design=blomster-1` lo step 2 mostra SOLO le categorie di quel design,
@@ -218,10 +217,9 @@ AC (definitivi, 2026-06-06):
 2. Scelgo un colore → i layer ricolorabili della preview si aggiornano senza reload
    (multiply, ADR 0002); scelgo un pattern → il layer corrispondente cambia.
 3. Toggle "Lås farger": attivo, scegliere un colore in una categoria sincronizza le
-   categorie dello stesso `sync_group` (match per hex, comportamento legacy verificato);
-   spento, ogni categoria è indipendente. Verificare su Krabbe (sync_group `crab`);
-   se Juletre risulta senza sync_group nel DB (atteso dal legacy: pynt↔kanter),
-   segnalarlo — fix dati, non workaround in codice.
+   categorie dello stesso `sync_group` (match per hex); spento, indipendenti.
+   Verificare su Krabbe (sync_group `crab`) — unico sync nel legacy (verificato:
+   syncColors è hard-coded sulla coppia crab; il DB è fedele, ADR 0010 nota).
 4. Ogni scelta aggiorna lo stato del configuratore (estensione del reducer F01) e
    l'URL; refresh ricostruisce esattamente le selezioni; "Tilbake" torna allo step 1
    conservando il design.
