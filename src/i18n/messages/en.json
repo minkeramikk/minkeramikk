@@ -88,7 +88,10 @@
       "details": "Details",
       "ceramics": "Ceramics"
     },
-    "stepperLabel": "Progress"
+    "stepperLabel": "Progress",
+    "lockColors": "Lock colours",
+    "lockColorsHint": "Same colour on both categories",
+    "singleOption": "Selected automatically"
   },
   "orderForm": {
     "name": "Name",

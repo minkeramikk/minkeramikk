@@ -38,11 +38,9 @@ test("AC2: selection drives preview + URL; refresh and back/forward preserve it"
 
   await designCards(page).filter({ hasText: "Blomster 1" }).click();
   await expect(page).toHaveURL(/design=blomster-1/);
+  // AC7 (F02): step 1 shows the DEFAULT composed layers, not the bare asset
   const preview = page.locator('img[alt="Blomster 1"]');
-  await expect(preview).toHaveAttribute(
-    "src",
-    /designs\/blomster-1\/preview\.png/
-  );
+  await expect(preview).toHaveAttribute("src", /designs\/blomster-1\//);
 
   await page.reload();
   await expect(page).toHaveURL(/design=blomster-1/);

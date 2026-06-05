@@ -22,3 +22,24 @@ test("capture 390/768/1280 screenshots", async ({ page }) => {
     });
   }
 });
+
+const OUT2 = "docs/evidence/f02";
+
+test("F02: capture 390/768/1280 with selections + composed preview", async ({
+  page,
+}) => {
+  mkdirSync(OUT2, { recursive: true });
+  for (const width of [390, 768, 1280]) {
+    await page.setViewportSize({ width, height: width < 700 ? 1100 : 1000 });
+    await page.goto("/no/configurator?design=blomster-1&step=2");
+    await page.getByTestId("details-step").waitFor({ state: "visible" });
+    // make a colour choice in each category so the preview composes
+    const groups = page.getByTestId("details-step").getByRole("radiogroup");
+    const n = await groups.count();
+    for (let i = 0; i < n; i++) {
+      await groups.nth(i).getByRole("radio").nth(2 + i).click();
+    }
+    await page.waitForTimeout(900); // layer paint
+    await page.screenshot({ path: `${OUT2}/f02-${width}.png`, fullPage: true });
+  }
+});

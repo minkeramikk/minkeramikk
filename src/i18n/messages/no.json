@@ -87,7 +87,10 @@
       "details": "Detaljer",
       "ceramics": "Keramikk"
     },
-    "stepperLabel": "Fremdrift"
+    "stepperLabel": "Fremdrift",
+    "lockColors": "Lås farger",
+    "lockColorsHint": "Samme farge på begge kategoriene",
+    "singleOption": "Valgt automatisk"
   },
   "orderForm": {
     "name": "Navn",

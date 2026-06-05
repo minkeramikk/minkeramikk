@@ -56,10 +56,10 @@ Le fasi sotto restano come riferimento dei contenuti, ma la fonte operativa è l
 
 ## Fase 2 — Configuratore (porting della logica esistente) → board F01–F04
 
-- [ ] 2.1 Estrarre dallo snapshot legacy (task 1.0) le funzioni riusabili (`getPreviewImagesForCode`, `syncColors`, `generateCodeString`) in `src/lib/configurator/` come moduli TS puri con unit test; formato codice nuovo e lock colori via `sync_group` (ADR 0002/0004)
-- [ ] 2.2 Componente preview: layer `<img>` sovrapposti + `mix-blend-mode: multiply`, dati dal DB
-- [ ] 2.3 Step 1 (scelta design, tutti i fornitori attivi) e navigazione a 3 step con stato URL-friendly; la scelta del design aggancia il fornitore per l'articolo (ADR 0007)
-- [ ] 2.4 Step 2 (opzioni dinamiche per categoria, carousel embla, palette)
+- [x] 2.1 Estrarre dallo snapshot legacy (task 1.0) le funzioni riusabili (`getPreviewImagesForCode`, `syncColors`) in `src/lib/configurator/` come moduli TS puri con unit test; lock colori via `sync_group` (ADR 0002/0004) *(F02: `preview.ts` + reducer `state.ts`; `generateCodeString`/formato codice → F04)*
+- [x] 2.2 Componente preview: layer `<img>` sovrapposti + `mix-blend-mode: multiply`, dati dal DB *(PreviewCanvas + getPreviewLayers, layer_image da ADR 0010)*
+- [x] 2.3 Step 1 (scelta design, tutti i fornitori attivi) e navigazione a 3 step con stato URL-friendly; la scelta del design aggancia il fornitore per l'articolo (ADR 0007) *(F01)*
+- [x] 2.4 Step 2 (opzioni dinamiche per categoria, carousel embla, palette) *(F02)*
 - [ ] 2.5 Step 3 (ceramiche del SOLO fornitore agganciato, quantità) + carrello multi-item con totale (misto tra fornitori ok), persistito in localStorage
 - [ ] 2.6 Salva/carica codice configurazione
 

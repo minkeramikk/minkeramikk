@@ -127,6 +127,13 @@ type CategorySpec = {
   layerSlot: "base" | "mid" | "top" | "extra" | "detail" | "animal";
   syncGroup: string | null;
   collection: string;
+  /**
+   * ADR 0010: separate collection for the compositing layer when it differs
+   * from the display collection. Only Amalfi: display = animals-preview thumb,
+   * compositing = /animals- shape (matched by core name). For every other
+   * category the compositing asset is the option's own PNG.
+   */
+  layerCollection?: string;
 };
 
 type DesignSpec = {
@@ -172,7 +179,7 @@ const DESIGNS: DesignSpec[] = [
     previewCollection: "animals-preview",
     sortOrder: 3,
     categories: [
-      { slug: "animal", labelNo: "Dyr", labelEn: "Animal", kind: "image", layerSlot: "animal", syncGroup: null, collection: "animals-preview" },
+      { slug: "animal", labelNo: "Dyr", labelEn: "Animal", kind: "image", layerSlot: "animal", syncGroup: null, collection: "animals-preview", layerCollection: "animals-" },
       { slug: "main-color", labelNo: "Hovedfarge", labelEn: "Main color", kind: "color", layerSlot: "base", syncGroup: null, collection: "animals-maincolor" },
       { slug: "plants-color", labelNo: "Planter", labelEn: "Plants", kind: "color", layerSlot: "mid", syncGroup: null, collection: "animals-plantscolor" },
       { slug: "inner-circle", labelNo: "Indre sirkel", labelEn: "Inner circle", kind: "color", layerSlot: "detail", syncGroup: null, collection: "animals-innercircle" },
@@ -232,7 +239,28 @@ const PRODUCT_NAME_EN: Record<string, string> = {
 
 // ───────────────────── storage upload ─────────────────────
 
+const SKIP_EXISTING = process.env.IMPORT_SKIP_EXISTING === "1";
+const existing = new Set<string>();
+
+/** Pre-list the bucket once so resumable runs skip done files in O(1). */
+async function prefetchExisting(prefix = "") {
+  const { data, error } = await db.storage
+    .from("assets")
+    .list(prefix, { limit: 1000 });
+  if (error || !data) return;
+  for (const entry of data) {
+    const path = prefix ? `${prefix}/${entry.name}` : entry.name;
+    if (entry.id === null) {
+      await prefetchExisting(path); // folder
+    } else {
+      existing.add(path);
+    }
+  }
+}
+
 async function uploadFromCdn(cdnUrl: string, path: string): Promise<string> {
+  // resumable runs: skip files already in storage (idempotent + fast re-run)
+  if (SKIP_EXISTING && existing.has(path)) return path;
   const res = await fetch(`${cdnUrl}?format=1500w`);
   if (!res.ok) throw new Error(`download ${cdnUrl}: HTTP ${res.status}`);
   const buf = Buffer.from(await res.arrayBuffer());
@@ -250,12 +278,19 @@ const anomalies: string[] = [];
 const counts: Record<string, number> = {};
 
 async function main() {
+  if (SKIP_EXISTING) {
+    await prefetchExisting();
+    console.log(`Storage prefetch: ${existing.size} existing objects`);
+  }
   console.log("Scraping live collections…");
   const collections: Record<string, Item[]> = {};
   const slugs = new Set<string>(["plates", "palettes"]);
   for (const d of DESIGNS) {
     slugs.add(d.previewCollection);
-    for (const c of d.categories) slugs.add(c.collection);
+    for (const c of d.categories) {
+      slugs.add(c.collection);
+      if (c.layerCollection) slugs.add(c.layerCollection);
+    }
   }
   for (const slug of slugs) {
     collections[slug] = await scrape(slug);
@@ -345,6 +380,14 @@ async function main() {
       const del = await db.from("options").delete().eq("category_id", categoryId);
       if (del.error) throw del.error;
 
+      // ADR 0010: compositing-shape lookup by core name (Amalfi only)
+      const layerByCore = new Map<string, string>();
+      if (cat.layerCollection) {
+        for (const layer of collections[cat.layerCollection]) {
+          layerByCore.set(coreName(layer.rawName).toLowerCase(), layer.url);
+        }
+      }
+
       const items = collections[cat.collection];
       const rows = [];
       for (const [i, item] of items.entries()) {
@@ -361,24 +404,49 @@ async function main() {
               `${spec.slug}/${cat.slug}: hex ${item.hex} has no palette name (named "${name}")`
             );
           }
+          // the swatch's pre-colored PNG IS the compositing layer (ADR 0010)
+          const optionSlug = slugify(name) || `opt-${i}`;
+          const layerImage = await uploadFromCdn(
+            item.url,
+            `designs/${spec.slug}/${cat.slug}/${optionSlug}.png`
+          );
           rows.push({
             category_id: categoryId,
             name,
             hex: item.hex,
+            layer_image: layerImage,
             sort_order: i,
             active: true,
           });
         } else {
           const name = coreName(item.rawName);
-          const file = `${slugify(name)}.png`;
-          const path = await uploadFromCdn(
+          const optionSlug = slugify(name) || `opt-${i}`;
+          const image = await uploadFromCdn(
             item.url,
-            `designs/${spec.slug}/${cat.slug}/${file}`
+            `designs/${spec.slug}/${cat.slug}/${optionSlug}.png`
           );
+
+          // compositing layer: matched shape (Amalfi) or the display PNG itself
+          let layerImage = image;
+          if (cat.layerCollection) {
+            const shapeUrl = layerByCore.get(name.toLowerCase());
+            if (shapeUrl) {
+              layerImage = await uploadFromCdn(
+                shapeUrl,
+                `designs/${spec.slug}/${cat.slug}/${optionSlug}-shape.png`
+              );
+            } else {
+              anomalies.push(
+                `${spec.slug}/${cat.slug}: no compositing shape for "${name}" (display thumb reused as layer)`
+              );
+            }
+          }
+
           rows.push({
             category_id: categoryId,
             name,
-            image: path,
+            image,
+            layer_image: layerImage,
             sort_order: i,
             active: true,
           });

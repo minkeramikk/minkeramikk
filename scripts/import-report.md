@@ -1,7 +1,25 @@
 # Import report — Squarespace → Supabase
 
-Eseguito: 2026-06-05 · script `scripts/import-squarespace.ts` (task 1.6)
-Progetto: `rqhsbpwvzesvqwdonirf` (West EU Paris) · rilanciato 2 volte per verifica idempotenza: **conteggi identici, nessun duplicato**.
+Eseguito: 2026-06-05 (1.6) · **ri-eseguito 2026-06-06 (1.5-bis, ADR 0010)** ·
+script `scripts/import-squarespace.ts`. Progetto `rqhsbpwvzesvqwdonirf` (West EU Paris).
+Idempotente: upsert su slug + wipe&insert options + upload `upsert:true`; con
+`IMPORT_SKIP_EXISTING=1` salta i file Storage già presenti (resumable).
+
+## Aggiornamento 1.5-bis (ADR 0010 — layer_image)
+
+Caricati gli asset di compositing che l'import 1.5 aveva scartato: i PNG pre-colorati
+di tutte le categorie colore e le **sagome `/animals-`** per Amalfi.
+
+| Verifica | Esito |
+|---|---|
+| options totali | 277 |
+| options con `layer_image` NULL | **0** (tutte popolate) |
+| oggetti Storage in `assets` | 297 |
+| amalfi `animal`: image (thumb) ≠ layer_image (sagoma) | ✓ es. `hvale.png` / `hvale-shape.png` |
+| categorie colore: layer_image = PNG pre-colorato della variante | ✓ |
+
+Path convention ADR 0010: `designs/{slug}/{category}/{option-slug}.png` (+ `-shape.png`
+per le sagome Amalfi). Nessun dato codificato nel filename (slug opzione, non hex).
 
 ## Conteggi reali vs attesi
 

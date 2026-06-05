@@ -78,6 +78,22 @@ Checklist di review, in ordine:
 
 ### Backlog
 
+---
+
+**F13 · Swatch con anteprima pattern (hover/focus)** — FE · dep: F02
+Scope: elevare l'esperienza colore allo step 2 al livello del sito originale (di netto
+superiore al nostro swatch attuale): passando il mouse — o col focus da tastiera — su uno
+swatch colore, un floating card mostra il pattern di quella categoria in quel colore
+(= `layer_image` dell'opzione, già in DB per ADR 0010; nessun compositing runtime).
+AC (bozza):
+- Hover/focus su uno swatch → popup con l'anteprima del pattern in quel colore, vicino allo swatch, senza spostare il layout
+- Da tastiera: il focus mostra lo stesso popup; Esc lo chiude; nessuna trappola di focus
+- Touch/mobile: nessun popup hover — la PreviewCanvas principale resta la fonte di verità (si aggiorna al tap)
+- Performance: l'anteprima usa l'immagine già esistente, lazy-load, niente jank su griglie da ~20 swatch
+Test: funzionale Playwright hover + focus tastiera a 1280; verifica che su 390 il popup non compaia e il tap aggiorni la preview principale.
+Nota priorità: enhancement, NON sul percorso critico (F02→F05). Tirare dopo che il flusso ordine è vivo.
+
+
 
 
 ---
@@ -226,6 +242,13 @@ AC (definitivi, 2026-06-06):
 5. Categorie con UNA sola opzione (krabbe line, juletre tree): niente carousel,
    selezione automatica, nessun controllo inutile a schermo.
 6. Mobile 390px: carousel scorrevole touch, swatch ≥44px, nessun overflow.
+7. **Preview composta fin dallo step 1 (fedeltà all'originale, verificato sul sito live
+   2026-06-06)**: appena scelto un design nello step 1, la PreviewCanvas mostra GIÀ la
+   composizione di default (prima opzione `sort_order` di ogni categoria del design),
+   non l'asset di preview nudo. Sostituisce la preview statica di F01 una volta che i
+   `layer_image` esistono (ADR 0010). Il default è il punto di partenza che lo step 2
+   poi personalizza. (Nota: questo supera l'AC2 di F01, che era un ripiego in assenza
+   degli asset di compositing — F01 resta merged, non si riapre.)
 
 Test: unit su mappa code→layers e su sync per hex (incluso il caso lock off) ·
 funzionale Playwright: percorso completo step 2 su Blomster 1 e Krabbe a 390/1280 ·

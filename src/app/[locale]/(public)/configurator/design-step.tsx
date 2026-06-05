@@ -14,6 +14,8 @@ import {
 } from "@/lib/configurator/state";
 import { assetUrl } from "@/lib/storage";
 
+import type { PreviewLayer } from "@/lib/configurator/preview";
+
 export interface DesignChoice {
   id: string;
   slug: string;
@@ -21,6 +23,7 @@ export interface DesignChoice {
   supplierId: string;
   supplierName: string | null;
   previewImage: string | null;
+  defaultLayers: PreviewLayer[];
 }
 
 const PREVIEW_WIDTH = 800;
@@ -68,25 +71,38 @@ export function DesignStep({ designs }: { designs: DesignChoice[] }) {
     [designs, state.designSlug]
   );
 
-  const previewUrl = selected?.previewImage
-    ? assetUrl(selected.previewImage, { width: PREVIEW_WIDTH })
-    : null;
+  // AC7: compose the design's DEFAULT layers (first option per category),
+  // falling back to the bare preview asset if a design has no layers yet.
+  const previewLayers = useMemo(() => {
+    if (!selected) return [];
+    if (selected.defaultLayers.length > 0) {
+      return selected.defaultLayers.map((l) => ({
+        src: assetUrl(l.src, { width: PREVIEW_WIDTH }),
+        recolor: l.blend === "multiply",
+      }));
+    }
+    return selected.previewImage
+      ? [{ src: assetUrl(selected.previewImage, { width: PREVIEW_WIDTH }) }]
+      : [];
+  }, [selected]);
 
-  // skeleton while the preview image loads (AC2)
+  const firstLayer = previewLayers[0]?.src ?? null;
+
+  // skeleton while the (first) preview layer loads (AC2)
   const [loadedUrl, setLoadedUrl] = useState<string | null>(null);
   useEffect(() => {
-    if (!previewUrl) return;
+    if (!firstLayer) return;
     let cancelled = false;
     const img = new window.Image();
     img.onload = () => {
-      if (!cancelled) setLoadedUrl(previewUrl);
+      if (!cancelled) setLoadedUrl(firstLayer);
     };
-    img.src = previewUrl;
+    img.src = firstLayer;
     return () => {
       cancelled = true;
     };
-  }, [previewUrl]);
-  const previewLoading = previewUrl !== null && loadedUrl !== previewUrl;
+  }, [firstLayer]);
+  const previewLoading = firstLayer !== null && loadedUrl !== firstLayer;
 
   function select(design: DesignChoice) {
     if (design.slug === state.designSlug) return;
@@ -112,7 +128,7 @@ export function DesignStep({ designs }: { designs: DesignChoice[] }) {
       />
       <div className="grid grid-cols-1 items-stretch gap-7 md:grid-cols-2">
         <div>
-          {previewUrl && selected ? (
+          {firstLayer && selected ? (
             <div className="relative">
               {previewLoading && (
                 <div
@@ -123,7 +139,7 @@ export function DesignStep({ designs }: { designs: DesignChoice[] }) {
               <PreviewCanvas
                 alt={selected.name}
                 caption={t("previewNote")}
-                layers={[{ src: previewUrl }]}
+                layers={previewLayers}
               />
             </div>
           ) : (
@@ -159,6 +175,12 @@ export function DesignStep({ designs }: { designs: DesignChoice[] }) {
               size="lg"
               disabled={!selected}
               data-testid="next-step"
+              onClick={() =>
+                selected &&
+                router.push(`${pathname}?design=${selected.slug}&step=2`, {
+                  scroll: false,
+                })
+              }
             >
               {t("nextStepDetails")}
             </Button>

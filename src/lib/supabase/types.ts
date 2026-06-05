@@ -141,6 +141,7 @@ export type Database = {
           hex: string | null
           id: string
           image: string | null
+          layer_image: string | null
           name: string
           sort_order: number
         }
@@ -150,6 +151,7 @@ export type Database = {
           hex?: string | null
           id?: string
           image?: string | null
+          layer_image?: string | null
           name: string
           sort_order?: number
         }
@@ -159,6 +161,7 @@ export type Database = {
           hex?: string | null
           id?: string
           image?: string | null
+          layer_image?: string | null
           name?: string
           sort_order?: number
         }
