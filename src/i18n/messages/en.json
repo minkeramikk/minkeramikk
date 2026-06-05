@@ -1,0 +1,105 @@
+{
+  "_review": "DRAFT — English translations pending client review (see AGENTS.md i18n rule 6)",
+  "common": {
+    "siteName": "minkeramikk.no",
+    "email": "bestilling@minkeramikk.no"
+  },
+  "nav": {
+    "products": "Products",
+    "configurator": "Build your design",
+    "contact": "Get in touch"
+  },
+  "footer": {
+    "privacy": "Privacy policy",
+    "terms": "Terms of sale",
+    "copyright": "© {year} Min Keramikk"
+  },
+  "localeSwitcher": {
+    "label": "Language",
+    "no": "NO",
+    "en": "EN"
+  },
+  "home": {
+    "hero": {
+      "title": "Design your own handmade ceramics with Minkeramikk.no",
+      "text": "Browse our designs and choose everything from colour combinations to porcelain. When you send us your order, we will contact you within a few days to go through it together. Invoicing and payment only happen after we have been in touch.",
+      "ctaConfigurator": "Build your design",
+      "ctaProducts": "See the products"
+    },
+    "designs": {
+      "title": "Our designs",
+      "subtitle": "Six hand-drawn patterns – all customisable with your colours."
+    },
+    "how": {
+      "title": "How it works",
+      "step1Title": "Choose a design",
+      "step1Text": "Browse our six hand-drawn patterns and find your favourite.",
+      "step2Title": "Choose colours",
+      "step2Text": "Customise details and borders with 20 hand-painted colours.",
+      "step3Title": "Choose ceramics",
+      "step3Text": "Plates, platters or serving dishes – send the order and we will get in touch. No payment before we have talked."
+    },
+    "featured": {
+      "title": "The ceramics",
+      "subtitle": "Handmade porcelain – all prices include customs, VAT and shipping.",
+      "ctaAll": "See all products"
+    }
+  },
+  "products": {
+    "title": "Products",
+    "intro": "All products are handmade and can be ordered in your own design. Prices include customs, VAT and shipping.",
+    "price": "{price} kr"
+  },
+  "product": {
+    "description": "Handmade porcelain in your own design. Choose pattern and colours in the configurator – we get in touch before anything is paid. The price includes customs, VAT and shipping.",
+    "ctaDesign": "Design this one",
+    "ctaAll": "All products"
+  },
+  "configurator": {
+    "pageTitle": "Build your design",
+    "stepIndicator": "Step {step} of 3",
+    "nextStepDetails": "Next step: Details",
+    "nextStepCeramic": "Next step: Ceramics",
+    "back": "Back",
+    "previewNote": "The configurator shows your design in a round pattern. Remember you can also order serving dishes, cups, oven dishes etc. in the same design – the final result is just not shown in the configurator.",
+    "step1": {
+      "title": "Choose design"
+    },
+    "step2": {
+      "titleDetails": "Choose details",
+      "titleBorders": "Choose borders"
+    },
+    "step3": {
+      "title": "Choose ceramics",
+      "quantity": "Quantity",
+      "addToBasket": "Add to basket",
+      "total": "Total price",
+      "send": "Send your order to us",
+      "disclaimer": "Since this is a custom order, we go through the design together before the order is considered confirmed. By sending the order via this form you are not committed to completing the purchase and no payment is required now. All prices include customs and VAT – no unexpected fees on delivery! Shipping is included in the price, but for smaller orders a small surcharge may apply."
+    },
+    "configCode": {
+      "title": "Your configured design",
+      "copy": "Copy code",
+      "load": "Load configuration code",
+      "help": "Copy this code to save your configuration. Load a code to restore a configuration you designed earlier."
+    }
+  },
+  "orderForm": {
+    "name": "Name",
+    "email": "Email address",
+    "phone": "Phone number",
+    "address": "Delivery address",
+    "message": "Message",
+    "submit": "Send your order to us"
+  },
+  "legal": {
+    "privacy": {
+      "title": "Privacy policy",
+      "body": "This privacy policy explains how Minkeramikk.no collects and processes your personal data when you use our contact form for custom orders.\n\nData controller\nMinkeramikk is responsible for handling your personal data. You can contact us at any time if you have questions about your data.\n\nWhat data do we collect?\nWhen you fill in the form on the \"Build your design\" page, we collect: name, email address, phone number, delivery address (for calculating shipping and later delivery), and the specifications of your design.\n\nWhat is the data used for?\nWe use the data to process your request and confirm the details of your order, communicate with you throughout the process from design to finished product, and deliver the goods.\n\nThird parties and sharing of information\nTo deliver our service we use the following partners: production partner and carrier – since the products are made and shipped directly from our partner in Italy, we share the necessary information (name, address and phone number) with them. As Minkeramikk.no is the responsible importer of the shipment, your data will also be used in customs documentation to ensure correct customs clearance into Norway, so that you as a customer avoid extra import costs.\n\nStorage and security\nWe store your data for as long as necessary to complete the order and comply with legal requirements (such as bookkeeping). We never sell your data to third parties.\n\nYour rights\nYou have the right to access the data we hold about you, and you can request that we delete or correct your data, provided we are not legally required to retain it. Contact us at post@minkeramikk.no if you have questions."
+    },
+    "terms": {
+      "title": "Terms of sale",
+      "body": "These terms apply to all orders placed via Minkeramikk.no.\n\n1. Ordering process\nA request via the \"Build your design\" form is not a binding order. After we receive your request, we will contact you personally to go through the design, confirm the details and give a final price. All prices include VAT, delivery and customs clearance. The order is only considered binding once you have confirmed it by email and we have received your address.\n\n2. Custom-made products\nAll products ordered via this service are made to order. This means the product is made especially for you based on your unique specifications.\n\n3. No right of withdrawal\nIn accordance with the Norwegian Right of Withdrawal Act § 22 letter e, the right of withdrawal does not apply to goods made to the consumer's specifications or with a clearly personal character. Please note that once production in Italy has started, the order cannot be cancelled or returned, as the item cannot be sold to others. The customer will be able to approve the order before it is shipped and before the final invoice is due.\n\n4. Delivery, customs and VAT\nThe goods are shipped directly from our producer in Italy to the customer's address. No hidden costs: Minkeramikk.no is the responsible importer of the goods. This means the price stated in the order confirmation includes Norwegian VAT and any customs duties. Fully cleared: the customer will not receive claims for extra import fees or customs handling from the carrier on delivery. Should you nevertheless be contacted by the carrier about import costs, please contact us immediately before making any payment.\n\n5. Payment\nPayment is made by invoice once we have confirmed the design and the order together. Production in Italy only starts once a deposit of 50% of the total has been registered, unless otherwise agreed in writing. The customer receives two invoices: the first invoice for 50% must be paid before production starts. The final invoice is sent when the order is ready to ship and must be paid before we ship the order.\n\n6. Complaints\nIf the item has a fault or defect not caused by the custom design (e.g. transport damage or a production error that does not match the agreement), the right of complaint applies in accordance with the Norwegian Consumer Purchases Act. The customer must notify us as soon as possible, preferably within 48 hours of delivery, if something is wrong. All our products are insured during transport, and new product(s) will be made at no extra cost in case of documented damage on delivery.\n\n7. Disclaimer\nSince ceramics are a handmade natural product, small variations in colour and shape may occur compared to the digital design or pictures on the website. This is not considered a defect, but part of the product's unique character. With the final invoice we send pictures of all produced items so the customer can approve the order. In case of production errors such as wrong colour or wrong ceramic support (plate, dish, etc.), the customer must notify us within 72 hours from the day the final invoice is sent."
+    }
+  }
+}

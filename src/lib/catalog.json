@@ -1,0 +1,2029 @@
+{
+  "scrapedAt": "2026-06-04T19:25:20.728Z",
+  "collections": {
+    "plates": [
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/71f3499c-7c7d-44c4-a913-3a2e4e0a181d/Ba%CC%8At+Serveringsfat%231500.png",
+        "name": "Båt Serveringsfat",
+        "price": 1500,
+        "hex": null
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/c8eb6dd5-1fc5-4e8c-a1b6-1c2ccc65f986/Serveringsfat+Liten%23650.png",
+        "name": "Serveringsfat Liten",
+        "price": 650,
+        "hex": null
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/1a07322a-2da1-48e4-9eb6-4beef339beb1/Serveringsfat+Stor%231300.png",
+        "name": "Serveringsfat Stor",
+        "price": 1300,
+        "hex": null
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/f3e7bb2b-224b-47bd-a238-8d66b42f7e96/Vietri+Dyp%23450.png",
+        "name": "Vietri Dyp",
+        "price": 450,
+        "hex": null
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/6e5d9743-8d53-4bff-bd65-3e8979ff7e78/Vietri+Flat%23500.png",
+        "name": "Vietri Flat",
+        "price": 500,
+        "hex": null
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/b1ed7e05-a517-4a69-ae15-1913b21f3b5b/Vietri+Asjett%23350.png",
+        "name": "Vietri Asjett",
+        "price": 350,
+        "hex": null
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/7b144ded-0765-41b2-8ee1-0067bae26a00/Vietri-Asjett%2BDyp%2BFlat%231250.png",
+        "name": "Vietri-Asjett Dyp Flat",
+        "price": 1250,
+        "hex": null
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/ce55cc2b-5844-46d8-92d6-00a165fc87df/Vietri-Dyp%2BFlat%23800.png",
+        "name": "Vietri-Dyp Flat",
+        "price": 800,
+        "hex": null
+      }
+    ],
+    "palettes": [
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/7af4adc2-465c-419e-be77-4b0a67ff6a48/Palettes_%23%2378a3d4_Blu+Antico+Scarico.webp",
+        "name": "Blu Antico Scarico",
+        "price": null,
+        "hex": "#78a3d4"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/15ded6be-e48a-4614-91b3-91016683eff0/Palettes_%23001c81_Blu+Stampa.webp",
+        "name": "Blu Stampa",
+        "price": null,
+        "hex": "#001c81"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/5f0c805f-9319-4048-ad8f-9e931090656b/Palettes_%233e8ea2_Verde+Smeraldo.webp",
+        "name": "Verde Smeraldo",
+        "price": null,
+        "hex": "#3e8ea2"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/fd8d55c1-0a44-48eb-a766-dce8e3a3057b/Palettes_%233f6525_Verde+Scuro.webp",
+        "name": "Verde Scuro",
+        "price": null,
+        "hex": "#3f6525"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/27c4ffcd-d398-4bc6-9f56-02eae198e4a6/Palettes_%235c3930_Marrone.webp",
+        "name": "Marrone",
+        "price": null,
+        "hex": "#5c3930"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/6f7d60ca-9607-47d1-8b76-6618fe291b42/Palettes_%23059ea1_Verde+Ramina+Carico.webp",
+        "name": "Verde Ramina Carico",
+        "price": null,
+        "hex": "#059ea1"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/6209e9d5-a419-4db0-a551-331521966223/Palettes_%2383c7bd_Verde+Ramina+Chiaro.webp",
+        "name": "Verde Ramina Chiaro",
+        "price": null,
+        "hex": "#83c7bd"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/9cf0519c-7493-46e0-8f6f-2ef4ff0eb36c/Palettes_%2393af74_Verde+Foresta.webp",
+        "name": "Verde Foresta",
+        "price": null,
+        "hex": "#93af74"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/1d1c7aad-feca-4476-8457-f596ced5bfb2/Palettes_%230160b2_Blu+Antico.webp",
+        "name": "Blu Antico",
+        "price": null,
+        "hex": "#0160b2"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/817a3100-2728-4937-92e2-6405d3784f8b/Palettes_%233877b9_Blu+Oltremare.webp",
+        "name": "Blu Oltremare",
+        "price": null,
+        "hex": "#3877b9"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/1de0b825-b565-42c0-bb1e-870f7708f703/Palettes_%23a6cee4_Celeste.webp",
+        "name": "Celeste",
+        "price": null,
+        "hex": "#a6cee4"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/51fed75b-07dd-4548-8f77-59fcf22feec3/Palettes_%23a3759f_Lilla.webp",
+        "name": "Lilla",
+        "price": null,
+        "hex": "#a3759f"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/bdf9cc79-c74e-4cd0-a7ca-f846fb7f94d7/Palettes_%23b7c981_Verde+Frans.webp",
+        "name": "Verde Frans",
+        "price": null,
+        "hex": "#b7c981"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/22c7c0a8-949f-4f67-a644-224ab6aac654/Palettes_%23cb595a_Rosso+Vietri.webp",
+        "name": "Rosso Vietri",
+        "price": null,
+        "hex": "#cb595a"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/3f67a5a6-e5af-4b61-8ea2-bae5d8fd60a8/Palettes_%23e05f4c_Salmone.webp",
+        "name": "Salmone",
+        "price": null,
+        "hex": "#e05f4c"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/986a8cf4-35c6-4198-9c3c-12369333c4b9/Palettes_%23e59935_Arancio+Vietri.webp",
+        "name": "Arancio Vietri",
+        "price": null,
+        "hex": "#e59935"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/d9b586a1-a044-4ff1-8ee3-1af3d7329d37/Palettes_%23eb686a_Rosso+Fuoco.webp",
+        "name": "Rosso Fuoco",
+        "price": null,
+        "hex": "#eb686a"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/862c85e6-c280-4203-90d1-4fc1c4f9fe6e/Palettes_%23f3e39a_Giallo+Limone.webp",
+        "name": "Giallo Limone",
+        "price": null,
+        "hex": "#f3e39a"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/92a748dd-4497-4323-b92a-9d41a55a1223/Palettes_%23facf27_Giallo.webp",
+        "name": "Giallo",
+        "price": null,
+        "hex": "#facf27"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/cf5d7454-dca0-412f-b142-57abc46dbb13/Palettes_%23ff9048_Arancione.webp",
+        "name": "Arancione",
+        "price": null,
+        "hex": "#ff9048"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/b49b4e39-574f-48a0-85d5-351deee4da40/Palettes_%23ecae67_Marroncino+Jettica.webp",
+        "name": "Marroncino Jettica",
+        "price": null,
+        "hex": "#ecae67"
+      }
+    ],
+    "hovering-colors": [
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/daa6f5db-f53e-4073-8087-9e0b52edd954/Palettes-_0000_%233877b9--Blue-1.png",
+        "name": "Blue-1",
+        "price": null,
+        "hex": "#3877b9"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/db3ea8fb-b234-43aa-8960-8570556a69b6/Palettes-_0001_%23001c81---Blue-2.png",
+        "name": "Blue-2",
+        "price": null,
+        "hex": "#001c81"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/09b785a3-f63c-49f4-be36-2ae209a7156c/Palettes-_0002_%23a6cee4---Blue-3.png",
+        "name": "Blue-3",
+        "price": null,
+        "hex": "#a6cee4"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/5faae3e8-fe05-4251-a46a-b531c05e72c6/Palettes-_0003_%230160b2---Blue-4.png",
+        "name": "Blue-4",
+        "price": null,
+        "hex": "#0160b2"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/966831cd-f66e-48ae-b394-caa2210104fc/Palettes-_0004_%23facf27---Yellow-strong.png",
+        "name": "Yellow-strong",
+        "price": null,
+        "hex": "#facf27"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/8c514c04-92b9-49f4-96d3-0bf192156461/Palettes-_0005_%23f3e39a---Light-yellow.png",
+        "name": "Light-yellow",
+        "price": null,
+        "hex": "#f3e39a"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/251489c9-a3cd-429c-81ea-b642c9b0a1ca/Palettes-_0006_%23e59935---Beige-mustard.png",
+        "name": "Beige-mustard",
+        "price": null,
+        "hex": "#e59935"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/d3bc2c06-2be8-4d95-84a4-d2ee2bb266a3/Palettes-_0007_%23ff9048---Orange.png",
+        "name": "Orange",
+        "price": null,
+        "hex": "#ff9048"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/9b477d39-f057-488d-ba40-b109d4e450e2/Palettes-_0008_%23e05f4c---Red.png",
+        "name": "Red",
+        "price": null,
+        "hex": "#e05f4c"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/f800a030-aa55-4c3d-b3f1-4924ac8e930e/Palettes-_0009_%23059ea1.png",
+        "name": "Palettes- 0009",
+        "price": null,
+        "hex": "#059ea1"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/366b9b2f-db81-46b2-bcd7-ad319032edfa/Palettes-_0010_%2393af74.png",
+        "name": "Palettes- 0010",
+        "price": null,
+        "hex": "#93af74"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/af46664c-a0f3-4b0d-bbac-6554be25c33b/Palettes-_0011_%23b7c981.png",
+        "name": "Palettes- 0011",
+        "price": null,
+        "hex": "#b7c981"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/3ad375b4-bad5-45fa-aaae-8b75ef36f222/Palettes-_0012_%233e8ea2.png",
+        "name": "Palettes- 0012",
+        "price": null,
+        "hex": "#3e8ea2"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/58d23bce-2dde-4ac8-863f-1b251c3590bf/Palettes-_0013_%23a3759f.png",
+        "name": "Palettes- 0013",
+        "price": null,
+        "hex": "#a3759f"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/eccd6151-8a47-4ad9-b583-2f862eaa669a/Palettes-_0014_%2383c7bd.png",
+        "name": "Palettes- 0014",
+        "price": null,
+        "hex": "#83c7bd"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/6baf8ee1-186f-4ece-9065-f42a81641c15/Palettes-_0015_%23cb595a---Granata-Red.png",
+        "name": "Granata-Red",
+        "price": null,
+        "hex": "#cb595a"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/12c2c09c-021a-47ff-8b72-f224d2a29fe0/Palettes-_0016_%23%2378a3d4---Blue-5.png",
+        "name": "Blue-5",
+        "price": null,
+        "hex": "#78a3d4"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/bd9d08c2-faad-443d-b8eb-a2da2c6028c3/Palettes-_0017_%233f6525---Dark-Green.png",
+        "name": "Dark-Green",
+        "price": null,
+        "hex": "#3f6525"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/aa4f0e9a-e09f-46f8-b600-76beb7956380/Palettes-_0018_%235c3930---Brown.png",
+        "name": "Brown",
+        "price": null,
+        "hex": "#5c3930"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/4711d35c-f601-4d80-8eea-04c86ea131bf/Palettes_0002_%23eb686a.png",
+        "name": "Palettes 0002",
+        "price": null,
+        "hex": "#eb686a"
+      }
+    ],
+    "floreal1-detaljer": [
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/0427069b-b309-404d-a2a7-09f9059cfe6e/Floreal01_0000s_0001s_0000_%23a3759f.webp",
+        "name": "Floreal01 0000s 0001s 0000",
+        "price": null,
+        "hex": "#a3759f"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/50f7f260-0537-4544-bcb0-d64d9c48d5f7/Floreal01_0000s_0001s_0001_%235c3930.webp",
+        "name": "Floreal01 0000s 0001s 0001",
+        "price": null,
+        "hex": "#5c3930"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/08bec8ae-2258-48e8-b4db-a51202904577/Floreal01_0000s_0001s_0002_%233f6525.webp",
+        "name": "Floreal01 0000s 0001s 0002",
+        "price": null,
+        "hex": "#3f6525"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/684dcf5d-9a9e-4cdf-bd02-4188f34afec8/Floreal01_0000s_0001s_0003_%233e8ea2.webp",
+        "name": "Floreal01 0000s 0001s 0003",
+        "price": null,
+        "hex": "#3e8ea2"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/2b7c9fe0-cc52-4a9e-91b1-f34710a64bb8/Floreal01_0000s_0001s_0004_%23b7c981.webp",
+        "name": "Floreal01 0000s 0001s 0004",
+        "price": null,
+        "hex": "#b7c981"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/0720fa9c-9e52-447b-a4ed-150c99835155/Floreal01_0000s_0001s_0005_%2393af74.webp",
+        "name": "Floreal01 0000s 0001s 0005",
+        "price": null,
+        "hex": "#93af74"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/313ca836-1262-4cd8-a667-3ee29a64b789/Floreal01_0000s_0001s_0006_%2383c7bd.webp",
+        "name": "Floreal01 0000s 0001s 0006",
+        "price": null,
+        "hex": "#83c7bd"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/f52e7417-ad77-4304-be92-d19f4f3da12b/Floreal01_0000s_0001s_0007_%23059ea1.webp",
+        "name": "Floreal01 0000s 0001s 0007",
+        "price": null,
+        "hex": "#059ea1"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/d3188b96-8400-4d09-b440-48472b6e6153/Floreal01_0000s_0001s_0008_%23eb686a.webp",
+        "name": "Floreal01 0000s 0001s 0008",
+        "price": null,
+        "hex": "#eb686a"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/25a7d2e4-41a3-454f-8658-3ba03405d7eb/Floreal01_0000s_0001s_0009_%23cb595a.webp",
+        "name": "Floreal01 0000s 0001s 0009",
+        "price": null,
+        "hex": "#cb595a"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/03d7fbd0-a427-4416-b0b6-80eebfd418e3/Floreal01_0000s_0001s_0010_%23e05f4c.webp",
+        "name": "Floreal01 0000s 0001s 0010",
+        "price": null,
+        "hex": "#e05f4c"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/f7fd7d14-aedf-4d34-8465-f67b531595cc/Floreal01_0000s_0001s_0011_%23ff9048.webp",
+        "name": "Floreal01 0000s 0001s 0011",
+        "price": null,
+        "hex": "#ff9048"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/3b6e418e-168d-4eff-a135-62fae573aabf/Floreal01_0000s_0001s_0012_%23e59935.webp",
+        "name": "Floreal01 0000s 0001s 0012",
+        "price": null,
+        "hex": "#e59935"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/5ac1d860-a03a-42ab-9bcc-eef84d67714b/Floreal01_0000s_0001s_0013_%23f3e39a.webp",
+        "name": "Floreal01 0000s 0001s 0013",
+        "price": null,
+        "hex": "#f3e39a"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/2c3fd86c-fbf0-4c4d-b6a8-eba61120f970/Floreal01_0000s_0001s_0014_%23facf27.webp",
+        "name": "Floreal01 0000s 0001s 0014",
+        "price": null,
+        "hex": "#facf27"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/29f4768c-818f-4a71-8633-edda96f0027d/Floreal01_0000s_0001s_0015_%2378a3d4.webp",
+        "name": "Floreal01 0000s 0001s 0015",
+        "price": null,
+        "hex": "#78a3d4"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/2f0ac881-13e0-43c9-8a98-fe15e6bec95b/Floreal01_0000s_0001s_0016_%230160b2.webp",
+        "name": "Floreal01 0000s 0001s 0016",
+        "price": null,
+        "hex": "#0160b2"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/0d897e8d-b073-4c05-bdcd-ff05dd141f5e/Floreal01_0000s_0001s_0017_%23a6cee4.webp",
+        "name": "Floreal01 0000s 0001s 0017",
+        "price": null,
+        "hex": "#a6cee4"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/79706176-76a7-4bb1-8a5d-39d5e456a197/Floreal01_0000s_0001s_0018_%23001c81.webp",
+        "name": "Floreal01 0000s 0001s 0018",
+        "price": null,
+        "hex": "#001c81"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/00fc8746-5bb4-45b2-90a2-68a0246053fb/Floreal01_0000s_0001s_0019_%233877b9.webp",
+        "name": "Floreal01 0000s 0001s 0019",
+        "price": null,
+        "hex": "#3877b9"
+      }
+    ],
+    "floreal1-kanter": [
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/3b27ce86-a867-4aed-aa45-eb6f0ce73e51/Floreal01_0000s_0000s_0000_%23a3759f.webp",
+        "name": "Floreal01 0000s 0000s 0000",
+        "price": null,
+        "hex": "#a3759f"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/87f2eee6-118e-41fd-8a72-8752d741150b/Floreal01_0000s_0000s_0001_%235c3930.webp",
+        "name": "Floreal01 0000s 0000s 0001",
+        "price": null,
+        "hex": "#5c3930"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/669b2ae3-7be8-4084-8d5c-9c004b410f92/Floreal01_0000s_0000s_0002_%233f6525.webp",
+        "name": "Floreal01 0000s 0000s 0002",
+        "price": null,
+        "hex": "#3f6525"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/acbf1231-bba5-43ee-8f7e-69c0356553d8/Floreal01_0000s_0000s_0003_%233e8ea2.webp",
+        "name": "Floreal01 0000s 0000s 0003",
+        "price": null,
+        "hex": "#3e8ea2"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/0a06c209-853a-4282-90d2-e227eaeb542b/Floreal01_0000s_0000s_0004_%23b7c981.webp",
+        "name": "Floreal01 0000s 0000s 0004",
+        "price": null,
+        "hex": "#b7c981"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/3951e1ee-0f9f-46fc-beb2-fdd85fb348b0/Floreal01_0000s_0000s_0005_%2393af74.webp",
+        "name": "Floreal01 0000s 0000s 0005",
+        "price": null,
+        "hex": "#93af74"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/eb1bdc52-3daf-402f-8b0a-ce161f98a168/Floreal01_0000s_0000s_0006_%2383c7bd.webp",
+        "name": "Floreal01 0000s 0000s 0006",
+        "price": null,
+        "hex": "#83c7bd"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/a3485472-4e9c-4890-97c9-260e9cd6e48b/Floreal01_0000s_0000s_0007_%23059ea1.webp",
+        "name": "Floreal01 0000s 0000s 0007",
+        "price": null,
+        "hex": "#059ea1"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/3ccf8e61-929a-4215-aa66-0ce4bac4840d/Floreal01_0000s_0000s_0008_%23eb686a.webp",
+        "name": "Floreal01 0000s 0000s 0008",
+        "price": null,
+        "hex": "#eb686a"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/2a812fc2-8141-4d49-b09b-1ce1fb58099e/Floreal01_0000s_0000s_0009_%23cb595a.webp",
+        "name": "Floreal01 0000s 0000s 0009",
+        "price": null,
+        "hex": "#cb595a"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/914f4bf2-fabb-4fb0-abbc-6ec06b790078/Floreal01_0000s_0000s_0010_%23e05f4c.webp",
+        "name": "Floreal01 0000s 0000s 0010",
+        "price": null,
+        "hex": "#e05f4c"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/681c81de-6d94-4001-8b91-6fa99d759ab9/Floreal01_0000s_0000s_0011_%23ff9048.webp",
+        "name": "Floreal01 0000s 0000s 0011",
+        "price": null,
+        "hex": "#ff9048"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/10edd96d-3dc0-45ba-a5b1-4bb85d1839df/Floreal01_0000s_0000s_0012_%23e59935.webp",
+        "name": "Floreal01 0000s 0000s 0012",
+        "price": null,
+        "hex": "#e59935"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/4ffb05c5-3fb6-472d-941e-00d6cf7a19f3/Floreal01_0000s_0000s_0013_%23f3e39a.webp",
+        "name": "Floreal01 0000s 0000s 0013",
+        "price": null,
+        "hex": "#f3e39a"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/351af89e-aedd-461f-b2f5-15c4fdc19822/Floreal01_0000s_0000s_0014_%23facf27.webp",
+        "name": "Floreal01 0000s 0000s 0014",
+        "price": null,
+        "hex": "#facf27"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/eca56566-0d55-484f-bd05-f37f0e08e979/Floreal01_0000s_0000s_0015_%2378a3d4.webp",
+        "name": "Floreal01 0000s 0000s 0015",
+        "price": null,
+        "hex": "#78a3d4"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/9892404f-1692-4a4f-abe6-9a43a96dd9f4/Floreal01_0000s_0000s_0016_%230160b2.webp",
+        "name": "Floreal01 0000s 0000s 0016",
+        "price": null,
+        "hex": "#0160b2"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/a8c7e470-2013-4542-91c1-d4f630eb5caf/Floreal01_0000s_0000s_0017_%23a6cee4.webp",
+        "name": "Floreal01 0000s 0000s 0017",
+        "price": null,
+        "hex": "#a6cee4"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/0d8a9278-f1c8-45dc-ab49-f3330b3bc8aa/Floreal01_0000s_0000s_0018_%23001c81.webp",
+        "name": "Floreal01 0000s 0000s 0018",
+        "price": null,
+        "hex": "#001c81"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/c5a7c7b3-34a4-43f6-b1a1-47f71eea3568/Floreal01_0000s_0000s_0019_%233877b9.webp",
+        "name": "Floreal01 0000s 0000s 0019",
+        "price": null,
+        "hex": "#3877b9"
+      }
+    ],
+    "floreal2-blader": [
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/02993571-304c-4b9f-aa16-ec38027ea13e/Floreal02_0005s_0001s_0000_%23a3759f.webp",
+        "name": "Floreal02 0005s 0001s 0000",
+        "price": null,
+        "hex": "#a3759f"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/2203e0a4-883a-40aa-8a88-246fcd042cfd/Floreal02_0005s_0001s_0001_%235c3930.webp",
+        "name": "Floreal02 0005s 0001s 0001",
+        "price": null,
+        "hex": "#5c3930"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/28d9188a-6c56-46fc-a01a-fa14056f0f2e/Floreal02_0005s_0001s_0002_%233f6525.webp",
+        "name": "Floreal02 0005s 0001s 0002",
+        "price": null,
+        "hex": "#3f6525"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/40774360-f939-410a-8b94-6281c110e1df/Floreal02_0005s_0001s_0003_%233e8ea2.webp",
+        "name": "Floreal02 0005s 0001s 0003",
+        "price": null,
+        "hex": "#3e8ea2"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/196f01e3-3b8e-44e1-83c4-271ebdf2fabf/Floreal02_0005s_0001s_0004_%23b7c981.webp",
+        "name": "Floreal02 0005s 0001s 0004",
+        "price": null,
+        "hex": "#b7c981"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/4534f1b7-08ed-489d-96aa-1ab23be15fe1/Floreal02_0005s_0001s_0005_%2393af74.webp",
+        "name": "Floreal02 0005s 0001s 0005",
+        "price": null,
+        "hex": "#93af74"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/1b69a852-4615-42a5-831a-4c86837851fe/Floreal02_0005s_0001s_0006_%2383c7bd.webp",
+        "name": "Floreal02 0005s 0001s 0006",
+        "price": null,
+        "hex": "#83c7bd"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/5f0cb8cf-e828-49cf-8e9f-8b2b89a71f32/Floreal02_0005s_0001s_0007_%23059ea1.webp",
+        "name": "Floreal02 0005s 0001s 0007",
+        "price": null,
+        "hex": "#059ea1"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/0c593a6d-381b-4b80-9632-a5954cb67e73/Floreal02_0005s_0001s_0008_%23eb686a.webp",
+        "name": "Floreal02 0005s 0001s 0008",
+        "price": null,
+        "hex": "#eb686a"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/7c6924be-8d66-421c-93b6-02ffe942beef/Floreal02_0005s_0001s_0009_%23cb595a.webp",
+        "name": "Floreal02 0005s 0001s 0009",
+        "price": null,
+        "hex": "#cb595a"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/91ccc910-a664-4d5e-a3b8-e834804106d2/Floreal02_0005s_0001s_0010_%23e05f4c.webp",
+        "name": "Floreal02 0005s 0001s 0010",
+        "price": null,
+        "hex": "#e05f4c"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/8c0767e3-e21b-4bc5-a183-8bb9a4ab0cc4/Floreal02_0005s_0001s_0011_%23ff9048.webp",
+        "name": "Floreal02 0005s 0001s 0011",
+        "price": null,
+        "hex": "#ff9048"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/57b5596c-4ae5-43c0-bd01-d06e732d4661/Floreal02_0005s_0001s_0012_%23e59935.webp",
+        "name": "Floreal02 0005s 0001s 0012",
+        "price": null,
+        "hex": "#e59935"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/e375a641-2b64-4a04-83da-d5878ac08228/Floreal02_0005s_0001s_0013_%23f3e39a.webp",
+        "name": "Floreal02 0005s 0001s 0013",
+        "price": null,
+        "hex": "#f3e39a"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/cb04c4b7-8f2f-4903-9c4c-86658c607002/Floreal02_0005s_0001s_0014_%23facf27.webp",
+        "name": "Floreal02 0005s 0001s 0014",
+        "price": null,
+        "hex": "#facf27"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/9de66b20-5ec8-4af2-b66e-470a63625367/Floreal02_0005s_0001s_0015_%2378a3d4.webp",
+        "name": "Floreal02 0005s 0001s 0015",
+        "price": null,
+        "hex": "#78a3d4"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/62b30d97-0600-4d38-811a-98fd0226961e/Floreal02_0005s_0001s_0016_%230160b2.webp",
+        "name": "Floreal02 0005s 0001s 0016",
+        "price": null,
+        "hex": "#0160b2"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/012f18fa-0cd6-42a2-a7fa-b4dae312bf2b/Floreal02_0005s_0001s_0017_%23a6cee4.webp",
+        "name": "Floreal02 0005s 0001s 0017",
+        "price": null,
+        "hex": "#a6cee4"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/dab320c6-5744-4763-89d5-f6016ba7d2dd/Floreal02_0005s_0001s_0018_%23001c81.webp",
+        "name": "Floreal02 0005s 0001s 0018",
+        "price": null,
+        "hex": "#001c81"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/d525e260-ad22-4170-a481-ed562da55f85/Floreal02_0005s_0001s_0019_%233877b9.webp",
+        "name": "Floreal02 0005s 0001s 0019",
+        "price": null,
+        "hex": "#3877b9"
+      }
+    ],
+    "floreal2-kanter": [
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/4dd8b8a8-389c-4530-baed-0028f8c6a83a/Floreal02_0005s_0000s_0000_%23a3759f.webp",
+        "name": "Floreal02 0005s 0000s 0000",
+        "price": null,
+        "hex": "#a3759f"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/a4367025-75ac-4da5-a4b7-0f81f814539f/Floreal02_0005s_0000s_0001_%235c3930.webp",
+        "name": "Floreal02 0005s 0000s 0001",
+        "price": null,
+        "hex": "#5c3930"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/1750c6f4-f85c-4bf2-b106-d7828d19cbf2/Floreal02_0005s_0000s_0002_%233f6525.webp",
+        "name": "Floreal02 0005s 0000s 0002",
+        "price": null,
+        "hex": "#3f6525"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/70f4329b-f01c-4421-ae1a-838e247f875a/Floreal02_0005s_0000s_0003_%233e8ea2.webp",
+        "name": "Floreal02 0005s 0000s 0003",
+        "price": null,
+        "hex": "#3e8ea2"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/9f5cdeab-efc2-4f7a-8543-901b8be5f6bf/Floreal02_0005s_0000s_0004_%23b7c981.webp",
+        "name": "Floreal02 0005s 0000s 0004",
+        "price": null,
+        "hex": "#b7c981"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/0751e891-8bfc-4521-9ee0-624ee486bee1/Floreal02_0005s_0000s_0005_%2393af74.webp",
+        "name": "Floreal02 0005s 0000s 0005",
+        "price": null,
+        "hex": "#93af74"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/447531a2-dbca-424d-bb69-fc97bb82f4a2/Floreal02_0005s_0000s_0006_%2383c7bd.webp",
+        "name": "Floreal02 0005s 0000s 0006",
+        "price": null,
+        "hex": "#83c7bd"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/d683b87d-f4c3-4d2c-b9eb-394863e88b06/Floreal02_0005s_0000s_0007_%23059ea1.webp",
+        "name": "Floreal02 0005s 0000s 0007",
+        "price": null,
+        "hex": "#059ea1"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/d131a402-846f-48bc-bd0b-3a9ea7acba62/Floreal02_0005s_0000s_0008_%23eb686a.webp",
+        "name": "Floreal02 0005s 0000s 0008",
+        "price": null,
+        "hex": "#eb686a"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/97dfdd49-c7d1-4652-ac80-2f674e294aa1/Floreal02_0005s_0000s_0009_%23cb595a.webp",
+        "name": "Floreal02 0005s 0000s 0009",
+        "price": null,
+        "hex": "#cb595a"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/69099766-794a-4112-8a7a-70577627129e/Floreal02_0005s_0000s_0010_%23e05f4c.webp",
+        "name": "Floreal02 0005s 0000s 0010",
+        "price": null,
+        "hex": "#e05f4c"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/5c5074d4-c623-4041-997c-241c93c12f2a/Floreal02_0005s_0000s_0011_%23ff9048.webp",
+        "name": "Floreal02 0005s 0000s 0011",
+        "price": null,
+        "hex": "#ff9048"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/e12b2ef7-786a-4d63-a238-57116b5f3988/Floreal02_0005s_0000s_0012_%23e59935.webp",
+        "name": "Floreal02 0005s 0000s 0012",
+        "price": null,
+        "hex": "#e59935"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/717a0da1-0d68-4993-99b4-f3d3e5dca358/Floreal02_0005s_0000s_0013_%23f3e39a.webp",
+        "name": "Floreal02 0005s 0000s 0013",
+        "price": null,
+        "hex": "#f3e39a"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/962d12b5-fee3-4791-968f-e145637bbcfe/Floreal02_0005s_0000s_0014_%23facf27.webp",
+        "name": "Floreal02 0005s 0000s 0014",
+        "price": null,
+        "hex": "#facf27"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/b4df2687-0cf7-4623-b245-6b22370728d3/Floreal02_0005s_0000s_0015_%2378a3d4.webp",
+        "name": "Floreal02 0005s 0000s 0015",
+        "price": null,
+        "hex": "#78a3d4"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/7946902d-0f0c-4cf6-bb49-5c07c288a64f/Floreal02_0005s_0000s_0016_%230160b2.webp",
+        "name": "Floreal02 0005s 0000s 0016",
+        "price": null,
+        "hex": "#0160b2"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/b84cdc4f-0caf-4d73-a3e0-5ea738ff436f/Floreal02_0005s_0000s_0017_%23a6cee4.webp",
+        "name": "Floreal02 0005s 0000s 0017",
+        "price": null,
+        "hex": "#a6cee4"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/53b6ea47-cb27-4481-b416-1b6ded31b995/Floreal02_0005s_0000s_0018_%23001c81.webp",
+        "name": "Floreal02 0005s 0000s 0018",
+        "price": null,
+        "hex": "#001c81"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/26bf161f-9f70-42f7-aa82-a5fe36235d71/Floreal02_0005s_0000s_0019_%233877b9.webp",
+        "name": "Floreal02 0005s 0000s 0019",
+        "price": null,
+        "hex": "#3877b9"
+      }
+    ],
+    "animals-preview": [
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/63bc66ef-5199-4ad1-a7e4-a08641420fe5/Animals-Preview-_0000_Hvale.webp",
+        "name": "Animals-Preview- 0000 Hvale",
+        "price": null,
+        "hex": null
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/7db4d968-0104-4958-b204-e6c68a454758/Animals-Preview-_0001_Esel.webp",
+        "name": "Animals-Preview- 0001 Esel",
+        "price": null,
+        "hex": null
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/e45ef6dd-4286-4a10-b78e-4e10f40bccb5/Animals-Preview-_0002_Svane.webp",
+        "name": "Animals-Preview- 0002 Svane",
+        "price": null,
+        "hex": null
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/55febcf8-b14c-4ab3-893c-fdfb6ef38b8c/Animals-Preview-_0003_Marihone.webp",
+        "name": "Animals-Preview- 0003 Marihone",
+        "price": null,
+        "hex": null
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/5390f0a2-b717-40bd-895f-9029f0adbc3b/Animals-Preview-_0004_Elefant.webp",
+        "name": "Animals-Preview- 0004 Elefant",
+        "price": null,
+        "hex": null
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/aac94875-10b8-41bf-b306-6721ed6c29c2/Animals-Preview-_0005_KrabbeAmalfi.webp",
+        "name": "Animals-Preview- 0005 KrabbeAmalfi",
+        "price": null,
+        "hex": null
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/cb67e6b6-1c5b-45d5-a873-da701496b7e1/Animals-Preview-_0006_Uggle.webp",
+        "name": "Animals-Preview- 0006 Uggle",
+        "price": null,
+        "hex": null
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/65e0a165-c6e4-4d9a-a5a4-1eda9e05ae1b/Animals-Preview-_0007_Sneil.webp",
+        "name": "Animals-Preview- 0007 Sneil",
+        "price": null,
+        "hex": null
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/2c54eeab-954b-42bc-bc07-76ba4b0feb79/Animals-Preview-_0008_Gris.webp",
+        "name": "Animals-Preview- 0008 Gris",
+        "price": null,
+        "hex": null
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/96b08387-37f2-4764-9e5b-a9294e574bbd/Animals-Preview-_0009_Blekksprut.webp",
+        "name": "Animals-Preview- 0009 Blekksprut",
+        "price": null,
+        "hex": null
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/15afbe29-b097-49b0-8c9b-2f6cf033a748/Animals-Preview-_0010_Skillepadde.webp",
+        "name": "Animals-Preview- 0010 Skillepadde",
+        "price": null,
+        "hex": null
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/c965d4c1-f8b1-43a9-8766-ff7e575250dd/Animals-Preview-_0011_Plumpfish.webp",
+        "name": "Animals-Preview- 0011 Plumpfish",
+        "price": null,
+        "hex": null
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/599a9dba-31fc-45b8-b6b4-7372100cf4ec/Animals-Preview-_0012_FishAmalfi.webp",
+        "name": "Animals-Preview- 0012 FishAmalfi",
+        "price": null,
+        "hex": null
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/b23cd538-f3d9-49a0-b0fc-5aed57795f09/Animals-Preview-_0013_Fugl.webp",
+        "name": "Animals-Preview- 0013 Fugl",
+        "price": null,
+        "hex": null
+      }
+    ],
+    "animals-maincolor": [
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/275210e0-091f-4c8b-9cba-31d04fe9bdac/Animals-Bakgrunn-%23001c81.webp",
+        "name": "Animals-Bakgrunn",
+        "price": null,
+        "hex": "#001c81"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/799861dc-9fff-4296-b7e0-d7dc98e1fcbe/Animals-Bakgrunn-%233e8ea2.webp",
+        "name": "Animals-Bakgrunn",
+        "price": null,
+        "hex": "#3e8ea2"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/68dd196c-a21c-4b6c-9d76-5ea92eb6a5e4/Animals-Bakgrunn-%233f6525.webp",
+        "name": "Animals-Bakgrunn",
+        "price": null,
+        "hex": "#3f6525"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/e4fdfb5f-e542-44c3-a76d-e24ccdb32ec9/Animals-Bakgrunn-%235c3930.webp",
+        "name": "Animals-Bakgrunn",
+        "price": null,
+        "hex": "#5c3930"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/906ed416-e9f9-4e67-8d3b-4ecadb23b99b/Animals-Bakgrunn-%23059ea1.webp",
+        "name": "Animals-Bakgrunn",
+        "price": null,
+        "hex": "#059ea1"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/a34f9a0c-606c-4ac6-9b34-a766b1b27432/Animals-Bakgrunn-%2378a3d4.webp",
+        "name": "Animals-Bakgrunn",
+        "price": null,
+        "hex": "#78a3d4"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/5f95640b-c57a-4db2-aaed-0acfc542e944/Animals-Bakgrunn-%2383c7bd.webp",
+        "name": "Animals-Bakgrunn",
+        "price": null,
+        "hex": "#83c7bd"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/7a9f8bb1-df95-4666-8fa1-ca8c1cc1f454/Animals-Bakgrunn-%2393af74.webp",
+        "name": "Animals-Bakgrunn",
+        "price": null,
+        "hex": "#93af74"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/e7cac653-682e-40ca-a199-bb72f82a0873/Animals-Bakgrunn-%230160b2.webp",
+        "name": "Animals-Bakgrunn",
+        "price": null,
+        "hex": "#0160b2"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/b93a61fd-6bdb-4fee-b558-af9b43a35a86/Animals-Bakgrunn-%233877b9.webp",
+        "name": "Animals-Bakgrunn",
+        "price": null,
+        "hex": "#3877b9"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/1b8fc2a0-4210-4654-9758-d1d39426522b/Animals-Bakgrunn-%23a6cee4.webp",
+        "name": "Animals-Bakgrunn",
+        "price": null,
+        "hex": "#a6cee4"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/f2b424cd-eb77-48e0-84a9-5efbfdf50d2a/Animals-Bakgrunn-%23a3759f.webp",
+        "name": "Animals-Bakgrunn",
+        "price": null,
+        "hex": "#a3759f"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/7e6f9e34-0e58-4386-b9e1-52f3e664c6e3/Animals-Bakgrunn-%23b7c981.webp",
+        "name": "Animals-Bakgrunn",
+        "price": null,
+        "hex": "#b7c981"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/67f86feb-4b44-4b2a-9264-6d24e0b5c18b/Animals-Bakgrunn-%23cb595a.webp",
+        "name": "Animals-Bakgrunn",
+        "price": null,
+        "hex": "#cb595a"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/a458eb72-4603-4c34-99c5-802b41768957/Animals-Bakgrunn-%23e05f4c.webp",
+        "name": "Animals-Bakgrunn",
+        "price": null,
+        "hex": "#e05f4c"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/7962b51b-6f3c-462b-8bd2-e5d01a32db10/Animals-Bakgrunn-%23e59935.webp",
+        "name": "Animals-Bakgrunn",
+        "price": null,
+        "hex": "#e59935"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/8becd0ba-95c5-4836-bd3f-991c34ad12d5/Animals-Bakgrunn-%23eb686a.webp",
+        "name": "Animals-Bakgrunn",
+        "price": null,
+        "hex": "#eb686a"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/47819a03-0dfe-4dc9-9ecd-67ea7ac1860f/Animals-Bakgrunn-%23f3e39a.webp",
+        "name": "Animals-Bakgrunn",
+        "price": null,
+        "hex": "#f3e39a"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/a6dd41a7-dd2e-4d7a-beab-c88ac6da9fd3/Animals-Bakgrunn-%23facf27.webp",
+        "name": "Animals-Bakgrunn",
+        "price": null,
+        "hex": "#facf27"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/339cf561-1263-4cfb-a8d1-d4cd78aa7cf0/Animals-Bakgrunn-%23ff9048.webp",
+        "name": "Animals-Bakgrunn",
+        "price": null,
+        "hex": "#ff9048"
+      }
+    ],
+    "animals-plantscolor": [
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/fd71b07e-849e-42b3-a81e-3b3e9185e36e/Animals-Plants-%23a3759f.png",
+        "name": "Animals-Plants",
+        "price": null,
+        "hex": "#a3759f"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/8bfacb6b-e164-4892-97e7-5df34aa07892/Animals-Plants-%235c3930.png",
+        "name": "Animals-Plants",
+        "price": null,
+        "hex": "#5c3930"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/46328ef6-2079-443d-8efa-52e35348daa6/Animals-Plants-%233f6525.png",
+        "name": "Animals-Plants",
+        "price": null,
+        "hex": "#3f6525"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/dcf95c17-8709-4da0-a683-cecc4ab52cc4/Animals-Plants-%233e8ea2.png",
+        "name": "Animals-Plants",
+        "price": null,
+        "hex": "#3e8ea2"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/d793b60e-2c89-4266-95d3-bbe3bdb057af/Animals-Plants-%23b7c981.png",
+        "name": "Animals-Plants",
+        "price": null,
+        "hex": "#b7c981"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/8fa698aa-7a4f-49f0-86c9-659932fab2f8/Animals-Plants-%2393af74.png",
+        "name": "Animals-Plants",
+        "price": null,
+        "hex": "#93af74"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/074f97f5-ff3c-4a17-a8b3-26e76b36ae7b/Animals-Plants-%2383c7bd.png",
+        "name": "Animals-Plants",
+        "price": null,
+        "hex": "#83c7bd"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/b43256c4-ccca-4475-ab93-3cd61829e002/Animals-Plants-%23059ea1.png",
+        "name": "Animals-Plants",
+        "price": null,
+        "hex": "#059ea1"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/5edd85ed-a8c0-4fa6-86b8-284fabd13827/Animals-Plants-%23eb686a.png",
+        "name": "Animals-Plants",
+        "price": null,
+        "hex": "#eb686a"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/98ada940-51ef-43cd-9355-1c6708bbf8f6/Animals-Plants-%23cb595a.png",
+        "name": "Animals-Plants",
+        "price": null,
+        "hex": "#cb595a"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/e7192d94-11c9-48c4-b790-5b127bc1d212/Animals-Plants-%23e05f4c.png",
+        "name": "Animals-Plants",
+        "price": null,
+        "hex": "#e05f4c"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/92d64bb0-51a6-486d-adda-34b7d9041a5a/Animals-Plants-%23ff9048.png",
+        "name": "Animals-Plants",
+        "price": null,
+        "hex": "#ff9048"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/cc8cd36c-4ec6-4fcb-976c-6a1fd3cd3add/Animals-Plants-%23e59935.png",
+        "name": "Animals-Plants",
+        "price": null,
+        "hex": "#e59935"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/8d01f85c-4cc4-43f2-8125-c82c16e32bc5/Animals-Plants-%23f3e39a.png",
+        "name": "Animals-Plants",
+        "price": null,
+        "hex": "#f3e39a"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/fbec8bda-fdf4-455f-80a4-937b74296a42/Animals-Plants-%23facf27.png",
+        "name": "Animals-Plants",
+        "price": null,
+        "hex": "#facf27"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/85b86819-eb40-4106-bf9b-cda2748120d3/Animals-Plants-%2378a3d4.png",
+        "name": "Animals-Plants",
+        "price": null,
+        "hex": "#78a3d4"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/a439d373-eb22-46fc-9b24-9b6035acd959/Animals-Plants-%230160b2.png",
+        "name": "Animals-Plants",
+        "price": null,
+        "hex": "#0160b2"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/8a7a203c-da30-4139-8feb-5b4f33c146c3/Animals-Plants-%23a6cee4.png",
+        "name": "Animals-Plants",
+        "price": null,
+        "hex": "#a6cee4"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/7f560a6a-04d0-4b04-8977-851ab480692c/Animals-Plants-%23001c81.png",
+        "name": "Animals-Plants",
+        "price": null,
+        "hex": "#001c81"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/8e03996f-1441-46f2-a72d-da777f2b1edd/Animals-Plants-%233877b9.png",
+        "name": "Animals-Plants",
+        "price": null,
+        "hex": "#3877b9"
+      }
+    ],
+    "animals-innercircle": [
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/4b6feea9-bb69-43a9-800f-466a392807e3/Animals-Inner-edge-%23a3759f.png",
+        "name": "Animals-Inner-edge",
+        "price": null,
+        "hex": "#a3759f"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/c7a1a149-b608-4048-94a2-81ad11ac7ac6/Animals-Inner-edge-%235c3930.png",
+        "name": "Animals-Inner-edge",
+        "price": null,
+        "hex": "#5c3930"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/939ff853-392c-4211-8b63-310af4ae09a1/Animals-Inner-edge-%233f6525.png",
+        "name": "Animals-Inner-edge",
+        "price": null,
+        "hex": "#3f6525"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/ee1a67c9-2e6a-451a-85b4-78285d6e492b/Animals-Inner-edge-%233e8ea2.png",
+        "name": "Animals-Inner-edge",
+        "price": null,
+        "hex": "#3e8ea2"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/b2a1fdba-19b4-4f26-b851-8792e35bc29e/Animals-Inner-edge-%23b7c981.png",
+        "name": "Animals-Inner-edge",
+        "price": null,
+        "hex": "#b7c981"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/90c78e6f-8803-4f0d-bf31-a676c0ad4a38/Animals-Inner-edge-%2393af74.png",
+        "name": "Animals-Inner-edge",
+        "price": null,
+        "hex": "#93af74"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/3cd9f1bc-f50d-43b8-a76c-284f4c9f9d83/Animals-Inner-edge-%2383c7bd.png",
+        "name": "Animals-Inner-edge",
+        "price": null,
+        "hex": "#83c7bd"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/5c509cf7-5a95-4947-8f9c-2fb956bddf89/Animals-Inner-edge-%23059ea1.png",
+        "name": "Animals-Inner-edge",
+        "price": null,
+        "hex": "#059ea1"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/ad14d00f-540e-4431-8559-1193462b7cf5/Animals-Inner-edge-%23eb686a.png",
+        "name": "Animals-Inner-edge",
+        "price": null,
+        "hex": "#eb686a"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/be3dfa5e-565b-4151-a508-d86f34daf9c0/Animals-Inner-edge-%23cb595a.png",
+        "name": "Animals-Inner-edge",
+        "price": null,
+        "hex": "#cb595a"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/3869b47c-2bc9-4bc7-8cb1-9d4813f7221e/Animals-Inner-edge-%23e05f4c.png",
+        "name": "Animals-Inner-edge",
+        "price": null,
+        "hex": "#e05f4c"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/5babcb5c-2e91-4f18-950d-f1f3965e65b3/Animals-Inner-edge-%23ff9048.png",
+        "name": "Animals-Inner-edge",
+        "price": null,
+        "hex": "#ff9048"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/964a2302-159d-4cf5-b234-d0a14388bdea/Animals-Inner-edge-%23e59935.png",
+        "name": "Animals-Inner-edge",
+        "price": null,
+        "hex": "#e59935"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/9404a07d-77d1-4ddd-b07d-bc26a80fca3e/Animals-Inner-edge-%23f3e39a.png",
+        "name": "Animals-Inner-edge",
+        "price": null,
+        "hex": "#f3e39a"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/cd08f014-0ea1-41cd-b574-75435989a7f2/Animals-Inner-edge-%23facf27.png",
+        "name": "Animals-Inner-edge",
+        "price": null,
+        "hex": "#facf27"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/d5427e5d-c00d-456d-9803-78e2a343d471/Animals-Inner-edge-%2378a3d4.png",
+        "name": "Animals-Inner-edge",
+        "price": null,
+        "hex": "#78a3d4"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/4e466822-c9b5-4424-b555-a862eaa93d77/Animals-Inner-edge-%230160b2.png",
+        "name": "Animals-Inner-edge",
+        "price": null,
+        "hex": "#0160b2"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/9b05034c-ec92-46c3-9c06-3ea6a57218ac/Animals-Inner-edge-%23a6cee4.png",
+        "name": "Animals-Inner-edge",
+        "price": null,
+        "hex": "#a6cee4"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/941a26d8-4391-4825-931d-9f35de575abd/Animals-Inner-edge-%23001c81.png",
+        "name": "Animals-Inner-edge",
+        "price": null,
+        "hex": "#001c81"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/e0f3aac1-b3dc-428f-a67b-84d6f60a70a3/Animals-Inner-edge-%233877b9.png",
+        "name": "Animals-Inner-edge",
+        "price": null,
+        "hex": "#3877b9"
+      }
+    ],
+    "animals-dotter": [
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/c7f95d3f-d219-4921-a90f-f062ea4b57f1/Animals-Dotter-%23a3759f.png",
+        "name": "Animals-Dotter",
+        "price": null,
+        "hex": "#a3759f"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/680c914d-3a40-4ba3-badd-01d5a655d2cf/Animals-Dotter-%235c3930.png",
+        "name": "Animals-Dotter",
+        "price": null,
+        "hex": "#5c3930"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/9e0fa613-7a58-4092-a5a5-aff29e60e69c/Animals-Dotter-%233f6525.png",
+        "name": "Animals-Dotter",
+        "price": null,
+        "hex": "#3f6525"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/8fc9fb6d-36b3-40f3-be97-d0d7417cc299/Animals-Dotter-%233e8ea2.png",
+        "name": "Animals-Dotter",
+        "price": null,
+        "hex": "#3e8ea2"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/c23c322b-25fc-46d4-9bb7-5a09880df75a/Animals-Dotter-%23b7c981.png",
+        "name": "Animals-Dotter",
+        "price": null,
+        "hex": "#b7c981"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/64160f60-9bb0-4272-90f8-b9386f986a96/Animals-Dotter-%2393af74.png",
+        "name": "Animals-Dotter",
+        "price": null,
+        "hex": "#93af74"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/b9eae34c-9e72-435a-a3cd-cd066f9631b4/Animals-Dotter-%2383c7bd.png",
+        "name": "Animals-Dotter",
+        "price": null,
+        "hex": "#83c7bd"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/060d010a-197b-45ae-85ca-217659926674/Animals-Dotter-%23059ea1.png",
+        "name": "Animals-Dotter",
+        "price": null,
+        "hex": "#059ea1"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/dded834c-ff1f-4820-959f-9077bf8598c2/Animals-Dotter-%23eb686a.png",
+        "name": "Animals-Dotter",
+        "price": null,
+        "hex": "#eb686a"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/08288a75-2714-4c9f-b894-fe88577c9d31/Animals-Dotter-%23cb595a.png",
+        "name": "Animals-Dotter",
+        "price": null,
+        "hex": "#cb595a"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/9daeff7e-0fea-41a6-9f3c-85ac1aeb0848/Animals-Dotter-%23e05f4c.png",
+        "name": "Animals-Dotter",
+        "price": null,
+        "hex": "#e05f4c"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/8ec81628-026e-4a68-aa9a-000e15b764d1/Animals-Dotter-%23ff9048.png",
+        "name": "Animals-Dotter",
+        "price": null,
+        "hex": "#ff9048"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/1b3ff78d-d4f3-495b-891e-51941b783fb6/Animals-Dotter-%23e59935.png",
+        "name": "Animals-Dotter",
+        "price": null,
+        "hex": "#e59935"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/b761fcee-84c1-4763-a057-09b3a5662559/Animals-Dotter-%23f3e39a.png",
+        "name": "Animals-Dotter",
+        "price": null,
+        "hex": "#f3e39a"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/e12297a6-baae-493c-97ac-63800c604607/Animals-Dotter-%23facf27.png",
+        "name": "Animals-Dotter",
+        "price": null,
+        "hex": "#facf27"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/57c2cbc5-1091-48b9-adf4-1095b2953b91/Animals-Dotter-%2378a3d4.png",
+        "name": "Animals-Dotter",
+        "price": null,
+        "hex": "#78a3d4"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/0e53f32f-d9b7-4c9e-9890-48e98030b959/Animals-Dotter-%230160b2.png",
+        "name": "Animals-Dotter",
+        "price": null,
+        "hex": "#0160b2"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/f8498525-ccb9-43e5-ac75-dfc8f7a16519/Animals-Dotter-%23a6cee4.png",
+        "name": "Animals-Dotter",
+        "price": null,
+        "hex": "#a6cee4"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/3bd8f44d-ccfb-4024-8c88-552f431c3432/Animals-Dotter-%23001c81.png",
+        "name": "Animals-Dotter",
+        "price": null,
+        "hex": "#001c81"
+      }
+    ],
+    "crabcolors": [
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/ddf69a42-09ec-41c0-a3ca-5d8b5fbef591/Crab_0000s_0000s_0000_%23a3759f.webp",
+        "name": "Crab 0000s 0000s 0000",
+        "price": null,
+        "hex": "#a3759f"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/b16f9678-9b1e-48d6-9f2c-4310f9556556/Crab_0000s_0000s_0002_%235c3930.webp",
+        "name": "Crab 0000s 0000s 0002",
+        "price": null,
+        "hex": "#5c3930"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/117372a6-3afc-42c3-9dd9-43078d6330d9/Crab_0000s_0000s_0003_%233f6525.webp",
+        "name": "Crab 0000s 0000s 0003",
+        "price": null,
+        "hex": "#3f6525"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/d59bccae-697c-4268-995e-d2e0b09a89ee/Crab_0000s_0000s_0004_%233e8ea2.webp",
+        "name": "Crab 0000s 0000s 0004",
+        "price": null,
+        "hex": "#3e8ea2"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/928e3184-5c96-4a5f-b01e-6155a7d4e339/Crab_0000s_0000s_0005_%23b7c981.webp",
+        "name": "Crab 0000s 0000s 0005",
+        "price": null,
+        "hex": "#b7c981"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/a3ea62e2-cd89-4f42-a7be-a85964edc070/Crab_0000s_0000s_0006_%2393af74.webp",
+        "name": "Crab 0000s 0000s 0006",
+        "price": null,
+        "hex": "#93af74"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/f835c6bb-dda0-4308-a4aa-93992b7d87f6/Crab_0000s_0000s_0007_%2383c7bd.webp",
+        "name": "Crab 0000s 0000s 0007",
+        "price": null,
+        "hex": "#83c7bd"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/045ef7bd-54f2-47e2-b7b4-400ada3573cd/Crab_0000s_0000s_0008_%23059ea1.webp",
+        "name": "Crab 0000s 0000s 0008",
+        "price": null,
+        "hex": "#059ea1"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/4d4cf521-5302-4f69-80fa-5e1773840763/Crab_0000s_0000s_0009_%23eb686a.webp",
+        "name": "Crab 0000s 0000s 0009",
+        "price": null,
+        "hex": "#eb686a"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/56ea9299-96f6-4a0f-ab5c-cc583d089a75/Crab_0000s_0000s_0010_%23cb595a.webp",
+        "name": "Crab 0000s 0000s 0010",
+        "price": null,
+        "hex": "#cb595a"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/3139d5d8-7461-4c48-b7c0-740c94b70d8e/Crab_0000s_0000s_0011_%23e05f4c.webp",
+        "name": "Crab 0000s 0000s 0011",
+        "price": null,
+        "hex": "#e05f4c"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/760e4391-87c1-4bae-9310-c85f1c5a62ff/Crab_0000s_0000s_0012_%23ff9048.webp",
+        "name": "Crab 0000s 0000s 0012",
+        "price": null,
+        "hex": "#ff9048"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/386addd8-abd8-4bff-86aa-1691c00d7817/Crab_0000s_0000s_0013_%23e59935.webp",
+        "name": "Crab 0000s 0000s 0013",
+        "price": null,
+        "hex": "#e59935"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/e8746ae4-96c2-4aae-9bd0-68ad9872b539/Crab_0000s_0000s_0014_%23f3e39a.webp",
+        "name": "Crab 0000s 0000s 0014",
+        "price": null,
+        "hex": "#f3e39a"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/3150d4a2-90be-4eb7-9528-f2d45c8b9e7b/Crab_0000s_0000s_0015_%23facf27.webp",
+        "name": "Crab 0000s 0000s 0015",
+        "price": null,
+        "hex": "#facf27"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/ce972fb8-c19a-44fd-81cb-f1c04af7dd0a/Crab_0000s_0000s_0016_%2378a3d4.webp",
+        "name": "Crab 0000s 0000s 0016",
+        "price": null,
+        "hex": "#78a3d4"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/74e2cc0e-7a75-48e2-a716-a906393bc94c/Crab_0000s_0000s_0017_%230160b2.webp",
+        "name": "Crab 0000s 0000s 0017",
+        "price": null,
+        "hex": "#0160b2"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/b0a0afd5-4c44-440f-80a7-97eaa755b076/Crab_0000s_0000s_0018_%23a6cee4.webp",
+        "name": "Crab 0000s 0000s 0018",
+        "price": null,
+        "hex": "#a6cee4"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/734e11d9-1431-448a-bb52-7a47db83d057/Crab_0000s_0000s_0019_%23001c81.webp",
+        "name": "Crab 0000s 0000s 0019",
+        "price": null,
+        "hex": "#001c81"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/9c478166-c5e5-4130-898c-ad7ccf5e04ba/Crab_0000s_0000s_0020_%233877b9.webp",
+        "name": "Crab 0000s 0000s 0020",
+        "price": null,
+        "hex": "#3877b9"
+      }
+    ],
+    "crabline": [
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/b4e3ce18-1c9b-49f0-a9fa-06d8c259257b/Crab_0000s_0000s_0000_lineart.png",
+        "name": "Crab 0000s 0000s 0000 lineart",
+        "price": null,
+        "hex": null
+      }
+    ],
+    "crab-kanter": [
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/dcfa5a04-9a8e-4d74-b1cd-71e8c67b8190/Crab_0005s_0001s_0000_%23a3759f.webp",
+        "name": "Crab 0005s 0001s 0000",
+        "price": null,
+        "hex": "#a3759f"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/75962c5c-298b-4911-a830-92486d657ade/Crab_0005s_0001s_0001_%235c3930.webp",
+        "name": "Crab 0005s 0001s 0001",
+        "price": null,
+        "hex": "#5c3930"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/8342651f-8149-45c2-8a0e-285f46079824/Crab_0005s_0001s_0002_%233f6525.webp",
+        "name": "Crab 0005s 0001s 0002",
+        "price": null,
+        "hex": "#3f6525"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/fa7d9e58-3e35-47f3-b675-e90f99812f92/Crab_0005s_0001s_0003_%233e8ea2.webp",
+        "name": "Crab 0005s 0001s 0003",
+        "price": null,
+        "hex": "#3e8ea2"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/2623de8b-90eb-45c2-89ad-bafc8749de1a/Crab_0005s_0001s_0004_%23b7c981.webp",
+        "name": "Crab 0005s 0001s 0004",
+        "price": null,
+        "hex": "#b7c981"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/f2eb77df-e2cf-4b25-8de5-6b135f76654a/Crab_0005s_0001s_0005_%2393af74.webp",
+        "name": "Crab 0005s 0001s 0005",
+        "price": null,
+        "hex": "#93af74"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/a590d663-efd4-427e-89f9-f7076f3c2917/Crab_0005s_0001s_0006_%2383c7bd.webp",
+        "name": "Crab 0005s 0001s 0006",
+        "price": null,
+        "hex": "#83c7bd"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/edcb007e-e6c3-4eac-95cc-7548d50d2cbb/Crab_0005s_0001s_0007_%23059ea1.webp",
+        "name": "Crab 0005s 0001s 0007",
+        "price": null,
+        "hex": "#059ea1"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/976ad560-1593-41f0-8016-0bbf4f501f80/Crab_0005s_0001s_0008_%23eb686a.webp",
+        "name": "Crab 0005s 0001s 0008",
+        "price": null,
+        "hex": "#eb686a"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/d5e90dab-4102-44da-bd08-e1f0043c8a23/Crab_0005s_0001s_0009_%23cb595a.webp",
+        "name": "Crab 0005s 0001s 0009",
+        "price": null,
+        "hex": "#cb595a"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/68cf8ab1-aed3-42ce-a82e-ffa4a7192c13/Crab_0005s_0001s_0010_%23e05f4c.webp",
+        "name": "Crab 0005s 0001s 0010",
+        "price": null,
+        "hex": "#e05f4c"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/73b441e5-ac52-4729-b6ed-928be9ec193a/Crab_0005s_0001s_0011_%23ff9048.webp",
+        "name": "Crab 0005s 0001s 0011",
+        "price": null,
+        "hex": "#ff9048"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/d53e0b2b-e9cf-42f3-9a1c-8df912870503/Crab_0005s_0001s_0012_%23e59935.webp",
+        "name": "Crab 0005s 0001s 0012",
+        "price": null,
+        "hex": "#e59935"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/668e5b6b-d5df-494f-8bef-35982a9948a6/Crab_0005s_0001s_0013_%23f3e39a.webp",
+        "name": "Crab 0005s 0001s 0013",
+        "price": null,
+        "hex": "#f3e39a"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/ddc697c8-6485-423c-affb-ddae7bacef21/Crab_0005s_0001s_0014_%23facf27.webp",
+        "name": "Crab 0005s 0001s 0014",
+        "price": null,
+        "hex": "#facf27"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/95be7c89-901c-4269-93ff-053dc1cc3ff2/Crab_0005s_0001s_0015_%2378a3d4.webp",
+        "name": "Crab 0005s 0001s 0015",
+        "price": null,
+        "hex": "#78a3d4"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/1369e5fb-390c-472f-b930-664e4e9b2a63/Crab_0005s_0001s_0016_%230160b2.webp",
+        "name": "Crab 0005s 0001s 0016",
+        "price": null,
+        "hex": "#0160b2"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/abc193af-c0b2-4eac-8d5b-84a603e5eb55/Crab_0005s_0001s_0017_%23a6cee4.webp",
+        "name": "Crab 0005s 0001s 0017",
+        "price": null,
+        "hex": "#a6cee4"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/d425168d-1aea-4820-862e-e2db5054e5d7/Crab_0005s_0001s_0018_%23001c81.webp",
+        "name": "Crab 0005s 0001s 0018",
+        "price": null,
+        "hex": "#001c81"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/1737259c-363b-4a11-8b2f-942541c37ef4/Crab_0005s_0001s_0019_%233877b9.webp",
+        "name": "Crab 0005s 0001s 0019",
+        "price": null,
+        "hex": "#3877b9"
+      }
+    ],
+    "stripes": [
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/a8b254ad-1927-468c-8373-3d324a9aff77/Stripes_0000s_0000_%23a3759f.webp",
+        "name": "Stripes 0000s 0000",
+        "price": null,
+        "hex": "#a3759f"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/87611f7a-5729-4540-846c-482ec8c56cc9/Stripes_0000s_0001_%235c3930.webp",
+        "name": "Stripes 0000s 0001",
+        "price": null,
+        "hex": "#5c3930"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/2868a1ba-358c-4c8a-9fce-79355ba14010/Stripes_0000s_0002_%233f6525.webp",
+        "name": "Stripes 0000s 0002",
+        "price": null,
+        "hex": "#3f6525"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/fe34687c-9133-4b66-8a5b-a56c0f8e611e/Stripes_0000s_0003_%233e8ea2.webp",
+        "name": "Stripes 0000s 0003",
+        "price": null,
+        "hex": "#3e8ea2"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/34cbc01c-39db-44c2-8a58-6bf0e727e2f7/Stripes_0000s_0004_%23b7c981.webp",
+        "name": "Stripes 0000s 0004",
+        "price": null,
+        "hex": "#b7c981"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/0de5ada4-e9dc-4f11-ab70-93f0f9e1eb4d/Stripes_0000s_0005_%2393af74.webp",
+        "name": "Stripes 0000s 0005",
+        "price": null,
+        "hex": "#93af74"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/f331291e-3b32-414b-9fb0-91e725204170/Stripes_0000s_0006_%2383c7bd.webp",
+        "name": "Stripes 0000s 0006",
+        "price": null,
+        "hex": "#83c7bd"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/a053ba4c-2939-470f-9690-c5491c7dcab3/Stripes_0000s_0007_%23059ea1.webp",
+        "name": "Stripes 0000s 0007",
+        "price": null,
+        "hex": "#059ea1"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/e8f210a4-0139-44f2-94a2-aa80823f8d2c/Stripes_0000s_0008_%23eb686a.webp",
+        "name": "Stripes 0000s 0008",
+        "price": null,
+        "hex": "#eb686a"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/4056be2d-6919-4618-b13b-b3dff4ecbad3/Stripes_0000s_0009_%23cb595a.webp",
+        "name": "Stripes 0000s 0009",
+        "price": null,
+        "hex": "#cb595a"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/eb6cdce6-7008-43c9-b223-4b987202a7d9/Stripes_0000s_0010_%23e05f4c.webp",
+        "name": "Stripes 0000s 0010",
+        "price": null,
+        "hex": "#e05f4c"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/7c986f7e-e7ad-4092-b380-a9de22a2c7ca/Stripes_0000s_0011_%23ff9048.webp",
+        "name": "Stripes 0000s 0011",
+        "price": null,
+        "hex": "#ff9048"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/268a3af1-50d5-47a5-8441-9cd208cd80ac/Stripes_0000s_0012_%23e59935.webp",
+        "name": "Stripes 0000s 0012",
+        "price": null,
+        "hex": "#e59935"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/997bf780-1d73-461d-a0c0-d0dfec0c97ba/Stripes_0000s_0013_%23f3e39a.webp",
+        "name": "Stripes 0000s 0013",
+        "price": null,
+        "hex": "#f3e39a"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/f7e24214-89a7-4e9d-839c-ddce76d4e98a/Stripes_0000s_0014_%23facf27.webp",
+        "name": "Stripes 0000s 0014",
+        "price": null,
+        "hex": "#facf27"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/8ab60999-32c8-42cd-a65f-b1dccc114493/Stripes_0000s_0015_%2378a3d4.webp",
+        "name": "Stripes 0000s 0015",
+        "price": null,
+        "hex": "#78a3d4"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/c8b9ff9c-91ee-4a20-8a0b-d75008dc1f3a/Stripes_0000s_0016_%230160b2.webp",
+        "name": "Stripes 0000s 0016",
+        "price": null,
+        "hex": "#0160b2"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/f6bba7d7-5317-4f73-9926-0b1691d6a1ff/Stripes_0000s_0017_%23a6cee4.webp",
+        "name": "Stripes 0000s 0017",
+        "price": null,
+        "hex": "#a6cee4"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/310ee0c6-d5b8-409f-a298-62cd3991a84e/Stripes_0000s_0018_%23001c81.webp",
+        "name": "Stripes 0000s 0018",
+        "price": null,
+        "hex": "#001c81"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/d5551a48-cdda-4a12-9eb9-ee2f47f332b7/Stripes_0000s_0019_%233877b9.webp",
+        "name": "Stripes 0000s 0019",
+        "price": null,
+        "hex": "#3877b9"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/5ec321c2af33de48734cc929/1589847773654-BPUX4PIGN1XNMO6RYA8F/Large%2BJPG-Aro%2BHa_0393.jpg",
+        "name": "Large JPG-Aro Ha 0393",
+        "price": null,
+        "hex": null
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/5ec321c2af33de48734cc929/1589847734709-V24FMDXQJHL7KMBJF1BS/20140301_Trade-151_0124-copy.jpg",
+        "name": "20140301 Trade-151 0124-copy",
+        "price": null,
+        "hex": null
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/5ec321c2af33de48734cc929/1589847734411-SZUK9WILA1UPRU4TZVGR/AroHa_02.jpg",
+        "name": "AroHa 02",
+        "price": null,
+        "hex": null
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/5ec321c2af33de48734cc929/1589847734145-FZ3C1ZE7VTH98K87BOZO/Aro+Ha_0428.jpg",
+        "name": "Aro Ha 0428",
+        "price": null,
+        "hex": null
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/5ec321c2af33de48734cc929/1589847733865-FY4RV6HGFBQ8ZYU4ZHLH/Aro+Ha_0010.jpg",
+        "name": "Aro Ha 0010",
+        "price": null,
+        "hex": null
+      }
+    ],
+    "juletre": [
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/7fa69c22-cdd8-492f-b023-7372ee3817c8/Juletre_0000s_0000_tree+%281%29.webp",
+        "name": "Juletre 0000s 0000 tree (1)",
+        "price": null,
+        "hex": null
+      }
+    ],
+    "juletre-kanter": [
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/ef832e4f-ecf8-4f53-abcf-9b96faef4ee3/Juletre_0005s_0000s_0000_%23a3759f.webp",
+        "name": "Juletre 0005s 0000s 0000",
+        "price": null,
+        "hex": "#a3759f"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/31b9cae7-373d-4af7-9f50-b9c171061461/Juletre_0005s_0000s_0001_%235c3930.webp",
+        "name": "Juletre 0005s 0000s 0001",
+        "price": null,
+        "hex": "#5c3930"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/9320f24d-c02e-4acd-9664-c37b570e36a3/Juletre_0005s_0000s_0002_%233f6525.webp",
+        "name": "Juletre 0005s 0000s 0002",
+        "price": null,
+        "hex": "#3f6525"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/f5b4538e-658f-41f5-aeab-a7263f9a0526/Juletre_0005s_0000s_0003_%233e8ea2.webp",
+        "name": "Juletre 0005s 0000s 0003",
+        "price": null,
+        "hex": "#3e8ea2"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/858a7c66-3132-493a-9ecc-72f340645a1f/Juletre_0005s_0000s_0004_%23b7c981.webp",
+        "name": "Juletre 0005s 0000s 0004",
+        "price": null,
+        "hex": "#b7c981"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/5f8705dd-1a96-4e3b-a01e-9f31b0d0b155/Juletre_0005s_0000s_0005_%2393af74.webp",
+        "name": "Juletre 0005s 0000s 0005",
+        "price": null,
+        "hex": "#93af74"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/0d33f6d8-bf04-4b6e-9d39-ee1418452800/Juletre_0005s_0000s_0006_%2383c7bd.webp",
+        "name": "Juletre 0005s 0000s 0006",
+        "price": null,
+        "hex": "#83c7bd"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/f7139461-ac2c-42dc-b2b5-330c85fb0f09/Juletre_0005s_0000s_0007_%23059ea1.webp",
+        "name": "Juletre 0005s 0000s 0007",
+        "price": null,
+        "hex": "#059ea1"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/924fa3a1-4195-48a8-95a3-d9e8fd7c41bf/Juletre_0005s_0000s_0008_%23eb686a.webp",
+        "name": "Juletre 0005s 0000s 0008",
+        "price": null,
+        "hex": "#eb686a"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/f565f84f-62a4-4bc9-b9f2-3329cadea952/Juletre_0005s_0000s_0009_%23cb595a.webp",
+        "name": "Juletre 0005s 0000s 0009",
+        "price": null,
+        "hex": "#cb595a"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/3def5bce-e9f8-4192-aff0-27cebdbb3e5d/Juletre_0005s_0000s_0010_%23e05f4c.webp",
+        "name": "Juletre 0005s 0000s 0010",
+        "price": null,
+        "hex": "#e05f4c"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/d20c1a04-3789-44ca-9e6d-514f3a97cdd2/Juletre_0005s_0000s_0011_%23ff9048.webp",
+        "name": "Juletre 0005s 0000s 0011",
+        "price": null,
+        "hex": "#ff9048"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/98b3a4a4-e7ab-46fd-b3af-28d244528be0/Juletre_0005s_0000s_0012_%23e59935.webp",
+        "name": "Juletre 0005s 0000s 0012",
+        "price": null,
+        "hex": "#e59935"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/25c387c2-1436-4a6e-9ead-e5b1d646b4a0/Juletre_0005s_0000s_0013_%23f3e39a.webp",
+        "name": "Juletre 0005s 0000s 0013",
+        "price": null,
+        "hex": "#f3e39a"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/f15da6e5-46aa-4632-a3ac-9aefdbb6d7ed/Juletre_0005s_0000s_0014_%23facf27.webp",
+        "name": "Juletre 0005s 0000s 0014",
+        "price": null,
+        "hex": "#facf27"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/0f8361fc-95e4-4497-98b9-889e670cc876/Juletre_0005s_0000s_0015_%2378a3d4.webp",
+        "name": "Juletre 0005s 0000s 0015",
+        "price": null,
+        "hex": "#78a3d4"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/6419dd01-9c39-4685-a2dd-6c4627ec2f83/Juletre_0005s_0000s_0016_%230160b2.webp",
+        "name": "Juletre 0005s 0000s 0016",
+        "price": null,
+        "hex": "#0160b2"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/3a1cb6d6-dcb2-45c4-b33d-171c00bb3ffa/Juletre_0005s_0000s_0017_%23a6cee4.webp",
+        "name": "Juletre 0005s 0000s 0017",
+        "price": null,
+        "hex": "#a6cee4"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/7e60434d-e2e3-4f1e-b52b-933b140d5f31/Juletre_0005s_0000s_0018_%23001c81.webp",
+        "name": "Juletre 0005s 0000s 0018",
+        "price": null,
+        "hex": "#001c81"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/f2ae7741-524e-4bf0-a4ad-8553ce894700/Juletre_0005s_0000s_0019_%233877b9.webp",
+        "name": "Juletre 0005s 0000s 0019",
+        "price": null,
+        "hex": "#3877b9"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/a9aebb11-8262-44d3-85cf-ba1523173efc/Juletre__0005s_0000s_0001_%23ecae67.webp",
+        "name": "Juletre 0005s 0000s 0001",
+        "price": null,
+        "hex": "#ecae67"
+      }
+    ],
+    "julepynt": [
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/00b31dbf-4af6-4c52-925c-2994fae992a7/Juletre_0005s_0001s_0000_%23a3759f.webp",
+        "name": "Juletre 0005s 0001s 0000",
+        "price": null,
+        "hex": "#a3759f"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/296d299b-3c2d-4d43-8a0b-9f0a6a2b99a1/Juletre_0005s_0001s_0001_%235c3930.webp",
+        "name": "Juletre 0005s 0001s 0001",
+        "price": null,
+        "hex": "#5c3930"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/bfc0a3ce-dab5-4ec3-91ac-c2d0dae52f79/Juletre_0005s_0001s_0002_%233f6525.webp",
+        "name": "Juletre 0005s 0001s 0002",
+        "price": null,
+        "hex": "#3f6525"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/f35160c9-3ecf-4a45-b216-70222807e3fd/Juletre_0005s_0001s_0003_%233e8ea2.webp",
+        "name": "Juletre 0005s 0001s 0003",
+        "price": null,
+        "hex": "#3e8ea2"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/ef3e4785-29aa-4662-bdd0-bb1ae02c8d2d/Juletre_0005s_0001s_0004_%23b7c981.webp",
+        "name": "Juletre 0005s 0001s 0004",
+        "price": null,
+        "hex": "#b7c981"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/cc87891e-a6fd-43d7-a2b6-ff7129e467ed/Juletre_0005s_0001s_0005_%2393af74.webp",
+        "name": "Juletre 0005s 0001s 0005",
+        "price": null,
+        "hex": "#93af74"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/b190d345-e449-4c0f-b6f8-7ca9b376a51d/Juletre_0005s_0001s_0006_%2383c7bd.webp",
+        "name": "Juletre 0005s 0001s 0006",
+        "price": null,
+        "hex": "#83c7bd"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/7b2bc26b-9dae-410b-83d3-88ba5dbbecdb/Juletre_0005s_0001s_0007_%23059ea1.webp",
+        "name": "Juletre 0005s 0001s 0007",
+        "price": null,
+        "hex": "#059ea1"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/d0b3a392-a9d4-4b6b-b96f-bc3af82d1004/Juletre_0005s_0001s_0008_%23eb686a.webp",
+        "name": "Juletre 0005s 0001s 0008",
+        "price": null,
+        "hex": "#eb686a"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/4ed6c2ba-196c-43bf-8f75-8e8221ade87c/Juletre_0005s_0001s_0009_%23cb595a.webp",
+        "name": "Juletre 0005s 0001s 0009",
+        "price": null,
+        "hex": "#cb595a"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/8160b9fb-6319-4f38-9a1e-c211144e5cf9/Juletre_0005s_0001s_0010_%23e05f4c.webp",
+        "name": "Juletre 0005s 0001s 0010",
+        "price": null,
+        "hex": "#e05f4c"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/a042f100-b01d-4c8a-8bf4-9265b597da34/Juletre_0005s_0001s_0011_%23ff9048.webp",
+        "name": "Juletre 0005s 0001s 0011",
+        "price": null,
+        "hex": "#ff9048"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/1b29bcee-b735-4c04-85ae-010e7ac7600c/Juletre_0005s_0001s_0012_%23e59935.webp",
+        "name": "Juletre 0005s 0001s 0012",
+        "price": null,
+        "hex": "#e59935"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/1c8c5c62-1e72-4144-86bb-af643d9bcca3/Juletre_0005s_0001s_0013_%23f3e39a.webp",
+        "name": "Juletre 0005s 0001s 0013",
+        "price": null,
+        "hex": "#f3e39a"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/b39d2638-187b-4789-92f5-29403fad0a0b/Juletre_0005s_0001s_0014_%23facf27.webp",
+        "name": "Juletre 0005s 0001s 0014",
+        "price": null,
+        "hex": "#facf27"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/b911d6de-eae4-4e42-aea6-5a5bbecbd517/Juletre_0005s_0001s_0015_%2378a3d4.webp",
+        "name": "Juletre 0005s 0001s 0015",
+        "price": null,
+        "hex": "#78a3d4"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/556c9a4c-9634-4a92-a175-f20ed2160905/Juletre_0005s_0001s_0016_%230160b2.webp",
+        "name": "Juletre 0005s 0001s 0016",
+        "price": null,
+        "hex": "#0160b2"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/6e9dd32f-d523-4236-b39f-c9d2451848ee/Juletre_0005s_0001s_0017_%23a6cee4.webp",
+        "name": "Juletre 0005s 0001s 0017",
+        "price": null,
+        "hex": "#a6cee4"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/430aa7d0-61a3-4eee-be24-b40cf9c0a37e/Juletre_0005s_0001s_0018_%23001c81.webp",
+        "name": "Juletre 0005s 0001s 0018",
+        "price": null,
+        "hex": "#001c81"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/50dd1a44-aea2-4c5c-9563-edb9c0c3fddb/Juletre_0005s_0001s_0019_%233877b9.webp",
+        "name": "Juletre 0005s 0001s 0019",
+        "price": null,
+        "hex": "#3877b9"
+      },
+      {
+        "url": "https://images.squarespace-cdn.com/content/v1/678ac246af4bfa3c45e93bf5/c86c95af-7744-46e7-a4bd-fe72a0259cf2/Juletre__0005s_0001s_0001_%23ecae67.webp",
+        "name": "Juletre 0005s 0001s 0001",
+        "price": null,
+        "hex": "#ecae67"
+      }
+    ]
+  }
+}

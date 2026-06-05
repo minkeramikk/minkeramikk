@@ -1,0 +1,104 @@
+{
+  "common": {
+    "siteName": "minkeramikk.no",
+    "email": "bestilling@minkeramikk.no"
+  },
+  "nav": {
+    "products": "Produkter",
+    "configurator": "Bygg din design",
+    "contact": "Ta kontakt"
+  },
+  "footer": {
+    "privacy": "Personopplysninger",
+    "terms": "Kjøpsvilkår",
+    "copyright": "© {year} Min Keramikk"
+  },
+  "localeSwitcher": {
+    "label": "Språk",
+    "no": "NO",
+    "en": "EN"
+  },
+  "home": {
+    "hero": {
+      "title": "Design din egen håndlaget keramikk med Minkeramikk.no",
+      "text": "Bla mellom våre designs og velg alt fra fargekombinasjoner til porselen. Når du sender din bestilling til oss, vi tar kontakt med deg i løpet av noen dager og går gjennom ordren du har laget. Fakturering og betaling skjer kun etter vi har vært i kontakt.",
+      "ctaConfigurator": "Bygg din design",
+      "ctaProducts": "Se produktene"
+    },
+    "designs": {
+      "title": "Våre designs",
+      "subtitle": "Seks håndtegnede mønstre – alle kan tilpasses med dine farger."
+    },
+    "how": {
+      "title": "Slik fungerer det",
+      "step1Title": "Velg design",
+      "step1Text": "Bla mellom våre seks håndtegnede mønstre og finn din favoritt.",
+      "step2Title": "Velg farger",
+      "step2Text": "Tilpass detaljer og kanter med 20 håndmalte farger.",
+      "step3Title": "Velg keramikk",
+      "step3Text": "Fat, asjetter eller serveringsfat – send ordren, så tar vi kontakt. Ingen betaling før vi har snakket sammen."
+    },
+    "featured": {
+      "title": "Keramikken",
+      "subtitle": "Håndlaget porselen – alle priser inkluderer toll, MVA og frakt.",
+      "ctaAll": "Se alle produktene"
+    }
+  },
+  "products": {
+    "title": "Produkter",
+    "intro": "Alle produktene er håndlaget og kan bestilles i ditt eget design. Prisene inkluderer toll, MVA og frakt.",
+    "price": "{price} kr"
+  },
+  "product": {
+    "description": "Håndlaget porselen i ditt eget design. Velg mønster og farger i konfiguratoren – vi tar kontakt før noe skal betales. Prisen inkluderer toll, MVA og frakt.",
+    "ctaDesign": "Design denne",
+    "ctaAll": "Alle produktene"
+  },
+  "configurator": {
+    "pageTitle": "Bygg din design",
+    "stepIndicator": "Steg {step} av 3",
+    "nextStepDetails": "Neste steg: Detaljer",
+    "nextStepCeramic": "Neste steg: Keramikk",
+    "back": "Tilbake",
+    "previewNote": "Konfigurator viser designet ditt i et rundt mønster, husk at du kan også bestille serveringsfat, kopper, ildfastformer osv. i samme design, sluttresultatet bare ikke vises i konfigurator.",
+    "step1": {
+      "title": "Velg design"
+    },
+    "step2": {
+      "titleDetails": "Velg detaljer",
+      "titleBorders": "Velg kanter"
+    },
+    "step3": {
+      "title": "Velg keramikk",
+      "quantity": "Antall",
+      "addToBasket": "Legg i handlekurv",
+      "total": "Totalpris",
+      "send": "Send din ordre til oss",
+      "disclaimer": "Siden dette er en spesialbestilling, går vi gjennom designet sammen før ordren kan anses som bekreftet. Ved å sende ordren til oss via dette skjemaet er du ikke forpliktet til å fullføre kjøpet og ingen betaling kreves nå. Alle prisene inkluderer alt av toll og MVA – ingen uventede gebyrer ved levering! Frakt er inkludert i prisen, men ved mindre bestillinger et lite tillegg kan forekomme."
+    },
+    "configCode": {
+      "title": "Din konfigurerte design",
+      "copy": "Kopier kode",
+      "load": "Last inn konfigurasjonskode",
+      "help": "Kopier denne koden for å lagre din konfigurasjon. Last inn kode for å hente inn samme konfigurasjon du har tidligere designet."
+    }
+  },
+  "orderForm": {
+    "name": "Navn",
+    "email": "E-postadresse",
+    "phone": "Telefonnummer",
+    "address": "Leveringsadresse",
+    "message": "Melding",
+    "submit": "Send din ordre til oss"
+  },
+  "legal": {
+    "privacy": {
+      "title": "Personopplysninger (Personvernerklæring)",
+      "body": "Denne personvernerklæringen forklarer hvordan Minkeramikk.no samler inn og behandler dine personopplysninger når du benytter deg av vårt kontaktskjema for spesialbestillinger.\n\nBehandlingsansvarlig\nMinkeramikk er ansvarlig for håndteringen av personopplysningene dine. Du kan kontakte oss når som helst dersom du har spørsmål om dine data.\n\nHvilke opplysninger samler vi inn?\nNår du fyller ut skjemaet på siden \"Bygg din design\", samler vi inn: Navn, E-postadresse, Telefonnummer, Leveringsadresse (for beregning av frakt og senere levering), Spesifikasjoner for ditt design.\n\nHva brukes opplysningene til?\nVi bruker opplysningene for å: Behandle din forespørsel og bekrefte detaljene i din bestilling. Kommunisere med deg i prosessen fra design til ferdig produkt. Gjennomføre levering av varene.\n\nTredjeparter og deling av informasjon\nFor å kunne levere tjenesten vår, benytter vi oss av følgende samarbeidspartnere: Produksjonspartner og transportør: Siden produktene produseres og sendes direkte fra vår samarbeidspartner i Italia, deler vi nødvendig informasjon (navn, adresse og telefonnummer) med dem. Siden Minkeramikk.no står som ansvarlig importør for sendingen, vil dine opplysninger også bli brukt i tolldokumentasjonen for å sikre korrekt fortolling inn til Norge, slik at du som kunde slipper ekstra importkostnader.\n\nLagring og sikkerhet\nVi lagrer dine opplysninger så lenge det er nødvendig for å fullføre bestillingen og overholde lovpålagte krav (som bokføring). Vi selger aldri dine opplysninger til tredjeparter.\n\nDine rettigheter\nDu har rett til innsyn i hvilke opplysninger vi har om deg, og du kan kreve at vi sletter eller korrigerer opplysningene dine, forutsatt at vi ikke er rettslig forpliktet til å oppbevare dem. Ta kontakt med oss til post@minkeramikk.no om du har spørsmål."
+    },
+    "terms": {
+      "title": "Kjøpsvilkår (Salgsbetingelser)",
+      "body": "Disse vilkårene gjelder for alle bestillinger gjort via Minkeramikk.no.\n\n1. Bestillingsprosess\nForespørsel via \"Bygg din design\"-skjemaet, er ikke en bindende bestilling. Etter at vi har mottatt forespørsel, vil vi kontakte kunde personlig for å gå gjennom designet, bekrefte detaljer og gi en endelig pris. Alle priser oppgitt er inkl. MVA, levering og fortolling. Bestillingen anses som bindende først når du har bekreftet denne via e-post og vi har fått adressen din.\n\n2. Spesiallagde produkter (Custom Design)\nAlle produkter bestilt via denne tjenesten er \"tilvirkningskjøp\". Det betyr at produktet lages spesielt for deg basert på dine unike spesifikasjoner.\n\n3. Ingen angrerett\nI samsvar med Angrerettloven § 22 bokstav e, gjelder ikke angreretten ved levering av varer som er fremstilt etter forbrukerens spesifikasjoner eller som har fått et tydelig personlig preg. Vennligst vær oppmerksom på at når produksjonen i Italia har startet, kan bestillingen ikke kanselleres eller returneres, da varen ikke kan selges til andre. Kunde vil ha mulighet til å godkjenne ordre før den sendes og før siste faktura har forfall.\n\n4. Levering, Toll og MVA\nVarene sendes direkte fra vår produsent i Italia til kundens adresse. Ingen skjulte kostnader: Minkeramikk.no står som ansvarlig importør av varen. Dette betyr at prisen oppgitt i ordrebekreftelsen inkluderer norsk merverdiavgift (MVA) og eventuelle tollavgifter. Ferdig fortollet: Kunden vil ikke motta krav om ekstra importgebyrer eller tollbehandling fra fraktselskapet ved levering. Skulle du som kunde mot formodning bli kontaktet av fraktselskapet angående importkostnader, ber vi deg kontakte oss umiddelbart før du foretar noen betaling.\n\n5. Betaling\nBetaling skjer via faktura når vi har bekreftet designet og ordren sammen. Produksjonen i Italia påbegynnes først når depositum tilsvarende 50% av totalsummen er registrert, med mindre annet er avtalt skriftlig. Kunden vil dog få to fakturaer for sin ordre, første faktura for 50% må være betalt før produksjonen iverksettes. Siste faktura sendes når ordren er klar til å sendes. Siste faktura må være innbetalt før vi sender ordre.\n\n6. Reklamasjon\nDersom varen har en feil eller mangel som ikke skyldes spesialdesignet (f.eks. transportskade eller produksjonsfeil som ikke samsvarer med avtalen), gjelder det reklamasjonsrett i henhold til Forbrukerkjøpsloven. Kunden må gi beskjed til oss så snart som mulig, helst innen 48 timer etter at ordre er levert dersom noe er feil. Alle våre produkter er forsikret under transport, og ny produkt(ene) vil bli laget uten ekstra kostnad ved dokumentert skade ved levering.\n\n7. Forbehold\nSiden keramikk er et håndlaget naturprodukt, kan det forekomme små variasjoner i farge og form fra det digitale designet eller bilder på nettsiden. Dette regnes ikke som en mangel, men som en del av produktets unike karakter. Med siste faktura, sender vi bilder av alle produkter som har blitt produsert slik at kunden kan godkjenne bestilling. Skulle det være produksjonsfeil som f.eks feil farge eller feil i keramikk support (altså plate/fat, osv) skal kunde kommunisere dette til oss innen 72 timer fra dagen sluttfaktura er sendt."
+    }
+  }
+}
