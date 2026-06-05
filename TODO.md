@@ -28,14 +28,14 @@ dettagliate (come fase 0–2) prima di iniziarle.
 ## Fase 1 — Dati: Supabase + import del catalogo esistente
 
 - [x] 1.0 Snapshot del code block legacy in `docs/legacy/configurator-squarespace.html` (immutabile, `curl https://www.minkeramikk.no/bygg-din-design-1`) + nota di mappatura funzioni
-- [ ] 1.1 Setup Supabase, riproducibile da CLI (niente click sul dashboard per ciò che può stare in git):
+- [x] 1.1 Setup Supabase, riproducibile da CLI (niente click sul dashboard per ciò che può stare in git): *(fatto: progetto `rqhsbpwvzesvqwdonirf` West EU Paris, link CLI ok; seed utente admin rimandato al task auth F06)*
   - progetto su regione **EU** (clienti norvegesi → GDPR/latenza, es. `eu-north-1`)
   - `supabase init` nel repo: migrations versionate in `supabase/migrations/*.sql`, `supabase start` per il DB locale di sviluppo
   - `.env.local` (gitignored): `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (solo server, mai esposta) — committare `.env.example` coi nomi senza valori
   - client con `@supabase/ssr`: `src/lib/supabase/server.ts` (server components/route handlers) e `browser.ts`; il service role SOLO in codice server
   - script npm `db:types`: `supabase gen types typescript` → `src/lib/supabase/types.ts` (rigenerare a ogni migration; i tipi generati non si modificano a mano)
   - utente admin di sviluppo via seed; quello del cliente si crea all'handover
-- [ ] 1.2 Prima migration (`supabase/migrations/0001_schema.sql`) con lo schema di `docs/adr/schema-er.md` (ADR 0004–0008): naming inglese, CHECK su kind/image/hex, enum `order_status`, suppliers con designs/products.supplier_id NOT NULL, tabella settings (3 token tema), indici, trigger `updated_at`; verificare con `supabase db reset` e rigenerare i tipi (`db:types`)
+- [x] 1.2 Prima migration (`supabase/migrations/0001_schema.sql`) con lo schema di `docs/adr/schema-er.md` (ADR 0004–0008): naming inglese, CHECK su kind/image/hex, enum `order_status`, suppliers con designs/products.supplier_id NOT NULL, tabella settings (3 token tema), indici, trigger `updated_at`; verificare con `supabase db reset` e rigenerare i tipi (`db:types`) *(reset eseguito `--linked`: niente Docker nel sandbox; CHECK image/hex realizzato come one-of `num_nonnulls(image,hex)=1`, la corrispondenza col kind della categoria resta a carico dell'app)*
 - [x] 1.2b Value object `Money` in `src/lib/money/` (somma, moltiplicazione, formattazione Intl per locale) con unit test — vedi ADR 0005
 - [ ] 1.3 Migration RLS (`0002_rls.sql`): RLS attiva su TUTTE le tabelle; catalogo in lettura pubblica (solo righe `active`/`visible`), scrittura authenticated; orders/order_items insert pubblico + select/update authenticated; suppliers solo authenticated. Test negativi con client anon (non deve leggere ordini né suppliers)
 - [ ] 1.4 Bucket Storage `assets` pubblico in lettura (layer, prodotti), creato via migration; convenzione path `designs/{slug}/{category}/{file}.png` e `products/{slug}.png`; resize on-the-fly con render/image transform (niente varianti pre-generate)
