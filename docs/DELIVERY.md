@@ -202,6 +202,9 @@ AC (bozza): pagine raggiungibili dal footer in entrambe le lingue; nessuna chiav
 Test: funzionale smoke su entrambe le lingue.
 
 ### Ready
+*(vuota)*
+
+### In progress
 
 ---
 
@@ -231,9 +234,6 @@ refresh conserva) a 390/1280 · RLS: il fetch anon non vede design inattivi · u
 state reducer del configuratore (selezione design → supplierId).
 Evidenza PR: screenshot 390/768/1280 + confronto con `docs/theme/preview-frontoffice.png`.
 
-
-### In progress
-*(vuota)*
 
 ### In review
 *(vuota)*

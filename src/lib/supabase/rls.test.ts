@@ -34,6 +34,7 @@ describe.skipIf(!hasEnv)("RLS — anon client", () => {
   let anon: SupabaseClient;
   let admin: SupabaseClient;
   let supplierId: string;
+  let inactiveSupplierId: string;
   let orderId: string;
 
   beforeAll(async () => {
@@ -44,11 +45,19 @@ describe.skipIf(!hasEnv)("RLS — anon client", () => {
 
     const supplier = await admin
       .from("suppliers")
-      .insert({ name: "RLS Test Supplier" })
+      .insert({ name: "RLS Test Supplier", email: "secret@example.com" })
       .select("id")
       .single();
     if (supplier.error) throw supplier.error;
     supplierId = supplier.data.id;
+
+    const inactive = await admin
+      .from("suppliers")
+      .insert({ name: "RLS Inactive Supplier", active: false })
+      .select("id")
+      .single();
+    if (inactive.error) throw inactive.error;
+    inactiveSupplierId = inactive.data.id;
 
     const order = await admin
       .from("orders")
@@ -68,6 +77,8 @@ describe.skipIf(!hasEnv)("RLS — anon client", () => {
     if (orderId) await admin.from("orders").delete().eq("id", orderId);
     if (supplierId)
       await admin.from("suppliers").delete().eq("id", supplierId);
+    if (inactiveSupplierId)
+      await admin.from("suppliers").delete().eq("id", inactiveSupplierId);
   });
 
   it("cannot read suppliers (seeded row is invisible)", async () => {
@@ -143,5 +154,39 @@ describe.skipIf(!hasEnv)("RLS — anon client", () => {
     const { data, error } = await anon.from("settings").select("*");
     expect(error).toBeNull();
     expect(data).toHaveLength(1);
+  });
+
+  // ── ADR 0009: supplier name public, contacts never ──
+
+  it("reads supplier NAME via public_suppliers (active rows only)", async () => {
+    const { data, error } = await anon
+      .from("public_suppliers")
+      .select("id, name, active");
+    expect(error).toBeNull();
+    // the imported Vietri supplier is active and therefore visible…
+    expect(data!.some((s) => s.name === "Vietri")).toBe(true);
+    // …while the inactive seeded supplier is filtered out by the view
+    const { data: inactiveRows } = await anon
+      .from("public_suppliers")
+      .select("id")
+      .eq("id", inactiveSupplierId);
+    expect(inactiveRows).toHaveLength(0);
+  });
+
+  it("cannot read supplier CONTACTS: no email column on the view, no row on the table", async () => {
+    // the view does not expose the column at all
+    const viaView = await anon.from("public_suppliers").select("email");
+    expect(viaView.error).not.toBeNull();
+
+    // the base table stays authenticated-only (control: service role sees the email)
+    const control = await admin
+      .from("suppliers")
+      .select("email")
+      .eq("id", supplierId);
+    expect(control.data).toHaveLength(1);
+
+    const viaTable = await anon.from("suppliers").select("email");
+    expect(viaTable.error).toBeNull();
+    expect(viaTable.data).toHaveLength(0);
   });
 });

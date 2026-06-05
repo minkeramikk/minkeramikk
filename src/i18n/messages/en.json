@@ -82,7 +82,13 @@
       "copy": "Copy code",
       "load": "Load configuration code",
       "help": "Copy this code to save your configuration. Load a code to restore a configuration you designed earlier."
-    }
+    },
+    "steps": {
+      "design": "Design",
+      "details": "Details",
+      "ceramics": "Ceramics"
+    },
+    "stepperLabel": "Progress"
   },
   "orderForm": {
     "name": "Name",

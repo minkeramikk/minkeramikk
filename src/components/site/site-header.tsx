@@ -16,15 +16,18 @@ export function SiteHeader() {
           {t("common.siteName")}
         </Link>
         <nav className="flex items-center gap-5 text-sm">
+          {/* Text links are desktop-only: the mobile baseline
+              (docs/theme/preview-frontoffice-mobile.png) shows brand + locale
+              switcher; the hamburger menu is tracked for F12. */}
           <Link
             href="/products"
-            className="text-ink-muted transition-colors hover:text-white"
+            className="hidden text-ink-muted transition-colors hover:text-white sm:inline"
           >
             {t("nav.products")}
           </Link>
           <Link
             href="/configurator"
-            className="text-ink-muted transition-colors hover:text-white"
+            className="hidden text-ink-muted transition-colors hover:text-white sm:inline"
           >
             {t("nav.configurator")}
           </Link>

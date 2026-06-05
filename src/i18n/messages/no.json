@@ -81,7 +81,13 @@
       "copy": "Kopier kode",
       "load": "Last inn konfigurasjonskode",
       "help": "Kopier denne koden for å lagre din konfigurasjon. Last inn kode for å hente inn samme konfigurasjon du har tidligere designet."
-    }
+    },
+    "steps": {
+      "design": "Design",
+      "details": "Detaljer",
+      "ceramics": "Keramikk"
+    },
+    "stepperLabel": "Fremdrift"
   },
   "orderForm": {
     "name": "Navn",

@@ -78,6 +78,13 @@ export type Database = {
             foreignKeyName: "designs_supplier_id_fkey"
             columns: ["supplier_id"]
             isOneToOne: false
+            referencedRelation: "public_suppliers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "designs_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
             referencedRelation: "suppliers"
             referencedColumns: ["id"]
           },
@@ -224,6 +231,13 @@ export type Database = {
             foreignKeyName: "order_items_supplier_id_fkey"
             columns: ["supplier_id"]
             isOneToOne: false
+            referencedRelation: "public_suppliers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_items_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
             referencedRelation: "suppliers"
             referencedColumns: ["id"]
           },
@@ -319,6 +333,13 @@ export type Database = {
             foreignKeyName: "products_supplier_id_fkey"
             columns: ["supplier_id"]
             isOneToOne: false
+            referencedRelation: "public_suppliers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "products_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
             referencedRelation: "suppliers"
             referencedColumns: ["id"]
           },
@@ -380,7 +401,24 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      public_suppliers: {
+        Row: {
+          active: boolean | null
+          id: string | null
+          name: string | null
+        }
+        Insert: {
+          active?: boolean | null
+          id?: string | null
+          name?: string | null
+        }
+        Update: {
+          active?: boolean | null
+          id?: string | null
+          name?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       [_ in never]: never

@@ -1,14 +1,30 @@
 import type { Metadata } from "next";
-import { useTranslations } from "next-intl";
+import { Suspense } from "react";
+import { getTranslations } from "next-intl/server";
+import { getActiveDesigns } from "@/lib/catalog/designs";
+import { DesignStep } from "./design-step";
 
-export const metadata: Metadata = { title: "Bygg din design" };
+// Catalog is live data: render per-request so back-office changes
+// (e.g. a design switched to active=false) are reflected immediately (AC4).
+export const dynamic = "force-dynamic";
 
-export default function ByggDinDesignPage() {
-  const t = useTranslations("configurator");
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("configurator");
+  return { title: t("pageTitle") };
+}
+
+export default async function ConfiguratorPage() {
+  const [designs, t] = await Promise.all([
+    getActiveDesigns(),
+    getTranslations("configurator"),
+  ]);
+
   return (
-    <section className="mx-auto max-w-6xl px-4 py-16">
-      <h1 className="text-3xl sm:text-4xl">{t("pageTitle")}</h1>
-      {/* TODO fase 2: configuratore 3 step */}
+    <section>
+      <h1 className="sr-only">{t("pageTitle")}</h1>
+      <Suspense>
+        <DesignStep designs={designs} />
+      </Suspense>
     </section>
   );
 }
