@@ -36,6 +36,8 @@ describe.skipIf(!hasEnv)("RLS — anon client", () => {
   let supplierId: string;
   let inactiveSupplierId: string;
   let orderId: string;
+  let visibleProductId: string;
+  let hiddenProductId: string;
 
   beforeAll(async () => {
     anon = createClient(url!, anonKey!);
@@ -71,10 +73,48 @@ describe.skipIf(!hasEnv)("RLS — anon client", () => {
       .single();
     if (order.error) throw order.error;
     orderId = order.data.id;
+
+    // one visible + one hidden product for the test supplier (F03 AC1)
+    const ts = Date.now();
+    const visible = await admin
+      .from("products")
+      .insert({
+        slug: `rls-visible-${ts}`,
+        supplier_id: supplierId,
+        name_no: "RLS Visible",
+        name_en: "RLS Visible",
+        price_cents: 50_000,
+        currency: "NOK",
+        visible: true,
+      })
+      .select("id")
+      .single();
+    if (visible.error) throw visible.error;
+    visibleProductId = visible.data.id;
+
+    const hidden = await admin
+      .from("products")
+      .insert({
+        slug: `rls-hidden-${ts}`,
+        supplier_id: supplierId,
+        name_no: "RLS Hidden",
+        name_en: "RLS Hidden",
+        price_cents: 60_000,
+        currency: "NOK",
+        visible: false,
+      })
+      .select("id")
+      .single();
+    if (hidden.error) throw hidden.error;
+    hiddenProductId = hidden.data.id;
   });
 
   afterAll(async () => {
     if (orderId) await admin.from("orders").delete().eq("id", orderId);
+    if (visibleProductId)
+      await admin.from("products").delete().eq("id", visibleProductId);
+    if (hiddenProductId)
+      await admin.from("products").delete().eq("id", hiddenProductId);
     if (supplierId)
       await admin.from("suppliers").delete().eq("id", supplierId);
     if (inactiveSupplierId)
@@ -148,6 +188,25 @@ describe.skipIf(!hasEnv)("RLS — anon client", () => {
     expect(data).toHaveLength(0);
 
     await admin.from("orders").delete().eq("code", code);
+  });
+
+  // ── F03: anon sees only visible products of the supplier ──
+
+  it("anon sees visible products but NOT hidden ones (F03 AC1)", async () => {
+    const { data, error } = await anon
+      .from("products")
+      .select("id, visible")
+      .eq("supplier_id", supplierId);
+    expect(error).toBeNull();
+    const ids = (data ?? []).map((p) => p.id);
+    expect(ids).toContain(visibleProductId);
+    expect(ids).not.toContain(hiddenProductId);
+    // control: the service role sees both
+    const control = await admin
+      .from("products")
+      .select("id")
+      .eq("supplier_id", supplierId);
+    expect(control.data!.length).toBe(2);
   });
 
   it("can read public settings (theme tokens)", async () => {
