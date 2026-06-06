@@ -73,25 +73,68 @@ Checklist di review, in ordine:
 ## 5. Board
 
 > Stato iniziale: tutto in **Backlog**. Le card passano in Ready quando l'infra è Done
-> e gli AC vengono raffinati. Ordine di tiraggio consigliato: F01 → F06 → F02 → F03 →
-> F04 → F05 → F07 → F09 → F10 → F08 → F11 → F12.
+> e gli AC vengono raffinati. Ordine di tiraggio consigliato: F01✅ → F02✅ → F03(WIP) → **F14 → F13** → F04 → F05 → F06 → F07 → F09 → F10 → F08 → F11 → F12.
 
 ### Backlog
 
+> Priorità UX del configuratore (decisa 2026-06-06): F14 e F13 si tirano PRIMA di F05.
+> Il configuratore deve essere "bello e fedele all'originale" quando il cliente lo vede,
+> anche a costo di posticipare di poco il flusso ordine end-to-end.
+
 ---
 
-**F13 · Swatch con anteprima pattern (hover/focus)** — FE · dep: F02
-Scope: elevare l'esperienza colore allo step 2 al livello del sito originale (di netto
-superiore al nostro swatch attuale): passando il mouse — o col focus da tastiera — su uno
-swatch colore, un floating card mostra il pattern di quella categoria in quel colore
-(= `layer_image` dell'opzione, già in DB per ADR 0010; nessun compositing runtime).
-AC (bozza):
-- Hover/focus su uno swatch → popup con l'anteprima del pattern in quel colore, vicino allo swatch, senza spostare il layout
-- Da tastiera: il focus mostra lo stesso popup; Esc lo chiude; nessuna trappola di focus
-- Touch/mobile: nessun popup hover — la PreviewCanvas principale resta la fonte di verità (si aggiorna al tap)
-- Performance: l'anteprima usa l'immagine già esistente, lazy-load, niente jank su griglie da ~20 swatch
-Test: funzionale Playwright hover + focus tastiera a 1280; verifica che su 390 il popup non compaia e il tap aggiorni la preview principale.
-Nota priorità: enhancement, NON sul percorso critico (F02→F05). Tirare dopo che il flusso ordine è vivo.
+**F14 · Empty-state continuo: preview sempre composta, transizione step invisibile** — FE · dep: F02 [DONE]
+Rifinitura di AC7 (F02): l'utente non deve MAI vedere il "buco bianco" iniziale né
+percepire una transizione della preview passando step1→step2. La preview è l'elemento
+di continuità del configuratore.
+
+Ciclo UI/UX (da rispettare):
+1. **Primo render SSR**: il configuratore arriva col primo design (sort_order=1) GIÀ
+   selezionato e la sua config di default GIÀ risolta (prima opzione per categoria);
+   i `layer_image` del default sono noti server-side e preloadati (next/image priority).
+   Primo paint = piatto composto, non skeleton. Lo skeleton resta solo per reti lente.
+2. **Cambio design (step 1)**: cross-fade ~200ms tra preview vecchia e nuovo default;
+   la vecchia resta finché i nuovi layer non sono caricati. Mai flash bianco.
+3. **Step 1 → Step 2**: la PreviewCanvas NON cambia (stato config invariato); cambia
+   solo il pannello destro (griglia design → categorie). La continuità della preview
+   È la transizione.
+4. **prefers-reduced-motion**: niente cross-fade, swap immediato.
+
+AC (bozza): primo paint mostra il piatto composto (verifica Playwright: nessun frame
+con preview vuota); passando a step 2 la preview resta pixel-identica (screenshot diff);
+cambio design = cross-fade, niente flash; mobile idem.
+Test: Playwright (no-blank-frame al load, preview stabile su step change) a 390/1280.
+Evidenza PR: screenshot step1-default e step2 affiancati (preview identica).
+
+---
+
+**F13 · Step 2 stile originale: opzioni con icona + preview-on-hover del pattern** — FE · dep: F02 [DONE]
+La parte "wow" del configuratore, da enfatizzare: replicare l'esperienza di selezione
+varianti del sito originale (icona/swatch sempre visibile + anteprima del pattern in
+quel colore su hover/focus). Verificato sul sito live: doppio livello di feedback
+(micro = popup del singolo pattern, macro = piatto grande che si ricompone).
+
+Ciclo UI/UX:
+1. Ogni opzione mostra SEMPRE l'icona: swatch colorato (kind=color) o thumbnail
+   (kind=image) + nome sotto. Riconoscimento rapido (DESIGN-SYSTEM §3.10).
+2. **Hover/focus** → floating card (~120ms, no layout shift) col `layer_image`
+   dell'opzione: il pattern di quella categoria in quel colore. Dato già in DB
+   (ADR 0010), nessun compositing runtime.
+3. **Click** → la PreviewCanvas principale si ricompone con la scelta (multiply).
+   Doppio feedback: micro (popup) + macro (piatto).
+4. **Touch/mobile**: niente popup hover; il tap È la scelta, feedback = piatto grande
+   che si aggiorna. Il popup è enhancement desktop, mai l'unico modo di capire l'effetto.
+5. **Tastiera**: frecce dentro il radiogroup, focus mostra il popup, Esc lo chiude,
+   Invio sceglie. Nessuna trappola di focus.
+
+AC (bozza): hover/focus su un'opzione → popup col pattern colorato, vicino, senza
+spostare il layout; click aggiorna il piatto grande; mobile niente popup ma tap
+aggiorna il piatto; tastiera completa; lazy-load delle immagini, niente jank su ~20 opzioni.
+Test: Playwright hover + focus tastiera a 1280; su 390 il popup non compare e il tap
+aggiorna la preview principale.
+Evidenza PR: screenshot hover desktop + confronto con lo step 2 del sito live.
+
+
 
 
 

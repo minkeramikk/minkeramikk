@@ -1,0 +1,81 @@
+/**
+ * Cart domain (F03). Pure, serializable, no React, no localStorage here —
+ * the hook (use-cart.ts) handles persistence. All money arithmetic goes
+ * through the Money value object (ADR 0005): lines store primitive
+ * cents+currency (JSON-friendly) and reconstruct Money for totals.
+ *
+ * Lines can mix suppliers (ADR 0007); a single currency is assumed per cart
+ * (sum() refuses cross-currency by design).
+ */
+import { money, multiply, sum, type Currency, type Money } from "@/lib/money/money";
+
+/** Human-readable summary of the configured design on a cart line. */
+export interface ConfigSnapshot {
+  designSlug: string;
+  designName: string;
+  /** One entry per category: what the customer picked. */
+  selections: { label: string; option: string; hex: string | null }[];
+}
+
+export interface CartLine {
+  /** Stable identity = productId + configCode (same config merges quantity). */
+  id: string;
+  productId: string;
+  productNameNo: string;
+  productNameEn: string;
+  supplierId: string;
+  supplierName: string;
+  unitPriceCents: number;
+  currency: Currency;
+  quantity: number;
+  /** Reloadable configurator code (interim: the configurator query string; F04 formalizes). */
+  configCode: string;
+  configSnapshot: ConfigSnapshot | null;
+}
+
+export type Cart = CartLine[];
+
+export type NewCartLine = Omit<CartLine, "id" | "quantity"> & {
+  quantity?: number;
+};
+
+export function lineKey(productId: string, configCode: string): string {
+  return `${productId}::${configCode}`;
+}
+
+/** Add a line; if an identical (product + config) line exists, merge quantity. */
+export function addToCart(cart: Cart, line: NewCartLine): Cart {
+  const id = lineKey(line.productId, line.configCode);
+  const qty = line.quantity ?? 1;
+  const existing = cart.find((l) => l.id === id);
+  if (existing) {
+    return cart.map((l) =>
+      l.id === id ? { ...l, quantity: l.quantity + qty } : l
+    );
+  }
+  return [...cart, { ...line, id, quantity: qty }];
+}
+
+/** Set a line's quantity; quantity ≤ 0 removes the line. */
+export function updateQuantity(cart: Cart, id: string, quantity: number): Cart {
+  if (quantity <= 0) return removeLine(cart, id);
+  return cart.map((l) => (l.id === id ? { ...l, quantity } : l));
+}
+
+export function removeLine(cart: Cart, id: string): Cart {
+  return cart.filter((l) => l.id !== id);
+}
+
+export function lineSubtotal(line: CartLine): Money {
+  return multiply(money(line.unitPriceCents, line.currency), line.quantity);
+}
+
+/** Grand total as Money (cents). Throws on cross-currency carts (ADR 0005). */
+export function cartTotal(cart: Cart): Money {
+  if (cart.length === 0) return money(0);
+  return sum(cart.map(lineSubtotal), cart[0].currency);
+}
+
+export function itemCount(cart: Cart): number {
+  return cart.reduce((n, l) => n + l.quantity, 0);
+}
