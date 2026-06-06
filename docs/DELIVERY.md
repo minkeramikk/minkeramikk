@@ -198,6 +198,9 @@ AC (bozza): pagine raggiungibili dal footer in entrambe le lingue; nessuna chiav
 Test: funzionale smoke su entrambe le lingue.
 
 ### Ready
+*(vuota)*
+
+### In progress
 
 ---
 
@@ -227,12 +230,6 @@ già coperti · funzionale Playwright scegli→aggiungi→ricarica→presente a 
 RLS: anon vede solo prodotti visible del fornitore.
 Evidenza PR: screenshot step 3 + carrello a 390/768/1280.
 Nota: niente checkout/pagamento (finto e-commerce) — l'invio ordine è F05.
-
-*(vuota)*
-
-### In progress
-
-*(vuota)*
 
 
 ### In review
