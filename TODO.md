@@ -60,7 +60,7 @@ Le fasi sotto restano come riferimento dei contenuti, ma la fonte operativa è l
 - [x] 2.2 Componente preview: layer `<img>` sovrapposti + `mix-blend-mode: multiply`, dati dal DB *(PreviewCanvas + getPreviewLayers, layer_image da ADR 0010)*
 - [x] 2.3 Step 1 (scelta design, tutti i fornitori attivi) e navigazione a 3 step con stato URL-friendly; la scelta del design aggancia il fornitore per l'articolo (ADR 0007) *(F01)*
 - [x] 2.4 Step 2 (opzioni dinamiche per categoria, carousel embla, palette) *(F02)*
-- [ ] 2.5 Step 3 (ceramiche del SOLO fornitore agganciato, quantità) + carrello multi-item con totale (misto tra fornitori ok), persistito in localStorage
+- [x] 2.5 Step 3 (ceramiche del SOLO fornitore agganciato, quantità) + carrello multi-item con totale (misto tra fornitori ok), persistito in localStorage *(F03)*
 - [ ] 2.6 Salva/carica codice configurazione
 
 ## Fase 3 — Ordini (macro, da dettagliare)
