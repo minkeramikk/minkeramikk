@@ -23,6 +23,24 @@ test("capture 390/768/1280 screenshots", async ({ page }) => {
   }
 });
 
+const OUT3 = "docs/evidence/f03";
+
+test("F03: capture 390/768/1280 with a populated cart", async ({ page }) => {
+  mkdirSync(OUT3, { recursive: true });
+  for (const width of [390, 768, 1280]) {
+    await page.setViewportSize({ width, height: width < 700 ? 1100 : 1000 });
+    await page.goto("/no/configurator?design=blomster-1&step=3");
+    await page.getByTestId("ceramics-step").waitFor({ state: "visible" });
+    await page.getByTestId("product-vietri-flat").click();
+    await page.getByTestId("qty-inc").click();
+    await page.getByTestId("add-to-cart").click();
+    await page.getByTestId("product-serveringsfat-stor").click();
+    await page.getByTestId("add-to-cart").click();
+    await page.waitForTimeout(500);
+    await page.screenshot({ path: `${OUT3}/f03-${width}.png`, fullPage: true });
+  }
+});
+
 const OUT2 = "docs/evidence/f02";
 
 test("F02: capture 390/768/1280 with selections + composed preview", async ({

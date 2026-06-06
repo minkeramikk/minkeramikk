@@ -168,7 +168,7 @@ export function CeramicsStep({
               </button>
             </div>
             <Button
-              className="flex-1"
+              className="min-h-11 flex-1"
               size="lg"
               disabled={!selected}
               data-testid="add-to-cart"
