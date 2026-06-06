@@ -251,9 +251,14 @@ export function DetailsStep({
             <Button
               size="lg"
               className="flex-1"
-              disabled
-              title="F03"
               data-testid="next-step"
+              onClick={() => {
+                const params = new URLSearchParams(searchParams.toString());
+                params.set("step", "3");
+                router.push(`${pathname}?${params.toString()}`, {
+                  scroll: false,
+                });
+              }}
             >
               {t("nextStepCeramic")}
             </Button>
