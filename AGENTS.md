@@ -62,7 +62,18 @@ Supabase (Postgres, Auth, Storage) · Resend · embla-carousel · Vercel
 
 ## Definition of Done (ogni task)
 
-- `npm run lint` e `npm run build` passano
+- `npm ci` (NON `npm install`) passa pulito in locale prima della PR: usa lo stesso
+  install rigoroso della CI e becca il drift del lockfile prima che diventi rosso in CI.
+- `npm run lint`, `npm run build` e `npm test` passano
 - Nessuna chiave i18n mancante in uno dei due dizionari
 - Responsive verificato (375px / 768px / 1280px) per task con UI
 - TODO.md aggiornato (task spuntato, eventuali task nuovi scoperti aggiunti)
+
+## Versione Node (fonte unica)
+
+`.nvmrc` → `24` (LTS) è l'UNICA fonte di verità per la versione Node: `engines.node` in
+`package.json` la rispecchia e la CI la legge con `node-version-file: .nvmrc`. Prima di
+`npm install` assicurarsi di essere sulla versione del `.nvmrc` (`nvm use`), altrimenti
+il lockfile si disallinea (lezione PR #3: lock generato su Node 26 ≠ CI su 22 → `npm ci`
+rotto). Per cambiare major Node si aggiorna `.nvmrc` + `engines` e si rigenera il lock
+nello stesso commit.

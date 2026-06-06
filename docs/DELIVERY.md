@@ -73,38 +73,13 @@ Checklist di review, in ordine:
 ## 5. Board
 
 > Stato iniziale: tutto in **Backlog**. Le card passano in Ready quando l'infra è Done
-> e gli AC vengono raffinati. Ordine di tiraggio consigliato: F01✅ → F02✅ → F03(WIP) → **F14 → F13** → F04 → F05 → F06 → F07 → F09 → F10 → F08 → F11 → F12.
+> e gli AC vengono raffinati. Ordine di tiraggio consigliato: F01✅ → F02✅ → F03✅ → **F14(Ready) → F13** → F04 → F05 → F06 → F07 → F09 → F10 → F08 → F11 → F12.
 
 ### Backlog
 
 > Priorità UX del configuratore (decisa 2026-06-06): F14 e F13 si tirano PRIMA di F05.
 > Il configuratore deve essere "bello e fedele all'originale" quando il cliente lo vede,
 > anche a costo di posticipare di poco il flusso ordine end-to-end.
-
----
-
-**F14 · Empty-state continuo: preview sempre composta, transizione step invisibile** — FE · dep: F02 [DONE]
-Rifinitura di AC7 (F02): l'utente non deve MAI vedere il "buco bianco" iniziale né
-percepire una transizione della preview passando step1→step2. La preview è l'elemento
-di continuità del configuratore.
-
-Ciclo UI/UX (da rispettare):
-1. **Primo render SSR**: il configuratore arriva col primo design (sort_order=1) GIÀ
-   selezionato e la sua config di default GIÀ risolta (prima opzione per categoria);
-   i `layer_image` del default sono noti server-side e preloadati (next/image priority).
-   Primo paint = piatto composto, non skeleton. Lo skeleton resta solo per reti lente.
-2. **Cambio design (step 1)**: cross-fade ~200ms tra preview vecchia e nuovo default;
-   la vecchia resta finché i nuovi layer non sono caricati. Mai flash bianco.
-3. **Step 1 → Step 2**: la PreviewCanvas NON cambia (stato config invariato); cambia
-   solo il pannello destro (griglia design → categorie). La continuità della preview
-   È la transizione.
-4. **prefers-reduced-motion**: niente cross-fade, swap immediato.
-
-AC (bozza): primo paint mostra il piatto composto (verifica Playwright: nessun frame
-con preview vuota); passando a step 2 la preview resta pixel-identica (screenshot diff);
-cambio design = cross-fade, niente flash; mobile idem.
-Test: Playwright (no-blank-frame al load, preview stabile su step change) a 390/1280.
-Evidenza PR: screenshot step1-default e step2 affiancati (preview identica).
 
 ---
 
@@ -241,13 +216,47 @@ AC (bozza): pagine raggiungibili dal footer in entrambe le lingue; nessuna chiav
 Test: funzionale smoke su entrambe le lingue.
 
 ### Ready
-*(vuota)*
 
-### In progress
+**F14 · Empty-state continuo: preview sempre composta, transizione step invisibile** — FE · dep: F02 [DONE]
+Rifinitura di AC7 (F02): l'utente non deve MAI vedere il "buco bianco" iniziale né
+percepire una transizione della preview passando step1→step2. La preview è l'elemento
+di continuità del configuratore.
+
+Ciclo UI/UX (da rispettare):
+1. **Primo render SSR**: il configuratore arriva col primo design (sort_order=1) GIÀ
+   selezionato e la sua config di default GIÀ risolta (prima opzione per categoria);
+   i `layer_image` del default sono noti server-side e preloadati (next/image priority).
+   Primo paint = piatto composto, non skeleton. Lo skeleton resta solo per reti lente.
+2. **Cambio design (step 1)**: cross-fade ~200ms tra preview vecchia e nuovo default;
+   la vecchia resta finché i nuovi layer non sono caricati. Mai flash bianco.
+3. **Step 1 → Step 2**: la PreviewCanvas NON cambia (stato config invariato); cambia
+   solo il pannello destro (griglia design → categorie). La continuità della preview
+   È la transizione.
+4. **prefers-reduced-motion**: niente cross-fade, swap immediato.
+
+AC (definitivi, 2026-06-06):
+1. Primo paint del configuratore mostra il piatto composto del design di default
+   (sort_order=1, config di default risolta server-side): nessun frame con preview vuota
+   o skeleton al load su rete normale (Playwright: assert no-blank-frame).
+2. Step 1 → Step 2: la PreviewCanvas resta pixel-identica (screenshot diff = 0 differenze);
+   cambia solo il pannello destro.
+3. Cambio design allo step 1: cross-fade ~200ms, la preview vecchia resta finché i nuovi
+   `layer_image` non sono caricati — mai flash bianco intermedio.
+4. `prefers-reduced-motion: reduce`: nessun cross-fade, swap immediato (nessuna regressione
+   sugli AC 1–2).
+5. Mobile 390px: identico comportamento (primo paint composto, preview stabile su step change).
+Test: Playwright (no-blank-frame al load, screenshot-diff preview stabile su step change,
+cross-fade su design change) a 390/1280.
+Evidenza PR: screenshot step1-default e step2 affiancati (preview identica) + nota su
+come è risolto il default server-side.
 
 ---
 
-**F03 · Scelta ceramica + carrello (step 3)** — FE+BE(read) · dep: F02 [DONE]
+### In progress
+*(vuota)*
+
+### In review
+*(vuota)*
 Scope: step 3 del configuratore: scelta della ceramica tra i SOLI prodotti del fornitore
 agganciato dal design (ADR 0007), quantità, e carrello multi-articolo persistito in
 localStorage. Tutta l'aritmetica prezzi passa dal value object `Money` esistente
@@ -279,6 +288,8 @@ Nota: niente checkout/pagamento (finto e-commerce) — l'invio ordine è F05.
 *(vuota)*
 
 ### Done
+
+**F03 · Scelta ceramica + carrello (step 3)** — merged (squash) il 2026-06-06 (PR #3, [8a32f19](https://github.com/danieledangeli/minkeramikk/commit/8a32f198f6a335ada784e4e981ae1abb17c69e09)). Step 3 prodotti del solo fornitore agganciato (RLS anon), carrello multi-item con Money VO (cents, no float, no cross-currency), persistenza localStorage + sync cross-tab. 51 unit + Playwright + RLS. Review: **approved al primo giro**. Coda CI: drift lockfile preesistente da PR #2 (`@swc/helpers`, Node 26 non-LTS vs CI Node 22) risolto pinnando **Node 24 LTS** come fonte unica (`engines.node` + `.nvmrc` + CI `node-version-file`, commit [582fdf0](https://github.com/danieledangeli/minkeramikk/commit/582fdf0)) — sanato anche il rosso di main. Da recepire in AGENTS.md: `npm ci` (non `install`) nella DoD locale + `.nvmrc` unica fonte versione Node.
 
 **F02 · Personalizzazione design** — merged il 2026-06-06 (PR #2): compositing layer (multiply; animal-shape normal in cima), lock colori per hex sui 4 casi, preview composta da step 1 (AC7), fix margine bordi. 40 unit + Playwright. Review: approved al primo giro.
 
