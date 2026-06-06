@@ -90,8 +90,11 @@ quel colore su hover/focus). Verificato sul sito live: doppio livello di feedbac
 (micro = popup del singolo pattern, macro = piatto grande che si ricompone).
 
 Ciclo UI/UX:
-1. Ogni opzione mostra SEMPRE l'icona: swatch colorato (kind=color) o thumbnail
+1. Ogni opzione mostra SEMPRE l'icona: swatch (kind=color) o thumbnail
    (kind=image) + nome sotto. Riconoscimento rapido (DESIGN-SYSTEM §3.10).
+   Lo swatch colore NON è piatto: hex + grana scura (multiply) + screziato bianco
+   (screen), texture condivisa procedurale, per leggere "ceramica" come sull'originale
+   (decisione 2026-06-06, §3.10 "Texture glassa"). Nessun cambio schema (resta `hex`).
 2. **Hover/focus** → floating card (~120ms, no layout shift) col `layer_image`
    dell'opzione: il pattern di quella categoria in quel colore. Dato già in DB
    (ADR 0010), nessun compositing runtime.
@@ -102,8 +105,9 @@ Ciclo UI/UX:
 5. **Tastiera**: frecce dentro il radiogroup, focus mostra il popup, Esc lo chiude,
    Invio sceglie. Nessuna trappola di focus.
 
-AC (bozza): hover/focus su un'opzione → popup col pattern colorato, vicino, senza
-spostare il layout; click aggiorna il piatto grande; mobile niente popup ma tap
+AC (bozza): swatch colore con texture glassa (grana multiply + screziato bianco screen,
+§3.10), non un disco piatto; hover/focus su un'opzione → popup col pattern colorato, vicino,
+senza spostare il layout; click aggiorna il piatto grande; mobile niente popup ma tap
 aggiorna il piatto; tastiera completa; lazy-load delle immagini, niente jank su ~20 opzioni.
 Test: Playwright hover + focus tastiera a 1280; su 390 il popup non compare e il tap
 aggiorna la preview principale.
@@ -216,6 +220,11 @@ AC (bozza): pagine raggiungibili dal footer in entrambe le lingue; nessuna chiav
 Test: funzionale smoke su entrambe le lingue.
 
 ### Ready
+*(vuota)*
+
+### In progress
+
+---
 
 **F14 · Empty-state continuo: preview sempre composta, transizione step invisibile** — FE · dep: F02 [DONE]
 Rifinitura di AC7 (F02): l'utente non deve MAI vedere il "buco bianco" iniziale né
@@ -249,11 +258,6 @@ Test: Playwright (no-blank-frame al load, screenshot-diff preview stabile su ste
 cross-fade su design change) a 390/1280.
 Evidenza PR: screenshot step1-default e step2 affiancati (preview identica) + nota su
 come è risolto il default server-side.
-
----
-
-### In progress
-*(vuota)*
 
 ### In review
 *(vuota)*

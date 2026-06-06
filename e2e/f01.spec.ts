@@ -34,25 +34,24 @@ test("AC1: the 6 active designs render in sort_order with supplier badge", async
 test("AC2: selection drives preview + URL; refresh and back/forward preserve it", async ({
   page,
 }) => {
+  // F14: the first design (sort_order=1, Blomster 1) is preselected and the
+  // preview shows its composed default at load.
   await page.goto("/no/configurator");
-
-  await designCards(page).filter({ hasText: "Blomster 1" }).click();
-  await expect(page).toHaveURL(/design=blomster-1/);
-  // AC7 (F02): step 1 shows the DEFAULT composed layers, not the bare asset
-  const preview = page.locator('img[alt="Blomster 1"]');
-  await expect(preview).toHaveAttribute("src", /designs\/blomster-1\//);
-
-  await page.reload();
-  await expect(page).toHaveURL(/design=blomster-1/);
   await expect(
-    designCards(page).filter({ hasText: "Blomster 1" })
-  ).toHaveAttribute("aria-pressed", "true");
+    page.locator('[data-testid="preview-canvas"] img[alt="Blomster 1"]').first()
+  ).toHaveAttribute("src", /designs\/blomster-1\//);
 
+  // selecting a DIFFERENT design drives the URL + preview
   await designCards(page).filter({ hasText: "Krabbe" }).click();
   await expect(page).toHaveURL(/design=krabbe/);
 
+  await page.reload();
+  await expect(page).toHaveURL(/design=krabbe/);
+  await expect(
+    designCards(page).filter({ hasText: "Krabbe" })
+  ).toHaveAttribute("aria-pressed", "true");
+
   await page.goBack();
-  await expect(page).toHaveURL(/design=blomster-1/);
   await expect(
     designCards(page).filter({ hasText: "Blomster 1" })
   ).toHaveAttribute("aria-pressed", "true");
@@ -64,20 +63,24 @@ test("AC2: selection drives preview + URL; refresh and back/forward preserve it"
   ).toHaveAttribute("aria-pressed", "true");
 });
 
-test("AC3: supplierId exposed on selection; CTA disabled until a design is chosen", async ({
+test("AC3: supplierId exposed; CTA enabled (a design is always selected, F14)", async ({
   page,
 }) => {
   await page.goto("/no/configurator");
   const step = page.getByTestId("design-step");
   const cta = page.getByTestId("next-step");
 
-  await expect(cta).toBeDisabled();
-  await expect(step).toHaveAttribute("data-supplier-id", "");
+  // F14: a default design is preselected → CTA enabled, supplier hooked from the start
+  await expect(cta).toBeEnabled();
+  expect(await step.getAttribute("data-supplier-id")).toMatch(
+    /^[0-9a-f-]{36}$/
+  );
 
   await designCards(page).filter({ hasText: "Striper" }).click();
   await expect(cta).toBeEnabled();
-  const supplierId = await step.getAttribute("data-supplier-id");
-  expect(supplierId).toMatch(/^[0-9a-f-]{36}$/);
+  expect(await step.getAttribute("data-supplier-id")).toMatch(
+    /^[0-9a-f-]{36}$/
+  );
 });
 
 test("AC4: a design flipped to active=false via SQL does not render", async ({

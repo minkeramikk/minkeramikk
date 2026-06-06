@@ -22,12 +22,12 @@ export default defineConfig({
   projects: [
     {
       name: "desktop",
-      testMatch: /f0\d\.spec\.ts/,
+      testMatch: /f\d\d\.spec\.ts/,
       use: { ...devices["Desktop Chrome"], viewport: { width: 1280, height: 800 } },
     },
     {
       name: "mobile",
-      testMatch: /f0\d\.spec\.ts/,
+      testMatch: /f\d\d\.spec\.ts/,
       use: { ...devices["Desktop Chrome"], viewport: { width: 390, height: 844 } },
     },
     {

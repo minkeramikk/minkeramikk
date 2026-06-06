@@ -6,7 +6,7 @@ const B1 = "/no/configurator?design=blomster-1&step=2";
 const KRABBE = "/no/configurator?design=krabbe&step=2";
 
 const previewLayerCount = (page: Page) =>
-  page.locator('[data-testid="details-step"] img').count();
+  page.locator('[data-testid="preview-canvas"] img').count();
 
 test("AC1: only the chosen design's categories show, color → radiogroup", async ({
   page,
@@ -37,9 +37,10 @@ test("AC2: choosing a color updates the preview without reload", async ({
   // a design layer is now composited on top of nothing → at least 1 layer
   const after = await previewLayerCount(page);
   expect(after).toBeGreaterThanOrEqual(before);
-  // the multiply layer is present
+  // the multiply layer is present in the shared preview (F14: preview is a
+  // sibling of the panel, not inside details-step)
   await expect(
-    page.locator('[data-testid="details-step"] img[style*="multiply"]').first()
+    page.locator('[data-testid="preview-canvas"] img[style*="multiply"]').first()
   ).toBeVisible();
 });
 
@@ -48,7 +49,8 @@ test("AC3: Krabbe color lock syncs colors↔borders by hex", async ({ page }) =>
   const step = page.getByTestId("details-step");
   await expect(page.getByTestId("color-lock")).toBeVisible();
 
-  await page.getByTestId("color-lock").check();
+  // checkbox is controlled via the URL (lock=1) — click and await the state
+  await page.getByTestId("color-lock").click();
   await expect(step).toHaveAttribute("data-color-lock", "1");
 
   // pick the 2nd swatch in colors; borders should sync to the same hex
@@ -61,7 +63,8 @@ test("AC3: Krabbe color lock syncs colors↔borders by hex", async ({ page }) =>
   await expect(page).toHaveURL(/opt_borders=/);
 
   // turn lock off, change colors: borders must NOT follow
-  await page.getByTestId("color-lock").uncheck();
+  await page.getByTestId("color-lock").click();
+  await expect(step).toHaveAttribute("data-color-lock", "0");
   const bordersBefore = new URL(page.url()).searchParams.get("opt_borders");
   await page.getByTestId("category-colors").getByRole("radio").nth(3).click();
   const bordersAfter = new URL(page.url()).searchParams.get("opt_borders");

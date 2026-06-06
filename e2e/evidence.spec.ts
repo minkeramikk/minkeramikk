@@ -5,6 +5,30 @@ import { mkdirSync } from "node:fs";
  * PR evidence (not assertions): full-page screenshots of step 1 at the
  * three reference breakpoints, with a design selected.
  */
+const OUT14 = "docs/evidence/f14";
+
+test("F14: step1-default and step2 side by side (preview identical)", async ({
+  page,
+}) => {
+  mkdirSync(OUT14, { recursive: true });
+  for (const width of [390, 768, 1280]) {
+    await page.setViewportSize({ width, height: width < 700 ? 1400 : 1000 });
+    // step 1: default design already composed (no blank)
+    await page.goto("/no/configurator");
+    await page
+      .locator('[data-testid="preview-canvas"] img')
+      .first()
+      .waitFor({ state: "visible" });
+    await page.waitForTimeout(500);
+    await page.screenshot({ path: `${OUT14}/f14-step1-${width}.png`, fullPage: true });
+    // step 2: same preview, only the right panel changed
+    await page.getByTestId("next-step").click();
+    await page.getByTestId("details-step").waitFor({ state: "visible" });
+    await page.waitForTimeout(500);
+    await page.screenshot({ path: `${OUT14}/f14-step2-${width}.png`, fullPage: true });
+  }
+});
+
 const OUT = "docs/evidence/f01";
 
 test("capture 390/768/1280 screenshots", async ({ page }) => {

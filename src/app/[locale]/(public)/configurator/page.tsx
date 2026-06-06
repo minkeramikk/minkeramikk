@@ -1,17 +1,20 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
+import ReactDOM from "react-dom";
 import { getTranslations } from "next-intl/server";
 import { getActiveDesigns } from "@/lib/catalog/designs";
-import { getDesignDetail } from "@/lib/catalog/design-options";
+import { getDesignDetail, type DesignDetail } from "@/lib/catalog/design-options";
 import { getSupplierProducts } from "@/lib/catalog/products";
-import { DesignStep } from "./design-step";
-import { DetailsStep } from "./details-step";
+import { assetUrl } from "@/lib/storage";
+import { ConfiguratorClient } from "./configurator-client";
 import { CeramicsStep } from "./ceramics-step";
 import type { ConfigSnapshot } from "@/lib/cart/cart";
 
 // Catalog is live data: render per-request so back-office changes
-// (e.g. a design switched to active=false) are reflected immediately (AC4 F01).
+// (e.g. a design switched to active=false) are reflected immediately.
 export const dynamic = "force-dynamic";
+
+const PREVIEW_WIDTH = 800;
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("configurator");
@@ -35,85 +38,96 @@ export default async function ConfiguratorPage({
     getTranslations("configurator"),
   ]);
 
-  const selected = designSlug
-    ? designs.find((d) => d.slug === designSlug)
-    : undefined;
+  const selected =
+    (designSlug ? designs.find((d) => d.slug === designSlug) : undefined) ??
+    designs[0]; // sort_order=1 default (F14 AC1)
 
-  // steps 2 and 3 need a valid active design selected
-  const detail =
-    (step === "2" || step === "3") && selected
-      ? await getDesignDetail(selected.slug)
-      : null;
-
-  if (step === "3" && selected && detail) {
-    const products = await getSupplierProducts(selected.supplierId);
-
-    // build the readable snapshot from the current opt_* selections
-    const selections = detail.categories.map((c) => {
-      const optId =
-        typeof params[`opt_${c.slug}`] === "string"
-          ? (params[`opt_${c.slug}`] as string)
-          : undefined;
-      const opt = c.options.find((o) => o.id === optId) ?? c.options[0];
-      return {
-        label: (c.labelNo ?? c.slug) as string,
-        option: opt?.name ?? "",
-        hex: opt?.hex ?? null,
+  // ── step 3: ceramics + cart (separate layout, no shared preview) ──
+  if (step === "3" && selected) {
+    const [detail, products] = await Promise.all([
+      getDesignDetail(selected.slug),
+      getSupplierProducts(selected.supplierId),
+    ]);
+    if (detail) {
+      const selections = detail.categories.map((c) => {
+        const optId =
+          typeof params[`opt_${c.slug}`] === "string"
+            ? (params[`opt_${c.slug}`] as string)
+            : undefined;
+        const opt = c.options.find((o) => o.id === optId) ?? c.options[0];
+        return {
+          label: (c.labelNo ?? c.slug) as string,
+          option: opt?.name ?? "",
+          hex: opt?.hex ?? null,
+        };
+      });
+      const snapshot: ConfigSnapshot = {
+        designSlug: selected.slug,
+        designName: selected.name,
+        selections,
       };
-    });
-    const snapshot: ConfigSnapshot = {
-      designSlug: selected.slug,
-      designName: selected.name,
-      selections,
-    };
+      const codeParams = new URLSearchParams();
+      codeParams.set("design", selected.slug);
+      for (const c of detail.categories) {
+        const v = params[`opt_${c.slug}`];
+        if (typeof v === "string") codeParams.set(`opt_${c.slug}`, v);
+      }
 
-    // interim config_code = the configurator query string (reloadable);
-    // F04 will formalize the canonical code format (ADR 0002).
-    const codeParams = new URLSearchParams();
-    codeParams.set("design", selected.slug);
-    for (const c of detail.categories) {
-      const v = params[`opt_${c.slug}`];
-      if (typeof v === "string") codeParams.set(`opt_${c.slug}`, v);
+      return (
+        <section>
+          <h1 className="sr-only">{t("pageTitle")}</h1>
+          <Suspense>
+            <CeramicsStep
+              products={products.map((p) => ({
+                id: p.id,
+                slug: p.slug,
+                nameNo: p.nameNo,
+                nameEn: p.nameEn,
+                priceCents: p.price.amountCents,
+                currency: p.price.currency,
+                image: p.image,
+              }))}
+              design={{
+                slug: selected.slug,
+                name: selected.name,
+                supplierId: selected.supplierId,
+                supplierName: selected.supplierName,
+              }}
+              snapshot={snapshot}
+              configCode={codeParams.toString()}
+            />
+          </Suspense>
+        </section>
+      );
     }
-    const configCode = codeParams.toString();
+  }
 
-    return (
-      <section>
-        <h1 className="sr-only">{t("pageTitle")}</h1>
-        <Suspense>
-          <CeramicsStep
-            products={products.map((p) => ({
-              id: p.id,
-              slug: p.slug,
-              nameNo: p.nameNo,
-              nameEn: p.nameEn,
-              priceCents: p.price.amountCents,
-              currency: p.price.currency,
-              image: p.image,
-            }))}
-            design={{
-              slug: selected.slug,
-              name: selected.name,
-              supplierId: selected.supplierId,
-              supplierName: selected.supplierName,
-            }}
-            snapshot={snapshot}
-            configCode={configCode}
-          />
-        </Suspense>
-      </section>
-    );
+  // ── steps 1 & 2: unified shell with the persistent preview ──
+  // Details for every design so the client can switch design/step without a
+  // server roundtrip (keeps the preview stable).
+  const details = await Promise.all(
+    designs.map((d) => getDesignDetail(d.slug))
+  );
+  const detailsBySlug: Record<string, DesignDetail> = {};
+  designs.forEach((d, i) => {
+    const detail = details[i];
+    if (detail) detailsBySlug[d.slug] = detail;
+  });
+
+  // Preload the default design's composed layers so the first paint is the
+  // composed plate, not a hole/skeleton (F14 AC1).
+  for (const layer of selected.defaultLayers) {
+    ReactDOM.preload(assetUrl(layer.src, { width: PREVIEW_WIDTH }), {
+      as: "image",
+      fetchPriority: "high",
+    });
   }
 
   return (
     <section>
       <h1 className="sr-only">{t("pageTitle")}</h1>
       <Suspense>
-        {step === "2" && detail && selected ? (
-          <DetailsStep detail={detail} supplierId={selected.supplierId} />
-        ) : (
-          <DesignStep designs={designs} />
-        )}
+        <ConfiguratorClient designs={designs} detailsBySlug={detailsBySlug} />
       </Suspense>
     </section>
   );
