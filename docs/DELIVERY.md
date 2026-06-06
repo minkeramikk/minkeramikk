@@ -95,6 +95,9 @@ Ciclo UI/UX:
    Lo swatch colore NON è piatto: hex + grana scura (multiply) + screziato bianco
    (screen), texture condivisa procedurale, per leggere "ceramica" come sull'originale
    (decisione 2026-06-06, §3.10 "Texture glassa"). Nessun cambio schema (resta `hex`).
+   Le thumbnail kind=image (sagome animale) NON col colore originale (spariscono su card
+   bianca): sagoma monocromatica via mask + currentColor (ink/bianco per stato), §3.9
+   variante `image`. STOP se gli asset non sono silhouette con alpha pulito.
 2. **Hover/focus** → floating card (~120ms, no layout shift) col `layer_image`
    dell'opzione: il pattern di quella categoria in quel colore. Dato già in DB
    (ADR 0010), nessun compositing runtime.
@@ -106,7 +109,9 @@ Ciclo UI/UX:
    Invio sceglie. Nessuna trappola di focus.
 
 AC (bozza): swatch colore con texture glassa (grana multiply + screziato bianco screen,
-§3.10), non un disco piatto; hover/focus su un'opzione → popup col pattern colorato, vicino,
+§3.10), non un disco piatto; thumbnail kind=image leggibili su card normale E selezionata
+(sagoma monocromatica mask+currentColor, §3.9) — niente sagome lilla invisibili su bianco;
+hover/focus su un'opzione → popup col pattern colorato, vicino,
 senza spostare il layout; click aggiorna il piatto grande; mobile niente popup ma tap
 aggiorna il piatto; tastiera completa; lazy-load delle immagini, niente jank su ~20 opzioni.
 Test: Playwright hover + focus tastiera a 1280; su 390 il popup non compare e il tap
