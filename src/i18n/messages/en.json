@@ -110,5 +110,19 @@
       "title": "Terms of sale",
       "body": "These terms apply to all orders placed via Minkeramikk.no.\n\n1. Ordering process\nA request via the \"Build your design\" form is not a binding order. After we receive your request, we will contact you personally to go through the design, confirm the details and give a final price. All prices include VAT, delivery and customs clearance. The order is only considered binding once you have confirmed it by email and we have received your address.\n\n2. Custom-made products\nAll products ordered via this service are made to order. This means the product is made especially for you based on your unique specifications.\n\n3. No right of withdrawal\nIn accordance with the Norwegian Right of Withdrawal Act § 22 letter e, the right of withdrawal does not apply to goods made to the consumer's specifications or with a clearly personal character. Please note that once production in Italy has started, the order cannot be cancelled or returned, as the item cannot be sold to others. The customer will be able to approve the order before it is shipped and before the final invoice is due.\n\n4. Delivery, customs and VAT\nThe goods are shipped directly from our producer in Italy to the customer's address. No hidden costs: Minkeramikk.no is the responsible importer of the goods. This means the price stated in the order confirmation includes Norwegian VAT and any customs duties. Fully cleared: the customer will not receive claims for extra import fees or customs handling from the carrier on delivery. Should you nevertheless be contacted by the carrier about import costs, please contact us immediately before making any payment.\n\n5. Payment\nPayment is made by invoice once we have confirmed the design and the order together. Production in Italy only starts once a deposit of 50% of the total has been registered, unless otherwise agreed in writing. The customer receives two invoices: the first invoice for 50% must be paid before production starts. The final invoice is sent when the order is ready to ship and must be paid before we ship the order.\n\n6. Complaints\nIf the item has a fault or defect not caused by the custom design (e.g. transport damage or a production error that does not match the agreement), the right of complaint applies in accordance with the Norwegian Consumer Purchases Act. The customer must notify us as soon as possible, preferably within 48 hours of delivery, if something is wrong. All our products are insured during transport, and new product(s) will be made at no extra cost in case of documented damage on delivery.\n\n7. Disclaimer\nSince ceramics are a handmade natural product, small variations in colour and shape may occur compared to the digital design or pictures on the website. This is not considered a defect, but part of the product's unique character. With the final invoice we send pictures of all produced items so the customer can approve the order. In case of production errors such as wrong colour or wrong ceramic support (plate, dish, etc.), the customer must notify us within 72 hours from the day the final invoice is sent."
     }
+  },
+  "cart": {
+    "title": "Choose ceramics",
+    "quantity": "Quantity",
+    "add": "Add to basket",
+    "added": "Added to basket",
+    "cartTitle": "Basket",
+    "empty": "Your basket is empty",
+    "emptyCta": "Back to the configurator",
+    "remove": "Remove",
+    "subtotal": "Subtotal",
+    "total": "Total price",
+    "design": "Design",
+    "backToDesign": "Back"
   }
 }

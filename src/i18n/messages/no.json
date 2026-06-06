@@ -109,5 +109,19 @@
       "title": "Kjøpsvilkår (Salgsbetingelser)",
       "body": "Disse vilkårene gjelder for alle bestillinger gjort via Minkeramikk.no.\n\n1. Bestillingsprosess\nForespørsel via \"Bygg din design\"-skjemaet, er ikke en bindende bestilling. Etter at vi har mottatt forespørsel, vil vi kontakte kunde personlig for å gå gjennom designet, bekrefte detaljer og gi en endelig pris. Alle priser oppgitt er inkl. MVA, levering og fortolling. Bestillingen anses som bindende først når du har bekreftet denne via e-post og vi har fått adressen din.\n\n2. Spesiallagde produkter (Custom Design)\nAlle produkter bestilt via denne tjenesten er \"tilvirkningskjøp\". Det betyr at produktet lages spesielt for deg basert på dine unike spesifikasjoner.\n\n3. Ingen angrerett\nI samsvar med Angrerettloven § 22 bokstav e, gjelder ikke angreretten ved levering av varer som er fremstilt etter forbrukerens spesifikasjoner eller som har fått et tydelig personlig preg. Vennligst vær oppmerksom på at når produksjonen i Italia har startet, kan bestillingen ikke kanselleres eller returneres, da varen ikke kan selges til andre. Kunde vil ha mulighet til å godkjenne ordre før den sendes og før siste faktura har forfall.\n\n4. Levering, Toll og MVA\nVarene sendes direkte fra vår produsent i Italia til kundens adresse. Ingen skjulte kostnader: Minkeramikk.no står som ansvarlig importør av varen. Dette betyr at prisen oppgitt i ordrebekreftelsen inkluderer norsk merverdiavgift (MVA) og eventuelle tollavgifter. Ferdig fortollet: Kunden vil ikke motta krav om ekstra importgebyrer eller tollbehandling fra fraktselskapet ved levering. Skulle du som kunde mot formodning bli kontaktet av fraktselskapet angående importkostnader, ber vi deg kontakte oss umiddelbart før du foretar noen betaling.\n\n5. Betaling\nBetaling skjer via faktura når vi har bekreftet designet og ordren sammen. Produksjonen i Italia påbegynnes først når depositum tilsvarende 50% av totalsummen er registrert, med mindre annet er avtalt skriftlig. Kunden vil dog få to fakturaer for sin ordre, første faktura for 50% må være betalt før produksjonen iverksettes. Siste faktura sendes når ordren er klar til å sendes. Siste faktura må være innbetalt før vi sender ordre.\n\n6. Reklamasjon\nDersom varen har en feil eller mangel som ikke skyldes spesialdesignet (f.eks. transportskade eller produksjonsfeil som ikke samsvarer med avtalen), gjelder det reklamasjonsrett i henhold til Forbrukerkjøpsloven. Kunden må gi beskjed til oss så snart som mulig, helst innen 48 timer etter at ordre er levert dersom noe er feil. Alle våre produkter er forsikret under transport, og ny produkt(ene) vil bli laget uten ekstra kostnad ved dokumentert skade ved levering.\n\n7. Forbehold\nSiden keramikk er et håndlaget naturprodukt, kan det forekomme små variasjoner i farge og form fra det digitale designet eller bilder på nettsiden. Dette regnes ikke som en mangel, men som en del av produktets unike karakter. Med siste faktura, sender vi bilder av alle produkter som har blitt produsert slik at kunden kan godkjenne bestilling. Skulle det være produksjonsfeil som f.eks feil farge eller feil i keramikk support (altså plate/fat, osv) skal kunde kommunisere dette til oss innen 72 timer fra dagen sluttfaktura er sendt."
     }
+  },
+  "cart": {
+    "title": "Velg keramikk",
+    "quantity": "Antall",
+    "add": "Legg i handlekurv",
+    "added": "Lagt i handlekurven",
+    "cartTitle": "Handlekurv",
+    "empty": "Handlekurven er tom",
+    "emptyCta": "Tilbake til konfiguratoren",
+    "remove": "Fjern",
+    "subtotal": "Delsum",
+    "total": "Totalpris",
+    "design": "Design",
+    "backToDesign": "Tilbake"
   }
 }
