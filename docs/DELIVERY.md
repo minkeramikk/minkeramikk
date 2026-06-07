@@ -73,50 +73,13 @@ Checklist di review, in ordine:
 ## 5. Board
 
 > Stato iniziale: tutto in **Backlog**. Le card passano in Ready quando l'infra è Done
-> e gli AC vengono raffinati. Ordine di tiraggio consigliato: F01✅ → F02✅ → F03✅ → **F14(Ready) → F13** → F04 → F05 → F06 → F07 → F09 → F10 → F08 → F11 → F12.
+> e gli AC vengono raffinati. Ordine di tiraggio consigliato: F01✅ → F02✅ → F03✅ → F14✅ → **F13(Ready)** → F04 → F05 → F06 → F07 → F09 → F10 → F08 → F11 → F12.
 
 ### Backlog
 
 > Priorità UX del configuratore (decisa 2026-06-06): F14 e F13 si tirano PRIMA di F05.
 > Il configuratore deve essere "bello e fedele all'originale" quando il cliente lo vede,
 > anche a costo di posticipare di poco il flusso ordine end-to-end.
-
----
-
-**F13 · Step 2 stile originale: opzioni con icona + preview-on-hover del pattern** — FE · dep: F02 [DONE]
-La parte "wow" del configuratore, da enfatizzare: replicare l'esperienza di selezione
-varianti del sito originale (icona/swatch sempre visibile + anteprima del pattern in
-quel colore su hover/focus). Verificato sul sito live: doppio livello di feedback
-(micro = popup del singolo pattern, macro = piatto grande che si ricompone).
-
-Ciclo UI/UX:
-1. Ogni opzione mostra SEMPRE l'icona: swatch (kind=color) o thumbnail
-   (kind=image) + nome sotto. Riconoscimento rapido (DESIGN-SYSTEM §3.10).
-   Lo swatch colore NON è piatto: hex + grana scura (multiply) + screziato bianco
-   (screen), texture condivisa procedurale, per leggere "ceramica" come sull'originale
-   (decisione 2026-06-06, §3.10 "Texture glassa"). Nessun cambio schema (resta `hex`).
-   Le thumbnail kind=image (sagome animale) NON col colore originale (spariscono su card
-   bianca): sagoma monocromatica via mask + currentColor (ink/bianco per stato), §3.9
-   variante `image`. STOP se gli asset non sono silhouette con alpha pulito.
-2. **Hover/focus** → floating card (~120ms, no layout shift) col `layer_image`
-   dell'opzione: il pattern di quella categoria in quel colore. Dato già in DB
-   (ADR 0010), nessun compositing runtime.
-3. **Click** → la PreviewCanvas principale si ricompone con la scelta (multiply).
-   Doppio feedback: micro (popup) + macro (piatto).
-4. **Touch/mobile**: niente popup hover; il tap È la scelta, feedback = piatto grande
-   che si aggiorna. Il popup è enhancement desktop, mai l'unico modo di capire l'effetto.
-5. **Tastiera**: frecce dentro il radiogroup, focus mostra il popup, Esc lo chiude,
-   Invio sceglie. Nessuna trappola di focus.
-
-AC (bozza): swatch colore con texture glassa (grana multiply + screziato bianco screen,
-§3.10), non un disco piatto; thumbnail kind=image leggibili su card normale E selezionata
-(sagoma monocromatica mask+currentColor, §3.9) — niente sagome lilla invisibili su bianco;
-hover/focus su un'opzione → popup col pattern colorato, vicino,
-senza spostare il layout; click aggiorna il piatto grande; mobile niente popup ma tap
-aggiorna il piatto; tastiera completa; lazy-load delle immagini, niente jank su ~20 opzioni.
-Test: Playwright hover + focus tastiera a 1280; su 390 il popup non compare e il tap
-aggiorna la preview principale.
-Evidenza PR: screenshot hover desktop + confronto con lo step 2 del sito live.
 
 
 
@@ -231,72 +194,55 @@ Test: funzionale smoke su entrambe le lingue.
 
 ---
 
-**F14 · Empty-state continuo: preview sempre composta, transizione step invisibile** — FE · dep: F02 [DONE]
-Rifinitura di AC7 (F02): l'utente non deve MAI vedere il "buco bianco" iniziale né
-percepire una transizione della preview passando step1→step2. La preview è l'elemento
-di continuità del configuratore.
+**F13 · Step 2 stile originale: opzioni con icona + preview-on-hover del pattern** — FE · dep: F02 [DONE], F14 [DONE]
+La parte "wow" del configuratore, da enfatizzare: replicare l'esperienza di selezione
+varianti del sito originale (icona/swatch sempre visibile + anteprima del pattern in
+quel colore su hover/focus). Verificato sul sito live: doppio livello di feedback
+(micro = popup del singolo pattern, macro = piatto grande che si ricompone).
 
-Ciclo UI/UX (da rispettare):
-1. **Primo render SSR**: il configuratore arriva col primo design (sort_order=1) GIÀ
-   selezionato e la sua config di default GIÀ risolta (prima opzione per categoria);
-   i `layer_image` del default sono noti server-side e preloadati (next/image priority).
-   Primo paint = piatto composto, non skeleton. Lo skeleton resta solo per reti lente.
-2. **Cambio design (step 1)**: cross-fade ~200ms tra preview vecchia e nuovo default;
-   la vecchia resta finché i nuovi layer non sono caricati. Mai flash bianco.
-3. **Step 1 → Step 2**: la PreviewCanvas NON cambia (stato config invariato); cambia
-   solo il pannello destro (griglia design → categorie). La continuità della preview
-   È la transizione.
-4. **prefers-reduced-motion**: niente cross-fade, swap immediato.
-
-AC (definitivi, 2026-06-06):
-1. Primo paint del configuratore mostra il piatto composto del design di default
-   (sort_order=1, config di default risolta server-side): nessun frame con preview vuota
-   o skeleton al load su rete normale (Playwright: assert no-blank-frame).
-2. Step 1 → Step 2: la PreviewCanvas resta pixel-identica (screenshot diff = 0 differenze);
-   cambia solo il pannello destro.
-3. Cambio design allo step 1: cross-fade ~200ms, la preview vecchia resta finché i nuovi
-   `layer_image` non sono caricati — mai flash bianco intermedio.
-4. `prefers-reduced-motion: reduce`: nessun cross-fade, swap immediato (nessuna regressione
-   sugli AC 1–2).
-5. Mobile 390px: identico comportamento (primo paint composto, preview stabile su step change).
-Test: Playwright (no-blank-frame al load, screenshot-diff preview stabile su step change,
-cross-fade su design change) a 390/1280.
-Evidenza PR: screenshot step1-default e step2 affiancati (preview identica) + nota su
-come è risolto il default server-side.
-
-### In review
-*(vuota)*
-Scope: step 3 del configuratore: scelta della ceramica tra i SOLI prodotti del fornitore
-agganciato dal design (ADR 0007), quantità, e carrello multi-articolo persistito in
-localStorage. Tutta l'aritmetica prezzi passa dal value object `Money` esistente
-(`src/lib/money/`, ADR 0005) — qui usato per la prima volta sul serio.
+Ciclo UI/UX:
+1. Ogni opzione mostra SEMPRE l'icona: swatch (kind=color) o thumbnail
+   (kind=image) + nome sotto. Riconoscimento rapido (DESIGN-SYSTEM §3.10).
+   Lo swatch colore NON è piatto: hex + grana scura (multiply) + screziato bianco
+   (screen), texture condivisa procedurale, per leggere "ceramica" come sull'originale
+   (decisione 2026-06-06, §3.10 "Texture glassa"). Nessun cambio schema (resta `hex`).
+   Le thumbnail kind=image (sagome animale) NON col colore originale (spariscono su card
+   bianca): sagoma monocromatica via mask + currentColor (ink/bianco per stato), §3.9
+   variante `image`. STOP se gli asset non sono silhouette con alpha pulito.
+2. **Hover/focus** → floating card (~120ms, no layout shift) col `layer_image`
+   dell'opzione: il pattern di quella categoria in quel colore. Dato già in DB
+   (ADR 0010), nessun compositing runtime.
+3. **Click** → la PreviewCanvas principale si ricompone con la scelta (multiply).
+   Doppio feedback: micro (popup) + macro (piatto).
+4. **Touch/mobile**: niente popup hover; il tap È la scelta, feedback = piatto grande
+   che si aggiorna. Il popup è enhancement desktop, mai l'unico modo di capire l'effetto.
+5. **Tastiera**: frecce dentro il radiogroup, focus mostra il popup, Esc lo chiude,
+   Invio sceglie. Nessuna trappola di focus.
 
 AC (definitivi, 2026-06-06):
-1. Allo step 3 vedo SOLO le ceramiche `visible=true` del fornitore del design scelto
-   (query anon su `products.supplier_id`, RLS), prezzo via `formatMoney` (no `1 300 kr`,
-   en `NOK 1,300`). Mai un prezzo senza valuta.
-2. Scelgo ceramica + quantità → "Aggiungi al carrello" crea una riga col design
-   configurato corrente (config_code + snapshot leggibile), prodotto, quantità, prezzo unitario.
-3. Carrello persistito in localStorage: chiudo e riapro il browser → c'è ancora, identico;
-   ogni item resta legato al suo fornitore.
-4. Carrello misto (2 fornitori, ADR 0007): ogni riga mostra prodotto, design, quantità,
-   fornitore (SupplierBadge), subtotale; totale = `sum()` di Money in cents, mai float,
-   mai cross-currency.
-5. Modifica quantità e rimozione riga aggiornano totale e localStorage; carrello vuoto →
-   empty state con CTA "torna al configuratore".
-6. Mobile 390px: lista leggibile, touch target ≥44px, nessun overflow.
-
-Test: unit cart store (add, update qty, remove, persist/hydrate, totale misto) + Money
-già coperti · funzionale Playwright scegli→aggiungi→ricarica→presente a 390/1280 ·
-RLS: anon vede solo prodotti visible del fornitore.
-Evidenza PR: screenshot step 3 + carrello a 390/768/1280.
-Nota: niente checkout/pagamento (finto e-commerce) — l'invio ordine è F05.
-
+1. Swatch colore con texture glassa (grana multiply + screziato bianco screen, §3.10),
+   non un disco piatto. Texture condivisa procedurale, nessun cambio schema.
+2. Thumbnail kind=image leggibili su card normale E selezionata (sagoma monocromatica
+   mask+currentColor, §3.9) — niente sagome lilla invisibili su bianco. STOP se gli asset
+   non sono silhouette con alpha pulito.
+3. Hover/focus su un'opzione → popup col `layer_image` (pattern nel colore), vicino, senza
+   layout shift; Esc chiude; nessuna focus-trap.
+4. Click → la PreviewCanvas principale si ricompone (multiply). Doppio feedback micro+macro.
+5. Mobile 390px: niente popup hover; il tap È la scelta e aggiorna il piatto grande.
+6. Tastiera completa nel radiogroup (frecce, focus mostra popup, Invio sceglie); lazy-load
+   immagini, niente jank su ~20 opzioni.
+Test: Playwright hover + focus tastiera a 1280; a 390 il popup NON compare e il tap aggiorna
+la preview principale; screenshot-diff/visual dello swatch texturizzato e dell'icona monocromatica
+nei due stati card.
+Evidenza PR: screenshot hover desktop + swatch texturizzati + icone leggibili, confronto con
+lo step 2 del sito live.
 
 ### In review
 *(vuota)*
 
 ### Done
+
+**F14 · Empty-state continuo: preview sempre composta, transizione step invisibile** — merged (squash) il 2026-06-06. Refactor: step 1+2 unificati in `configurator-client.tsx` (PreviewCanvas montata una volta, mai rismontata → step1→2 pixel-identico), step 3 resta layout server separato; default `designs[0]` risolto SSR + `ReactDOM.preload` priorità alta (primo paint = piatto composto, niente buco bianco); PreviewCanvas riscritta a state-machine keyed-on-content con cross-fade commit-after-fade (fix bug layer stale impilati). Test F14 falsificabili (HTML SSR senza skeleton, pixel-diff step change, polling no-blank + regression stale) a 390/1280; F01/F02 adattati al nuovo DOM senza annacquarli (F01 AC "CTA disabilitata" superato by design: niente più empty state). Review: **approved al primo giro**.
 
 **F03 · Scelta ceramica + carrello (step 3)** — merged (squash) il 2026-06-06 (PR #3, [8a32f19](https://github.com/danieledangeli/minkeramikk/commit/8a32f198f6a335ada784e4e981ae1abb17c69e09)). Step 3 prodotti del solo fornitore agganciato (RLS anon), carrello multi-item con Money VO (cents, no float, no cross-currency), persistenza localStorage + sync cross-tab. 51 unit + Playwright + RLS. Review: **approved al primo giro**. Coda CI: drift lockfile preesistente da PR #2 (`@swc/helpers`, Node 26 non-LTS vs CI Node 22) risolto pinnando **Node 24 LTS** come fonte unica (`engines.node` + `.nvmrc` + CI `node-version-file`, commit [582fdf0](https://github.com/danieledangeli/minkeramikk/commit/582fdf0)) — sanato anche il rosso di main. Da recepire in AGENTS.md: `npm ci` (non `install`) nella DoD locale + `.nvmrc` unica fonte versione Node.
 

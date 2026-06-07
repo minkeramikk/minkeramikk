@@ -158,6 +158,32 @@ export function ConfiguratorClient({
     return (locale === "no" ? c.labelNo : c.labelEn) ?? c.slug;
   }
 
+  // ARIA radiogroup keyboard pattern (AC6): arrows move focus AND select,
+  // Home/End jump to ends; selection follows focus.
+  function onRadioKeyDown(
+    e: React.KeyboardEvent<HTMLDivElement>,
+    cat: DesignDetail["categories"][number]
+  ) {
+    const keys = ["ArrowRight", "ArrowDown", "ArrowLeft", "ArrowUp", "Home", "End"];
+    if (!keys.includes(e.key)) return;
+    e.preventDefault();
+    const radios = Array.from(
+      e.currentTarget.querySelectorAll<HTMLElement>('[role="radio"]')
+    );
+    if (radios.length === 0) return;
+    const curr = radios.indexOf(document.activeElement as HTMLElement);
+    let next = curr < 0 ? 0 : curr;
+    if (e.key === "ArrowRight" || e.key === "ArrowDown")
+      next = (curr + 1) % radios.length;
+    else if (e.key === "ArrowLeft" || e.key === "ArrowUp")
+      next = (curr - 1 + radios.length) % radios.length;
+    else if (e.key === "Home") next = 0;
+    else if (e.key === "End") next = radios.length - 1;
+    radios[next]?.focus();
+    const optId = cat.options[next]?.id;
+    if (optId) selectOption(cat.slug, optId);
+  }
+
   return (
     <div data-testid="configurator">
       <Stepper
@@ -261,7 +287,11 @@ export function ConfiguratorClient({
                   </legend>
 
                   {single ? null : cat.kind === "color" ? (
-                    <div role="radiogroup" aria-label={label(cat)}>
+                    <div
+                      role="radiogroup"
+                      aria-label={label(cat)}
+                      onKeyDown={(e) => onRadioKeyDown(e, cat)}
+                    >
                       <OptionCarousel>
                         {cat.options.map((o) => (
                           <div key={o.id} className="shrink-0">
@@ -269,6 +299,11 @@ export function ConfiguratorClient({
                               hex={o.hex ?? "#000"}
                               name={o.name}
                               selected={sel === o.id}
+                              tabIndex={sel === o.id ? 0 : -1}
+                              previewSrc={
+                                o.layerImage ? assetUrl(o.layerImage) : undefined
+                              }
+                              previewAlt={o.name}
                               onSelect={() => selectOption(cat.slug, o.id)}
                             />
                           </div>

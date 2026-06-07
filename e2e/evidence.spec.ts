@@ -5,6 +5,35 @@ import { mkdirSync } from "node:fs";
  * PR evidence (not assertions): full-page screenshots of step 1 at the
  * three reference breakpoints, with a design selected.
  */
+const OUT13 = "docs/evidence/f13";
+
+test("F13: textured swatches, monochrome icons, hover preview", async ({
+  page,
+}) => {
+  mkdirSync(OUT13, { recursive: true });
+  for (const width of [390, 768, 1280]) {
+    await page.setViewportSize({ width, height: width < 700 ? 1400 : 1000 });
+    // colour swatches + hover popup (desktop widths only)
+    await page.goto("/no/configurator?design=blomster-1&step=2");
+    await page.getByTestId("details-step").waitFor({ state: "visible" });
+    await page.waitForTimeout(400);
+    if (width >= 768) {
+      await page
+        .getByTestId("category-details")
+        .getByRole("radio")
+        .nth(2)
+        .hover();
+      await page.waitForTimeout(300);
+    }
+    await page.screenshot({ path: `${OUT13}/f13-swatches-${width}.png`, fullPage: true });
+    // monochrome animal icons (normal + selected)
+    await page.goto("/no/configurator?design=amalfi-dyr&step=2");
+    await page.getByTestId("details-step").waitFor({ state: "visible" });
+    await page.waitForTimeout(400);
+    await page.screenshot({ path: `${OUT13}/f13-icons-${width}.png`, fullPage: true });
+  }
+});
+
 const OUT14 = "docs/evidence/f14";
 
 test("F14: step1-default and step2 side by side (preview identical)", async ({

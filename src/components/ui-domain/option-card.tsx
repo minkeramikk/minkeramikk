@@ -34,8 +34,27 @@ export function OptionCard({
       )}
     >
       {imageUrl && (
-        // eslint-disable-next-line @next/next/no-img-element -- option art comes from storage, sized by grid
-        <img src={imageUrl} alt="" className="mx-auto mb-2 h-14 w-14 object-contain" />
+        // §3.9 variante `image`: the asset is a clean-alpha silhouette; render it
+        // as a monochrome shape via mask + currentColor so it stays legible on
+        // both the normal card (ink) and the selected one (white) — the original
+        // pale-lilla art would vanish on white. currentColor follows the button's
+        // text colour (foreground / primary-foreground).
+        <span
+          aria-hidden
+          data-testid="option-icon"
+          className="mx-auto mb-2 block h-14 w-14"
+          style={{
+            backgroundColor: "currentColor",
+            WebkitMaskImage: `url(${imageUrl})`,
+            maskImage: `url(${imageUrl})`,
+            WebkitMaskRepeat: "no-repeat",
+            maskRepeat: "no-repeat",
+            WebkitMaskPosition: "center",
+            maskPosition: "center",
+            WebkitMaskSize: "contain",
+            maskSize: "contain",
+          }}
+        />
       )}
       <span className="block">{label}</span>
       {supplierName && (
