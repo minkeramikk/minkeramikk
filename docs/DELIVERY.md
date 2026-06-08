@@ -79,7 +79,7 @@ Checklist di review, in ordine:
 ## 5. Board
 
 > Stato iniziale: tutto in **Backlog**. Le card passano in Ready quando l'infra è Done
-> e gli AC vengono raffinati. Ordine di tiraggio consigliato: F01✅ → F02✅ → F03✅ → F14✅ → F13✅ → F04✅ → F05✅ → F15✅ → F16✅ → F06✅ → F07✅ → F09✅ → **F10** → F08 → F11 → F12.
+> e gli AC vengono raffinati. Ordine di tiraggio consigliato: F01✅ → F02✅ → F03✅ → F14✅ → F13✅ → F04✅ → F05✅ → F15✅ → F16✅ → F06✅ → F07✅ → F09✅ → F10✅ → **F08** → F11 → F12.
 > UX-polish parcheggiate (schedulabili dopo F16 o dopo il back-office, a scelta): **F18** (nav: stepper cliccabile + Next sticky), **F19** (righe carrello ricche: mini-piatto composto + design code di sessione). F17 = ex sticky-preview, assorbita in F15.
 
 ### Backlog
@@ -142,19 +142,6 @@ Nota: meglio **dopo F16** (riusa il drawer); il campo `layers` è l'estensione a
 
 ---
 
-**F08 · PDF laboratorio + invio per fornitore** — BE only · dep: F07
-Scope: alla conferma (o da bottone nel dettaglio), genera PDF in italiano PER OGNI
-fornitore coinvolto (split righe, ADR 0007): quantità, prodotti, colori nome+hex+swatch,
-anteprima composta server-side (sharp, multiply); invio opzionale via Resend al supplier.
-AC (bozza):
-- Ordine misto (2 fornitori) → 2 PDF, ognuno con le SOLE righe del suo laboratorio
-- Il PDF mostra hex e nome colore per ogni scelta; l'anteprima corrisponde alla config
-- Fornitore senza email → PDF generato, invio saltato con warning in UI
-Evidenza PR: i PDF generati da un ordine di test (no screenshot UI).
-Test: unit split per fornitore · snapshot test sul PDF (contenuto testuale) · integrazione compositing sharp.
-
----
-
 **F11 · Theme editor (back-office)** — FE+BE · dep: F06
 Scope: pagina Theme: 3 color picker (light/dark/accent), anteprima live (come il tester
 dei template), **check contrasto WCAG AA bloccante** (ADR 0008), salvataggio su `settings`,
@@ -175,48 +162,37 @@ Test: funzionale smoke su entrambe le lingue.
 
 ### Ready
 
-**F10 · Gestione asset configuratore (back-office)** — FE+BE(dati) · dep: F06 [DONE], F09 [DONE]
-Il flusso **più grande** del back-office: CRUD della struttura del configuratore —
-**designs → categorie → opzioni** — con upload asset, assegnazione del `code` (ADR 0011) e
-anteprima con ricolorazione **prima di pubblicare**. Sotto `/admin` (guardia F06), inglese,
-mutazioni via `createClient()` cookie-session (RLS authenticated, service-role mai nel client),
-zod. Spec UI: `docs/preview/05` + template back-office.
+**F08 · PDF laboratorio + invio per fornitore** — BE(+bottone in F07) · dep: F07 [DONE]
+Genera, dal dettaglio ordine, un **PDF "production order" PER OGNI fornitore** (split righe,
+ADR 0007 — riusa `splitBySupplier` di F05). **In INGLESE** (cambio deciso 2026-06-08 rispetto
+al precedente "italiano"). Design approvato → riferimento visivo **`docs/preview/06-lab-pdf.html`**.
+**Privacy**: NIENTE dati personali del cliente sul PDF (no nome/email/telefono) — solo
+riferimento ordine + specifica di produzione.
 
-**Passo 0 (dati, migration additiva)** — la verifica anti-duplicati rimandata a F10 (import
-report / TODO): `unique index` parziale su `options (category_id, hex) WHERE hex IS NOT NULL`
-e `unique (category_id, name)`. No reset; rigenerare i tipi. STOP se l'indice fallisse su
-dati esistenti (= duplicati già presenti → bonificare prima).
-
-Vincoli schema da rispettare (NON reinventare): `designs.supplier_id` NOT NULL **RESTRICT**
-(ADR 0007); `designs.code` UNIQUE + `options.code` UNIQUE per categoria, **assegnati alla
-create e mai ricalcolati** (ADR 0011, alfabeto sicuro, riusa `assignMissingCodes`); CHECK
-`image IS NOT NULL OR hex IS NOT NULL` (ADR 0012); `sync_group` per il color-lock (ADR 0004);
-CASCADE design→categorie→opzioni.
-
-Ciclo (Passo 0 → CRUD designs → categorie nested → opzioni nested + asset → preview → pubblica):
-1. **Designs**: CRUD con `supplier_id` (select da F09, obbligatorio), `name`, `slug` (UK, stabile),
-   `description_no/_en`, `preview_image` (upload), `sort_order`, `active`, `code` (auto-assegnato).
-2. **Categorie** (per design): `slug`, `label_no/_en`, `kind` (image|color), `layer_slot`
-   (base|mid|top|extra|detail|animal), `sync_group` (nullable), `sort_order`.
-3. **Opzioni** (per categoria): `name`, `code` (auto, unico per categoria), asset secondo ADR 0012
-   — `hex` e/o `image` (swatch) e/o `layer_image` (compositing). Upload PNG/webp.
-4. **Asset/Storage**: path `designs/{slug}/{category}/{file}.png` (+ `products`/`swatches`); resize
-   on-the-fly (render/image transform, niente varianti pre-generate, task 1.4). Validazione tipo+size.
-5. **Preview prima di pubblicare**: l'admin compone i `layer_image` e vede il piatto (multiply,
-   riusa PreviewCanvas) prima di `active=true`. Finché non attiva → non appare nel configuratore.
+Layout (vedi 06-lab-pdf.html): testata prugna brand + "Production order" + **codice ordine**
+(`MK-NNNN`) + data + **laboratorio**; meta (workshop, n. pezzi, reference); poi **un blocco per
+articolo** con: anteprima piatto **composta server-side** (sharp, multiply), ceramica, design,
+**configurazione completa** (ogni categoria → opzione: nome + swatch + **hex**), config code,
+**quantità**; footer col totale pezzi.
 
 AC (definitivi, 2026-06-08):
-1. CRUD completo designs/categorie/opzioni (nested); ogni nuovo design/opzione riceve un `code` valido e **unico** (mai ricalcolare gli esistenti); `supplier_id` obbligatorio sul design.
-2. Upload asset validato (PNG/JPG/WebP, dimensione max) su Storage col path convention; non-immagine/oversize → rifiutato. `layer_image` compositing, `image` swatch per kind=color (ADR 0012), `preview_image` design.
-3. **Anti-duplicati** (Passo 0): due opzioni nella stessa categoria con stesso `hex` o stesso `name` → rifiutate con messaggio chiaro (unique index parziali).
-4. Preview con ricolorazione prima di pubblicare; `active=false` → non appare nel configuratore; attivo → appare (force-dynamic).
-5. Modifiche riflesse nel configuratore; nessuna regressione su step 1/2 (design/opzioni/color-lock) né sui `config_code` esistenti (code stabili).
-6. Delete: design → CASCADE categorie/opzioni; opzioni referenziate solo da snapshot ordine (no FK) → eliminabili senza rompere ordini. Sicurezza: mutazioni authenticated (RLS), service-role mai nel client, zod ovunque; anon non scrive.
-Test: Playwright (crea design+categoria+opzione con upload → appare nel configuratore; opzione colore hex+nome → swatch; duplicato hex/nome → rifiutato; preview prima di pubblicare; upload invalido → errore) · unit (assegnazione code unica, validazioni asset/path) · RLS negativo (anon non scrive catalogo).
-Evidenza PR: CRUD design/categoria/opzione, upload+preview, duplicato rifiutato, riflesso nel configuratore.
-**Nota scope**: è il flusso più grande. Se risulta troppo per una sola PR, **spacchettare** in
-**F10a** (designs + categorie + preview) e **F10b** (opzioni + asset upload + anti-dup) — escalare
-al TL prima, non improvvisare una mega-PR.
+1. Da dettaglio ordine: ordine misto (2 fornitori) → **2 PDF**, ognuno con le SOLE righe del suo
+   laboratorio (split, ADR 0007).
+2. PDF in inglese col layout di `06-lab-pdf.html`: per ogni articolo prodotto+design+categoria→
+   opzione (**nome + hex + swatch**) + config code + quantità; codice ordine in testata; **nessun
+   dato personale del cliente**; totale pezzi in fondo.
+3. **Anteprima composta**: i layer della config sono risolti (decode F04 / config_snapshot) e
+   composti server-side (sharp, multiply, riusa la logica del configuratore); layer mancante
+   (catalogo cambiato) → degrada con grazia — **il testo nome+hex resta autoritativo**.
+4. Invio opzionale via Resend al fornitore (`supplier.email`): fornitore **senza email** → PDF
+   generato, invio **saltato con warning** in UI. Transport mock nei test (niente invii reali in CI).
+5. Sicurezza: generazione solo da sessione admin (route/azione authenticated, guardia F06);
+   service-role mai nel client; il PDF non espone PII cliente.
+Test: unit split per fornitore (riusa `splitBySupplier`) · snapshot del **contenuto testuale** del
+PDF (codice ordine, per item prodotto/design/categoria→opzione+hex/qty, niente PII) · integrazione
+compositing sharp (un'immagine prodotta) · invio mockato (con/senza email fornitore).
+Evidenza PR: i **PDF generati** da un ordine di test (i file) + esempio invio mockato.
+Lib: PDF server-side (es. `@react-pdf/renderer` o `pdfkit`; **evitare puppeteer** su serverless Vercel).
 
 ### In progress
 *(vuota)*
@@ -225,6 +201,8 @@ al TL prima, non improvvisare una mega-PR.
 *(vuota)*
 
 ### Done
+
+**F10 · Gestione asset configuratore (back-office)** — merged (squash) il 2026-06-08 (df64a8c). CRUD annidato **designs → categorie → opzioni** (split F10a/F10b sullo stesso branch). Passo 0: migration **0009** anti-dup (unique parziale `(category_id,hex) WHERE hex NOT NULL` + `(category_id,name)`, 0 dup verificati). Code via `assign-codes.ts` **condiviso** (estratto da F04, mai ricalcola → `config_code` ordini stabili); anti-dup intercetta `23505`→messaggi distinti hex/nome; **image-or-hex** (ADR 0012) app + CHECK `23514`; upload validato col path convention; **gate `active`** (bozza invisibile nel configuratore). Tutto authenticated (RLS, **service-role mai nel client**), zod. 123 unit + Playwright F10 6/6 (RLS, create→code→activate→configuratore + draft nascosto, dup rifiutato, image-or-hex). Review: **approved al primo giro**. Coda flaky e2e pre-esistenti (f14/f15, configuratore byte-identico) → de-flake separato. **Board non toccato dal dev (regola PM-only rispettata).**
 
 **F09 · CRUD prodotti + fornitori (back-office)** — merged (squash) il 2026-06-08 (246859a). CRUD products + suppliers sotto `/admin` via server-action **cookie-session (RLS authenticated, service-role mai nel client)**, zod su ogni form. Prezzo kr→cents a **matematica intera** (`parsePriceToCents`: niente float, virgola/punto/spazi/NBSP, rifiuta ambiguità/negativi/>2 decimali, 14 unit); slug stabile (mantenuto in edit, generato+dedup in create); image upload validata su Storage; `supplier_id` obbligatorio (ADR 0007). **Delete RESTRICT** fornitore (`23503` → "disattiva invece"). Riflesso live nello step 3 (force-dynamic). 110 unit + Playwright F09 4/4 + RLS-negativo. Review: **approved al primo giro**. Note non bloccanti: image salvata sempre con path `.png` (cosmetico, contentType corretto); delete prodotto in realtà non bloccato dagli ordini (`order_items.product_id` SET NULL, snapshot sopravvive). Coda: flake F07 AC3 pre-esistente → fix in `fix/f07-status-test-flake` (test-only).
 
