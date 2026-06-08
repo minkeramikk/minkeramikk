@@ -6,6 +6,7 @@ import { getActiveDesigns } from "@/lib/catalog/designs";
 import { getDesignDetail, type DesignDetail } from "@/lib/catalog/design-options";
 import { getSupplierProducts } from "@/lib/catalog/products";
 import { assetUrl } from "@/lib/storage";
+import { encodeConfigCode, toCodecDesign } from "@/lib/configurator/config-code";
 import { ConfiguratorClient } from "./configurator-client";
 import { CeramicsStep } from "./ceramics-step";
 import type { ConfigSnapshot } from "@/lib/cart/cart";
@@ -66,12 +67,19 @@ export default async function ConfiguratorPage({
         designName: selected.name,
         selections,
       };
-      const codeParams = new URLSearchParams();
-      codeParams.set("design", selected.slug);
+      // canonical config code (ADR 0011) — the SAME format F05/F08 reuse
+      const selById: Record<string, string> = {};
       for (const c of detail.categories) {
         const v = params[`opt_${c.slug}`];
-        if (typeof v === "string") codeParams.set(`opt_${c.slug}`, v);
+        const opt =
+          (typeof v === "string" && c.options.find((o) => o.id === v)) ||
+          c.options[0];
+        if (opt) selById[c.slug] = opt.id;
       }
+      const codec = toCodecDesign(detail);
+      const configCode = codec
+        ? encodeConfigCode(codec, selById)
+        : `MK-${selected.slug}`;
 
       return (
         <section>
@@ -94,7 +102,7 @@ export default async function ConfiguratorPage({
                 supplierName: selected.supplierName,
               }}
               snapshot={snapshot}
-              configCode={codeParams.toString()}
+              configCode={configCode}
             />
           </Suspense>
         </section>

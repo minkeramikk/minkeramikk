@@ -42,6 +42,7 @@ export type Database = {
       designs: {
         Row: {
           active: boolean
+          code: string | null
           description_en: string | null
           description_no: string | null
           id: string
@@ -53,6 +54,7 @@ export type Database = {
         }
         Insert: {
           active?: boolean
+          code?: string | null
           description_en?: string | null
           description_no?: string | null
           id?: string
@@ -64,6 +66,7 @@ export type Database = {
         }
         Update: {
           active?: boolean
+          code?: string | null
           description_en?: string | null
           description_no?: string | null
           id?: string
@@ -138,6 +141,7 @@ export type Database = {
         Row: {
           active: boolean
           category_id: string
+          code: string | null
           hex: string | null
           id: string
           image: string | null
@@ -148,6 +152,7 @@ export type Database = {
         Insert: {
           active?: boolean
           category_id: string
+          code?: string | null
           hex?: string | null
           id?: string
           image?: string | null
@@ -158,6 +163,7 @@ export type Database = {
         Update: {
           active?: boolean
           category_id?: string
+          code?: string | null
           hex?: string | null
           id?: string
           image?: string | null

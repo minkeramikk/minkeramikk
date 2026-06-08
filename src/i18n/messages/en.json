@@ -91,7 +91,17 @@
     "stepperLabel": "Progress",
     "lockColors": "Lock colours",
     "lockColorsHint": "Same colour on both categories",
-    "singleOption": "Selected automatically"
+    "singleOption": "Selected automatically",
+    "code": {
+      "title": "Your design code",
+      "copyCode": "Copy code",
+      "copyLink": "Copy link",
+      "copied": "Copied!",
+      "pasteLabel": "Paste a code",
+      "pasteApply": "Load",
+      "pasteError": "Unknown or invalid code",
+      "help": "Copy the code to save your design, or paste a code to restore it."
+    }
   },
   "orderForm": {
     "name": "Name",

@@ -17,6 +17,14 @@ import {
   initialConfiguratorState,
   type SyncCategory,
 } from "@/lib/configurator/state";
+import {
+  ConfigCodeError,
+  decodeConfigCode,
+  encodeConfigCode,
+  toCodecDesign,
+  type CodecDesign,
+} from "@/lib/configurator/config-code";
+import { ConfigCodeBar } from "./config-code-bar";
 import type { DesignDetail } from "@/lib/catalog/design-options";
 import type { PreviewLayer } from "@/lib/configurator/preview";
 
@@ -103,6 +111,42 @@ export function ConfiguratorClient({
     [detail]
   );
   const hasSyncGroup = detail.categories.some((c) => c.syncGroup);
+
+  // ── config code (ADR 0011): encode current, decode on paste ──
+  const codecDesigns = useMemo(
+    () =>
+      Object.values(detailsBySlug)
+        .map((d) => toCodecDesign(d))
+        .filter((d): d is CodecDesign => d !== null),
+    [detailsBySlug]
+  );
+  const currentCode = useMemo(() => {
+    const cd = toCodecDesign(detail);
+    return cd ? encodeConfigCode(cd, selections) : "";
+  }, [detail, selections]);
+  const shareUrl =
+    typeof window !== "undefined"
+      ? `${window.location.origin}${window.location.pathname}?${searchParams.toString()}`
+      : "";
+
+  function applyCode(raw: string): boolean {
+    try {
+      const { designSlug, selections: sel } = decodeConfigCode(raw, (code) =>
+        codecDesigns.find((d) => d.code === code.toUpperCase()) ?? null
+      );
+      const params = new URLSearchParams(searchParams.toString());
+      params.set("design", designSlug);
+      for (const key of [...params.keys()])
+        if (key.startsWith("opt_")) params.delete(key);
+      for (const [catSlug, optId] of Object.entries(sel))
+        params.set(`opt_${catSlug}`, optId);
+      router.push(`${pathname}?${params.toString()}`, { scroll: false });
+      return true;
+    } catch (e) {
+      if (e instanceof ConfigCodeError) return false;
+      throw e;
+    }
+  }
 
   function selectDesign(d: DesignChoice) {
     if (d.slug === selected.slug) return;
@@ -327,6 +371,14 @@ export function ConfiguratorClient({
                 </fieldset>
               );
             })}
+
+            {currentCode && (
+              <ConfigCodeBar
+                code={currentCode}
+                shareUrl={shareUrl}
+                onApply={applyCode}
+              />
+            )}
 
             <div className="flex gap-3">
               <Button

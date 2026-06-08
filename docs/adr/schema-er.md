@@ -20,6 +20,7 @@ erDiagram
         uuid id PK
         uuid supplier_id FK "NOT NULL (ADR 0007)"
         text slug UK
+        text code UK "corto, stabile - segmento del config code (ADR 0011)"
         text name "nome proprio, non tradotto"
         text description_no
         text description_en
@@ -43,6 +44,7 @@ erDiagram
     options {
         uuid id PK
         uuid category_id FK
+        text code "corto, stabile, unico per categoria - segmento del config code (ADR 0011)"
         text name
         text image "display/thumb - NOT NULL se kind=image (CHECK)"
         text hex "swatch - NOT NULL se kind=color (CHECK)"
@@ -131,7 +133,8 @@ Enum `order_status`: `new → contacted → confirmed → in_production → deli
 | `orders.email` | storico ordini dello stesso cliente nel back-office |
 
 Vincoli aggiuntivi: `UNIQUE(design_id, slug)` su option_categories (slug di categoria
-unici dentro il design, non globali).
+unici dentro il design, non globali). `UNIQUE(designs.code)` e `UNIQUE(category_id, code)`
+su options (codici del config code stabili e non ambigui, ADR 0011).
 
 Niente GIN su `config_snapshot`: nessuna query dentro il jsonb prevista.
 

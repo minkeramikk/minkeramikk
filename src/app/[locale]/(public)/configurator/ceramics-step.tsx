@@ -13,6 +13,7 @@ import { formatMoney, money } from "@/lib/money/money";
 import type { Currency } from "@/lib/money/money";
 import { useCart } from "@/lib/cart/use-cart";
 import { cartTotal, lineSubtotal, type ConfigSnapshot } from "@/lib/cart/cart";
+import { ConfigCodeBar } from "./config-code-bar";
 
 export interface CeramicProduct {
   id: string;
@@ -178,9 +179,18 @@ export function CeramicsStep({
             </Button>
           </div>
 
-          <div className="mt-4">
+          <div className="mt-4 flex flex-col gap-4">
+            <ConfigCodeBar
+              code={configCode}
+              shareUrl={
+                typeof window !== "undefined"
+                  ? `${window.location.origin}${window.location.pathname}?${searchParams.toString()}`
+                  : ""
+              }
+            />
             <Button
               variant="outline"
+              className="self-start"
               onClick={() => {
                 const params = new URLSearchParams(searchParams.toString());
                 params.set("step", "2");

@@ -19,6 +19,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { createClient } from "@supabase/supabase-js";
+import { assignMissingCodes } from "./backfill-codes";
 
 // ───────────────────────── env ─────────────────────────
 
@@ -488,6 +489,12 @@ async function main() {
     productCount++;
   }
   counts["products"] = productCount;
+
+  // 4) assign stable config-code codes to any new rows (ADR 0011, F04).
+  // Deterministic + idempotent; never recalculates existing codes.
+  const assigned = await assignMissingCodes(db);
+  counts["codes assigned (design/option)"] =
+    `${assigned.designs}/${assigned.options}` as unknown as number;
 
   // ── report ──
   console.log("\n── counts ──");

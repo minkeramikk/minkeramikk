@@ -90,7 +90,17 @@
     "stepperLabel": "Fremdrift",
     "lockColors": "Lås farger",
     "lockColorsHint": "Samme farge på begge kategoriene",
-    "singleOption": "Valgt automatisk"
+    "singleOption": "Valgt automatisk",
+    "code": {
+      "title": "Din design-kode",
+      "copyCode": "Kopier kode",
+      "copyLink": "Kopier lenke",
+      "copied": "Kopiert!",
+      "pasteLabel": "Lim inn en kode",
+      "pasteApply": "Hent",
+      "pasteError": "Ukjent eller ugyldig kode",
+      "help": "Kopier koden for å lagre designet ditt, eller lim inn en kode for å hente det igjen."
+    }
   },
   "orderForm": {
     "name": "Navn",

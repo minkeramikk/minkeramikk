@@ -73,7 +73,7 @@ Checklist di review, in ordine:
 ## 5. Board
 
 > Stato iniziale: tutto in **Backlog**. Le card passano in Ready quando l'infra è Done
-> e gli AC vengono raffinati. Ordine di tiraggio consigliato: F01✅ → F02✅ → F03✅ → F14✅ → **F13(Ready)** → F04 → F05 → F06 → F07 → F09 → F10 → F08 → F11 → F12.
+> e gli AC vengono raffinati. Ordine di tiraggio consigliato: F01✅ → F02✅ → F03✅ → F14✅ → F13✅ → **F04** → F05 → F06 → F07 → F09 → F10 → F08 → F11 → F12.
 
 ### Backlog
 
@@ -86,16 +86,6 @@ Checklist di review, in ordine:
 
 
 
-
----
-
-**F04 · Codice configurazione: salva / carica / condividi** — FE+BE · dep: F02
-Scope: codice leggibile + URL condivisibile che riapre la configurazione esatta;
-formato NUOVO (niente retro-compat, ADR 0002).
-AC (bozza):
-- Da step 2/3 copio un codice; incollandolo (o aprendo l'URL) la configurazione si ricostruisce identica
-- Codice invalido → messaggio cortese, mai crash
-Test: unit roundtrip encode/decode (property-based sui cataloghi possibili) · funzionale condivisione URL.
 
 ---
 
@@ -194,53 +184,42 @@ Test: funzionale smoke su entrambe le lingue.
 
 ---
 
-**F13 · Step 2 stile originale: opzioni con icona + preview-on-hover del pattern** — FE · dep: F02 [DONE], F14 [DONE]
-La parte "wow" del configuratore, da enfatizzare: replicare l'esperienza di selezione
-varianti del sito originale (icona/swatch sempre visibile + anteprima del pattern in
-quel colore su hover/focus). Verificato sul sito live: doppio livello di feedback
-(micro = popup del singolo pattern, macro = piatto grande che si ricompone).
+**F04 · Codice configurazione: salva / carica / condividi** — FE+BE(dati) · dep: F02 [DONE], F14 [DONE]
+Scope: codice leggibile stile `MK-B2-A18-…` (ADR 0011) che salva/ricarica una
+configurazione e diventa l'identificatore canonico (riusato da F05/F08). Il deep-link
+URL esiste già (F14: `design`+`opt_*`); qui si aggiunge il codice copiabile + il decode.
 
-Ciclo UI/UX:
-1. Ogni opzione mostra SEMPRE l'icona: swatch (kind=color) o thumbnail
-   (kind=image) + nome sotto. Riconoscimento rapido (DESIGN-SYSTEM §3.10).
-   Lo swatch colore NON è piatto: hex + grana scura (multiply) + screziato bianco
-   (screen), texture condivisa procedurale, per leggere "ceramica" come sull'originale
-   (decisione 2026-06-06, §3.10 "Texture glassa"). Nessun cambio schema (resta `hex`).
-   Le thumbnail kind=image (sagome animale) NON col colore originale (spariscono su card
-   bianca): sagoma monocromatica via mask + currentColor (ink/bianco per stato), §3.9
-   variante `image`. STOP se gli asset non sono silhouette con alpha pulito.
-2. **Hover/focus** → floating card (~120ms, no layout shift) col `layer_image`
-   dell'opzione: il pattern di quella categoria in quel colore. Dato già in DB
-   (ADR 0010), nessun compositing runtime.
-3. **Click** → la PreviewCanvas principale si ricompone con la scelta (multiply).
-   Doppio feedback: micro (popup) + macro (piatto).
-4. **Touch/mobile**: niente popup hover; il tap È la scelta, feedback = piatto grande
-   che si aggiorna. Il popup è enhancement desktop, mai l'unico modo di capire l'effetto.
-5. **Tastiera**: frecce dentro il radiogroup, focus mostra il popup, Esc lo chiude,
-   Invio sceglie. Nessuna trappola di focus.
+**Passo 0 (dati, prima del FE)**: migration additiva `designs.code` (UNIQUE) e
+`options.code` (UNIQUE per `category_id`), entrambe stabili (ADR 0011); backfill nello
+script di import (codici da alfabeto `A–Z 2–9` senza `0 O 1 I L`); rigenerare i tipi
+(`db:types`). Vincolo: non ricalcolare mai i code esistenti.
+
+Ciclo: dati (Passo 0) → encode/decode puro in `src/lib/configurator/` → UI (copia + incolla).
 
 AC (definitivi, 2026-06-06):
-1. Swatch colore con texture glassa (grana multiply + screziato bianco screen, §3.10),
-   non un disco piatto. Texture condivisa procedurale, nessun cambio schema.
-2. Thumbnail kind=image leggibili su card normale E selezionata (sagoma monocromatica
-   mask+currentColor, §3.9) — niente sagome lilla invisibili su bianco. STOP se gli asset
-   non sono silhouette con alpha pulito.
-3. Hover/focus su un'opzione → popup col `layer_image` (pattern nel colore), vicino, senza
-   layout shift; Esc chiude; nessuna focus-trap.
-4. Click → la PreviewCanvas principale si ricompone (multiply). Doppio feedback micro+macro.
-5. Mobile 390px: niente popup hover; il tap È la scelta e aggiorna il piatto grande.
-6. Tastiera completa nel radiogroup (frecce, focus mostra popup, Invio sceglie); lazy-load
-   immagini, niente jank su ~20 opzioni.
-Test: Playwright hover + focus tastiera a 1280; a 390 il popup NON compare e il tap aggiorna
-la preview principale; screenshot-diff/visual dello swatch texturizzato e dell'icona monocromatica
-nei due stati card.
-Evidenza PR: screenshot hover desktop + swatch texturizzati + icone leggibili, confronto con
-lo step 2 del sito live.
+1. `designs.code` e `options.code` esistono, unici (design globale, option per categoria),
+   popolati per tutto il catalogo dall'import; nessun carattere ambiguo.
+2. Encode: dalle selezioni correnti ottengo `MK-<D>-<s1>-…-<sN>`, segmenti ordinati per
+   slug di categoria (ADR 0011). Funzione pura, unit-testata.
+3. Decode tollerante (mai crash): codice valido → ricostruzione identica (round-trip);
+   segmento mancante/opzione assente → default categoria; segmenti in eccesso → ignorati;
+   `design.code` sconosciuto o codice malformato → messaggio cortese, niente crash.
+4. UI: da step 2/3 copio il codice (bottone "Copia codice") e copio il link; incollando un
+   codice (campo dedicato) o aprendo l'URL la configurazione si ricostruisce identica.
+5. Il codice prodotto è quello che finirà in `order_items.config_code` (F05) e sul PDF
+   (F08): stessa funzione di encode, nessun secondo formato.
+6. Mobile 390px: copia/incolla usabili, nessun overflow.
+Test: unit round-trip encode↔decode **property-based** su tutti i design del catalogo +
+casi degeneri (codice vuoto, design ignoto, segmento extra/mancante, minuscolo, separatori
+sporchi); funzionale: copio codice → reset → incollo → identico; deep-link URL.
+Evidenza PR: esempio di codice per ogni design + screenshot copia/incolla a 390/1280.
 
 ### In review
 *(vuota)*
 
 ### Done
+
+**F13 · Step 2 stile originale: opzioni con icona + preview-on-hover del pattern** — merged (squash) il 2026-06-06. Swatch glassa = `hex` + due overlay `feTurbulence` condivisi (grana multiply 0.45 + screziato bianco screen 0.9), zero asset, schema invariato; icone kind=image come sagoma monocromatica `mask-image` + `currentColor` (ink/bianco per stato card) — verificato asset RGBA alpha pulito, niente STOP; popup hover/focus col `layer_image` in portal su `document.body` (no clipping embla, no layout shift, Esc, soppresso su touch); AC6 radiogroup roving tabindex + frecce/Home/End. 7 AC Playwright (desktop+mobile su device Pixel 5 reale) + regressioni F01–F04/F14 = 25 e2e verdi; 51 unit; parità i18n. Review: **approved al primo giro**. Note minori non bloccanti annotate (kind=image non in radiogroup, popup non segue scroll, no aria-describedby).
 
 **F14 · Empty-state continuo: preview sempre composta, transizione step invisibile** — merged (squash) il 2026-06-06. Refactor: step 1+2 unificati in `configurator-client.tsx` (PreviewCanvas montata una volta, mai rismontata → step1→2 pixel-identico), step 3 resta layout server separato; default `designs[0]` risolto SSR + `ReactDOM.preload` priorità alta (primo paint = piatto composto, niente buco bianco); PreviewCanvas riscritta a state-machine keyed-on-content con cross-fade commit-after-fade (fix bug layer stale impilati). Test F14 falsificabili (HTML SSR senza skeleton, pixel-diff step change, polling no-blank + regression stale) a 390/1280; F01/F02 adattati al nuovo DOM senza annacquarli (F01 AC "CTA disabilitata" superato by design: niente più empty state). Review: **approved al primo giro**.
 

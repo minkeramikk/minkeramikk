@@ -5,6 +5,8 @@ import type { LayerSlot } from "@/lib/configurator/preview";
 
 export interface CategoryOption {
   id: string;
+  /** Stable config-code segment, unique per category (ADR 0011). */
+  code: string | null;
   name: string;
   /** Display thumbnail (kind=image). */
   image: string | null;
@@ -28,6 +30,8 @@ export interface DesignCategory {
 export interface DesignDetail {
   id: string;
   slug: string;
+  /** Stable design code, the <D> segment of the config code (ADR 0011). */
+  code: string | null;
   name: string;
   categories: DesignCategory[];
 }
@@ -43,7 +47,7 @@ export async function getDesignDetail(
 
   const { data: design, error: designErr } = await supabase
     .from("designs")
-    .select("id, slug, name")
+    .select("id, slug, code, name")
     .eq("slug", slug)
     .maybeSingle();
   if (designErr) throw designErr;
@@ -52,7 +56,7 @@ export async function getDesignDetail(
   const { data: categories, error: catErr } = await supabase
     .from("option_categories")
     .select(
-      "id, slug, label_no, label_en, kind, layer_slot, sync_group, sort_order, options(id, name, image, hex, layer_image, sort_order, active)"
+      "id, slug, label_no, label_en, kind, layer_slot, sync_group, sort_order, options(id, code, name, image, hex, layer_image, sort_order, active)"
     )
     .eq("design_id", design.id)
     .order("sort_order", { ascending: true });
@@ -61,6 +65,7 @@ export async function getDesignDetail(
   return {
     id: design.id,
     slug: design.slug,
+    code: design.code,
     name: design.name,
     categories: (categories ?? []).map((c) => ({
       id: c.id,
@@ -75,6 +80,7 @@ export async function getDesignDetail(
         .sort((a, b) => a.sort_order - b.sort_order)
         .map((o) => ({
           id: o.id,
+          code: o.code,
           name: o.name,
           image: o.image,
           hex: o.hex,
