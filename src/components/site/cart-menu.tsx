@@ -1,0 +1,227 @@
+"use client";
+
+import { useLocale, useTranslations } from "next-intl";
+import { ShoppingBag } from "lucide-react";
+import { Link } from "@/i18n/navigation";
+import {
+  Sheet,
+  SheetClose,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import { Button } from "@/components/ui/button";
+import { OrderForm } from "@/components/ui-domain/order-form";
+import { useCartContext } from "@/lib/cart/cart-context";
+import {
+  cartTotal,
+  itemCount,
+  lineSubtotal,
+  type CartLine,
+} from "@/lib/cart/cart";
+import { formatMoney } from "@/lib/money/money";
+import { useState } from "react";
+
+/** First selection colour of a line → a small identity chip for the row.
+ *  The only place a raw DB hex reaches the UI (catalog data, not theme). */
+function thumbHex(line: CartLine): string | undefined {
+  return line.configSnapshot?.selections.find((s) => s.hex)?.hex ?? undefined;
+}
+
+/**
+ * CartButton + CartDrawer (F16, DESIGN-SYSTEM §3.12). Lives in the public
+ * header next to the locale switch; visible on every page/step. The drawer
+ * (shadcn Sheet = Radix Dialog) gives focus-trap, Esc and focus-restore for
+ * free. Cart data + mutations come from the shared `useCartContext` (single
+ * source: badge, drawer and step 3 stay in sync). No hardcoded colours.
+ */
+export function CartMenu() {
+  const t = useTranslations("cart");
+  const to = useTranslations("order");
+  const locale = useLocale() as "no" | "en";
+  const { cart, hydrated, setQuantity, remove, clear, open, setOpen } =
+    useCartContext();
+  // drawer has two phases: the cart list and the checkout form
+  const [view, setView] = useState<"cart" | "checkout">("cart");
+
+  const count = itemCount(cart);
+  // gate count on hydration to avoid SSR/client mismatch (cart starts empty)
+  const liveCount = hydrated ? count : 0;
+
+  function handleOpenChange(next: boolean) {
+    setOpen(next);
+    if (!next) setView("cart"); // reset phase when closing
+  }
+
+  return (
+    <>
+      <Sheet open={open} onOpenChange={handleOpenChange}>
+        <SheetTrigger asChild>
+          <button
+            type="button"
+            data-testid="cart-button"
+            aria-label={t("button", { count: liveCount })}
+            aria-haspopup="dialog"
+            className="relative -mr-1.5 flex size-11 items-center justify-center rounded-lg text-ink-muted transition-colors hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+          >
+            <ShoppingBag className="size-5" aria-hidden />
+            {hydrated && count > 0 && (
+              <span
+                data-testid="cart-badge"
+                className="absolute top-1.5 right-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] leading-none font-semibold text-primary-foreground tabular-nums"
+              >
+                {count}
+              </span>
+            )}
+          </button>
+        </SheetTrigger>
+
+        <SheetContent
+          side="right"
+          data-testid="cart-drawer"
+          className="w-full! gap-0 p-0 sm:max-w-[380px]!"
+        >
+          <SheetHeader className="border-b border-border p-4">
+            <SheetTitle>{t("cartTitle")}</SheetTitle>
+            <SheetDescription className="sr-only">
+              {t("description")}
+            </SheetDescription>
+          </SheetHeader>
+
+          {count === 0 ? (
+            <div
+              data-testid="cart-empty"
+              className="flex flex-1 flex-col items-center justify-center gap-4 p-6 text-center"
+            >
+              <p className="text-sm text-muted-foreground">{t("empty")}</p>
+              <SheetClose asChild>
+                <Button asChild variant="outline">
+                  <Link href="/configurator">{t("emptyCta")}</Link>
+                </Button>
+              </SheetClose>
+            </div>
+          ) : view === "cart" ? (
+            <>
+              <div
+                data-testid="cart-list"
+                className="flex-1 overflow-y-auto px-4"
+              >
+                {cart.map((line) => (
+                  <div
+                    key={line.id}
+                    data-testid="cart-line"
+                    className="flex gap-3 border-b border-border/60 py-3 last:border-0"
+                  >
+                    <span
+                      aria-hidden
+                      className="size-12 shrink-0 rounded-md border border-border bg-muted"
+                      style={
+                        thumbHex(line)
+                          ? { backgroundColor: thumbHex(line) }
+                          : undefined
+                      }
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium">
+                        {locale === "no" ? line.productNameNo : line.productNameEn}
+                      </p>
+                      <p className="truncate font-mono text-xs text-muted-foreground">
+                        {line.configSnapshot?.designName ?? "—"}
+                      </p>
+                      <div className="mt-1.5 flex items-center gap-2">
+                        <div className="flex items-center rounded-sm border border-border">
+                          <button
+                            type="button"
+                            aria-label="-"
+                            onClick={() =>
+                              setQuantity(line.id, line.quantity - 1)
+                            }
+                            className="flex size-11 items-center justify-center sm:size-9"
+                          >
+                            −
+                          </button>
+                          <span className="w-7 text-center text-sm tabular-nums">
+                            {line.quantity}
+                          </span>
+                          <button
+                            type="button"
+                            aria-label="+"
+                            onClick={() =>
+                              setQuantity(line.id, line.quantity + 1)
+                            }
+                            className="flex size-11 items-center justify-center sm:size-9"
+                          >
+                            +
+                          </button>
+                        </div>
+                        <button
+                          type="button"
+                          data-testid="cart-remove"
+                          onClick={() => remove(line.id)}
+                          className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+                        >
+                          {t("remove")}
+                        </button>
+                      </div>
+                    </div>
+                    <span className="shrink-0 text-right text-sm font-medium tabular-nums">
+                      {formatMoney(lineSubtotal(line), locale)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              <SheetFooter className="border-t border-border">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">
+                    {t("total")}
+                  </span>
+                  <span
+                    data-testid="cart-total"
+                    className="text-lg font-semibold tabular-nums"
+                  >
+                    {formatMoney(cartTotal(cart), locale)}
+                  </span>
+                </div>
+                <Button
+                  size="lg"
+                  className="min-h-11 w-full"
+                  data-testid="cart-checkout"
+                  onClick={() => setView("checkout")}
+                >
+                  {to("title")}
+                </Button>
+              </SheetFooter>
+            </>
+          ) : (
+            <div className="flex flex-1 flex-col overflow-y-auto p-4">
+              <button
+                type="button"
+                data-testid="cart-back"
+                onClick={() => setView("cart")}
+                className="mb-3 self-start text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+              >
+                ← {t("backToCart")}
+              </button>
+              <OrderForm
+                cart={cart}
+                onSuccess={() => {
+                  clear();
+                  setOpen(false);
+                }}
+              />
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
+
+      {/* discreet screen-reader announcement of the count */}
+      <span aria-live="polite" className="sr-only">
+        {hydrated && count > 0 ? t("button", { count }) : ""}
+      </span>
+    </>
+  );
+}

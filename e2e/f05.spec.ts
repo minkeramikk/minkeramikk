@@ -17,6 +17,9 @@ async function addToCart(page: Page) {
   await page.getByTestId("ceramics-step").waitFor();
   await page.getByTestId("product-vietri-flat").click();
   await page.getByTestId("add-to-cart").click();
+  // F16: checkout is reached from the cart drawer, not inline in step 3
+  await page.getByTestId("cart-button").click();
+  await page.getByTestId("cart-checkout").click();
   await page.getByTestId("order-form").waitFor();
 }
 

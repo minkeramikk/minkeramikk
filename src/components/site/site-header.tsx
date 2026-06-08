@@ -1,6 +1,7 @@
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { LocaleSwitcher } from "@/components/site/locale-switcher";
+import { CartMenu } from "@/components/site/cart-menu";
 
 /** Public ink header (DESIGN-SYSTEM §3.7): brand left, nav + locale right. */
 export function SiteHeader() {
@@ -32,6 +33,7 @@ export function SiteHeader() {
             {t("nav.configurator")}
           </Link>
           <LocaleSwitcher />
+          <CartMenu />
         </nav>
       </div>
     </header>

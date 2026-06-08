@@ -132,7 +132,11 @@
     "subtotal": "Delsum",
     "total": "Totalpris",
     "design": "Design",
-    "backToDesign": "Tilbake"
+    "backToDesign": "Tilbake",
+    "button": "{count, plural, =0 {Handlekurv, tom} one {Handlekurv, # vare} other {Handlekurv, # varer}}",
+    "description": "Se over varene og send bestillingen.",
+    "viewBasket": "Vis handlekurv",
+    "backToCart": "Tilbake til handlekurven"
   },
   "order": {
     "title": "Send bestilling",

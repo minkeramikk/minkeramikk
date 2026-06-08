@@ -49,6 +49,9 @@ test("F05: order form + confirmation at 390/1280", async ({ page }) => {
     await page.getByTestId("ceramics-step").waitFor({ state: "visible" });
     await page.getByTestId("product-vietri-flat").click();
     await page.getByTestId("add-to-cart").click();
+    // F16: checkout lives in the cart drawer
+    await page.getByTestId("cart-button").click();
+    await page.getByTestId("cart-checkout").click();
     await page.getByTestId("order-form").waitFor({ state: "visible" });
     await page.getByTestId("order-name").fill("Kari Nordmann");
     await page.getByTestId("order-email").fill("kari@example.no");
@@ -179,8 +182,40 @@ test("F03: capture 390/768/1280 with a populated cart", async ({ page }) => {
     await page.getByTestId("add-to-cart").click();
     await page.getByTestId("product-serveringsfat-stor").click();
     await page.getByTestId("add-to-cart").click();
+    // F16: the populated cart now lives in the drawer
+    await page.getByTestId("cart-button").click();
+    await page.getByTestId("cart-drawer").waitFor({ state: "visible" });
     await page.waitForTimeout(500);
     await page.screenshot({ path: `${OUT3}/f03-${width}.png`, fullPage: true });
+  }
+});
+
+const OUT16 = "docs/evidence/f16";
+
+test("F16: cart drawer + badge at 390/1280", async ({ page }) => {
+  mkdirSync(OUT16, { recursive: true });
+  for (const width of [390, 1280]) {
+    await page.setViewportSize({ width, height: width < 700 ? 844 : 900 });
+    // populate from step 3
+    await page.goto("/no/configurator?design=blomster-1&step=3");
+    await page.getByTestId("ceramics-step").waitFor({ state: "visible" });
+    await page.getByTestId("product-vietri-flat").click();
+    await page.getByTestId("qty-inc").click();
+    await page.getByTestId("add-to-cart").click();
+    await page.getByTestId("product-serveringsfat-stor").click();
+    await page.getByTestId("add-to-cart").click();
+    // badge in the header
+    await page.getByTestId("cart-badge").waitFor({ state: "visible" });
+    // open drawer
+    await page.getByTestId("cart-button").click();
+    await page.getByTestId("cart-drawer").waitFor({ state: "visible" });
+    await page.waitForTimeout(350);
+    await page.screenshot({ path: `${OUT16}/f16-drawer-${width}.png` });
+    // checkout phase
+    await page.getByTestId("cart-checkout").click();
+    await page.getByTestId("order-form").waitFor({ state: "visible" });
+    await page.waitForTimeout(300);
+    await page.screenshot({ path: `${OUT16}/f16-checkout-${width}.png` });
   }
 });
 
