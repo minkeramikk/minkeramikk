@@ -1,11 +1,10 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
 import { usePathname, useRouter } from "@/i18n/navigation";
 import { OptionCard } from "@/components/ui-domain/option-card";
-import { OptionCarousel } from "@/components/ui-domain/option-carousel";
 import { PreviewCanvas } from "@/components/ui-domain/preview-canvas";
 import { Stepper } from "@/components/ui-domain/stepper";
 import { Swatch } from "@/components/ui-domain/swatch";
@@ -24,6 +23,7 @@ import {
   toCodecDesign,
   type CodecDesign,
 } from "@/lib/configurator/config-code";
+import { cn } from "@/lib/utils";
 import { ConfigCodeBar } from "./config-code-bar";
 import type { DesignDetail } from "@/lib/catalog/design-options";
 import type { PreviewLayer } from "@/lib/configurator/preview";
@@ -111,6 +111,24 @@ export function ConfiguratorClient({
     [detail]
   );
   const hasSyncGroup = detail.categories.some((c) => c.syncGroup);
+
+  // ── F15: keep the live preview in view while the (long) option list scrolls ──
+  // Desktop: the preview column is sticky (CSS only). Mobile: the preview pins to
+  // the top and collapses to a compact thumbnail once scrolled past its natural
+  // position — detected with a zero-height sentinel + IntersectionObserver (no
+  // scroll math). The shrink transition honours prefers-reduced-motion via CSS.
+  const previewSentinel = useRef<HTMLDivElement>(null);
+  const [previewCollapsed, setPreviewCollapsed] = useState(false);
+  useEffect(() => {
+    const el = previewSentinel.current;
+    if (!el || typeof IntersectionObserver === "undefined") return;
+    const io = new IntersectionObserver(
+      ([entry]) => setPreviewCollapsed(!entry.isIntersecting),
+      { threshold: 0 }
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
 
   // ── config code (ADR 0011): encode current, decode on paste ──
   const codecDesigns = useMemo(
@@ -240,13 +258,33 @@ export function ConfiguratorClient({
         ]}
       />
 
+      {/* F15 sentinel: marks the preview's natural top for collapse detection */}
+      <div ref={previewSentinel} aria-hidden className="h-0" />
+
       <div className="grid grid-cols-1 items-start gap-7 md:grid-cols-2">
-        {/* LEFT: the persistent preview — never remounts across steps (AC2) */}
-        <PreviewCanvas
-          alt={selected.name}
-          caption={t("previewNote")}
-          layers={previewLayers}
-        />
+        {/* LEFT: the persistent preview — never remounts across steps (AC2).
+            F15: sticky so it stays visible while the option list scrolls; on
+            mobile it pins to the top and collapses to a compact thumbnail. */}
+        <div
+          data-testid="preview-sticky"
+          data-collapsed={previewCollapsed}
+          className={cn(
+            "z-30 md:sticky md:top-4 md:self-start",
+            // definite width (not max-width): the preview's layers are absolutely
+            // positioned, so a shrink-to-fit width would collapse to 0 height.
+            "max-md:sticky max-md:top-0 max-md:mx-auto",
+            "max-md:transition-[width] max-md:duration-200 motion-reduce:transition-none",
+            previewCollapsed ? "max-md:w-[140px]" : "max-md:w-full",
+            previewCollapsed &&
+              "max-md:rounded-b-lg max-md:bg-background/90 max-md:py-1 max-md:shadow-(--shadow-card) max-md:backdrop-blur-sm",
+          )}
+        >
+          <PreviewCanvas
+            alt={selected.name}
+            caption={previewCollapsed ? undefined : t("previewNote")}
+            layers={previewLayers}
+          />
+        </div>
 
         {/* RIGHT: panel swaps with the step */}
         {step === 1 ? (
@@ -331,42 +369,46 @@ export function ConfiguratorClient({
                   </legend>
 
                   {single ? null : cat.kind === "color" ? (
+                    // F15: full vertical grid that wraps — every option visible,
+                    // no horizontal scroller (supersedes the F02 embla carousel).
                     <div
                       role="radiogroup"
                       aria-label={label(cat)}
                       onKeyDown={(e) => onRadioKeyDown(e, cat)}
+                      data-testid="option-grid"
+                      className="flex flex-wrap gap-2.5"
                     >
-                      <OptionCarousel>
-                        {cat.options.map((o) => (
-                          <div key={o.id} className="shrink-0">
-                            <Swatch
-                              hex={o.hex ?? "#000"}
-                              name={o.name}
-                              selected={sel === o.id}
-                              tabIndex={sel === o.id ? 0 : -1}
-                              previewSrc={
-                                o.layerImage ? assetUrl(o.layerImage) : undefined
-                              }
-                              previewAlt={o.name}
-                              onSelect={() => selectOption(cat.slug, o.id)}
-                            />
-                          </div>
-                        ))}
-                      </OptionCarousel>
+                      {cat.options.map((o) => (
+                        <Swatch
+                          key={o.id}
+                          hex={o.hex ?? "#000"}
+                          name={o.name}
+                          selected={sel === o.id}
+                          tabIndex={sel === o.id ? 0 : -1}
+                          imageSrc={o.image ? assetUrl(o.image) : undefined}
+                          previewSrc={
+                            o.layerImage ? assetUrl(o.layerImage) : undefined
+                          }
+                          previewAlt={o.name}
+                          onSelect={() => selectOption(cat.slug, o.id)}
+                        />
+                      ))}
                     </div>
                   ) : (
-                    <OptionCarousel>
+                    <div
+                      data-testid="option-grid"
+                      className="grid grid-cols-3 gap-2.5 sm:grid-cols-4"
+                    >
                       {cat.options.map((o) => (
-                        <div key={o.id} className="w-24 shrink-0">
-                          <OptionCard
-                            label={o.name}
-                            imageUrl={o.image ? assetUrl(o.image) : undefined}
-                            selected={sel === o.id}
-                            onSelect={() => selectOption(cat.slug, o.id)}
-                          />
-                        </div>
+                        <OptionCard
+                          key={o.id}
+                          label={o.name}
+                          imageUrl={o.image ? assetUrl(o.image) : undefined}
+                          selected={sel === o.id}
+                          onSelect={() => selectOption(cat.slug, o.id)}
+                        />
                       ))}
-                    </OptionCarousel>
+                    </div>
                   )}
                 </fieldset>
               );

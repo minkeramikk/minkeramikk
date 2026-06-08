@@ -20,6 +20,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { createClient } from "@supabase/supabase-js";
 import { assignMissingCodes } from "./backfill-codes";
+import { backfillSwatchImages } from "./backfill-swatch-images";
 
 // ───────────────────────── env ─────────────────────────
 
@@ -495,6 +496,18 @@ async function main() {
   const assigned = await assignMissingCodes(db);
   counts["codes assigned (design/option)"] =
     `${assigned.designs}/${assigned.options}` as unknown as number;
+
+  // 5) backfill real glaze-swatch images into options.image (F15 / ADR 0012).
+  // Idempotent; uses the `palettes` collection (keyed by hex). Reuses the
+  // already-scraped catalog shape.
+  const swatch = await backfillSwatchImages(db, {
+    collections: { palettes: collections["palettes"] },
+  });
+  counts["swatch images (uploaded/options set)"] =
+    `${swatch.swatchesUploaded}/${swatch.optionsUpdated}` as unknown as number;
+  for (const hex of swatch.missingSwatch) {
+    anomalies.push(`swatch: hex ${hex} has no palette image (UI placeholder)`);
+  }
 
   // ── report ──
   console.log("\n── counts ──");

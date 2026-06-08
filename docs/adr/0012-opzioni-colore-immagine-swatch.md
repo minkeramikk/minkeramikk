@@ -48,6 +48,20 @@ Negative / costi:
 - Migration di rilassamento del CHECK + re-import asset (peso su Storage).
 - Le opzioni colore possono ora avere 3 asset: più campi nel CRUD asset (F10).
 
+## Note di implementazione (F15, 2026-06-08)
+
+- **CHECK**: il rilassamento era GIÀ stato applicato dalla migration `0005_layer_image.sql`
+  (constraint `options_image_or_hex_check` = `image IS NOT NULL OR hex IS NOT NULL`). Nessuna
+  nuova migration: il punto 2 della decisione è soddisfatto a monte.
+- **Sorgente swatch**: la collezione legacy `palettes` (21 webp, una per colore, chiave = hex)
+  copre 1:1 i 21 colori distinti del catalogo (confermato dal proprietario). `hovering-colors`
+  (20) ne copriva 20. Backfill idempotente `scripts/backfill-swatch-images.ts`: una swatch per
+  hex caricata su `swatches/<hex>.png` (dedup), poi `options.image` impostato per le 261 opzioni
+  colore. 0 colori senza foto.
+- **Rendering**: lo Swatch mostra `options.image` (foto vera); la grana procedurale F13 resta
+  solo come placeholder per colori senza foto; flat `hex` ultimo fallback. Le icone `kind=image`
+  mostrano l'arte originale su tile (`--muted`/`--primary` se selezionato), niente `mask-image`.
+
 ## Relazioni
 
 - **Supera** la resa procedurale dello swatch (DESIGN-SYSTEM §3.10 "texture glassa" di F13),

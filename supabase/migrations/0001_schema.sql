@@ -83,7 +83,7 @@ create table settings (
 );
 
 insert into settings (id, color_light, color_dark, color_accent)
-values (1, '#fdf0e6', '#181512', '#de7361');
+values (1, '#fbe9e4', '#2b2330', '#7d4f9c');
 
 -- ──────────────────────────── products ──────────────────────────
 

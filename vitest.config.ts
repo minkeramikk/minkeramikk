@@ -13,6 +13,6 @@ export default defineConfig({
   },
   test: {
     // unit/integration tests only — e2e/*.spec.ts belongs to Playwright
-    include: ["src/**/*.test.ts"],
+    include: ["src/**/*.test.ts", "scripts/**/*.test.ts"],
   },
 });

@@ -26,7 +26,7 @@ export function OptionCard({
       aria-pressed={selected}
       onClick={onSelect}
       className={cn(
-        "min-h-11 rounded-sm border-[1.5px] px-2.5 py-5 text-center text-sm transition-colors",
+        "min-h-11 rounded-sm border-[1.5px] px-2.5 py-3 text-center text-sm transition-colors",
         "focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring",
         selected
           ? "border-primary bg-primary font-semibold text-primary-foreground"
@@ -34,27 +34,25 @@ export function OptionCard({
       )}
     >
       {imageUrl && (
-        // §3.9 variante `image`: the asset is a clean-alpha silhouette; render it
-        // as a monochrome shape via mask + currentColor so it stays legible on
-        // both the normal card (ink) and the selected one (white) — the original
-        // pale-lilla art would vanish on white. currentColor follows the button's
-        // text colour (foreground / primary-foreground).
+        // F15 (§3.9): show the ORIGINAL curated art as-is (white+purple) on a
+        // tinted tile — muted normally, primary when selected — so the artwork
+        // reads on both states. No mask/currentColor (that flattened it to a
+        // monochrome silhouette in F13).
         <span
-          aria-hidden
           data-testid="option-icon"
-          className="mx-auto mb-2 block h-14 w-14"
-          style={{
-            backgroundColor: "currentColor",
-            WebkitMaskImage: `url(${imageUrl})`,
-            maskImage: `url(${imageUrl})`,
-            WebkitMaskRepeat: "no-repeat",
-            maskRepeat: "no-repeat",
-            WebkitMaskPosition: "center",
-            maskPosition: "center",
-            WebkitMaskSize: "contain",
-            maskSize: "contain",
-          }}
-        />
+          className={cn(
+            "mx-auto mb-2 flex h-16 w-16 items-center justify-center rounded-sm",
+            selected ? "bg-primary-foreground/15" : "bg-muted",
+          )}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element -- catalog art from storage */}
+          <img
+            src={imageUrl}
+            alt=""
+            aria-hidden
+            className="h-14 w-14 object-contain"
+          />
+        </span>
       )}
       <span className="block">{label}</span>
       {supplierName && (

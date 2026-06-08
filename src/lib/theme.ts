@@ -11,9 +11,9 @@ export interface ThemeTokens {
 }
 
 export const DEFAULT_THEME: ThemeTokens = {
-  light: "#fdf0e6",
-  dark: "#181512",
-  accent: "#de7361",
+  light: "#fbe9e4",
+  dark: "#2b2330",
+  accent: "#7d4f9c",
 };
 
 export async function getThemeTokens(): Promise<ThemeTokens> {

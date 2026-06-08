@@ -79,6 +79,9 @@ Design token applicati a tutto il pubblico · mobile-first sui carousel · pagin
 
 Screenshot Playwright 3 breakpoint × pagine chiave · test E2E flusso ordine · Lighthouse · deploy Vercel + DNS · handover (credenziali, mini-guida back-office)
 
+- [ ] **Fail-closed email/anti-bot in produzione (ADR 0013)**: aggiungere il guard che fa fallire rumorosamente se mancano `TURNSTILE_SECRET_KEY` / `RESEND_API_KEY` in `NODE_ENV=production` (mai test-key always-pass né no-op silenzioso fuori da dev/CI).
+- [ ] **Verifica dominio Resend** avviata in anticipo (lead time DNS); settare `ORDER_EMAIL_FROM` (sender verificato) e `ORDER_NOTIFY_EMAIL`.
+
 ---
 
 ## Decisioni tecniche

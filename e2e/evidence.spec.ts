@@ -5,6 +5,40 @@ import { mkdirSync, writeFileSync } from "node:fs";
  * PR evidence (not assertions): full-page screenshots of step 1 at the
  * three reference breakpoints, with a design selected.
  */
+const OUT15 = "docs/evidence/f15";
+
+test("F15: step 2 real assets — colors + animals at 390/1280", async ({ page }) => {
+  mkdirSync(OUT15, { recursive: true });
+  for (const width of [390, 1280]) {
+    await page.setViewportSize({ width, height: width < 700 ? 1500 : 1100 });
+    // real glaze swatches in a wrapping grid (no carousel)
+    await page.goto("/no/configurator?design=blomster-1&step=2");
+    await page.getByTestId("details-step").waitFor({ state: "visible" });
+    await page.waitForTimeout(500);
+    await page.screenshot({ path: `${OUT15}/f15-colors-${width}.png`, fullPage: true });
+    // original animal art on tiles (no mask)
+    await page.goto("/no/configurator?design=amalfi-dyr&step=2");
+    await page.getByTestId("details-step").waitFor({ state: "visible" });
+    await page.waitForTimeout(500);
+    await page.screenshot({ path: `${OUT15}/f15-animals-${width}.png`, fullPage: true });
+  }
+});
+
+test("F15 sticky: preview pinned while scrolling the options (390 collapsed + 1280)", async ({
+  page,
+}) => {
+  mkdirSync(OUT15, { recursive: true });
+  for (const width of [390, 1280]) {
+    await page.setViewportSize({ width, height: width < 700 ? 780 : 800 });
+    await page.goto("/no/configurator?design=amalfi-dyr&step=2");
+    await page.getByTestId("details-step").waitFor({ state: "visible" });
+    // scroll mid-list: the preview stays pinned (mobile: collapsed thumbnail)
+    await page.evaluate(() => window.scrollBy(0, 700));
+    await page.waitForTimeout(450);
+    await page.screenshot({ path: `${OUT15}/f15-sticky-${width}.png` });
+  }
+});
+
 const OUT05 = "docs/evidence/f05";
 
 test("F05: order form + confirmation at 390/1280", async ({ page }) => {

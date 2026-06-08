@@ -61,9 +61,9 @@
  */
 :root {
   /* the 3 managed tokens (defaults; runtime values come from settings) */
-  --mk-light: #fdf0e6;
-  --mk-dark: #181512;
-  --mk-accent: #de7361;
+  --mk-light: #fbe9e4;
+  --mk-dark: #2b2330;
+  --mk-accent: #7d4f9c;
 
   /* derived — shadcn/ui convention */
   --background: var(--mk-light);

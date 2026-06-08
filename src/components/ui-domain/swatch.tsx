@@ -16,7 +16,7 @@ import { cn } from "@/lib/utils";
  *
  * F13 — `with-preview`: on hover AND keyboard focus a floating card shows the
  * option's `layer_image` (the pattern in that colour). Rendered in a portal so
- * the embla carousel's `overflow-hidden` can't clip it; no layout shift; Esc
+ * no ancestor's overflow/stacking context can clip it; no layout shift; Esc
  * closes; desktop-only (no hover on touch — there the main PreviewCanvas updates).
  */
 
@@ -42,6 +42,7 @@ export function Swatch({
   name,
   selected = false,
   onSelect,
+  imageSrc,
   previewSrc,
   previewAlt,
   tabIndex,
@@ -50,6 +51,12 @@ export function Swatch({
   name: string;
   selected?: boolean;
   onSelect?: () => void;
+  /**
+   * F15 — real glaze-photo swatch (options.image). When present it IS the
+   * swatch (identical to the original site). Absent → the procedural grain
+   * (F13) over `hex` is the placeholder; flat `hex` is the last fallback.
+   */
+  imageSrc?: string;
   /** layer_image (pattern in this colour) shown in the hover/focus popup. */
   previewSrc?: string;
   previewAlt?: string;
@@ -101,16 +108,32 @@ export function Swatch({
             : "shadow-[0_0_0_1.5px_var(--border)]"
         )}
       >
-        <span
-          aria-hidden
-          className="pointer-events-none absolute inset-0"
-          style={{ backgroundImage: GRAIN, backgroundSize: "cover", mixBlendMode: "multiply", opacity: 0.45 }}
-        />
-        <span
-          aria-hidden
-          className="pointer-events-none absolute inset-0"
-          style={{ backgroundImage: SPECKLE, backgroundSize: "cover", mixBlendMode: "screen", opacity: 0.9 }}
-        />
+        {imageSrc ? (
+          // real glaze-photo swatch (F15): the curated original asset, used as-is
+          // eslint-disable-next-line @next/next/no-img-element -- catalog art from storage
+          <img
+            src={imageSrc}
+            alt=""
+            aria-hidden
+            data-testid="swatch-photo"
+            className="pointer-events-none absolute inset-0 size-full object-cover"
+          />
+        ) : (
+          // placeholder (F13): procedural glaze grain over the hex fill
+          <>
+            <span
+              aria-hidden
+              data-testid="swatch-grain"
+              className="pointer-events-none absolute inset-0"
+              style={{ backgroundImage: GRAIN, backgroundSize: "cover", mixBlendMode: "multiply", opacity: 0.45 }}
+            />
+            <span
+              aria-hidden
+              className="pointer-events-none absolute inset-0"
+              style={{ backgroundImage: SPECKLE, backgroundSize: "cover", mixBlendMode: "screen", opacity: 0.9 }}
+            />
+          </>
+        )}
       </button>
 
       {open &&

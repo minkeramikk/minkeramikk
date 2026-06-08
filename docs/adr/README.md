@@ -21,5 +21,6 @@ aggiornamento delle regole in `../../AGENTS.md`.
 | [0010](0010-layer-asset-espliciti.md) | Asset di compositing espliciti (`options.layer_image`) | Accepted |
 | [0011](0011-grammatica-config-code.md) | Grammatica del codice di configurazione (`MK-D-s1-s2…`) | Accepted |
 | [0012](0012-opzioni-colore-immagine-swatch.md) | Opzioni colore con immagine swatch reale (CHECK rilassato) | Accepted |
+| [0013](0013-deploy-email-antibot-fail-closed.md) | Deploy: email/anti-bot fail-closed in produzione (reminder go-live) | Accepted |
 
 Diagramma del modello dati e indici: [schema-er.md](schema-er.md) (deriva da ADR 0004–0008).
