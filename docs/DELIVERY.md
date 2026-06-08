@@ -79,7 +79,7 @@ Checklist di review, in ordine:
 ## 5. Board
 
 > Stato iniziale: tutto in **Backlog**. Le card passano in Ready quando l'infra è Done
-> e gli AC vengono raffinati. Ordine di tiraggio consigliato: F01✅ → F02✅ → F03✅ → F14✅ → F13✅ → F04✅ → F05✅ → F15✅ → F16✅ → F06✅ → F07✅ → F09✅ → F10✅ → **F08** → F11 → F12.
+> e gli AC vengono raffinati. Ordine di tiraggio consigliato: F01✅ → F02✅ → F03✅ → F14✅ → F13✅ → F04✅ → F05✅ → F15✅ → F16✅ → F06✅ → F07✅ → F09✅ → F10✅ → F08✅ → F12✅ → **INFRA (go-live hardening)** → poi opzionali: F11 (theme editor), F18/F19 (UX polish). **Tutti i 16 flussi feature DONE.**
 > UX-polish parcheggiate (schedulabili dopo F16 o dopo il back-office, a scelta): **F18** (nav: stepper cliccabile + Next sticky), **F19** (righe carrello ricche: mini-piatto composto + design code di sessione). F17 = ex sticky-preview, assorbita in F15.
 
 ### Backlog
@@ -152,47 +152,29 @@ AC (bozza):
 - Reset ai default del tema disponibile
 Test: unit funzione di contrasto (casi limite) · funzionale salva→verifica CSS variable sul pubblico.
 
----
-
-**F12 · Pagine legali + footer** — FE · dep: infra
-Scope: `/[locale]/terms` e `/[locale]/privacy` con testi recuperati dal sito live
-(kjøpsvilkår, personopplysninger) già nei dizionari; footer con link; menu mobile header.
-AC (bozza): pagine raggiungibili dal footer in entrambe le lingue; nessuna chiave i18n mancante.
-Test: funzionale smoke su entrambe le lingue.
-
 ### Ready
 
-**F08 · PDF laboratorio + invio per fornitore** — BE(+bottone in F07) · dep: F07 [DONE]
-Genera, dal dettaglio ordine, un **PDF "production order" PER OGNI fornitore** (split righe,
-ADR 0007 — riusa `splitBySupplier` di F05). **In INGLESE** (cambio deciso 2026-06-08 rispetto
-al precedente "italiano"). Design approvato → riferimento visivo **`docs/preview/06-lab-pdf.html`**.
-**Privacy**: NIENTE dati personali del cliente sul PDF (no nome/email/telefono) — solo
-riferimento ordine + specifica di produzione.
-
-Layout (vedi 06-lab-pdf.html): testata prugna brand + "Production order" + **codice ordine**
-(`MK-NNNN`) + data + **laboratorio**; meta (workshop, n. pezzi, reference); poi **un blocco per
-articolo** con: anteprima piatto **composta server-side** (sharp, multiply), ceramica, design,
-**configurazione completa** (ogni categoria → opzione: nome + swatch + **hex**), config code,
-**quantità**; footer col totale pezzi.
-
+**INFRA · Secret CI + de-flake + hardening go-live** — infra/test · dep: tutti i flussi feature [DONE]
+Tutti i flussi sono mergiati: questo giro mette **suite e deploy in sicurezza prima del go-live**.
+1. **Secret CI**: aggiungere a GitHub Actions i secret di un progetto Supabase di test +
+   `ADMIN_EMAIL`/`ADMIN_PASSWORD`, così i test **gated** (RLS, F05 integration, F06 login, F07
+   ordini, F09/F10) **girano in CI** invece di skippare (prerequisito board, finalmente — è ciò
+   che ha lasciato marcire l'AC3 di F07).
+2. **De-flake e2e**: sistemare i flaky pre-esistenti **f14** (mobile) e **f15** (AC5 desktop) —
+   timing/race con la preview sticky; stesso approccio di F07 (attese deterministiche, niente race
+   reload↔revalidate). Test-only.
+3. **Fail-closed in prod (ADR 0013)**: in `NODE_ENV=production`, Turnstile senza
+   `TURNSTILE_SECRET_KEY` e email senza `RESEND_API_KEY` → **errore esplicito**, mai il fallback
+   "always-pass"/no-op (`turnstile.ts`, `email.ts`).
+4. **AGENTS.md**: regola "**merge da terminale pulito, IDE/source-control chiuso**" (i `.lock`
+   ricorrenti li causa l'IDE) + DoD locale `npm ci` + e2e prima della PR.
 AC (definitivi, 2026-06-08):
-1. Da dettaglio ordine: ordine misto (2 fornitori) → **2 PDF**, ognuno con le SOLE righe del suo
-   laboratorio (split, ADR 0007).
-2. PDF in inglese col layout di `06-lab-pdf.html`: per ogni articolo prodotto+design+categoria→
-   opzione (**nome + hex + swatch**) + config code + quantità; codice ordine in testata; **nessun
-   dato personale del cliente**; totale pezzi in fondo.
-3. **Anteprima composta**: i layer della config sono risolti (decode F04 / config_snapshot) e
-   composti server-side (sharp, multiply, riusa la logica del configuratore); layer mancante
-   (catalogo cambiato) → degrada con grazia — **il testo nome+hex resta autoritativo**.
-4. Invio opzionale via Resend al fornitore (`supplier.email`): fornitore **senza email** → PDF
-   generato, invio **saltato con warning** in UI. Transport mock nei test (niente invii reali in CI).
-5. Sicurezza: generazione solo da sessione admin (route/azione authenticated, guardia F06);
-   service-role mai nel client; il PDF non espone PII cliente.
-Test: unit split per fornitore (riusa `splitBySupplier`) · snapshot del **contenuto testuale** del
-PDF (codice ordine, per item prodotto/design/categoria→opzione+hex/qty, niente PII) · integrazione
-compositing sharp (un'immagine prodotta) · invio mockato (con/senza email fornitore).
-Evidenza PR: i **PDF generati** da un ordine di test (i file) + esempio invio mockato.
-Lib: PDF server-side (es. `@react-pdf/renderer` o `pdfkit`; **evitare puppeteer** su serverless Vercel).
+1. I test gated **girano in CI** (non più skip) e sono verdi; nessun segreto reale nel repo (solo nei GitHub Secrets).
+2. f14 e f15 verdi e **stabili** (3 run di fila), test-only.
+3. Build di produzione **fallisce** se mancano `TURNSTILE_SECRET_KEY`/`RESEND_API_KEY` in `NODE_ENV=production`; in dev/CI i fallback restano.
+4. AGENTS.md aggiornato (regola merge IDE-off + DoD).
+Test: la CI stessa è la prova (i gated ora girano); de-flake verificato con ripetizioni; unit sul guard fail-closed.
+Nota: metà è GitHub settings (secrets) — quella parte la fa Daniele; il resto (de-flake, fail-closed, AGENTS.md) è codice.
 
 ### In progress
 *(vuota)*
@@ -201,6 +183,10 @@ Lib: PDF server-side (es. `@react-pdf/renderer` o `pdfkit`; **evitare puppeteer*
 *(vuota)*
 
 ### Done
+
+**F12 · Pagine legali + footer + menu mobile** — merged (squash) il 2026-06-08 (254c867). Pagine `/[locale]/terms` e `/[locale]/privacy` (path inglese, regola i18n) coi testi da `legal.*` (NO live + EN bozza `_review`); `LegalArticle` rende il body in prosa; footer aggiornato ai path inglesi; **menu mobile** (hamburger → `shadcn Sheet` ink, focus-trap/Esc da Radix). Nuovo **`messages.test.ts`**: parità chiavi i18n NO↔EN (esclude `_review`) — guard riusabile per tutto l'i18n futuro. 136 unit + e2e smoke NO/EN a 390/1280. Review: **approved al primo giro**. Go-live TODO: finalizzare copy legale EN (il cliente valida).
+
+**F08 · PDF laboratorio + invio per fornitore** — merged (squash) il 2026-06-08 (ee235f5). PDF "production order" **in inglese, uno per fornitore** (split ADR 0007, `splitBySupplier`), design `06-lab-pdf.html`. Content model puro **senza PII** (snapshot-testato), anteprima piatto composta server-side (**sharp** multiply, decode F04→layers, degrada con grazia), render **@react-pdf** (no puppeteer), invio Resend opzionale (skip+warning se fornitore senza email). Route `GET /api/admin/orders/[id]/pdf` con **self-guard 401** (vincolo F06 "/api self-guard"). e2e + unit + PDF di esempio. Review: **approved al primo giro**. **+ Bonus fix**: `public.ts` client anon session-less per i read pubblici → risolve il **429 storm** (refresh JWT admin a ogni lettura pubblica).
 
 **F10 · Gestione asset configuratore (back-office)** — merged (squash) il 2026-06-08 (df64a8c). CRUD annidato **designs → categorie → opzioni** (split F10a/F10b sullo stesso branch). Passo 0: migration **0009** anti-dup (unique parziale `(category_id,hex) WHERE hex NOT NULL` + `(category_id,name)`, 0 dup verificati). Code via `assign-codes.ts` **condiviso** (estratto da F04, mai ricalcola → `config_code` ordini stabili); anti-dup intercetta `23505`→messaggi distinti hex/nome; **image-or-hex** (ADR 0012) app + CHECK `23514`; upload validato col path convention; **gate `active`** (bozza invisibile nel configuratore). Tutto authenticated (RLS, **service-role mai nel client**), zod. 123 unit + Playwright F10 6/6 (RLS, create→code→activate→configuratore + draft nascosto, dup rifiutato, image-or-hex). Review: **approved al primo giro**. Coda flaky e2e pre-esistenti (f14/f15, configuratore byte-identico) → de-flake separato. **Board non toccato dal dev (regola PM-only rispettata).**
 
