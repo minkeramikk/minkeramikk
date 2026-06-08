@@ -44,6 +44,12 @@ scritti)  BE → FE → test → evidenza)    review agent)  board aggiornata)
 - **Definition of Done**: AC verdi · test verdi · lint+build verdi · dizionari NO/EN
   allineati · evidenza in PR · PR merged · board e TODO aggiornati.
 - **Niente cerimonie**: la "retrospettiva" è il log decisioni negli ADR e le note in PR.
+- **Board PM-only (2026-06-08)**: questo file `docs/DELIVERY.md` è gestito SOLO dal TL/PM e
+  committato a parte. I branch dei flussi NON lo toccano (come i `PR-*-body.md`): evita il
+  balletto di stash/conflitti a ogni merge. Il dev mette stato/evidenza nel `PR-*-body.md`, non qui.
+- **Test gated = rischio rot (lezione F07)**: un test che skippa in CI (manca un secret) può
+  marcire — l'AC3 di F07 asseriva un elemento inesistente ed era "approved" senza esser mai
+  girato. Priorità infra: **wire i secret nella CI** (vedi §4) così questi test girano davvero.
 
 ## 3. Review agent
 
@@ -65,7 +71,7 @@ Checklist di review, in ordine:
 - [x] Repo GitHub privato + remote configurato
 - [x] CI minima su PR: `lint` + `build` + `test` (GitHub Actions)
 - [ ] Primo push di `main` (sblocca la prima run CI)
-- [ ] Secrets Supabase nel repo GitHub (URL, anon key, service role di un progetto di test) così i test RLS girano in CI invece di essere skippati
+- [ ] **PRIORITÀ (2026-06-08)** Secrets Supabase + `ADMIN_EMAIL/PASSWORD` nel repo GitHub (progetto di test) così i test gated (RLS, F05 integration, F06 login, F07 ordini) girano in CI invece di skippare — altrimenti marciscono (lezione flake F07)
 - [ ] TODO.md fasi 0bis–1bis completate (infra) → poi le prime card passano in Ready
 
 ---
@@ -73,7 +79,7 @@ Checklist di review, in ordine:
 ## 5. Board
 
 > Stato iniziale: tutto in **Backlog**. Le card passano in Ready quando l'infra è Done
-> e gli AC vengono raffinati. Ordine di tiraggio consigliato: F01✅ → F02✅ → F03✅ → F14✅ → F13✅ → F04✅ → F05✅ → F15✅ → F16✅ → F06✅ → F07✅ → **F09** → F10 → F08 → F11 → F12.
+> e gli AC vengono raffinati. Ordine di tiraggio consigliato: F01✅ → F02✅ → F03✅ → F14✅ → F13✅ → F04✅ → F05✅ → F15✅ → F16✅ → F06✅ → F07✅ → F09✅ → **F10** → F08 → F11 → F12.
 > UX-polish parcheggiate (schedulabili dopo F16 o dopo il back-office, a scelta): **F18** (nav: stepper cliccabile + Next sticky), **F19** (righe carrello ricche: mini-piatto composto + design code di sessione). F17 = ex sticky-preview, assorbita in F15.
 
 ### Backlog
@@ -149,18 +155,6 @@ Test: unit split per fornitore · snapshot test sul PDF (contenuto testuale) · 
 
 ---
 
-**F10 · Gestione asset configuratore (back-office)** — FE+BE · dep: F06
-Scope: designs (con supplier), categorie (kind, layer_slot, sync_group), opzioni
-(upload PNG con resize automatico / hex per kind=color); spec `docs/preview/05`;
-anteprima con ricolorazione prima di pubblicare.
-AC (bozza):
-- Carico un PNG su una categoria image → opzione visibile nel configuratore con `active=true`
-- Creo un'opzione colore con hex+nome → appare tra gli swatch della categoria
-- Upload non-PNG o oversize → rifiutato con messaggio chiaro
-Test: funzionale upload→storage→render · unit validazioni.
-
----
-
 **F11 · Theme editor (back-office)** — FE+BE · dep: F06
 Scope: pagina Theme: 3 color picker (light/dark/accent), anteprima live (come il tester
 dei template), **check contrasto WCAG AA bloccante** (ADR 0008), salvataggio su `settings`,
@@ -181,36 +175,48 @@ Test: funzionale smoke su entrambe le lingue.
 
 ### Ready
 
-**F09 · CRUD prodotti + fornitori (back-office)** — FE+BE · dep: F06 [DONE] — branch `flow/f09-catalog-crud` (2026-06-08), In progress
-Dà ad Alessio il controllo del **catalogo**: ceramiche (products) e laboratori (suppliers).
-Sotto `/admin/products` e `/admin/suppliers` (protette da F06), inglese. Mutazioni via
-`createClient()` cookie-session (RLS authenticated, **service-role mai nel client**), zod.
-Spec UI: `docs/preview/04` + template back-office.
+**F10 · Gestione asset configuratore (back-office)** — FE+BE(dati) · dep: F06 [DONE], F09 [DONE]
+Il flusso **più grande** del back-office: CRUD della struttura del configuratore —
+**designs → categorie → opzioni** — con upload asset, assegnazione del `code` (ADR 0011) e
+anteprima con ricolorazione **prima di pubblicare**. Sotto `/admin` (guardia F06), inglese,
+mutazioni via `createClient()` cookie-session (RLS authenticated, service-role mai nel client),
+zod. Spec UI: `docs/preview/05` + template back-office.
 
-Ciclo (BE/azioni → liste → form):
-1. **Products** `/admin/products`: lista (nome, prezzo Money, fornitore, visible, sort) +
-   form create/edit/delete. Campi: `name_no/_en`, `description_no/_en`, **prezzo in kr →
-   cents** (Money, niente float ambiguo, gestisce decimali/øre e spazi), `supplier_id`
-   (select, **NOT NULL** ADR 0007), **image** (upload su Storage `products/{slug}.png`),
-   `visible`, `sort_order`, `slug` (UK, generato dal nome con dedup). 
-2. **Suppliers** `/admin/suppliers`: lista (nome, email, phone, active) + form. Contatti
-   (email/phone/notes) sono dati **authenticated-only** (ADR 0009).
-3. **Live**: create/edit/hide di un prodotto → il configuratore step 3 riflette subito
-   (è `force-dynamic`): `visible=false` sparisce, prezzo nuovo appare.
-4. **Delete supplier = RESTRICT** (ADR 0007): fornitore con designs/products → delete
-   bloccato con messaggio "disattiva invece" (`active=false`); fornitore senza catalogo → eliminabile.
+**Passo 0 (dati, migration additiva)** — la verifica anti-duplicati rimandata a F10 (import
+report / TODO): `unique index` parziale su `options (category_id, hex) WHERE hex IS NOT NULL`
+e `unique (category_id, name)`. No reset; rigenerare i tipi. STOP se l'indice fallisse su
+dati esistenti (= duplicati già presenti → bonificare prima).
+
+Vincoli schema da rispettare (NON reinventare): `designs.supplier_id` NOT NULL **RESTRICT**
+(ADR 0007); `designs.code` UNIQUE + `options.code` UNIQUE per categoria, **assegnati alla
+create e mai ricalcolati** (ADR 0011, alfabeto sicuro, riusa `assignMissingCodes`); CHECK
+`image IS NOT NULL OR hex IS NOT NULL` (ADR 0012); `sync_group` per il color-lock (ADR 0004);
+CASCADE design→categorie→opzioni.
+
+Ciclo (Passo 0 → CRUD designs → categorie nested → opzioni nested + asset → preview → pubblica):
+1. **Designs**: CRUD con `supplier_id` (select da F09, obbligatorio), `name`, `slug` (UK, stabile),
+   `description_no/_en`, `preview_image` (upload), `sort_order`, `active`, `code` (auto-assegnato).
+2. **Categorie** (per design): `slug`, `label_no/_en`, `kind` (image|color), `layer_slot`
+   (base|mid|top|extra|detail|animal), `sync_group` (nullable), `sort_order`.
+3. **Opzioni** (per categoria): `name`, `code` (auto, unico per categoria), asset secondo ADR 0012
+   — `hex` e/o `image` (swatch) e/o `layer_image` (compositing). Upload PNG/webp.
+4. **Asset/Storage**: path `designs/{slug}/{category}/{file}.png` (+ `products`/`swatches`); resize
+   on-the-fly (render/image transform, niente varianti pre-generate, task 1.4). Validazione tipo+size.
+5. **Preview prima di pubblicare**: l'admin compone i `layer_image` e vede il piatto (multiply,
+   riusa PreviewCanvas) prima di `active=true`. Finché non attiva → non appare nel configuratore.
 
 AC (definitivi, 2026-06-08):
-1. CRUD prodotti completo: creo/modifico/nascondo/elimino → la lista si aggiorna e lo **step 3 del configuratore riflette** (visible, prezzo). Slug generato unico.
-2. Prezzo: input in kr (es. `1500`, `1 500`, `1500,50`) → salvato in **cents** corretti via Money; mai float ambiguo; valore non valido → errore di form, niente salvataggio.
-3. `supplier_id` obbligatorio sul prodotto (ADR 0007); image caricata su Storage e mostrata.
-4. CRUD fornitori completo; **delete RESTRICT**: con catalogo → bloccato + suggerimento `active=false`; senza catalogo → eliminabile. Contatti visibili solo da admin (ADR 0009).
-5. Sicurezza: tutte le mutazioni authenticated (RLS), service-role mai nel client, zod su ogni form; anon non muta nulla (pagina e azione). Mobile 390 usabile.
-Test: Playwright (crea prodotto → appare in step 3; nascondi → sparisce; delete supplier con catalogo → bloccato; senza → ok) · **unit conversione prezzo input→cents** (intero, decimale, virgola, spazi, negativo/non numerico) · RLS negativo (anon non scrive catalogo).
-Evidenza PR: liste + form prodotto/fornitore, errore prezzo, blocco delete supplier, riflesso in step 3.
-Nota: l'upload immagine prodotto è il caso semplice (1 img); gli asset configuratore complessi (PNG opzioni con resize) sono F10.
-
-→ **In review** (branch `flow/f09-catalog-crud`, PR body `PR-F09-body.md`, non mergeare). CRUD products+suppliers via server-action cookie-session (RLS authenticated), parser prezzo kr→cents puro (no float) + slug/dedup unit-testati, delete RESTRICT con messaggio "disattiva", image upload Storage, riflesso live in step 3. DoD verde: lint · 110 unit · build · Playwright F09 4/4 + RLS-negativo. **Nota**: `f07.spec.ts:111` flaky pre-esistente (codice F07 identico a main, non regressione F09) → fix separato consigliato.
+1. CRUD completo designs/categorie/opzioni (nested); ogni nuovo design/opzione riceve un `code` valido e **unico** (mai ricalcolare gli esistenti); `supplier_id` obbligatorio sul design.
+2. Upload asset validato (PNG/JPG/WebP, dimensione max) su Storage col path convention; non-immagine/oversize → rifiutato. `layer_image` compositing, `image` swatch per kind=color (ADR 0012), `preview_image` design.
+3. **Anti-duplicati** (Passo 0): due opzioni nella stessa categoria con stesso `hex` o stesso `name` → rifiutate con messaggio chiaro (unique index parziali).
+4. Preview con ricolorazione prima di pubblicare; `active=false` → non appare nel configuratore; attivo → appare (force-dynamic).
+5. Modifiche riflesse nel configuratore; nessuna regressione su step 1/2 (design/opzioni/color-lock) né sui `config_code` esistenti (code stabili).
+6. Delete: design → CASCADE categorie/opzioni; opzioni referenziate solo da snapshot ordine (no FK) → eliminabili senza rompere ordini. Sicurezza: mutazioni authenticated (RLS), service-role mai nel client, zod ovunque; anon non scrive.
+Test: Playwright (crea design+categoria+opzione con upload → appare nel configuratore; opzione colore hex+nome → swatch; duplicato hex/nome → rifiutato; preview prima di pubblicare; upload invalido → errore) · unit (assegnazione code unica, validazioni asset/path) · RLS negativo (anon non scrive catalogo).
+Evidenza PR: CRUD design/categoria/opzione, upload+preview, duplicato rifiutato, riflesso nel configuratore.
+**Nota scope**: è il flusso più grande. Se risulta troppo per una sola PR, **spacchettare** in
+**F10a** (designs + categorie + preview) e **F10b** (opzioni + asset upload + anti-dup) — escalare
+al TL prima, non improvvisare una mega-PR.
 
 ### In progress
 *(vuota)*
@@ -219,6 +225,8 @@ Nota: l'upload immagine prodotto è il caso semplice (1 img); gli asset configur
 *(vuota)*
 
 ### Done
+
+**F09 · CRUD prodotti + fornitori (back-office)** — merged (squash) il 2026-06-08 (246859a). CRUD products + suppliers sotto `/admin` via server-action **cookie-session (RLS authenticated, service-role mai nel client)**, zod su ogni form. Prezzo kr→cents a **matematica intera** (`parsePriceToCents`: niente float, virgola/punto/spazi/NBSP, rifiuta ambiguità/negativi/>2 decimali, 14 unit); slug stabile (mantenuto in edit, generato+dedup in create); image upload validata su Storage; `supplier_id` obbligatorio (ADR 0007). **Delete RESTRICT** fornitore (`23503` → "disattiva invece"). Riflesso live nello step 3 (force-dynamic). 110 unit + Playwright F09 4/4 + RLS-negativo. Review: **approved al primo giro**. Note non bloccanti: image salvata sempre con path `.png` (cosmetico, contentType corretto); delete prodotto in realtà non bloccato dagli ordini (`order_items.product_id` SET NULL, snapshot sopravvive). Coda: flake F07 AC3 pre-esistente → fix in `fix/f07-status-test-flake` (test-only).
 
 **F07 · Gestione ordini (back-office)** — merged (squash) il 2026-06-08 (d1d0b46). Lista su `/admin` (KPI nuovi/da-contattare/in-produzione/valore-aperto, filtri stato+fornitore+ricerca testo/code, tabella desktop + card mobile §3.5, badge soft §3.3) + dettaglio `/admin/orders/[id]` (split per fornitore ADR 0007, config-code cliccabile → configuratore **nella locale dell'ordine** via decode F04, cambio stato + note interne via server-action). Tutto via `createClient()` cookie-session (RLS authenticated, **service-role mai**), zod sulle mutazioni, `updated_at` da trigger. Core dati puro 13 unit (su 101) + Playwright F07 (lista/KPI, filtro, ricerca code, stato persiste+rilegge, note, config-code→configuratore, mobile). Review: **approved al primo giro**. Note: lista tenuta su `/admin` (no churn F06); filtri in JS lato server (ok per il volume; indice `config_code` pronto per spingerli in SQL se crescono).
 
