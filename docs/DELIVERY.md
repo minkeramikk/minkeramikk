@@ -73,7 +73,7 @@ Checklist di review, in ordine:
 ## 5. Board
 
 > Stato iniziale: tutto in **Backlog**. Le card passano in Ready quando l'infra è Done
-> e gli AC vengono raffinati. Ordine di tiraggio consigliato: F01✅ → F02✅ → F03✅ → F14✅ → F13✅ → **F04** → F05 → F06 → F07 → F09 → F10 → F08 → F11 → F12.
+> e gli AC vengono raffinati. Ordine di tiraggio consigliato: F01✅ → F02✅ → F03✅ → F14✅ → F13✅ → F04✅ → **F05** → F15 → F06 → F07 → F09 → F10 → F08 → F11 → F12.
 
 ### Backlog
 
@@ -89,15 +89,46 @@ Checklist di review, in ordine:
 
 ---
 
-**F05 · Invio ordine** — FE+BE · dep: F03
-Scope: form ordine (nome, email, telefono, messaggio) con Turnstile; `POST /api/orders`
-con validazione zod; codice `MK-NNNN` progressivo; email cliente (lingua = `orders.locale`)
-+ notifica admin via Resend; pagina di conferma.
+**F15 · Step 2 IDENTICO all'originale: asset reali + griglia verticale** — FE+BE(dati) · dep: F02 [DONE], F13 [DONE]
+Tira **subito dopo F05** (decisione 2026-06-08). Obiettivo del proprietario: lo step 2
+deve essere *identico* all'originale — l'esperienza è ottima e gli asset (thumbnail
+texturizzate + icone) sono curati, vanno usati così come sono, non approssimati.
+
+Ciclo: dati/asset (Passo 0) → UI (griglia + render asset reali).
+
+Tre fronti:
+1. **Layout verticale** (supera il carosello embla di F02, DESIGN-SYSTEM §4): ogni categoria
+   mostra TUTTE le opzioni in griglia che va a capo, niente scroller orizzontale.
+2. **Swatch colore = foto-glassa reale** (ADR 0012, §3.10): si mostra `options.image` (la
+   thumbnail texturizzata originale) se presente; la grana procedurale F13 resta come
+   **fallback/placeholder** per i colori senza foto; flat `hex` ultimo fallback.
+3. **Icone `image` (animali) = arte originale su tile grigio** (supera il monocromatico di
+   F13, §3.9): l'arte originale bianco+viola su tile `--muted`; selected tile `--primary`.
+   Niente `mask-image`.
+
+**Passo 0 (dati/asset, STOP-gated)** — ADR 0012:
+- **Migration additiva**: rilassare il CHECK `options` da `num_nonnulls(image,hex)=1` a
+  `>= 1` (un colore può avere image+hex+layer_image insieme). Rigenerare i tipi.
+- **Re-import idempotente** (estende `scripts/import-squarespace.ts`): recuperare le
+  swatch images originali (`hovering-colors` + collezioni colore per categoria) in
+  `options.image` per le opzioni `kind=color`; e verificare/recuperare le icone animali
+  originali (bianco+viola) per le `kind=image`. Report conteggi come 1.5/0006.
+- STOP per confermare la sorgente degli asset prima della UI; se una collezione non è più
+  disponibile sul legacy, escalare.
+
 AC (bozza):
-- Invio il carrello → ordine e righe nel DB con snapshot (nome, prezzo, currency, config) e stato `new`
-- Ricevo email di conferma nella MIA lingua; l'admin riceve la notifica
-- Bot senza token Turnstile → 400; due invii ravvicinati non creano codici duplicati
-Test: unit generazione codice ordine e snapshot · funzionale flusso completo con mock email · RLS insert-only.
+1. Step 2: tutte le opzioni di ogni categoria in griglia a capo, nessuno scroller-x, a 390
+   e 1280; selezione da tastiera (radiogroup, frecce) invariata.
+2. Swatch colore: mostra la foto-glassa reale (`options.image`); colore senza foto →
+   placeholder grana procedurale; mai flat-only se la foto esiste.
+3. Icone `image`: arte originale bianco+viola su tile grigio, leggibili normali e selezionate;
+   nessun monocromatico residuo.
+4. Hover-preview (F13) del pattern invariato; config code, preview, color-lock senza regressioni.
+5. DB: un'opzione colore può portare image+hex+layer_image (CHECK rilassato) → pronto per il
+   CRUD asset del back-office (F10).
+Test: unit (re-import idempotente, conteggi) · Playwright (niente scroll-x; swatch reale vs
+placeholder; icona con asset giusto; tastiera) a 390/1280; aggiornare e2e F13 (carosello/mask).
+Evidenza PR: step 2 affiancato all'originale (colori + animali) + report import asset.
 
 ---
 
@@ -181,43 +212,57 @@ Test: funzionale smoke su entrambe le lingue.
 *(vuota)*
 
 ### In progress
+*(vuota)*
 
 ---
 
-**F04 · Codice configurazione: salva / carica / condividi** — FE+BE(dati) · dep: F02 [DONE], F14 [DONE]
-Scope: codice leggibile stile `MK-B2-A18-…` (ADR 0011) che salva/ricarica una
-configurazione e diventa l'identificatore canonico (riusato da F05/F08). Il deep-link
-URL esiste già (F14: `design`+`opt_*`); qui si aggiunge il codice copiabile + il decode.
+**F05 · Invio ordine** — FE+BE · dep: F03 [DONE], F04 [DONE]
+Scope: form ordine + Turnstile; `POST /api/orders` con validazione zod; codice ordine
+**contatore progressivo** `MK-NNNN` (decisione 2026-06-06, da sequence Postgres, parte
+da 1001); email cliente (lingua = `orders.locale`) + notifica admin via Resend; pagina
+di conferma. Tutto pronto a monte: carrello (F03), config code canonico (F04), Money VO.
 
-**Passo 0 (dati, prima del FE)**: migration additiva `designs.code` (UNIQUE) e
-`options.code` (UNIQUE per `category_id`), entrambe stabili (ADR 0011); backfill nello
-script di import (codici da alfabeto `A–Z 2–9` senza `0 O 1 I L`); rigenerare i tipi
-(`db:types`). Vincolo: non ricalcolare mai i code esistenti.
+**Passo 0 (dati)**: migration additiva per la **sequence** ordini (es. `order_seq`
+START 1001) — niente reset. Il codice = `MK-` + valore della sequence (concorrenza-safe).
 
-Ciclo: dati (Passo 0) → encode/decode puro in `src/lib/configurator/` → UI (copia + incolla).
+Ciclo: dati (sequence) → API `/api/orders` (zod + snapshot + email) → form UI + conferma.
 
 AC (definitivi, 2026-06-06):
-1. `designs.code` e `options.code` esistono, unici (design globale, option per categoria),
-   popolati per tutto il catalogo dall'import; nessun carattere ambiguo.
-2. Encode: dalle selezioni correnti ottengo `MK-<D>-<s1>-…-<sN>`, segmenti ordinati per
-   slug di categoria (ADR 0011). Funzione pura, unit-testata.
-3. Decode tollerante (mai crash): codice valido → ricostruzione identica (round-trip);
-   segmento mancante/opzione assente → default categoria; segmenti in eccesso → ignorati;
-   `design.code` sconosciuto o codice malformato → messaggio cortese, niente crash.
-4. UI: da step 2/3 copio il codice (bottone "Copia codice") e copio il link; incollando un
-   codice (campo dedicato) o aprendo l'URL la configurazione si ricostruisce identica.
-5. Il codice prodotto è quello che finirà in `order_items.config_code` (F05) e sul PDF
-   (F08): stessa funzione di encode, nessun secondo formato.
-6. Mobile 390px: copia/incolla usabili, nessun overflow.
-Test: unit round-trip encode↔decode **property-based** su tutti i design del catalogo +
-casi degeneri (codice vuoto, design ignoto, segmento extra/mancante, minuscolo, separatori
-sporchi); funzionale: copio codice → reset → incollo → identico; deep-link URL.
-Evidenza PR: esempio di codice per ogni design + screenshot copia/incolla a 390/1280.
+1. Form (nome, email, telefono, messaggio) con validazione client + server dallo **stesso
+   schema zod**; widget Turnstile, token inviato col payload.
+2. `POST /api/orders` valida il payload (zod, incluse le righe carrello); in transazione
+   crea `orders` (status `new`, `locale` = locale corrente, `code` dalla sequence) + un
+   `order_items` per riga con snapshot COMPLETI: `supplier_id` (NOT NULL) +
+   `supplier_name_snapshot`, `product_id` + `product_name_snapshot`, `price_cents_snapshot`
+   + `currency_snapshot`, `config_code` (canonico ADR 0011), `config_snapshot` (jsonb
+   leggibile), `quantity`. Prezzi sempre cents+currency, mai float.
+3. Codice ordine `MK-NNNN` progressivo, unico, **concorrenza-safe** (sequence): due submit
+   ravvicinati → due codici distinti, zero duplicati.
+4. Turnstile verificato server-side col secret: token mancante/invalido → 400, nessun
+   ordine creato.
+5. Email Resend: conferma cliente nella sua lingua (`orders.locale`) con codice ordine +
+   riepilogo; notifica admin. Test con transport mock/fake (niente invii reali in CI).
+6. Successo → carrello svuotato (localStorage) + redirect a pagina conferma col codice;
+   errore → carrello preservato, messaggio cortese, nessun ordine parziale.
+7. RLS: anon può INSERT su orders/order_items ma NON select/update (insert-only pubblico,
+   migration RLS 0002) — test negativo che lo dimostra.
+8. i18n NO/EN su form, conferma ed email; mobile 390px.
+Test: unit (codice/sequence, costruzione snapshot per riga incl. split per fornitore, schema
+zod) · funzionale Playwright flusso completo carrello→form→conferma con email mockata ·
+RLS insert-only (anon non legge ordini).
+Evidenza PR: screenshot form+conferma 390/1280, esempio payload→righe DB, esempio email (mock).
+Dipendenze/STOP: Turnstile (test key Cloudflare in dev) + Resend (mock in test, sender
+verificato a deploy). STOP se la sequence non è concorrenza-safe o se manca la RLS insert-only.
+
+→ spostata in **In review** 2026-06-08 (branch `flow/f05-order-submit`, PR da aprire).
 
 ### In review
-*(vuota)*
+
+**F05 · Invio ordine** — branch `flow/f05-order-submit`, PR body `PR-F05-body.md`, **non ancora merged** (in attesa review agent). DoD verde: lint pulito · 77 unit (9 file) · build 31 route · Playwright 33 desktop + mobile F05 4/4 · parità i18n NO/EN. STOP-condition soddisfatte: sequence `order_seq` concorrenza-safe (`nextval`, due submit ravvicinati → codici distinti, verificato in integration test) + RLS insert-only provata (`rls.test.ts`: anon INSERT ok ma SELECT su orders invisibile). Decisioni: `create_order` SECURITY DEFINER atomico (orders + order_items per riga con snapshot completi, prezzi cents+currency); Turnstile verificato server-side (secret), in dev/CI test-key always-pass + auto-token; transport email no-op iniettabile (nessun invio reale in CI); form con `noValidate` (zod unico validatore client+server); carrello passato come prop (single source con CeramicsStep) + `clear()` su successo. Evidenza: `docs/evidence/f05/` (form 390/1280, conferma).
 
 ### Done
+
+**F04 · Codice configurazione: salva / carica / condividi** — merged (squash) il 2026-06-06 (ADR 0011). Migration additiva 0006 (`designs.code` UNIQUE, `options.code` UNIQUE per categoria, no reset); backfill idempotente via UPDATE puri (id stabili per ordini): 6 code design + 277 code opzioni, 0 NULL/ambigui/dup, re-run 0/0; import ora chiama `assignMissingCodes`. Codec puro `config-code.ts` (encode ordinato per slug, decode tollerante mai-crash, alfabeto 31 simboli). UI `ConfigCodeBar` (copia codice/link + incolla) in step 2/3. **AC5**: step 3 produce ora il codice canonico (`encodeConfigCode`), non più la query-string interim di F03 → un solo formato per F05/F08. 63 unit (round-trip property-based 600 seeded) + 30 e2e. Review: **approved al primo giro**. Nota: design code single-char sequenziali (A–F), mnemonici via admin in futuro.
 
 **F13 · Step 2 stile originale: opzioni con icona + preview-on-hover del pattern** — merged (squash) il 2026-06-06. Swatch glassa = `hex` + due overlay `feTurbulence` condivisi (grana multiply 0.45 + screziato bianco screen 0.9), zero asset, schema invariato; icone kind=image come sagoma monocromatica `mask-image` + `currentColor` (ink/bianco per stato card) — verificato asset RGBA alpha pulito, niente STOP; popup hover/focus col `layer_image` in portal su `document.body` (no clipping embla, no layout shift, Esc, soppresso su touch); AC6 radiogroup roving tabindex + frecce/Home/End. 7 AC Playwright (desktop+mobile su device Pixel 5 reale) + regressioni F01–F04/F14 = 25 e2e verdi; 51 unit; parità i18n. Review: **approved al primo giro**. Note minori non bloccanti annotate (kind=image non in radiogroup, popup non segue scroll, no aria-describedby).
 

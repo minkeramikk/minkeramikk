@@ -2,8 +2,9 @@ import "server-only";
 
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
-import { createClient as createBareClient } from "@supabase/supabase-js";
 import type { Database } from "./types";
+
+export { createServiceRoleClient } from "./service";
 
 /**
  * Server client (server components, route handlers, server actions).
@@ -33,18 +34,5 @@ export async function createClient() {
         },
       },
     }
-  );
-}
-
-/**
- * Service-role client — BYPASSES RLS. Server-only by import guard.
- * Use exclusively in trusted code paths (import scripts, admin route
- * handlers). Never expose data from here without explicit checks.
- */
-export function createServiceRoleClient() {
-  return createBareClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { persistSession: false } }
   );
 }

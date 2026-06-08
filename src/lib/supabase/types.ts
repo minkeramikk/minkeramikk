@@ -430,7 +430,17 @@ export type Database = {
       }
     }
     Functions: {
-      [_ in never]: never
+      create_order: {
+        Args: {
+          p_customer_name: string
+          p_email: string
+          p_items: Json
+          p_locale: string
+          p_message: string
+          p_phone: string
+        }
+        Returns: string
+      }
     }
     Enums: {
       order_status:

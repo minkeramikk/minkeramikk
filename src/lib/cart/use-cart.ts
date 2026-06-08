@@ -56,6 +56,7 @@ export function useCart() {
   const remove = useCallback((id: string) => {
     setCart((c) => removeLine(c, id));
   }, []);
+  const clear = useCallback(() => setCart([]), []);
 
-  return { cart, hydrated, add, setQuantity, remove };
+  return { cart, hydrated, add, setQuantity, remove, clear };
 }

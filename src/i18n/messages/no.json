@@ -133,5 +133,16 @@
     "total": "Totalpris",
     "design": "Design",
     "backToDesign": "Tilbake"
+  },
+  "order": {
+    "title": "Send bestilling",
+    "sending": "Sender…",
+    "error": "Noe gikk galt. Prøv igjen.",
+    "success": "Bestilling sendt!",
+    "confirmTitle": "Takk for bestillingen!",
+    "confirmBody": "Bestillingskoden din er {code}. Vi tar kontakt med deg om kort tid for å bekrefte designet.",
+    "confirmCta": "Bygg en ny design",
+    "emptyTitle": "Ingen bestilling",
+    "emptyBody": "Du har ingen aktiv bestilling."
   }
 }

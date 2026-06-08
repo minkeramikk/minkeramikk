@@ -14,6 +14,7 @@ import type { Currency } from "@/lib/money/money";
 import { useCart } from "@/lib/cart/use-cart";
 import { cartTotal, lineSubtotal, type ConfigSnapshot } from "@/lib/cart/cart";
 import { ConfigCodeBar } from "./config-code-bar";
+import { OrderForm } from "./order-form";
 
 export interface CeramicProduct {
   id: string;
@@ -50,7 +51,7 @@ export function CeramicsStep({
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  const { cart, add, setQuantity, remove } = useCart();
+  const { cart, add, setQuantity, remove, clear } = useCart();
 
   const [selectedId, setSelectedId] = useState<string | null>(
     products[0]?.id ?? null
@@ -287,6 +288,10 @@ export function CeramicsStep({
                 >
                   {formatMoney(total, locale as "no" | "en")}
                 </span>
+              </div>
+
+              <div className="mt-4 border-t pt-4">
+                <OrderForm cart={cart} onSuccess={clear} />
               </div>
             </div>
           )}

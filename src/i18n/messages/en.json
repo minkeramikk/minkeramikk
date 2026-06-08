@@ -134,5 +134,16 @@
     "total": "Total price",
     "design": "Design",
     "backToDesign": "Back"
+  },
+  "order": {
+    "title": "Send order",
+    "sending": "Sending…",
+    "error": "Something went wrong. Please try again.",
+    "success": "Order sent!",
+    "confirmTitle": "Thank you for your order!",
+    "confirmBody": "Your order code is {code}. We'll be in touch shortly to confirm the design.",
+    "confirmCta": "Build a new design",
+    "emptyTitle": "No order",
+    "emptyBody": "You don't have an active order."
   }
 }

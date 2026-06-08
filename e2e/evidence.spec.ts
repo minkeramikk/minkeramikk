@@ -5,6 +5,29 @@ import { mkdirSync, writeFileSync } from "node:fs";
  * PR evidence (not assertions): full-page screenshots of step 1 at the
  * three reference breakpoints, with a design selected.
  */
+const OUT05 = "docs/evidence/f05";
+
+test("F05: order form + confirmation at 390/1280", async ({ page }) => {
+  mkdirSync(OUT05, { recursive: true });
+  for (const width of [390, 1280]) {
+    await page.setViewportSize({ width, height: 1300 });
+    await page.goto("/no/configurator?design=blomster-1&step=3");
+    await page.getByTestId("ceramics-step").waitFor({ state: "visible" });
+    await page.getByTestId("product-vietri-flat").click();
+    await page.getByTestId("add-to-cart").click();
+    await page.getByTestId("order-form").waitFor({ state: "visible" });
+    await page.getByTestId("order-name").fill("Kari Nordmann");
+    await page.getByTestId("order-email").fill("kari@example.no");
+    await page.waitForTimeout(300);
+    await page.screenshot({ path: `${OUT05}/f05-form-${width}.png`, fullPage: true });
+  }
+  // confirmation page
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto("/no/order?code=MK-1042");
+  await page.getByTestId("order-confirmation").waitFor({ state: "visible" });
+  await page.screenshot({ path: `${OUT05}/f05-confirmation.png`, fullPage: true });
+});
+
 const OUT04 = "docs/evidence/f04";
 
 test("F04: code bar (copy + paste) at 390/1280 + a code per design", async ({

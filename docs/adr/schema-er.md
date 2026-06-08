@@ -46,9 +46,9 @@ erDiagram
         uuid category_id FK
         text code "corto, stabile, unico per categoria - segmento del config code (ADR 0011)"
         text name
-        text image "display/thumb - NOT NULL se kind=image (CHECK)"
-        text hex "swatch - NOT NULL se kind=color (CHECK)"
-        text layer_image "asset di compositing, Storage (ADR 0010)"
+        text image "display/thumb (swatch reale anche per kind=color, ADR 0012)"
+        text hex "colore - NOT NULL se kind=color; placeholder/fallback (ADR 0012)"
+        text layer_image "asset di compositing/preview, Storage (ADR 0010)"
         int sort_order
         bool active
     }
@@ -135,6 +135,11 @@ Enum `order_status`: `new → contacted → confirmed → in_production → deli
 Vincoli aggiuntivi: `UNIQUE(design_id, slug)` su option_categories (slug di categoria
 unici dentro il design, non globali). `UNIQUE(designs.code)` e `UNIQUE(category_id, code)`
 su options (codici del config code stabili e non ambigui, ADR 0011).
+
+`options`: CHECK su `image`/`hex` **rilassato** da one-of a `num_nonnulls(image, hex) >= 1`
+(almeno uno) — un'opzione colore può portare insieme la foto-swatch (`image`), l'`hex`
+(placeholder) e il `layer_image` (preview); la corrispondenza col `kind` resta a carico
+dell'app (ADR 0012).
 
 Niente GIN su `config_snapshot`: nessuna query dentro il jsonb prevista.
 
