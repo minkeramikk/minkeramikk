@@ -16,7 +16,8 @@
     "import:squarespace": "tsx scripts/import-squarespace.ts",
     "test:e2e": "playwright test",
     "backfill:codes": "tsx scripts/backfill-codes.ts",
-    "backfill:swatches": "tsx scripts/backfill-swatch-images.ts"
+    "backfill:swatches": "tsx scripts/backfill-swatch-images.ts",
+    "seed:admin": "tsx scripts/seed-admin.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.10.3",

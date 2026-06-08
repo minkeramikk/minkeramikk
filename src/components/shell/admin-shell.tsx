@@ -1,17 +1,14 @@
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-
-const NAV = [
-  { href: "/admin", label: "Orders" },
-  { href: "/admin/products", label: "Products" },
-  { href: "/admin/suppliers", label: "Suppliers" },
-  { href: "/admin/assets", label: "Configurator assets" },
-  { href: "/admin/theme", label: "Theme" },
-] as const;
+import { Button } from "@/components/ui/button";
+import { logout } from "@/app/admin/actions";
+import { ADMIN_NAV, type AdminNavHref } from "./admin-nav";
+import { AdminMobileNav } from "./admin-mobile-nav";
 
 /**
- * Back-office shell (DESIGN-SYSTEM §3.6/§4): ink sidebar + topbar.
- * English-only (i18n rule 5). Auth guard arrives with F06.
+ * Back-office shell (DESIGN-SYSTEM §3.6/§4): ink sidebar + topbar with logout.
+ * English-only (i18n rule 5). All /admin/* pages are guarded by the auth
+ * middleware (F06); pages compose this shell with their own title.
  */
 export function AdminShell({
   children,
@@ -20,7 +17,7 @@ export function AdminShell({
   action,
 }: {
   children: React.ReactNode;
-  active: (typeof NAV)[number]["href"];
+  active: AdminNavHref;
   title: string;
   action?: React.ReactNode;
 }) {
@@ -31,7 +28,7 @@ export function AdminShell({
           minkeramikk
         </span>
         <nav>
-          {NAV.map((item) => (
+          {ADMIN_NAV.map((item) => (
             <Link
               key={item.href}
               href={item.href}
@@ -47,10 +44,26 @@ export function AdminShell({
           ))}
         </nav>
       </aside>
-      <main className="max-w-[1040px] flex-1 px-8 py-7">
-        <div className="mb-5 flex items-center justify-between">
-          <h1 className="text-[22px]">{title}</h1>
-          {action}
+
+      <main className="max-w-[1040px] flex-1 px-6 py-7 md:px-8">
+        <div className="mb-5 flex items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <AdminMobileNav active={active} />
+            <h1 className="truncate text-[22px]">{title}</h1>
+          </div>
+          <div className="flex shrink-0 items-center gap-3">
+            {action}
+            <form action={logout}>
+              <Button
+                type="submit"
+                variant="outline"
+                size="sm"
+                data-testid="logout"
+              >
+                Log out
+              </Button>
+            </form>
+          </div>
         </div>
         {children}
       </main>

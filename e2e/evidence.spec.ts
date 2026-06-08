@@ -1,5 +1,38 @@
 import { test } from "@playwright/test";
 import { mkdirSync, writeFileSync } from "node:fs";
+import { loadEnvLocal } from "./helpers";
+
+loadEnvLocal();
+const OUT06 = "docs/evidence/f06";
+
+test("F06: login page + anon→login redirect at 390/1280", async ({ page }) => {
+  mkdirSync(OUT06, { recursive: true });
+  for (const width of [390, 1280]) {
+    await page.setViewportSize({ width, height: width < 700 ? 780 : 800 });
+    await page.goto("/admin"); // anon → redirected to login
+    await page.getByTestId("login-form").waitFor({ state: "visible" });
+    await page.screenshot({ path: `${OUT06}/f06-login-${width}.png` });
+  }
+});
+
+test("F06: AdminShell (dashboard) desktop + mobile, after login", async ({ page }) => {
+  test.skip(
+    !process.env.ADMIN_EMAIL || !process.env.ADMIN_PASSWORD,
+    "needs a seeded admin"
+  );
+  await page.goto("/admin/login");
+  await page.getByTestId("login-email").fill(process.env.ADMIN_EMAIL!);
+  await page.getByTestId("login-password").fill(process.env.ADMIN_PASSWORD!);
+  await page.getByTestId("login-submit").click();
+  await page.getByTestId("logout").waitFor({ state: "visible" });
+  for (const width of [390, 1280]) {
+    await page.setViewportSize({ width, height: width < 700 ? 780 : 800 });
+    await page.goto("/admin");
+    await page.getByTestId("logout").waitFor({ state: "visible" });
+    await page.waitForTimeout(200);
+    await page.screenshot({ path: `${OUT06}/f06-shell-${width}.png` });
+  }
+});
 
 /**
  * PR evidence (not assertions): full-page screenshots of step 1 at the

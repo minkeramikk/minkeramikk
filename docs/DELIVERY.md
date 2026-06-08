@@ -73,7 +73,7 @@ Checklist di review, in ordine:
 ## 5. Board
 
 > Stato iniziale: tutto in **Backlog**. Le card passano in Ready quando l'infra è Done
-> e gli AC vengono raffinati. Ordine di tiraggio consigliato: F01✅ → F02✅ → F03✅ → F14✅ → F13✅ → F04✅ → F05✅ → F15✅ → **F16** → F06 → F07 → F09 → F10 → F08 → F11 → F12.
+> e gli AC vengono raffinati. Ordine di tiraggio consigliato: F01✅ → F02✅ → F03✅ → F14✅ → F13✅ → F04✅ → F05✅ → F15✅ → F16✅ → **F06** → F07 → F09 → F10 → F08 → F11 → F12.
 > UX-polish parcheggiate (schedulabili dopo F16 o dopo il back-office, a scelta): **F18** (nav: stepper cliccabile + Next sticky), **F19** (righe carrello ricche: mini-piatto composto + design code di sessione). F17 = ex sticky-preview, assorbita in F15.
 
 ### Backlog
@@ -133,16 +133,6 @@ AC (bozza):
 5. Nessuna regressione su F04 (codice canonico per ordine/PDF invariato), F16 (badge/persistenza), né sul carrello.
 Test: Playwright (mini-preview presente per una riga reale; copia/incolla da step diversi; riapri una riga → config giusta) a 390/1280; unit `cart.ts` per il nuovo campo `layers` (persist/hydrate).
 Nota: meglio **dopo F16** (riusa il drawer); il campo `layers` è l'estensione additiva della cart line lasciata aperta da F16.
-
----
-
-**F06 · Login back-office + AdminShell** — FE+BE · dep: infra
-Scope: `/admin/login` (Supabase Auth, singolo admin), route `/admin/*` protette
-(middleware), AdminShell (sidebar, topbar) da DESIGN-SYSTEM §3.6/§4, logout.
-AC (bozza):
-- Credenziali valide → dashboard ordini; non autenticato su `/admin/*` → redirect a login
-- Credenziali errate → errore senza leak di informazioni; sessione persiste al refresh
-Test: funzionale login/logout/redirect · verifica che le pagine admin non siano raggiungibili da anon (anche via fetch diretto).
 
 ---
 
@@ -213,41 +203,44 @@ AC (bozza): pagine raggiungibili dal footer in entrambe le lingue; nessuna chiav
 Test: funzionale smoke su entrambe le lingue.
 
 ### Ready
-
-**F16 · Carrello persistente: drawer da header** — FE · dep: F03 [DONE], F05 [DONE]
-Sul sito originale il carrello vive lungo tutta la sessione; da noi il dato già persiste
-(F03: localStorage + sync cross-tab), ma la VISTA è solo allo step 3. F16 la solleva
-nell'header della `PublicShell`, accessibile da ogni step. Pattern scelto (2026-06-08):
-**drawer da header** (opzione A) — `shadcn Sheet` già installato.
-
-Ciclo UI/UX:
-1. **Header**: `PublicShell` guadagna un bottone carrello con **badge** (conteggio articoli),
-   sempre visibile (anche tornando a step 1/2). DESIGN-SYSTEM §3.7 (header) + nuovo §3.12 CartDrawer.
-2. **Drawer**: click → pannello che scorre da destra (desktop) / sheet a tutta altezza (mobile,
-   `shadcn Sheet`). Lista righe (prodotto, design+config, quantità editabile, rimuovi, subtotale),
-   totale (Money), CTA "Send bestilling" → form ordine (F05). Empty state con CTA al configuratore.
-3. La logica resta `cart.ts`/`use-cart` (F03): il drawer è solo la vista condivisa. Lo step 3
-   mantiene "aggiungi al carrello" (che aggiorna il badge/drawer); il checkout si raggiunge dal
-   drawer invece che inline.
-4. Focus trap nel drawer (shadcn lo gestisce), Esc chiude, ripristino focus sul bottone.
-
-AC (definitivi, 2026-06-08):
-1. Da qualsiasi step il bottone carrello in header mostra il conteggio corrente (badge) e apre il drawer.
-2. Drawer: righe con quantità editabile + rimozione (aggiornano totale, badge e localStorage), totale Money corretto (no float, no cross-currency), empty state con CTA al configuratore.
-3. CTA del drawer porta al form ordine (F05) col carrello corrente; ordine inviato → carrello svuotato → badge a 0.
-4. Persistenza F03 intatta: ricarico/torno a step 1 → carrello e badge invariati; sync cross-tab.
-5. Accessibile (focus trap, Esc, aria-label sul bottone + conteggio annunciato) e mobile 390 (sheet a tutta altezza, touch ≥44px).
-6. i18n NO/EN su bottone, drawer, empty state, CTA.
-Test: Playwright (apri da step 1/2/3, edita qty/rimuovi, vai al checkout, svuota, badge tra gli step) a 390/1280; unit `cart.ts` invariati. Aggiornare gli e2e step-3 che assumevano il carrello inline.
-Evidenza PR: drawer aperto desktop+mobile, badge che cambia tra gli step.
+*(vuota)*
 
 ### In progress
-*(vuota)*
+
+**F06 · Login back-office + AdminShell** — FE+BE · dep: infra [DONE] — branch `flow/f06-admin-login` (2026-06-08)
+Apre il **back-office**: autenticazione del singolo admin (Supabase Auth) + lo shell
+`/admin/*` su cui poggeranno F07–F11. Solo inglese, fuori da `[locale]` (AGENTS.md).
+
+Ciclo (BE/auth → shell → guardia):
+1. **Auth**: Supabase Auth email+password, **singolo admin** (no signup pubblico). Utente
+   admin seedato in modo riproducibile (script/seed, non click sul dashboard) — è il seed
+   rimandato dal task 1.1. Credenziali del cliente create all'handover (Fase 6).
+2. **`/admin/login`**: form email+password (shadcn), errore generico (niente leak "utente
+   non esiste" vs "password errata"). Sessione via cookie SSR (`@supabase/ssr`), persiste al refresh.
+3. **Guardia**: middleware protegge TUTTE le `/admin/*` (anche le route handler/API admin);
+   non autenticato → redirect a `/admin/login`; autenticato su `/admin/login` → redirect alla dashboard.
+4. **AdminShell** (DESIGN-SYSTEM §3.6/§4): sidebar ink (Orders, Products, Suppliers,
+   Configurator assets, Theme) + topbar (h1 + azione), logout. Mobile: drawer (Sheet).
+   Dashboard ordini reale è F07: qui basta un placeholder.
+
+AC (definitivi, 2026-06-08):
+1. Credenziali valide → entro nell'area admin (placeholder dashboard); sessione persiste al refresh.
+2. Non autenticato su qualsiasi `/admin/*` (pagina O fetch diretto a una route admin) → redirect/401 a login, nessun contenuto admin servito.
+3. Credenziali errate → messaggio generico, nessun leak (stesso errore per email inesistente o password errata); logout termina la sessione e riporta al login.
+4. `/admin` è SOLO inglese, fuori da `[locale]`, niente next-intl; AdminShell come da §3.6/§4, niente colori hardcoded (token, tema viola).
+5. L'utente admin è seedato in modo riproducibile (script idempotente), non a mano dal dashboard.
+Test: funzionale Playwright login/logout/redirect + **negativo**: anon su `/admin/orders` (pagina e fetch) non vede nulla; unit/integration sulla guardia middleware. Niente segreti nel diff.
+Evidenza PR: login, redirect anon→login, AdminShell desktop+mobile.
+Sicurezza: service-role mai nel client; la sessione admin NON deve poter leggere oltre i propri permessi RLS authenticated.
+
+→ **In review** (branch `flow/f06-admin-login`, PR body `PR-F06-body.md`, non mergeare). Guardia nel middleware (`/admin/*` redirect 307→login, decisione pura unit-testata), login server-action con errore generico, AdminShell sidebar+topbar+logout+drawer mobile, seed idempotente eseguito (admin reale `admin@minkeramikk.no`). DoD verde: lint · 88 unit · build · Playwright F06 11 (desktop+mobile) + regressione pubblica intatta. Evidenza `docs/evidence/f06/`.
 
 ### In review
 *(vuota)*
 
 ### Done
+
+**F16 · Carrello persistente: drawer da header** — merged (squash) il 2026-06-08 (6fd2a83). `CartProvider` chiama `useCart` una volta e lo condivide via context (badge/drawer/step-3 in sync nella stessa tab — gli `storage` event non scattano same-tab); scope view-only, `cart.ts` intatto. Header CartButton + badge (hydration-gated, niente flash SSR) su ogni step; `shadcn Sheet` (focus-trap/Esc/restore da Radix) a destra/full-mobile; due fasi carrello↔checkout (order-form F05 dentro il drawer). Righe: chip-hex + qty stepper (44px touch mobile, sm:36px) + rimuovi + subtotale Money; empty state; totale; CTA. 84 unit + Playwright F16 (badge cross-step, edit/rimuovi, checkout, empty, mobile full-height) + F03/F05 adattati. Review: **approved al primo giro**. Sign-off: thumbnail = chip-hex (cart.ts congelato; mini-piatto composto → F19); SupplierBadge tolto dalla riga (scelta proprietario). Build prod + e2e screenshot in locale (Node 24).
 
 **F15 · Step 2 identico all'originale + tema copycat** — merged (squash) il 2026-06-08 (2b9364c). Griglia verticale a capo (carosello embla rimosso); swatch = **foto-glassa reale** (`options.image` dalle `palettes`, backfill idempotente: 21 swatch dedup per hex → 261 opzioni), grana procedurale F13 = fallback, flat hex ultimo; icone animali = **arte originale su tile** (`--muted`/`--primary`), niente `mask-image`. **Ex-F17 assorbita**: preview sticky su desktop / collapse-a-thumbnail su mobile mentre la lista scorre (reduced-motion ok). **Tema base "copycat"** (rosa `#fbe9e4` / prugna `#2b2330` / viola `#7d4f9c`): 3 token in globals/theme.ts + migration **0008** `update settings` che ri-tematizza il sito running. CHECK già rilassato in 0005. 84 unit + Playwright (griglia/no-scroll-x/asset reali/sticky/collapse) + e2e F13 aggiornati alla realtà F15. Review: **approved al primo giro**. Promemoria: serve `supabase db push` per applicare la 0008. ADR 0012 (swatch image) + 0013 (deploy email/anti-bot) in main.
 
