@@ -3,6 +3,38 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { loadEnvLocal } from "./helpers";
 
 loadEnvLocal();
+const OUT10 = "docs/evidence/f10";
+
+test("F10a: designs list + design detail (form + categories + preview)", async ({ page }) => {
+  test.skip(
+    !process.env.ADMIN_EMAIL || !process.env.ADMIN_PASSWORD,
+    "needs a seeded admin"
+  );
+  mkdirSync(OUT10, { recursive: true });
+  await page.goto("/admin/login");
+  await page.getByTestId("login-email").fill(process.env.ADMIN_EMAIL!);
+  await page.getByTestId("login-password").fill(process.env.ADMIN_PASSWORD!);
+  await page.getByTestId("login-submit").click();
+  await page.getByTestId("logout").waitFor({ state: "visible" });
+
+  await page.setViewportSize({ width: 1280, height: 1000 });
+  await page.goto("/admin/designs");
+  await page.getByTestId("admin-designs").waitFor();
+  await page.screenshot({ path: `${OUT10}/f10-designs-list.png` });
+
+  // detail of the first design: form + nested categories + composed preview
+  await page.getByTestId("design-row").first().getByTestId("design-edit").click();
+  await page.getByTestId("design-detail").waitFor();
+  await page.waitForTimeout(500);
+  await page.screenshot({ path: `${OUT10}/f10-design-detail.png`, fullPage: true });
+
+  // F10b: options of the first category (swatches/hex/upload, anti-dup)
+  await page.getByTestId("manage-options").first().click();
+  await page.getByTestId("option-editor").waitFor();
+  await page.waitForTimeout(300);
+  await page.screenshot({ path: `${OUT10}/f10-options.png` });
+});
+
 const OUT09 = "docs/evidence/f09";
 
 test("F09: catalog CRUD — products/suppliers lists + product form", async ({ page }) => {

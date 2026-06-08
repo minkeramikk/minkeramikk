@@ -12,8 +12,13 @@
  */
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { CODE_ALPHABET } from "../src/lib/configurator/config-code";
+import { createClient } from "@supabase/supabase-js";
+import { assignMissingCodes } from "../src/lib/configurator/assign-codes";
+
+// Re-exported so the import job (`import-squarespace.ts`) keeps importing it
+// from here, while the implementation lives in the shared lib module (also used
+// by the F10 back-office create flows).
+export { assignMissingCodes };
 
 function loadEnv() {
   try {
@@ -35,80 +40,6 @@ if (!url || !key) {
   process.exit(1);
 }
 const db = createClient(url, key, { auth: { persistSession: false } });
-
-/** Next free code not already used in this scope. Single char suffices for the
- *  current catalog (≤31 per scope); falls back to 2-char if a scope ever grows. */
-function nextCode(used: Set<string>): string {
-  for (const c of CODE_ALPHABET) if (!used.has(c)) return c;
-  for (const a of CODE_ALPHABET)
-    for (const b of CODE_ALPHABET) {
-      const c = a + b;
-      if (!used.has(c)) return c;
-    }
-  throw new Error("code space exhausted");
-}
-
-/**
- * Assign codes to any rows whose code is NULL. Deterministic + idempotent;
- * never touches existing codes. Reused by the import script so future imports
- * get codes too. Returns how many were assigned.
- */
-export async function assignMissingCodes(
-  db: SupabaseClient
-): Promise<{ designs: number; options: number }> {
-  let designsAssigned = 0;
-  let optionsAssigned = 0;
-
-  // ── designs ──
-  const { data: designs, error: dErr } = await db
-    .from("designs")
-    .select("id, slug, code, sort_order")
-    .order("sort_order", { ascending: true })
-    .order("slug", { ascending: true });
-  if (dErr) throw dErr;
-
-  const usedDesign = new Set(
-    (designs ?? []).map((d) => d.code).filter((c): c is string => Boolean(c))
-  );
-  for (const d of designs ?? []) {
-    if (d.code) continue; // never recalculate
-    const code = nextCode(usedDesign);
-    usedDesign.add(code);
-    const { error } = await db.from("designs").update({ code }).eq("id", d.id);
-    if (error) throw error;
-    designsAssigned++;
-  }
-
-  // ── options, per category ──
-  const { data: cats, error: cErr } = await db
-    .from("option_categories")
-    .select("id");
-  if (cErr) throw cErr;
-
-  for (const cat of cats ?? []) {
-    const { data: opts, error: oErr } = await db
-      .from("options")
-      .select("id, code, sort_order")
-      .eq("category_id", cat.id)
-      .order("sort_order", { ascending: true })
-      .order("id", { ascending: true });
-    if (oErr) throw oErr;
-
-    const used = new Set(
-      (opts ?? []).map((o) => o.code).filter((c): c is string => Boolean(c))
-    );
-    for (const o of opts ?? []) {
-      if (o.code) continue;
-      const code = nextCode(used);
-      used.add(code);
-      const { error } = await db.from("options").update({ code }).eq("id", o.id);
-      if (error) throw error;
-      optionsAssigned++;
-    }
-  }
-
-  return { designs: designsAssigned, options: optionsAssigned };
-}
 
 async function main() {
   const r = await assignMissingCodes(db);

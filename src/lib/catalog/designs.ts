@@ -25,9 +25,9 @@ export interface DesignSummary {
 }
 
 /**
- * Active designs ordered by sort_order, read with the ANON client:
- * RLS hides inactive rows (AC1/AC4 of F01). Supplier names come from
- * the public_suppliers safe view (ADR 0009).
+ * Active designs ordered by sort_order. Inactive rows are excluded by an
+ * explicit `active=true` filter (role-independent, F10) AND by RLS for anon
+ * (AC1/AC4 of F01). Supplier names come from the public_suppliers view (ADR 0009).
  */
 export async function getActiveDesigns(): Promise<DesignSummary[]> {
   const supabase = await createClient();
@@ -38,6 +38,10 @@ export async function getActiveDesigns(): Promise<DesignSummary[]> {
       .select(
         "id, slug, name, supplier_id, preview_image, sort_order, option_categories(layer_slot, sort_order, options(layer_image, sort_order, active))"
       )
+      // Explicit active gate (F10): the configurator shows only published designs
+      // for EVERY viewer — not just anon via RLS. A draft (active=false) created
+      // in the back-office stays hidden until activated, even for a logged-in admin.
+      .eq("active", true)
       .order("sort_order", { ascending: true }),
     supabase.from("public_suppliers").select("id, name"),
   ]);
