@@ -1,4 +1,4 @@
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, type Page, type TestInfo } from "@playwright/test";
 import { adminClient, loadEnvLocal } from "./helpers";
 
 /** F07 — order management (back-office). Needs a seeded admin
@@ -77,35 +77,41 @@ async function login(page: Page) {
   await expect(page).toHaveURL(/\/admin$/);
 }
 
-const row = (page: Page) => page.locator(`[data-testid="order-row"][data-code="${CODE}"]`);
+// The list renders BOTH layouts in the DOM — a desktop table (`order-row`,
+// hidden md:block) and mobile cards (`order-card`, md:hidden) — so we assert the
+// one that's actually visible for the current project. Real mobile coverage, no skip.
+const rowTestId = (testInfo: TestInfo) =>
+  testInfo.project.name === "mobile" ? "order-card" : "order-row";
+const seededRow = (page: Page, testInfo: TestInfo) =>
+  page.locator(`[data-testid="${rowTestId(testInfo)}"][data-code="${CODE}"]`);
 
-test("AC1: list shows the seeded order with KPIs", async ({ page }) => {
+test("AC1: list shows the seeded order with KPIs", async ({ page }, testInfo) => {
   test.skip(!ready, "needs admin creds + service role");
   await login(page);
   await expect(page.getByTestId("admin-orders")).toBeVisible();
   await expect(page.getByTestId("kpi-new")).toBeVisible();
-  await expect(row(page)).toBeVisible();
+  await expect(seededRow(page, testInfo)).toBeVisible();
 });
 
-test("AC2: status filter narrows the list", async ({ page }) => {
+test("AC2: status filter narrows the list", async ({ page }, testInfo) => {
   test.skip(!ready, "needs admin creds + service role");
   await login(page);
   // our order is 'new' → filtering to 'delivered' hides it
   await page.getByTestId("filter-status").selectOption("delivered");
   await page.getByTestId("filter-submit").click();
-  await expect(row(page)).toHaveCount(0);
+  await expect(seededRow(page, testInfo)).toHaveCount(0);
   // clearing brings it back
   await page.getByTestId("filter-clear").click();
-  await expect(row(page)).toBeVisible();
+  await expect(seededRow(page, testInfo)).toBeVisible();
 });
 
-test("AC2: search by order code finds the order", async ({ page }) => {
+test("AC2: search by order code finds the order", async ({ page }, testInfo) => {
   test.skip(!ready, "needs admin creds + service role");
   await login(page);
   await page.getByTestId("filter-q").fill(CODE);
   await page.getByTestId("filter-submit").click();
-  await expect(page.getByTestId("order-row")).toHaveCount(1);
-  await expect(row(page)).toBeVisible();
+  await expect(page.getByTestId(rowTestId(testInfo))).toHaveCount(1);
+  await expect(seededRow(page, testInfo)).toBeVisible();
 });
 
 test("AC3: status change persists and re-reads", async ({ page }) => {
@@ -117,10 +123,22 @@ test("AC3: status change persists and re-reads", async ({ page }) => {
   await page.getByTestId("status-select").selectOption("confirmed");
   await page.getByTestId("status-save").click();
 
-  // re-read from the DB after a reload
+  // Wait for the server action to settle (RSC refresh) BEFORE reloading, so we
+  // don't race the revalidate. `order-detail[data-status]` is the page's source
+  // of truth (read from the DB) for every status — unlike the status badge,
+  // which the detail only renders for the `cancelled` state.
+  await expect(page.getByTestId("order-detail")).toHaveAttribute(
+    "data-status",
+    "confirmed"
+  );
+
+  // re-read from the DB after a reload to prove persistence
   await page.reload();
+  await expect(page.getByTestId("order-detail")).toHaveAttribute(
+    "data-status",
+    "confirmed"
+  );
   await expect(page.getByTestId("status-select")).toHaveValue("confirmed");
-  await expect(page.getByTestId("status-badge")).toContainText(/confirmed/i);
 });
 
 test("AC4: internal notes persist", async ({ page }) => {
