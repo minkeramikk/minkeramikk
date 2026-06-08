@@ -9,10 +9,18 @@ export function SiteFooter() {
       <div className="mx-auto grid max-w-6xl gap-8 px-4 py-12 sm:grid-cols-3">
         <div className="font-heading text-lg">{t("common.siteName")}</div>
         <nav className="flex flex-col gap-2 text-sm text-muted-foreground">
-          <Link href="/personopplysninger" className="hover:text-foreground">
+          <Link
+            href="/privacy"
+            data-testid="footer-privacy"
+            className="hover:text-foreground"
+          >
             {t("footer.privacy")}
           </Link>
-          <Link href="/kjopsvilkar" className="hover:text-foreground">
+          <Link
+            href="/terms"
+            data-testid="footer-terms"
+            className="hover:text-foreground"
+          >
             {t("footer.terms")}
           </Link>
         </nav>

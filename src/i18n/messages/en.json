@@ -7,7 +7,8 @@
   "nav": {
     "products": "Products",
     "configurator": "Build your design",
-    "contact": "Get in touch"
+    "contact": "Get in touch",
+    "menu": "Menu"
   },
   "footer": {
     "privacy": "Privacy policy",
