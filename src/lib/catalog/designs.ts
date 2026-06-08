@@ -1,6 +1,6 @@
 import "server-only";
 
-import { createClient } from "@/lib/supabase/server";
+import { createPublicClient } from "@/lib/supabase/public";
 import {
   getPreviewLayers,
   type LayerSlot,
@@ -30,7 +30,7 @@ export interface DesignSummary {
  * (AC1/AC4 of F01). Supplier names come from the public_suppliers view (ADR 0009).
  */
 export async function getActiveDesigns(): Promise<DesignSummary[]> {
-  const supabase = await createClient();
+  const supabase = createPublicClient();
 
   const [designsRes, suppliersRes] = await Promise.all([
     supabase

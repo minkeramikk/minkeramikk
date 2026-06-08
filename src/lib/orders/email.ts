@@ -12,10 +12,17 @@ import type { OrderItemInput } from "./schema";
  * RESEND_API_KEY is set, otherwise a no-op console transport.
  */
 
+export interface EmailAttachment {
+  filename: string;
+  content: Buffer;
+}
+
 export interface EmailMessage {
   to: string;
   subject: string;
   text: string;
+  /** Optional file attachments (F08: the supplier production-order PDF). */
+  attachments?: EmailAttachment[];
 }
 
 export interface EmailTransport {
@@ -44,6 +51,9 @@ export function defaultTransport(): EmailTransport {
         to: msg.to,
         subject: msg.subject,
         text: msg.text,
+        ...(msg.attachments && msg.attachments.length > 0
+          ? { attachments: msg.attachments.map((a) => ({ filename: a.filename, content: a.content })) }
+          : {}),
       });
     },
   };

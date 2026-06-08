@@ -1,8 +1,58 @@
 import { test } from "@playwright/test";
 import { mkdirSync, writeFileSync } from "node:fs";
-import { loadEnvLocal } from "./helpers";
+import { loadEnvLocal, adminClient } from "./helpers";
 
 loadEnvLocal();
+const OUT08 = "docs/evidence/f08";
+
+test("F08: real production-order PDF from a test order (2 lines)", async ({ page }) => {
+  test.skip(
+    !process.env.ADMIN_EMAIL ||
+      !process.env.ADMIN_PASSWORD ||
+      !process.env.SUPABASE_SERVICE_ROLE_KEY,
+    "needs admin + service role"
+  );
+  mkdirSync(OUT08, { recursive: true });
+  const db = adminClient();
+  const code = `MK-EVID-F08-${Date.now()}`;
+  const { data: designs } = await db
+    .from("designs")
+    .select("code, slug, name")
+    .not("code", "is", null)
+    .limit(2);
+  const { data: supplier } = await db.from("suppliers").select("id, name").limit(1).single();
+  const { data: order } = await db
+    .from("orders")
+    .insert({ code, customer_name: "Evidence", email: "e@example.no", locale: "no", status: "new" })
+    .select("id")
+    .single();
+  const lines = (designs ?? []).map((d, i) => ({
+    order_id: order!.id,
+    supplier_id: supplier!.id,
+    supplier_name_snapshot: supplier!.name,
+    product_name_snapshot: i === 0 ? "Vietri Flat" : "Serveringsfat Stor",
+    price_cents_snapshot: 50000,
+    currency_snapshot: "NOK",
+    quantity: i === 0 ? 4 : 2,
+    config_code: `MK-${d.code}`,
+    config_snapshot: { designSlug: d.slug, designName: d.name, selections: [] },
+  }));
+  await db.from("order_items").insert(lines);
+
+  await page.goto("/admin/login");
+  await page.getByTestId("login-email").fill(process.env.ADMIN_EMAIL!);
+  await page.getByTestId("login-password").fill(process.env.ADMIN_PASSWORD!);
+  await page.getByTestId("login-submit").click();
+  await page.getByTestId("logout").waitFor({ state: "visible" });
+
+  const res = await page.request.get(
+    `/api/admin/orders/${order!.id}/pdf?supplier=${supplier!.id}`
+  );
+  writeFileSync(`${OUT08}/production-order-sample.pdf`, await res.body());
+
+  await db.from("orders").delete().eq("id", order!.id);
+});
+
 const OUT10 = "docs/evidence/f10";
 
 test("F10a: designs list + design detail (form + categories + preview)", async ({ page }) => {

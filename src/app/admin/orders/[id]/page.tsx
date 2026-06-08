@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AdminShell } from "@/components/shell/admin-shell";
+import { LabPdfActions } from "@/components/admin/lab-pdf-actions";
 import { OrderStatusBadge } from "@/components/ui-domain/order-status-badge";
 import { getOrder, getCodecDesigns } from "@/lib/orders/admin-orders.server";
 import {
@@ -101,8 +102,11 @@ export default async function OrderDetailPage({
 
               {groups.map((g) => (
                 <div key={g.supplierId} className="mb-4 last:mb-0">
-                  <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
-                    {g.supplierName}
+                  <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                      {g.supplierName}
+                    </span>
+                    <LabPdfActions orderId={order.id} supplierId={g.supplierId} />
                   </div>
                   <div className="overflow-hidden rounded-sm border border-border/60">
                     <table className="w-full text-sm">

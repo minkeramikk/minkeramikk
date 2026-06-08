@@ -1,6 +1,6 @@
 import "server-only";
 
-import { createClient } from "@/lib/supabase/server";
+import { createPublicClient } from "@/lib/supabase/public";
 import type { LayerSlot } from "@/lib/configurator/preview";
 
 export interface CategoryOption {
@@ -43,7 +43,7 @@ export interface DesignDetail {
 export async function getDesignDetail(
   slug: string
 ): Promise<DesignDetail | null> {
-  const supabase = await createClient();
+  const supabase = createPublicClient();
 
   const { data: design, error: designErr } = await supabase
     .from("designs")

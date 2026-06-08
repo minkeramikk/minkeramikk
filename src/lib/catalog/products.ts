@@ -1,6 +1,6 @@
 import "server-only";
 
-import { createClient } from "@/lib/supabase/server";
+import { createPublicClient } from "@/lib/supabase/public";
 import { money, type Money } from "@/lib/money/money";
 import type { Currency } from "@/lib/money/money";
 
@@ -23,7 +23,7 @@ export interface SupplierProduct {
 export async function getSupplierProducts(
   supplierId: string
 ): Promise<SupplierProduct[]> {
-  const supabase = await createClient();
+  const supabase = createPublicClient();
 
   const { data, error } = await supabase
     .from("products")

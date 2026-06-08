@@ -33,11 +33,13 @@ export function buildOrderItemRows(items: OrderItemInput[]): OrderItemRow[] {
   }));
 }
 
-/** Group items by supplier (for the per-lab PDF, F08). */
-export function splitBySupplier(
-  items: OrderItemInput[]
-): Map<string, OrderItemInput[]> {
-  const out = new Map<string, OrderItemInput[]>();
+/** Group items by supplier (for the per-lab PDF, F08). Generic over anything
+ *  carrying a `supplierId`, so it serves both the cart's OrderItemInput (F05)
+ *  and the admin AdminOrderItem (F08). */
+export function splitBySupplier<T extends { supplierId: string }>(
+  items: T[]
+): Map<string, T[]> {
+  const out = new Map<string, T[]>();
   for (const i of items) {
     const arr = out.get(i.supplierId) ?? [];
     arr.push(i);
