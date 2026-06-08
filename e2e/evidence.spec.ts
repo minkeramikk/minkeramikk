@@ -3,6 +3,39 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { loadEnvLocal } from "./helpers";
 
 loadEnvLocal();
+const OUT09 = "docs/evidence/f09";
+
+test("F09: catalog CRUD — products/suppliers lists + product form", async ({ page }) => {
+  test.skip(
+    !process.env.ADMIN_EMAIL || !process.env.ADMIN_PASSWORD,
+    "needs a seeded admin"
+  );
+  mkdirSync(OUT09, { recursive: true });
+  await page.goto("/admin/login");
+  await page.getByTestId("login-email").fill(process.env.ADMIN_EMAIL!);
+  await page.getByTestId("login-password").fill(process.env.ADMIN_PASSWORD!);
+  await page.getByTestId("login-submit").click();
+  await page.getByTestId("logout").waitFor({ state: "visible" });
+
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto("/admin/products");
+  await page.getByTestId("admin-products").waitFor();
+  await page.screenshot({ path: `${OUT09}/f09-products-list.png` });
+
+  await page.goto("/admin/products/new");
+  await page.getByTestId("product-form").waitFor();
+  await page.screenshot({ path: `${OUT09}/f09-product-form.png` });
+
+  await page.goto("/admin/suppliers");
+  await page.getByTestId("admin-suppliers").waitFor();
+  await page.screenshot({ path: `${OUT09}/f09-suppliers-list.png` });
+
+  await page.setViewportSize({ width: 390, height: 800 });
+  await page.goto("/admin/products/new");
+  await page.getByTestId("product-form").waitFor();
+  await page.screenshot({ path: `${OUT09}/f09-product-form-390.png` });
+});
+
 const OUT06 = "docs/evidence/f06";
 
 test("F06: login page + anon→login redirect at 390/1280", async ({ page }) => {

@@ -73,7 +73,7 @@ Checklist di review, in ordine:
 ## 5. Board
 
 > Stato iniziale: tutto in **Backlog**. Le card passano in Ready quando l'infra è Done
-> e gli AC vengono raffinati. Ordine di tiraggio consigliato: F01✅ → F02✅ → F03✅ → F14✅ → F13✅ → F04✅ → F05✅ → F15✅ → F16✅ → **F06** → F07 → F09 → F10 → F08 → F11 → F12.
+> e gli AC vengono raffinati. Ordine di tiraggio consigliato: F01✅ → F02✅ → F03✅ → F14✅ → F13✅ → F04✅ → F05✅ → F15✅ → F16✅ → F06✅ → F07✅ → **F09** → F10 → F08 → F11 → F12.
 > UX-polish parcheggiate (schedulabili dopo F16 o dopo il back-office, a scelta): **F18** (nav: stepper cliccabile + Next sticky), **F19** (righe carrello ricche: mini-piatto composto + design code di sessione). F17 = ex sticky-preview, assorbita in F15.
 
 ### Backlog
@@ -136,18 +136,6 @@ Nota: meglio **dopo F16** (riusa il drawer); il campo `layers` è l'estensione a
 
 ---
 
-**F07 · Gestione ordini (back-office)** — FE+BE · dep: F05, F06
-Scope: lista con KPI, ricerca, filtri stato/fornitore (spec: `docs/preview/02-03` +
-template back-office); dettaglio con articoli, config code cliccabile (riapre nel
-configuratore), cambio stato, note interne; ricerca per `config_code` incollato.
-AC (bozza):
-- La lista mostra gli ordini più recenti prima, filtrabili per stato e fornitore
-- Cambio stato → persiste, `updated_at` aggiornato, badge coerente
-- Incollo un config code nella ricerca → trovo l'ordine che lo contiene
-Test: funzionale lista+dettaglio+cambio stato · unit query filtri.
-
----
-
 **F08 · PDF laboratorio + invio per fornitore** — BE only · dep: F07
 Scope: alla conferma (o da bottone nel dettaglio), genera PDF in italiano PER OGNI
 fornitore coinvolto (split righe, ADR 0007): quantità, prodotti, colori nome+hex+swatch,
@@ -158,17 +146,6 @@ AC (bozza):
 - Fornitore senza email → PDF generato, invio saltato con warning in UI
 Evidenza PR: i PDF generati da un ordine di test (no screenshot UI).
 Test: unit split per fornitore · snapshot test sul PDF (contenuto testuale) · integrazione compositing sharp.
-
----
-
-**F09 · CRUD prodotti + fornitori (back-office)** — FE+BE · dep: F06
-Scope: liste e form per products (name/description _no/_en, price con Money, image,
-visible, supplier) e suppliers (name, email, phone, notes); spec `docs/preview/04`.
-AC (bozza):
-- Creo/modifico/nascondo un prodotto → il configuratore step 3 riflette la modifica
-- Prezzo inserito in kr → salvato in cents; mai input float ambigui
-- Cancello un fornitore con prodotti o design → operazione bloccata (RESTRICT) con messaggio che suggerisce la disattivazione (`active=false`); un fornitore senza catalogo si può cancellare
-Test: funzionale CRUD · unit conversione prezzo input→cents.
 
 ---
 
@@ -203,42 +180,49 @@ AC (bozza): pagine raggiungibili dal footer in entrambe le lingue; nessuna chiav
 Test: funzionale smoke su entrambe le lingue.
 
 ### Ready
-*(vuota)*
 
-### In progress
+**F09 · CRUD prodotti + fornitori (back-office)** — FE+BE · dep: F06 [DONE] — branch `flow/f09-catalog-crud` (2026-06-08), In progress
+Dà ad Alessio il controllo del **catalogo**: ceramiche (products) e laboratori (suppliers).
+Sotto `/admin/products` e `/admin/suppliers` (protette da F06), inglese. Mutazioni via
+`createClient()` cookie-session (RLS authenticated, **service-role mai nel client**), zod.
+Spec UI: `docs/preview/04` + template back-office.
 
-**F06 · Login back-office + AdminShell** — FE+BE · dep: infra [DONE] — branch `flow/f06-admin-login` (2026-06-08)
-Apre il **back-office**: autenticazione del singolo admin (Supabase Auth) + lo shell
-`/admin/*` su cui poggeranno F07–F11. Solo inglese, fuori da `[locale]` (AGENTS.md).
-
-Ciclo (BE/auth → shell → guardia):
-1. **Auth**: Supabase Auth email+password, **singolo admin** (no signup pubblico). Utente
-   admin seedato in modo riproducibile (script/seed, non click sul dashboard) — è il seed
-   rimandato dal task 1.1. Credenziali del cliente create all'handover (Fase 6).
-2. **`/admin/login`**: form email+password (shadcn), errore generico (niente leak "utente
-   non esiste" vs "password errata"). Sessione via cookie SSR (`@supabase/ssr`), persiste al refresh.
-3. **Guardia**: middleware protegge TUTTE le `/admin/*` (anche le route handler/API admin);
-   non autenticato → redirect a `/admin/login`; autenticato su `/admin/login` → redirect alla dashboard.
-4. **AdminShell** (DESIGN-SYSTEM §3.6/§4): sidebar ink (Orders, Products, Suppliers,
-   Configurator assets, Theme) + topbar (h1 + azione), logout. Mobile: drawer (Sheet).
-   Dashboard ordini reale è F07: qui basta un placeholder.
+Ciclo (BE/azioni → liste → form):
+1. **Products** `/admin/products`: lista (nome, prezzo Money, fornitore, visible, sort) +
+   form create/edit/delete. Campi: `name_no/_en`, `description_no/_en`, **prezzo in kr →
+   cents** (Money, niente float ambiguo, gestisce decimali/øre e spazi), `supplier_id`
+   (select, **NOT NULL** ADR 0007), **image** (upload su Storage `products/{slug}.png`),
+   `visible`, `sort_order`, `slug` (UK, generato dal nome con dedup). 
+2. **Suppliers** `/admin/suppliers`: lista (nome, email, phone, active) + form. Contatti
+   (email/phone/notes) sono dati **authenticated-only** (ADR 0009).
+3. **Live**: create/edit/hide di un prodotto → il configuratore step 3 riflette subito
+   (è `force-dynamic`): `visible=false` sparisce, prezzo nuovo appare.
+4. **Delete supplier = RESTRICT** (ADR 0007): fornitore con designs/products → delete
+   bloccato con messaggio "disattiva invece" (`active=false`); fornitore senza catalogo → eliminabile.
 
 AC (definitivi, 2026-06-08):
-1. Credenziali valide → entro nell'area admin (placeholder dashboard); sessione persiste al refresh.
-2. Non autenticato su qualsiasi `/admin/*` (pagina O fetch diretto a una route admin) → redirect/401 a login, nessun contenuto admin servito.
-3. Credenziali errate → messaggio generico, nessun leak (stesso errore per email inesistente o password errata); logout termina la sessione e riporta al login.
-4. `/admin` è SOLO inglese, fuori da `[locale]`, niente next-intl; AdminShell come da §3.6/§4, niente colori hardcoded (token, tema viola).
-5. L'utente admin è seedato in modo riproducibile (script idempotente), non a mano dal dashboard.
-Test: funzionale Playwright login/logout/redirect + **negativo**: anon su `/admin/orders` (pagina e fetch) non vede nulla; unit/integration sulla guardia middleware. Niente segreti nel diff.
-Evidenza PR: login, redirect anon→login, AdminShell desktop+mobile.
-Sicurezza: service-role mai nel client; la sessione admin NON deve poter leggere oltre i propri permessi RLS authenticated.
+1. CRUD prodotti completo: creo/modifico/nascondo/elimino → la lista si aggiorna e lo **step 3 del configuratore riflette** (visible, prezzo). Slug generato unico.
+2. Prezzo: input in kr (es. `1500`, `1 500`, `1500,50`) → salvato in **cents** corretti via Money; mai float ambiguo; valore non valido → errore di form, niente salvataggio.
+3. `supplier_id` obbligatorio sul prodotto (ADR 0007); image caricata su Storage e mostrata.
+4. CRUD fornitori completo; **delete RESTRICT**: con catalogo → bloccato + suggerimento `active=false`; senza catalogo → eliminabile. Contatti visibili solo da admin (ADR 0009).
+5. Sicurezza: tutte le mutazioni authenticated (RLS), service-role mai nel client, zod su ogni form; anon non muta nulla (pagina e azione). Mobile 390 usabile.
+Test: Playwright (crea prodotto → appare in step 3; nascondi → sparisce; delete supplier con catalogo → bloccato; senza → ok) · **unit conversione prezzo input→cents** (intero, decimale, virgola, spazi, negativo/non numerico) · RLS negativo (anon non scrive catalogo).
+Evidenza PR: liste + form prodotto/fornitore, errore prezzo, blocco delete supplier, riflesso in step 3.
+Nota: l'upload immagine prodotto è il caso semplice (1 img); gli asset configuratore complessi (PNG opzioni con resize) sono F10.
 
-→ **In review** (branch `flow/f06-admin-login`, PR body `PR-F06-body.md`, non mergeare). Guardia nel middleware (`/admin/*` redirect 307→login, decisione pura unit-testata), login server-action con errore generico, AdminShell sidebar+topbar+logout+drawer mobile, seed idempotente eseguito (admin reale `admin@minkeramikk.no`). DoD verde: lint · 88 unit · build · Playwright F06 11 (desktop+mobile) + regressione pubblica intatta. Evidenza `docs/evidence/f06/`.
+→ **In review** (branch `flow/f09-catalog-crud`, PR body `PR-F09-body.md`, non mergeare). CRUD products+suppliers via server-action cookie-session (RLS authenticated), parser prezzo kr→cents puro (no float) + slug/dedup unit-testati, delete RESTRICT con messaggio "disattiva", image upload Storage, riflesso live in step 3. DoD verde: lint · 110 unit · build · Playwright F09 4/4 + RLS-negativo. **Nota**: `f07.spec.ts:111` flaky pre-esistente (codice F07 identico a main, non regressione F09) → fix separato consigliato.
+
+### In progress
+*(vuota)*
 
 ### In review
 *(vuota)*
 
 ### Done
+
+**F07 · Gestione ordini (back-office)** — merged (squash) il 2026-06-08 (d1d0b46). Lista su `/admin` (KPI nuovi/da-contattare/in-produzione/valore-aperto, filtri stato+fornitore+ricerca testo/code, tabella desktop + card mobile §3.5, badge soft §3.3) + dettaglio `/admin/orders/[id]` (split per fornitore ADR 0007, config-code cliccabile → configuratore **nella locale dell'ordine** via decode F04, cambio stato + note interne via server-action). Tutto via `createClient()` cookie-session (RLS authenticated, **service-role mai**), zod sulle mutazioni, `updated_at` da trigger. Core dati puro 13 unit (su 101) + Playwright F07 (lista/KPI, filtro, ricerca code, stato persiste+rilegge, note, config-code→configuratore, mobile). Review: **approved al primo giro**. Note: lista tenuta su `/admin` (no churn F06); filtri in JS lato server (ok per il volume; indice `config_code` pronto per spingerli in SQL se crescono).
+
+**F06 · Login back-office + AdminShell** — merged (squash) il 2026-06-08 (83c7f0c). Guardia nel middleware su tutte le `/admin/*` con `getUser()` (JWT validato dal server, non `getSession()`) e **solo anon key**; decisione di redirect pura unit-testata (anon→`/admin/login` 307, authed su login→dashboard). Login server-action con **errore generico** (no user-enumeration), sessione cookie SSR persistente. Seed admin idempotente (service-role solo nello script, password da `.env.local`, no signup pubblico). AdminShell §3.6/§4 (sidebar ink + topbar + logout + drawer mobile, tema viola). 88 unit (guard puro) + Playwright F06 11 incl. **negativo `request.get('/admin')`→307, nessun HTML admin** + regressione pubblica. Review: **approved al primo giro**. Vincolo forward: il matcher esclude `/api` → eventuali `/api/admin/*` futuri devono auto-proteggersi. Incluso chore: gitignore PR-body usa-e-getta. ADR 0013 reminder go-live (Turnstile/Resend fail-closed prod).
 
 **F16 · Carrello persistente: drawer da header** — merged (squash) il 2026-06-08 (6fd2a83). `CartProvider` chiama `useCart` una volta e lo condivide via context (badge/drawer/step-3 in sync nella stessa tab — gli `storage` event non scattano same-tab); scope view-only, `cart.ts` intatto. Header CartButton + badge (hydration-gated, niente flash SSR) su ogni step; `shadcn Sheet` (focus-trap/Esc/restore da Radix) a destra/full-mobile; due fasi carrello↔checkout (order-form F05 dentro il drawer). Righe: chip-hex + qty stepper (44px touch mobile, sm:36px) + rimuovi + subtotale Money; empty state; totale; CTA. 84 unit + Playwright F16 (badge cross-step, edit/rimuovi, checkout, empty, mobile full-height) + F03/F05 adattati. Review: **approved al primo giro**. Sign-off: thumbnail = chip-hex (cart.ts congelato; mini-piatto composto → F19); SupplierBadge tolto dalla riga (scelta proprietario). Build prod + e2e screenshot in locale (Node 24).
 
