@@ -73,7 +73,8 @@ Checklist di review, in ordine:
 ## 5. Board
 
 > Stato iniziale: tutto in **Backlog**. Le card passano in Ready quando l'infra è Done
-> e gli AC vengono raffinati. Ordine di tiraggio consigliato: F01✅ → F02✅ → F03✅ → F14✅ → F13✅ → F04✅ → F05✅ → **F15** → F16 → F06 → F07 → F09 → F10 → F08 → F11 → F12.
+> e gli AC vengono raffinati. Ordine di tiraggio consigliato: F01✅ → F02✅ → F03✅ → F14✅ → F13✅ → F04✅ → F05✅ → F15✅ → **F16** → F06 → F07 → F09 → F10 → F08 → F11 → F12.
+> UX-polish parcheggiate (schedulabili dopo F16 o dopo il back-office, a scelta): **F18** (nav: stepper cliccabile + Next sticky), **F19** (righe carrello ricche: mini-piatto composto + design code di sessione). F17 = ex sticky-preview, assorbita in F15.
 
 ### Backlog
 
@@ -89,31 +90,49 @@ Checklist di review, in ordine:
 
 ---
 
-**F16 · Carrello persistente: drawer da header** — FE · dep: F03 [DONE], F05 [DONE]
-Suggerita **dopo F15** (UX configuratore). Sul sito originale il carrello vive lungo tutta
-la sessione; da noi il dato già persiste (F03: localStorage + sync cross-tab), ma la VISTA
-è solo allo step 3. F16 la solleva nell'header della `PublicShell`, accessibile da ogni step.
-Pattern scelto (2026-06-08): **drawer da header** (opzione A) — `shadcn Sheet` già installato.
-
+**F18 · Navigazione step: stepper cliccabile + Next sticky** — FE · dep: F14 [DONE]
+Future improvement (direzione 2026-06-08: opzione **B+C**). Problema: con le griglie verticali
+lunghe (F15) la CTA "Next" in fondo finisce sotto la piega. Soluzione: rendere la navigazione
+sempre raggiungibile + libera.
 Ciclo UI/UX:
-1. **Header**: `PublicShell` guadagna un bottone carrello con **badge** (conteggio articoli),
-   sempre visibile (anche tornando a step 1/2). DESIGN-SYSTEM §3.7 (header) + nuovo §3.x CartDrawer.
-2. **Drawer**: click → pannello che scorre da destra (desktop) / sheet a tutta altezza (mobile,
-   `shadcn Sheet`). Lista righe (prodotto, design+config, quantità editabile, rimuovi, subtotale),
-   totale (Money), CTA "Send bestilling" → form ordine (F05). Empty state con CTA al configuratore.
-3. La logica resta `cart.ts`/`use-cart` (F03): il drawer è solo la vista condivisa. Lo step 3
-   mantiene "aggiungi al carrello" (che aggiorna il badge/drawer); il checkout si raggiunge dal
-   drawer invece che inline.
-4. Focus trap nel drawer (shadcn lo gestisce), Esc chiude, ripristino focus sul bottone.
-
+1. **Stepper cliccabile** (DESIGN-SYSTEM §3.8, da statico a interattivo): i pallini 1·2·3
+   navigano allo step mantenendo design+opzioni nell'URL; step non ancora raggiungibili
+   (es. step 3 senza design) disabilitati con motivo.
+2. **Next/Back sticky** agganciati alla preview sempre visibile (desktop: sotto la colonna
+   sticky; mobile: nella zona pin/collapse della preview), raggiungibili senza scrollare.
+3. NIENTE navigazione solo-hover (no touch/a11y). aria-current sullo stepper, tastiera, focus.
 AC (bozza):
-1. Da qualsiasi step il bottone carrello in header mostra il conteggio corrente (badge) e apre il drawer.
-2. Drawer: righe con quantità editabile + rimozione (aggiornano totale, badge e localStorage), totale Money corretto (no float, no cross-currency), empty state.
-3. CTA del drawer porta al form ordine (F05) col carrello corrente; ordine inviato → carrello svuotato → badge a 0.
-4. Persistenza F03 intatta: ricarico/torno a step 1 → carrello e badge invariati; sync cross-tab.
-5. Accessibile (focus trap, Esc, aria) e mobile 390 (sheet a tutta altezza, touch ≥44px).
-Test: Playwright (apri da step 1/2/3, edita qty/rimuovi, vai al checkout, svuota) a 390/1280; unit invariati (cart.ts). Aggiornare eventuali e2e step-3 che assumevano il carrello inline.
-Evidenza PR: drawer aperto desktop+mobile, badge che cambia tra gli step.
+1. Ogni step dello stepper è cliccabile e naviga mantenendo la config (URL); step bloccati disabilitati.
+2. Next/Back visibili senza scrollare fino in fondo, a 390 e 1280, touch ≥44px.
+3. Nessuna regressione: avanzamento/indietro, config code, carrello, preview sticky.
+Test: Playwright (salto via stepper mantiene config; Next/Back raggiungibili senza scroll) a 390/1280.
+
+---
+
+**F19 · Righe carrello ricche + design code di sessione** — FE · dep: F04 [DONE], F16
+Future improvement (direzione 2026-06-08). Oggi il box ConfigCodeBar è sepolto nello step 2 e
+la riga del carrello mostra solo un chip-hex. F19 rilavora la riga del carrello e riloca il codice.
+Due concetti distinti di codice: la **config corrente** e i codici delle **config già nel
+carrello** (ogni riga = un design salvato, ha già il suo `config_code`, F04).
+Ciclo UI/UX:
+1. **Mini-piatto composto nella riga** (sostituisce il chip-hex di F16): thumbnail ~48px che
+   rende il piatto composto di quella config, **riusando la tecnica `<img>` impilati +
+   `mix-blend-mode: multiply`** della PreviewCanvas (ADR 0002/0010) — nessun compositing
+   server. Richiede un **campo additivo sulla cart line** (`layers: {src, recolor}[]`,
+   JSON-friendly) salvato all'add-time (step 3 ha già risolto i layer per la preview grande);
+   i layer sono già in cache → thumbnail istantanee.
+2. **Codici**: vicino alla preview un mini "salva/condividi questo design" (copia codice
+   corrente + copia link + incolla→carica), presente in ogni step (rimuove il box dallo
+   step 2/3). Nel drawer, ogni riga col suo `config_code` + "copia" + "riapri/modifica"
+   (ricarica quella config). Riusa encode/decode F04, niente logica nuova del codice.
+AC (bozza):
+1. Riga carrello: mini-piatto composto (img+multiply, no server) al posto del chip-hex; campo additivo `layers` sulla cart line, persistito in localStorage (F03 compatibile).
+2. Box ConfigCodeBar rimosso dallo step 2/3; affordance compatta vicino alla preview (copia codice/link, incolla→carica) presente in ogni step.
+3. Nel drawer, ogni riga col suo codice + copia + "riapri" (apre il configuratore su quella config; decode tollerante F04).
+4. Incolla codice valido → ricostruzione; invalido → messaggio gentile (mai crash).
+5. Nessuna regressione su F04 (codice canonico per ordine/PDF invariato), F16 (badge/persistenza), né sul carrello.
+Test: Playwright (mini-preview presente per una riga reale; copia/incolla da step diversi; riapri una riga → config giusta) a 390/1280; unit `cart.ts` per il nuovo campo `layers` (persist/hydrate).
+Nota: meglio **dopo F16** (riusa il drawer); il campo `layers` è l'estensione additiva della cart line lasciata aperta da F16.
 
 ---
 
@@ -194,67 +213,43 @@ AC (bozza): pagine raggiungibili dal footer in entrambe le lingue; nessuna chiav
 Test: funzionale smoke su entrambe le lingue.
 
 ### Ready
-*(vuota)*
 
-### In progress
-*(vuota — F15 → In review)*
+**F16 · Carrello persistente: drawer da header** — FE · dep: F03 [DONE], F05 [DONE]
+Sul sito originale il carrello vive lungo tutta la sessione; da noi il dato già persiste
+(F03: localStorage + sync cross-tab), ma la VISTA è solo allo step 3. F16 la solleva
+nell'header della `PublicShell`, accessibile da ogni step. Pattern scelto (2026-06-08):
+**drawer da header** (opzione A) — `shadcn Sheet` già installato.
 
-**F15 · Step 2 IDENTICO all'originale: asset reali + griglia verticale** — FE+BE(dati) · dep: F02 [DONE], F13 [DONE], ADR 0012 [in main] — branch `flow/f15-step2-real-assets` (2026-06-08). **Passo 0 STOP risolto**: CHECK già rilassato in 0005 (no nuova migration); swatch glassa = collezione `palettes` (21, copertura 1:1 per hex), confermato dal proprietario. → **In review** (PR body `PR-F15-body.md`, non mergeare): DoD verde (lint pulito · 84 unit · build 31 route · Playwright 38 desktop + mobile F13/F15 12/12 · regressione F01–F05/F13/F14 intatta). Backfill idempotente: 21 swatch, 261 opzioni colore con `image`, 0 mancanti.
-Obiettivo del proprietario: lo step 2 deve essere *identico* all'originale — gli asset
-(thumbnail texturizzate + icone) sono curati, vanno usati così come sono, non approssimati.
-
-Ciclo: dati/asset (Passo 0) → UI (griglia + render asset reali).
-
-Tre fronti:
-1. **Layout verticale** (supera il carosello embla di F02, DESIGN-SYSTEM §4): ogni categoria
-   mostra TUTTE le opzioni in griglia che va a capo, niente scroller orizzontale.
-2. **Swatch colore = foto-glassa reale** (ADR 0012, §3.10): si mostra `options.image` (la
-   thumbnail texturizzata originale) se presente; la grana procedurale F13 resta come
-   **fallback/placeholder** per i colori senza foto; flat `hex` ultimo fallback.
-3. **Icone `image` (animali) = arte originale su tile grigio** (supera il monocromatico di
-   F13, §3.9): l'arte originale bianco+viola su tile `--muted`; selected tile `--primary`.
-   Niente `mask-image`.
-
-**Passo 0 (dati/asset, STOP-gated)** — ADR 0012 (CHECK già rilassato? verificare: lo schema
-ADR è in main, ma la **migration** del rilassamento va creata se non presente):
-- **Migration additiva**: rilassare il CHECK `options` da `num_nonnulls(image,hex)=1` a
-  `>= 1` (un colore può avere image+hex+layer_image insieme). Rigenerare i tipi.
-- **Re-import idempotente** (estende `scripts/import-squarespace.ts`): recuperare le
-  swatch images originali (`hovering-colors` + collezioni colore per categoria) in
-  `options.image` per le opzioni `kind=color`; e verificare/recuperare le icone animali
-  originali (bianco+viola) per le `kind=image`. Report conteggi come 1.5/0006.
-- STOP per confermare la sorgente degli asset prima della UI; se una collezione non è più
-  disponibile sul legacy, escalare.
+Ciclo UI/UX:
+1. **Header**: `PublicShell` guadagna un bottone carrello con **badge** (conteggio articoli),
+   sempre visibile (anche tornando a step 1/2). DESIGN-SYSTEM §3.7 (header) + nuovo §3.12 CartDrawer.
+2. **Drawer**: click → pannello che scorre da destra (desktop) / sheet a tutta altezza (mobile,
+   `shadcn Sheet`). Lista righe (prodotto, design+config, quantità editabile, rimuovi, subtotale),
+   totale (Money), CTA "Send bestilling" → form ordine (F05). Empty state con CTA al configuratore.
+3. La logica resta `cart.ts`/`use-cart` (F03): il drawer è solo la vista condivisa. Lo step 3
+   mantiene "aggiungi al carrello" (che aggiorna il badge/drawer); il checkout si raggiunge dal
+   drawer invece che inline.
+4. Focus trap nel drawer (shadcn lo gestisce), Esc chiude, ripristino focus sul bottone.
 
 AC (definitivi, 2026-06-08):
-1. Step 2: tutte le opzioni di ogni categoria in griglia a capo, nessuno scroller-x, a 390
-   e 1280; selezione da tastiera (radiogroup, frecce) invariata.
-2. Swatch colore: mostra la foto-glassa reale (`options.image`); colore senza foto →
-   placeholder grana procedurale; mai flat-only se la foto esiste.
-3. Icone `image`: arte originale bianco+viola su tile grigio, leggibili normali e selezionate;
-   nessun monocromatico residuo.
-4. Hover-preview (F13) del pattern invariato; config code, preview, color-lock senza regressioni.
-5. DB: un'opzione colore può portare image+hex+layer_image (CHECK rilassato) → pronto per il
-   CRUD asset del back-office (F10).
-Test: unit (re-import idempotente, conteggi) · Playwright (niente scroll-x; swatch reale vs
-placeholder; icona con asset giusto; tastiera) a 390/1280; aggiornare e2e F13 (carosello/mask).
-Evidenza PR: step 2 affiancato all'originale (colori + animali) + report import asset.
+1. Da qualsiasi step il bottone carrello in header mostra il conteggio corrente (badge) e apre il drawer.
+2. Drawer: righe con quantità editabile + rimozione (aggiornano totale, badge e localStorage), totale Money corretto (no float, no cross-currency), empty state con CTA al configuratore.
+3. CTA del drawer porta al form ordine (F05) col carrello corrente; ordine inviato → carrello svuotato → badge a 0.
+4. Persistenza F03 intatta: ricarico/torno a step 1 → carrello e badge invariati; sync cross-tab.
+5. Accessibile (focus trap, Esc, aria-label sul bottone + conteggio annunciato) e mobile 390 (sheet a tutta altezza, touch ≥44px).
+6. i18n NO/EN su bottone, drawer, empty state, CTA.
+Test: Playwright (apri da step 1/2/3, edita qty/rimuovi, vai al checkout, svuota, badge tra gli step) a 390/1280; unit `cart.ts` invariati. Aggiornare gli e2e step-3 che assumevano il carrello inline.
+Evidenza PR: drawer aperto desktop+mobile, badge che cambia tra gli step.
 
----
-
-**Sync tema base "copycat" (in parallelo a F15, 2026-06-08)** — FE+dati · piccolo, indipendente
-Allinea l'app ai 3 token ridecisi (sorgente `docs/theme/tokens.css`): `--mk-light #fbe9e4`,
-`--mk-dark #2b2330`, `--mk-accent #7d4f9c` (rosa/prugna/viola, copycat del sito). Tocca
-`globals.css` + `theme.ts` (fallback) + seed 0001 (fresh install) + **migration additiva**
-`update settings ... where id=1` (no reset). **Mergiare PRIMA di F15** se possibile, così
-F15 rebasa e i suoi screenshot escono coi colori definitivi (entrambi toccano `globals.css`:
-conflitto di 3 righe se va dopo). Verifica contrasto AA (dark/light, bianco/accent).
+### In progress
+*(vuota)*
 
 ### In review
-
-**F15 · Step 2 IDENTICO all'originale** — branch `flow/f15-step2-real-assets`, PR body `PR-F15-body.md`, **non ancora merged** (attesa review agent). Griglia verticale (no carosello embla), swatch foto-glassa reale da `palettes` (grana F13 = fallback), icone animali = arte originale su tile (no mask). Dati: backfill idempotente `options.image` (21 swatch dedup per hex → 261 opzioni). CHECK già rilassato in 0005 (nessuna nuova migration). **Incluso (ex-F17, ricongiunto in F15 su richiesta proprietario):** preview sempre visibile mentre la lista lunga scorre — desktop colonna sticky, mobile preview che si aggancia in alto e collassa a thumbnail (sentinel + IntersectionObserver, rispetta reduced-motion). DoD verde (lint · 84 unit · build 31 route · Playwright griglia+sticky+regressione F01–F05/F13/F14); evidenza `docs/evidence/f15/` (colori, animali, sticky).
+*(vuota)*
 
 ### Done
+
+**F15 · Step 2 identico all'originale + tema copycat** — merged (squash) il 2026-06-08 (2b9364c). Griglia verticale a capo (carosello embla rimosso); swatch = **foto-glassa reale** (`options.image` dalle `palettes`, backfill idempotente: 21 swatch dedup per hex → 261 opzioni), grana procedurale F13 = fallback, flat hex ultimo; icone animali = **arte originale su tile** (`--muted`/`--primary`), niente `mask-image`. **Ex-F17 assorbita**: preview sticky su desktop / collapse-a-thumbnail su mobile mentre la lista scorre (reduced-motion ok). **Tema base "copycat"** (rosa `#fbe9e4` / prugna `#2b2330` / viola `#7d4f9c`): 3 token in globals/theme.ts + migration **0008** `update settings` che ri-tematizza il sito running. CHECK già rilassato in 0005. 84 unit + Playwright (griglia/no-scroll-x/asset reali/sticky/collapse) + e2e F13 aggiornati alla realtà F15. Review: **approved al primo giro**. Promemoria: serve `supabase db push` per applicare la 0008. ADR 0012 (swatch image) + 0013 (deploy email/anti-bot) in main.
 
 **F05 · Invio ordine** — merged (squash) il 2026-06-08 (53f0e59). `create_order` SECURITY DEFINER atomico (search_path bloccato, eseguibile solo dal service_role, anon revocato — più sicuro dell'insert-anon dell'AC: niente bypass di Turnstile); sequence `order_seq` START 1001 concorrenza-safe (integration test con submit paralleli → codici distinti). API server-only (zod condiviso client/server, Turnstile verificato col secret, service-role mai nel bundle), email Resend locale-aware + transport iniettabile + resiliente (email non blocca l'ordine), carrello svuotato su successo / preservato su errore. 77 unit + integration + Playwright 33 desktop + mobile. Review: **approved al primo giro**. Hardening annotati (non bloccanti): snapshot fidati dal client (ok per finto e-commerce, ri-derivare se mai pagamento reale); Turnstile fail-closed in prod se manca la key. Il branch ha portato in main anche **ADR 0012 + schema + card F15**.
 
