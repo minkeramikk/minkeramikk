@@ -79,7 +79,8 @@ Checklist di review, in ordine:
 ## 5. Board
 
 > Stato iniziale: tutto in **Backlog**. Le card passano in Ready quando l'infra è Done
-> e gli AC vengono raffinati. Ordine di tiraggio consigliato: F01✅ → F02✅ → F03✅ → F14✅ → F13✅ → F04✅ → F05✅ → F15✅ → F16✅ → F06✅ → F07✅ → F09✅ → F10✅ → F08✅ → F12✅ → **INFRA (go-live hardening)** → poi opzionali: F11 (theme editor), F18/F19 (UX polish). **Tutti i 16 flussi feature DONE.**
+> e gli AC vengono raffinati. Ordine di tiraggio consigliato: F01✅ → F02✅ → F03✅ → F14✅ → F13✅ → F04✅ → F05✅ → F15✅ → F16✅ → F06✅ → F07✅ → F09✅ → F10✅ → F08✅ → F12✅ → F19✅ → F18✅ → **F11a (theme editor)✅** → F11b (mail brandizzate) → INFRA (go-live hardening) → **F20 (doppio prezzo regione + spedizione-soglia + disclaimer — change-order accettato)**. **Tutti i 16 flussi feature DONE.**
+> **Ambito accettato 2026-06-09: 2.350 € base** (+ F20 ≈350 €/2 gg come change-order). Hosting: si resta su **Vercel + piani gratuiti** per ora — ADR 0014 (VPS) *rinviato*, macchina dedicata = fallback su intervento. **Fuori ambito / deferred: multicurrency completa (valute diverse+FX), spedizione a peso, macchina dedicata.**
 > UX-polish parcheggiate (schedulabili dopo F16 o dopo il back-office, a scelta): **F18** (nav: stepper cliccabile + Next sticky), **F19** (righe carrello ricche: mini-piatto composto + design code di sessione). F17 = ex sticky-preview, assorbita in F15.
 
 ### Backlog
@@ -96,85 +97,71 @@ Checklist di review, in ordine:
 
 ---
 
-**F18 · Navigazione step: stepper cliccabile + Next sticky** — FE · dep: F14 [DONE]
-Future improvement (direzione 2026-06-08: opzione **B+C**). Problema: con le griglie verticali
-lunghe (F15) la CTA "Next" in fondo finisce sotto la piega. Soluzione: rendere la navigazione
-sempre raggiungibile + libera.
-Ciclo UI/UX:
-1. **Stepper cliccabile** (DESIGN-SYSTEM §3.8, da statico a interattivo): i pallini 1·2·3
-   navigano allo step mantenendo design+opzioni nell'URL; step non ancora raggiungibili
-   (es. step 3 senza design) disabilitati con motivo.
-2. **Next/Back sticky** agganciati alla preview sempre visibile (desktop: sotto la colonna
-   sticky; mobile: nella zona pin/collapse della preview), raggiungibili senza scrollare.
-3. NIENTE navigazione solo-hover (no touch/a11y). aria-current sullo stepper, tastiera, focus.
-AC (bozza):
-1. Ogni step dello stepper è cliccabile e naviga mantenendo la config (URL); step bloccati disabilitati.
-2. Next/Back visibili senza scrollare fino in fondo, a 390 e 1280, touch ≥44px.
-3. Nessuna regressione: avanzamento/indietro, config code, carrello, preview sticky.
-Test: Playwright (salto via stepper mantiene config; Next/Back raggiungibili senza scroll) a 390/1280.
+**F20 · Doppio prezzo per regione (NO/EU) + spedizione-soglia + disclaimer** — FE+BE · dep: F09 [DONE], F03 [DONE], F16 [DONE] · change-order accettato 2026-06-09 (≈2 gg, ~350 €) · rif. **ADR 0015 (scope ristretto)**
+Richiesta del cliente dopo l'accettazione: prezzi diversi per regione (in Norvegia si vende a più che in Europa) + spedizione semplice + disclaimer legale nel configuratore. **Solo il "doppio prezzo", niente multicurrency** (decisione 2026-06-09).
+- **Doppio prezzo**: selettore regione (Norvegia/Europa) che cambia il **prezzo mostrato**; price book per regione (prezzo per prodotto × regione, gestito dal back-office, riusa il CRUD F09/F10). **Multicurrency RINVIATA**: per ora due livelli di prezzo, **nessun motore valute/FX/formattazione per valuta**. ⚠️ Da confermare col cliente: i prezzi EU restano in kr o vanno mostrati in €? (se €, è multicurrency minima → rivalutare scope).
+- **Spedizione**: solo modalità **"gratis sopra una soglia"** (+ eventuale "inclusa"); **niente motore a peso** (rinviato, ADR 0015). Calcolata e mostrata **dal vivo nel carrello**, congelata nello snapshot ordine/email/PDF.
+- **Disclaimer nel configuratore**: nessun pagamento, configurazione **non vincolante**, valida **solo dopo il contatto** del negozio (copy NO/EN).
+AC abbozzati: (1) selettore regione persistito ri-prezza catalogo + carrello; (2) price book per regione editabile dal back-office; (3) spedizione gratis-sopra-soglia mostrata nel carrello e nello snapshot; (4) disclaimer visibile nel flusso, bilingue; (5) nessuna regressione su carrello/ordine/PDF. Test: unit (regione → prezzo corretto; soglia spedizione) + Playwright (cambio regione ri-prezza; disclaimer presente NO/EN).
+**Out (deferred):** multicurrency completa (valute diverse + FX), spedizione a peso, macchina dedicata.
 
 ---
 
-**F19 · Righe carrello ricche + design code di sessione** — FE · dep: F04 [DONE], F16
-Future improvement (direzione 2026-06-08). Oggi il box ConfigCodeBar è sepolto nello step 2 e
-la riga del carrello mostra solo un chip-hex. F19 rilavora la riga del carrello e riloca il codice.
-Due concetti distinti di codice: la **config corrente** e i codici delle **config già nel
-carrello** (ogni riga = un design salvato, ha già il suo `config_code`, F04).
-Ciclo UI/UX:
-1. **Mini-piatto composto nella riga** (sostituisce il chip-hex di F16): thumbnail ~48px che
-   rende il piatto composto di quella config, **riusando la tecnica `<img>` impilati +
-   `mix-blend-mode: multiply`** della PreviewCanvas (ADR 0002/0010) — nessun compositing
-   server. Richiede un **campo additivo sulla cart line** (`layers: {src, recolor}[]`,
-   JSON-friendly) salvato all'add-time (step 3 ha già risolto i layer per la preview grande);
-   i layer sono già in cache → thumbnail istantanee.
-2. **Codici**: vicino alla preview un mini "salva/condividi questo design" (copia codice
-   corrente + copia link + incolla→carica), presente in ogni step (rimuove il box dallo
-   step 2/3). Nel drawer, ogni riga col suo `config_code` + "copia" + "riapri/modifica"
-   (ricarica quella config). Riusa encode/decode F04, niente logica nuova del codice.
-AC (bozza):
-1. Riga carrello: mini-piatto composto (img+multiply, no server) al posto del chip-hex; campo additivo `layers` sulla cart line, persistito in localStorage (F03 compatibile).
-2. Box ConfigCodeBar rimosso dallo step 2/3; affordance compatta vicino alla preview (copia codice/link, incolla→carica) presente in ogni step.
-3. Nel drawer, ogni riga col suo codice + copia + "riapri" (apre il configuratore su quella config; decode tollerante F04).
-4. Incolla codice valido → ricostruzione; invalido → messaggio gentile (mai crash).
-5. Nessuna regressione su F04 (codice canonico per ordine/PDF invariato), F16 (badge/persistenza), né sul carrello.
-Test: Playwright (mini-preview presente per una riga reale; copia/incolla da step diversi; riapri una riga → config giusta) a 390/1280; unit `cart.ts` per il nuovo campo `layers` (persist/hydrate).
-Nota: meglio **dopo F16** (riusa il drawer); il campo `layers` è l'estensione additiva della cart line lasciata aperta da F16.
+**INFRA · Secret CI + de-flake + hardening go-live** — infra/test · dep: tutti i flussi feature [DONE]
+Mette **suite e deploy in sicurezza prima del go-live** (deprioritizzato dopo F19, ma da fare
+prima del lancio). 1) **Secret CI**: secret Supabase di test + `ADMIN_EMAIL/PASSWORD` in GitHub
+Actions → i test gated (RLS, F05/F06/F07/F09/F10) **girano** invece di skippare. 2) **De-flake**
+f14/f15 (race con la preview sticky, come F07). 3) **Fail-closed prod** (ADR 0013): senza
+`TURNSTILE_SECRET_KEY`/`RESEND_API_KEY` in `NODE_ENV=production` → errore esplicito, mai
+fallback. 4) **AGENTS.md**: regola "merge da terminale pulito, IDE off" + DoD `npm ci`+e2e.
+AC: gated girano in CI e verdi; f14/f15 stabili (3 run); build prod fallisce se mancano le key in
+produzione; AGENTS.md aggiornato. Metà è GitHub settings (Daniele), il resto è codice.
 
 ---
 
-**F11 · Theme editor (back-office)** — FE+BE · dep: F06
-Scope: pagina Theme: 3 color picker (light/dark/accent), anteprima live (come il tester
-dei template), **check contrasto WCAG AA bloccante** (ADR 0008), salvataggio su `settings`,
-iniezione nel layout pubblico.
-AC (bozza):
-- Cambio accent e salvo → il sito pubblico riflette il colore al refresh successivo
-- Coppia di colori sotto AA → salvataggio bloccato con spiegazione e suggerimento
-- Reset ai default del tema disponibile
-Test: unit funzione di contrasto (casi limite) · funzionale salva→verifica CSS variable sul pubblico.
+**F11b · Mail HTML brandizzate che seguono il tema (back-office)** — FE+BE · dep: F05 [DONE], F08 [DONE], **F11a [DONE]**
+> **11a (theme editor) = DONE** (mergiato 2026-06-09, vedi sezione Done + ADR 0008 note F11a). Questa card è ora **solo 11b**. Gli AC sotto: 1–2 erano di 11a (fatti), 3–5 sono 11b.
+
+**11b — Mail HTML brandizzate che seguono il tema** (riferimento: `docs/preview/07-order-email.html`):
+- Convertire da **testo → HTML** TUTTE le mail (deciso): conferma cliente + notifica admin (F05) + email col PDF al fornitore (F08, con allegato).
+- **Email-safe**: layout a **tabelle + stili inline**, NIENTE CSS variables (Gmail/Outlook le strippano) → i 3 token si leggono da `settings` all'invio e si **inline-ano come hex letterali** ⇒ cambi il tema nell'editor e le mail successive cambiano colore. **Multipart**: tieni la text/plain attuale come fallback.
+- Locale cliente = `orders.locale` (NO/EN); design come il mockup (testata prugna=dark, codice ordine viola=accent, nota "su misura").
+
+AC (definitivi, 2026-06-08):
+1. `/admin/theme`: 3 picker + anteprima live; cambio un token e salvo → il sito riflette al refresh; reset ai default.
+2. Check AA **bloccante**: coppia sotto AA → blocco con spiegazione+suggerimento; sopra AA → salva.
+3. Le 3 mail sono HTML brandizzato (tabelle+inline, multipart con text fallback), design di `07-order-email.html`; conferma cliente nella sua locale.
+4. Le mail **seguono il tema**: colore dai `settings` correnti, inline-ato all'invio → cambio tema ⇒ mail successive col nuovo colore (verificabile: l'HTML contiene l'hex corrente).
+5. Sicurezza: mutazione tema authenticated (RLS), service-role mai nel client; nessun invio reale in CI (transport mock).
+Test: unit (contrasto AA casi limite; render template email coi token → HTML contiene gli hex; multipart text+html) · Playwright (salva tema → CSS variable cambia sul pubblico; AA-fail → blocco) · invio mockato delle 3 mail (con/senza tema cambiato).
+Evidenza PR: editor + anteprima + blocco AA; le 3 mail renderizzate con un tema, e una seconda render con tema cambiato (colore diverso).
+**Nota scope**: 11b (3 template email + theming) è il pezzo più grosso. Se troppo per una PR, **spacchettare 11a** (editor) **e 11b** (mail) — escalare al TL.
 
 ### Ready
 
-**INFRA · Secret CI + de-flake + hardening go-live** — infra/test · dep: tutti i flussi feature [DONE]
-Tutti i flussi sono mergiati: questo giro mette **suite e deploy in sicurezza prima del go-live**.
-1. **Secret CI**: aggiungere a GitHub Actions i secret di un progetto Supabase di test +
-   `ADMIN_EMAIL`/`ADMIN_PASSWORD`, così i test **gated** (RLS, F05 integration, F06 login, F07
-   ordini, F09/F10) **girano in CI** invece di skippare (prerequisito board, finalmente — è ciò
-   che ha lasciato marcire l'AC3 di F07).
-2. **De-flake e2e**: sistemare i flaky pre-esistenti **f14** (mobile) e **f15** (AC5 desktop) —
-   timing/race con la preview sticky; stesso approccio di F07 (attese deterministiche, niente race
-   reload↔revalidate). Test-only.
-3. **Fail-closed in prod (ADR 0013)**: in `NODE_ENV=production`, Turnstile senza
-   `TURNSTILE_SECRET_KEY` e email senza `RESEND_API_KEY` → **errore esplicito**, mai il fallback
-   "always-pass"/no-op (`turnstile.ts`, `email.ts`).
-4. **AGENTS.md**: regola "**merge da terminale pulito, IDE/source-control chiuso**" (i `.lock`
-   ricorrenti li causa l'IDE) + DoD locale `npm ci` + e2e prima della PR.
+**F18 · Navigazione step: stepper cliccabile + Next/Back sticky** — FE · dep: F14 [DONE], F15 [DONE]
+Direzione **B+C** (decisa 2026-06-08). Problema: con le griglie verticali lunghe (F15) la CTA
+"Next" in fondo finisce sotto la piega → si scrolla per avanzare. Due mosse: stepper navigabile +
+Next/Back sempre a vista.
+
+Ciclo UI/UX:
+1. **Stepper cliccabile** (DESIGN-SYSTEM §3.8, da statico a interattivo): i pallini 1·2·3 navigano
+   allo step mantenendo design+opzioni nell'URL. **Tutti e 3 sempre raggiungibili** (c'è sempre un
+   design di default) → niente gate; `aria-current` sullo step attivo, navigabile da tastiera.
+2. **Next/Back sticky**, sempre raggiungibili senza scrollare in fondo:
+   - **Desktop**: sotto la **colonna sticky** della preview (preview + ConfigCodeBar di F19 + Next/Back).
+   - **Mobile**: **barra sticky in basso** (decisa) col Next/Back, pollice-friendly; la preview resta
+     pinnata/collassata in alto (F15).
+3. **Back dedicato + stepper** (deciso): un Back a un tocco per il passo precedente, più lo stepper
+   per i salti liberi. NIENTE nav solo-hover (touch/a11y).
+
 AC (definitivi, 2026-06-08):
-1. I test gated **girano in CI** (non più skip) e sono verdi; nessun segreto reale nel repo (solo nei GitHub Secrets).
-2. f14 e f15 verdi e **stabili** (3 run di fila), test-only.
-3. Build di produzione **fallisce** se mancano `TURNSTILE_SECRET_KEY`/`RESEND_API_KEY` in `NODE_ENV=production`; in dev/CI i fallback restano.
-4. AGENTS.md aggiornato (regola merge IDE-off + DoD).
-Test: la CI stessa è la prova (i gated ora girano); de-flake verificato con ripetizioni; unit sul guard fail-closed.
-Nota: metà è GitHub settings (secrets) — quella parte la fa Daniele; il resto (de-flake, fail-closed, AGENTS.md) è codice.
+1. Stepper: ogni step cliccabile, naviga mantenendo la config (URL); `aria-current` corretto; navigabile da tastiera.
+2. Next/Back sempre visibili senza scrollare in fondo — **desktop** sotto la preview sticky, **mobile** in barra sticky in basso; touch ≥44px.
+3. Back dedicato (passo precedente) accanto al Next; coesiste con lo stepper.
+4. Nessuna regressione: avanzamento/indietro, config code, carrello/drawer, preview sticky/collapse (F15), ConfigCodeBar (F19).
+5. `prefers-reduced-motion` rispettato.
+Test: Playwright (salto via stepper mantiene la config; Next/Back raggiungibili senza scroll; barra mobile in basso a 390, colonna sotto-preview a 1280; tastiera sullo stepper) a 390/1280.
 
 ### In progress
 *(vuota)*
@@ -183,6 +170,10 @@ Nota: metà è GitHub settings (secrets) — quella parte la fa Daniele; il rest
 *(vuota)*
 
 ### Done
+
+**F11a · Theme editor (colori del sito)** — merged (squash) il 2026-06-09 (branch `flow/f11a-theme-editor`, a4f6a8e + fix 7e1a537). `/admin/theme`: 3 color picker (light/dark/accent) + **anteprima live** (override `--mk-*` su container → token derivati ricalcolati via `color-mix`) + reset ai default. **Gate WCAG AA bloccante** su 3 coppie — text (dark/light), accent (primary-foreground su accent), muted (muted-foreground su **background**): sotto 4.5 → Save disabilitato con spiegazione+hint. `theme-contrast.ts` replica le derivazioni di `globals.css` (92%/38% **allineate** → controlla i colori reali); boundary test falsificabili su tutte e 3. `getThemeTokens` da **stub → legge `settings`** (il pubblico si ri-tematizza al refresh); salvataggio = server action **authenticated** (RLS, zod, service-role mai nel client, **re-check AA server-side**, revalidate layout). 149 unit + e2e f11a; build+e2e verdi in locale (Node 24). **Review: approved** — ratificata la coppia (c) su background (muted-su-muted = 4.06 sul default → consapevolmente **non gated**; hint dell'editor portato a `text-foreground`), documentata in **ADR 0008** (note F11a). 11b (mail brandizzate) resta card separata in Backlog.
+
+**F19 · Righe carrello ricche + design code di sessione** — merged (squash) il 2026-06-08 (a0967c7). Riga carrello: **mini-piatto composto** (pattern-only, img+multiply, no server) + ceramica come immagine separata sotto, da campo additivo `layers`/`plateImage` su `cart.ts` (opzionale → retro-compat al chip-hex, niente migration, niente leak nell'ordine); risolto all'add-time alla width della preview grande (cache-hit). **Codici di sessione**: ConfigCodeBar spostata nella colonna sticky (tolta da step 2/3), ogni riga del drawer col suo codice + "riapri", e deep-link `?code=` decode-once (riusa codec F04, fa funzionare anche i link condivisi). Testid F04 preservati → nessuna regressione. 140 unit (4 nuovi cart) + e2e F19. Review: **approved al primo giro**. Iterazione UI: mini solo-pattern (centro pulito, come step 1-2) dopo che il pozzetto del piatto traspariva.
 
 **F12 · Pagine legali + footer + menu mobile** — merged (squash) il 2026-06-08 (254c867). Pagine `/[locale]/terms` e `/[locale]/privacy` (path inglese, regola i18n) coi testi da `legal.*` (NO live + EN bozza `_review`); `LegalArticle` rende il body in prosa; footer aggiornato ai path inglesi; **menu mobile** (hamburger → `shadcn Sheet` ink, focus-trap/Esc da Radix). Nuovo **`messages.test.ts`**: parità chiavi i18n NO↔EN (esclude `_review`) — guard riusabile per tutto l'i18n futuro. 136 unit + e2e smoke NO/EN a 390/1280. Review: **approved al primo giro**. Go-live TODO: finalizzare copy legale EN (il cliente valida).
 
