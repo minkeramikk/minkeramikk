@@ -122,6 +122,7 @@ Actions → i test gated (RLS, F05/F06/F07/F09/F10) **girano** invece di skippar
 f14/f15 (race con la preview sticky, come F07). 3) **Fail-closed prod** (ADR 0013): senza
 `TURNSTILE_SECRET_KEY`/`RESEND_API_KEY` in `NODE_ENV=production` → errore esplicito, mai
 fallback. 4) **AGENTS.md**: regola "merge da terminale pulito, IDE off" + DoD `npm ci`+e2e.
+5) **PDF/sharp memory hardening** (non bloccante, da `OPT_dev_note_1.md`): `sharp.cache(false)` in compose-plate; ridimensionare/appiattire (→JPEG) l'immagine prima di iniettarla nel PDF fornitore; opz. `renderToBuffer`→`renderToStream`. **Guardia AGENTS.md**: la generazione PDF non va MAI sul percorso della richiesta cliente (verificato 2026-06-09: oggi è admin-only/on-demand → conforme). Il pattern async (webhook `pending_pdf` + retry) **NON si fa ora** — documentato come **leva di scaling** se cresce il volume o se un domani il PDF passasse sul percorso del cliente.
 AC: gated girano in CI e verdi; f14/f15 stabili (3 run); build prod fallisce se mancano le key in
 produzione; AGENTS.md aggiornato. Metà è GitHub settings (Daniele), il resto è codice.
 
@@ -172,7 +173,8 @@ AC (definitivi, 2026-06-08):
 Test: Playwright (salto via stepper mantiene la config; Next/Back raggiungibili senza scroll; barra mobile in basso a 390, colonna sotto-preview a 1280; tastiera sullo stepper) a 390/1280.
 
 ### In progress
-*(vuota)*
+
+**F21 · Configurator UI rework** — in corso su `flow/f21-configurator-ui-rework` (scope/AC completi nella card in Backlog ↑). WIP=1.
 
 ### In review
 *(vuota)*
