@@ -270,7 +270,7 @@ export function ConfiguratorClient({
   }
 
   return (
-    <div data-testid="configurator">
+    <div data-testid="configurator" className="max-md:pb-24">
       <Stepper
         ariaLabel={t("stepperLabel")}
         current={step - 1}
@@ -279,6 +279,7 @@ export function ConfiguratorClient({
           { label: t("steps.details") },
           { label: t("steps.ceramics") },
         ]}
+        onStepSelect={(i) => goToStep((i + 1) as 1 | 2 | 3)}
       />
 
       {/* F15 sentinel: marks the preview's natural top for collapse detection */}
@@ -317,6 +318,37 @@ export function ConfiguratorClient({
               onApply={applyCode}
             />
           )}
+
+          {/* F18: step navigation — under the sticky preview on desktop; a fixed
+              bottom bar on mobile, so Next/Back are reachable without scrolling
+              past the (long) option grid. */}
+          <div
+            data-testid="step-nav"
+            className={cn(
+              "flex gap-3",
+              "max-md:fixed max-md:inset-x-0 max-md:bottom-0 max-md:z-40 max-md:border-t max-md:border-border max-md:bg-background max-md:p-3 max-md:shadow-[0_-2px_12px_color-mix(in_oklab,var(--mk-dark)_10%,transparent)]"
+            )}
+          >
+            {step > 1 && (
+              <Button
+                variant="outline"
+                size="lg"
+                data-testid="back-step"
+                className="min-h-11"
+                onClick={() => goToStep((step - 1) as 1 | 2 | 3)}
+              >
+                {t("back")}
+              </Button>
+            )}
+            <Button
+              size="lg"
+              className="min-h-11 flex-1"
+              data-testid="next-step"
+              onClick={() => goToStep((step + 1) as 1 | 2 | 3)}
+            >
+              {step === 1 ? t("nextStepDetails") : t("nextStepCeramic")}
+            </Button>
+          </div>
         </div>
 
         {/* RIGHT: panel swaps with the step */}
@@ -340,16 +372,6 @@ export function ConfiguratorClient({
                   onSelect={() => selectDesign(d)}
                 />
               ))}
-            </div>
-            <div className="mt-auto">
-              <Button
-                className="w-full"
-                size="lg"
-                data-testid="next-step"
-                onClick={() => goToStep(2)}
-              >
-                {t("nextStepDetails")}
-              </Button>
             </div>
           </div>
         ) : (
@@ -446,25 +468,6 @@ export function ConfiguratorClient({
                 </fieldset>
               );
             })}
-
-            <div className="flex gap-3">
-              <Button
-                variant="outline"
-                size="lg"
-                data-testid="back-step"
-                onClick={() => goToStep(1)}
-              >
-                {t("back")}
-              </Button>
-              <Button
-                size="lg"
-                className="flex-1"
-                data-testid="next-step"
-                onClick={() => goToStep(3)}
-              >
-                {t("nextStepCeramic")}
-              </Button>
-            </div>
           </div>
         )}
       </div>

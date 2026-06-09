@@ -90,6 +90,15 @@ export function CeramicsStep({
     setJustAdded(true);
   }
 
+  // F18: clickable stepper — jump to any step keeping design + opt_* in the URL.
+  function goToStep(target: 1 | 2 | 3) {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("design", design.slug);
+    if (target === 1) params.delete("step");
+    else params.set("step", String(target));
+    router.push(`${pathname}?${params.toString()}`, { scroll: false });
+  }
+
   const count = itemCount(cart);
 
   return (
@@ -102,6 +111,7 @@ export function CeramicsStep({
           { label: tc("steps.details") },
           { label: tc("steps.ceramics") },
         ]}
+        onStepSelect={(i) => goToStep((i + 1) as 1 | 2 | 3)}
       />
 
       <div className="mx-auto max-w-xl">
