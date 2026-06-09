@@ -79,7 +79,7 @@ Checklist di review, in ordine:
 ## 5. Board
 
 > Stato iniziale: tutto in **Backlog**. Le card passano in Ready quando l'infra è Done
-> e gli AC vengono raffinati. Ordine di tiraggio consigliato: F01✅ → F02✅ → F03✅ → F14✅ → F13✅ → F04✅ → F05✅ → F15✅ → F16✅ → F06✅ → F07✅ → F09✅ → F10✅ → F08✅ → F12✅ → F19✅ → F18✅ → **F11a (theme editor)✅** → F11b (mail brandizzate) → INFRA (go-live hardening) → **F20 (doppio prezzo regione + spedizione-soglia + disclaimer — change-order accettato)**. **Tutti i 16 flussi feature DONE.**
+> e gli AC vengono raffinati. Ordine di tiraggio consigliato: F01✅ → F02✅ → F03✅ → F14✅ → F13✅ → F04✅ → F05✅ → F15✅ → F16✅ → F06✅ → F07✅ → F09✅ → F10✅ → F08✅ → F12✅ → F19✅ → F18✅ → **F11a (theme editor)✅** → F11b (mail brandizzate) → INFRA (go-live hardening) → **F20 (doppio prezzo regione + spedizione-soglia + disclaimer — change-order accettato)** → **F21 (configurator UI rework: nav in alto + step-3 carrello docked)**. **Tutti i 16 flussi feature DONE.**
 > **Ambito accettato 2026-06-09: 2.350 € base** (+ F20 ≈350 €/2 gg come change-order). Hosting: si resta su **Vercel + piani gratuiti** per ora — ADR 0014 (VPS) *rinviato*, macchina dedicata = fallback su intervento. **Fuori ambito / deferred: multicurrency completa (valute diverse+FX), spedizione a peso, macchina dedicata.**
 > UX-polish parcheggiate (schedulabili dopo F16 o dopo il back-office, a scelta): **F18** (nav: stepper cliccabile + Next sticky), **F19** (righe carrello ricche: mini-piatto composto + design code di sessione). F17 = ex sticky-preview, assorbita in F15.
 
@@ -104,6 +104,14 @@ Richiesta del cliente dopo l'accettazione: prezzi diversi per regione (in Norveg
 - **Disclaimer nel configuratore**: nessun pagamento, configurazione **non vincolante**, valida **solo dopo il contatto** del negozio (copy NO/EN).
 AC abbozzati: (1) selettore regione persistito ri-prezza catalogo + carrello; (2) price book per regione editabile dal back-office; (3) spedizione gratis-sopra-soglia mostrata nel carrello e nello snapshot; (4) disclaimer visibile nel flusso, bilingue; (5) nessuna regressione su carrello/ordine/PDF. Test: unit (regione → prezzo corretto; soglia spedizione) + Playwright (cambio regione ri-prezza; disclaimer presente NO/EN).
 **Out (deferred):** multicurrency completa (valute diverse + FX), spedizione a peso, macchina dedicata.
+
+---
+
+**F21 · Configurator UI rework — nav in alto + step-3 carrello docked** — FE · dep: F18 [DONE], F16 [DONE], F19 [DONE], F03 [DONE] · *revisiona F18+F16, iterazione da test reale 2026-06-09*
+Due fix UX emersi usando il configuratore (mockup approvato 2026-06-09):
+- **Navigazione**: Avanti/Indietro sotto la preview non si trovano (il task finisce a destra nelle opzioni, il bottone è a sinistra). → **cluster unico in alto** accanto allo stepper: ‹ Indietro · 1·2·3 · Avanti ›. Stepper resta cliccabile (aria-current, tastiera). **Desktop: rimuovere** i pulsanti sotto la preview (una sola posizione). **Mobile: resta la barra sticky in basso** (pollice). Allo step 3 "Avanti" è disabilitato (azione avanti = Invia nel carrello).
+- **Carrello allo step 3**: l'add nel drawer overlay non piace, si vuole **vedere il basket**. → step 3 = **due pannelli**: sx selezione ceramica + anteprima + Aggiungi; **dx carrello docked inline sempre aperto** (non più Sheet overlay) con righe (mini-piatto F19), delsum, frakt, total, Invio. Add → riga compare subito a lato. Il **form d'ordine** (F05: nome/email/telefono/Turnstile) vive nel pannello, "Invia" lo espande **inline**. Drawer overlay (F16) resta solo per step 1–2 dall'icona header. **Mobile**: carrello come sezione sotto la selezione + **barra riepilogo sticky** (N pezzi · totale · Invia) che espande.
+AC abbozzati: (1) cluster nav in alto reperibile, stepper cliccabile, a11y/tastiera; desktop senza nav sotto-preview; (2) mobile: barra nav sticky in basso invariata; (3) step 3 due pannelli, carrello docked sempre visibile, add→riga senza overlay; (4) checkout/form d'ordine inline nel pannello (F05 intatto: Turnstile, create_order, snapshot); (5) drawer overlay solo step 1–2; (6) mobile step 3: stack + barra riepilogo sticky; (7) nessuna regressione: F19 mini-piatto, ConfigCodeBar/codici, F16 persistenza/badge, F05 invio. Test: Playwright 390/1280 (nav naviga mantenendo config; due pannelli a 1280 / stack+barra a 390; add→riga nel pannello; invio inline completa l'ordine; drawer solo step 1–2) + regressioni F16/F18/F19/F05. **DESIGN-SYSTEM** da aggiornare (nav cluster + carrello docked step 3).
 
 ---
 
