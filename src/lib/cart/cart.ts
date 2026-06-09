@@ -17,6 +17,18 @@ export interface ConfigSnapshot {
   selections: { label: string; option: string; hex: string | null }[];
 }
 
+/**
+ * One composited preview layer (F19), JSON-friendly so it persists in
+ * localStorage. Same shape PreviewCanvas consumes: a (pre-coloured) image
+ * URL, `recolor` → blend with multiply. Resolved at add-time from the layers
+ * the big preview already used (ADR 0002/0010), so the cart row re-renders a
+ * mini composited plate with no server compositing.
+ */
+export interface CartLayer {
+  src: string;
+  recolor?: boolean;
+}
+
 export interface CartLine {
   /** Stable identity = productId + configCode (same config merges quantity). */
   id: string;
@@ -31,6 +43,18 @@ export interface CartLine {
   /** Reloadable configurator code (interim: the configurator query string; F04 formalizes). */
   configCode: string;
   configSnapshot: ConfigSnapshot | null;
+  /**
+   * F19 — the DESIGN pattern layers (no plate) for the mini composited preview
+   * in the cart row, multiply-stacked over a light tile (clean centre, like the
+   * step 1–2 preview). Optional: lines saved before F19 lack it and the row
+   * falls back to the colour chip. No migration.
+   */
+  layers?: CartLayer[];
+  /**
+   * F19 — the chosen ceramic photo (resolved URL), shown as a small separate
+   * thumbnail under the pattern. Optional/back-compatible like `layers`.
+   */
+  plateImage?: string;
 }
 
 export type Cart = CartLine[];

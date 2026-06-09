@@ -10,8 +10,7 @@ import { assetUrl } from "@/lib/storage";
 import { formatMoney, money } from "@/lib/money/money";
 import type { Currency } from "@/lib/money/money";
 import { useCartContext } from "@/lib/cart/cart-context";
-import { itemCount, type ConfigSnapshot } from "@/lib/cart/cart";
-import { ConfigCodeBar } from "./config-code-bar";
+import { itemCount, type CartLayer, type ConfigSnapshot } from "@/lib/cart/cart";
 
 export interface CeramicProduct {
   id: string;
@@ -41,11 +40,14 @@ export function CeramicsStep({
   design,
   snapshot,
   configCode,
+  designLayers,
 }: {
   products: CeramicProduct[];
   design: DesignRef;
   snapshot: ConfigSnapshot;
   configCode: string;
+  /** F19: composited design layers (no plate); plate prepended at add-time. */
+  designLayers: CartLayer[];
 }) {
   const t = useTranslations("cart");
   const tc = useTranslations("configurator");
@@ -79,6 +81,10 @@ export function CeramicsStep({
       quantity: qty,
       configCode,
       configSnapshot: snapshot,
+      // F19: pattern-only mini (clean centre) + the chosen ceramic as a separate
+      // small image below it.
+      layers: designLayers,
+      plateImage: selected.image ? assetUrl(selected.image) : undefined,
     });
     setQty(1);
     setJustAdded(true);
@@ -203,15 +209,9 @@ export function CeramicsStep({
           </div>
         )}
 
+        {/* F19: the config code moved to the cart drawer rows (each line carries
+            its own code + reopen); step 3 keeps only the back action. */}
         <div className="mt-4 flex flex-col gap-4">
-          <ConfigCodeBar
-            code={configCode}
-            shareUrl={
-              typeof window !== "undefined"
-                ? `${window.location.origin}${window.location.pathname}?${searchParams.toString()}`
-                : ""
-            }
-          />
           <Button
             variant="outline"
             className="self-start"

@@ -7,6 +7,7 @@ import { getDesignDetail, type DesignDetail } from "@/lib/catalog/design-options
 import { getSupplierProducts } from "@/lib/catalog/products";
 import { assetUrl } from "@/lib/storage";
 import { encodeConfigCode, toCodecDesign } from "@/lib/configurator/config-code";
+import { getPreviewLayers } from "@/lib/configurator/preview";
 import { ConfiguratorClient } from "./configurator-client";
 import { CeramicsStep } from "./ceramics-step";
 import type { ConfigSnapshot } from "@/lib/cart/cart";
@@ -81,6 +82,21 @@ export default async function ConfiguratorPage({
         ? encodeConfigCode(codec, selById)
         : `MK-${selected.slug}`;
 
+      // F19: composited design layers (no plate) for the cart-row mini preview,
+      // resolved at the SAME width the big preview uses so the browser image
+      // cache hits → instant thumbnail. The plate is prepended at add-time.
+      const designLayers = getPreviewLayers(
+        null,
+        detail.categories.map((c) => {
+          const opt =
+            c.options.find((o) => o.id === selById[c.slug]) ?? c.options[0];
+          return { layerSlot: c.layerSlot, layerImage: opt?.layerImage ?? null };
+        })
+      ).map((l) => ({
+        src: assetUrl(l.src, { width: PREVIEW_WIDTH }),
+        recolor: l.blend === "multiply",
+      }));
+
       return (
         <section>
           <h1 className="sr-only">{t("pageTitle")}</h1>
@@ -103,6 +119,7 @@ export default async function ConfiguratorPage({
               }}
               snapshot={snapshot}
               configCode={configCode}
+              designLayers={designLayers}
             />
           </Suspense>
         </section>

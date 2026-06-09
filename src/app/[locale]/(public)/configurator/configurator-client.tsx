@@ -166,6 +166,29 @@ export function ConfiguratorClient({
     }
   }
 
+  // F19: a ?code= deep-link (cart-row "reopen" or a shared link) is decoded once
+  // on arrival into the canonical opt_* params, then dropped from the URL.
+  useEffect(() => {
+    const incoming = searchParams.get("code");
+    if (!incoming) return;
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("code");
+    try {
+      const { designSlug, selections: sel } = decodeConfigCode(
+        incoming,
+        (c) => codecDesigns.find((d) => d.code === c.toUpperCase()) ?? null
+      );
+      params.set("design", designSlug);
+      for (const key of [...params.keys()])
+        if (key.startsWith("opt_")) params.delete(key);
+      for (const [catSlug, optId] of Object.entries(sel))
+        params.set(`opt_${catSlug}`, optId);
+    } catch {
+      /* invalid code → just drop the param, never crash */
+    }
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  }, [searchParams, codecDesigns, pathname, router]);
+
   function selectDesign(d: DesignChoice) {
     if (d.slug === selected.slug) return;
     const params = new URLSearchParams(searchParams.toString());
@@ -265,25 +288,35 @@ export function ConfiguratorClient({
         {/* LEFT: the persistent preview — never remounts across steps (AC2).
             F15: sticky so it stays visible while the option list scrolls; on
             mobile it pins to the top and collapses to a compact thumbnail. */}
-        <div
-          data-testid="preview-sticky"
-          data-collapsed={previewCollapsed}
-          className={cn(
-            "z-30 md:sticky md:top-4 md:self-start",
-            // definite width (not max-width): the preview's layers are absolutely
-            // positioned, so a shrink-to-fit width would collapse to 0 height.
-            "max-md:sticky max-md:top-0 max-md:mx-auto",
-            "max-md:transition-[width] max-md:duration-200 motion-reduce:transition-none",
-            previewCollapsed ? "max-md:w-[140px]" : "max-md:w-full",
-            previewCollapsed &&
-              "max-md:rounded-b-lg max-md:bg-background/90 max-md:py-1 max-md:shadow-(--shadow-card) max-md:backdrop-blur-sm",
+        <div className="z-30 flex min-w-0 flex-col gap-3 md:sticky md:top-4 md:self-start">
+          <div
+            data-testid="preview-sticky"
+            data-collapsed={previewCollapsed}
+            className={cn(
+              // definite width (not max-width): the preview's layers are absolutely
+              // positioned, so a shrink-to-fit width would collapse to 0 height.
+              "max-md:sticky max-md:top-0 max-md:mx-auto",
+              "max-md:transition-[width] max-md:duration-200 motion-reduce:transition-none",
+              previewCollapsed ? "max-md:w-[140px]" : "max-md:w-full",
+              previewCollapsed &&
+                "max-md:rounded-b-lg max-md:bg-background/90 max-md:py-1 max-md:shadow-(--shadow-card) max-md:backdrop-blur-sm",
+            )}
+          >
+            <PreviewCanvas
+              alt={selected.name}
+              caption={previewCollapsed ? undefined : t("previewNote")}
+              layers={previewLayers}
+            />
+          </div>
+          {/* F19: save/share this design — by the preview, present in every step
+              (replaces the per-step ConfigCodeBar box in step 2/3). */}
+          {currentCode && (
+            <ConfigCodeBar
+              code={currentCode}
+              shareUrl={shareUrl}
+              onApply={applyCode}
+            />
           )}
-        >
-          <PreviewCanvas
-            alt={selected.name}
-            caption={previewCollapsed ? undefined : t("previewNote")}
-            layers={previewLayers}
-          />
         </div>
 
         {/* RIGHT: panel swaps with the step */}
@@ -413,14 +446,6 @@ export function ConfiguratorClient({
                 </fieldset>
               );
             })}
-
-            {currentCode && (
-              <ConfigCodeBar
-                code={currentCode}
-                shareUrl={shareUrl}
-                onApply={applyCode}
-              />
-            )}
 
             <div className="flex gap-3">
               <Button

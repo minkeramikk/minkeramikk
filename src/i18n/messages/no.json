@@ -137,7 +137,10 @@
     "button": "{count, plural, =0 {Handlekurv, tom} one {Handlekurv, # vare} other {Handlekurv, # varer}}",
     "description": "Se over varene og send bestillingen.",
     "viewBasket": "Vis handlekurv",
-    "backToCart": "Tilbake til handlekurven"
+    "backToCart": "Tilbake til handlekurven",
+    "copyCode": "Kopier kode",
+    "copied": "Kopiert",
+    "reopen": "Åpne igjen"
   },
   "order": {
     "title": "Send bestilling",
