@@ -271,16 +271,69 @@ export function ConfiguratorClient({
 
   return (
     <div data-testid="configurator" className="max-md:pb-24">
-      <Stepper
-        ariaLabel={t("stepperLabel")}
-        current={step - 1}
-        steps={[
-          { label: t("steps.design") },
-          { label: t("steps.details") },
-          { label: t("steps.ceramics") },
-        ]}
-        onStepSelect={(i) => goToStep((i + 1) as 1 | 2 | 3)}
-      />
+      {/* F21: nav cluster — stepper always visible; Back/Next flanking on desktop only */}
+      <div className="mb-4 flex items-center gap-2" data-testid="step-nav">
+        <Button
+          variant="outline"
+          size="lg"
+          data-testid="back-step"
+          className="max-md:hidden min-h-11 shrink-0"
+          disabled={step === 1}
+          onClick={() => step > 1 && goToStep((step - 1) as 1 | 2)}
+          aria-label={t("back")}
+        >
+          ‹ {t("back")}
+        </Button>
+        <Stepper
+          ariaLabel={t("stepperLabel")}
+          current={step - 1}
+          steps={[
+            { label: t("steps.design") },
+            { label: t("steps.details") },
+            { label: t("steps.ceramics") },
+          ]}
+          onStepSelect={(i) => goToStep((i + 1) as 1 | 2 | 3)}
+          className="mb-0 mt-0 flex-1"
+        />
+        <Button
+          size="lg"
+          data-testid="next-step"
+          className="max-md:hidden min-h-11 shrink-0"
+          onClick={() => goToStep((step + 1) as 1 | 2 | 3)}
+          aria-label={step === 1 ? t("nextStepDetails") : t("nextStepCeramic")}
+        >
+          {step === 1 ? t("nextStepDetails") : t("nextStepCeramic")} ›
+        </Button>
+      </div>
+
+      {/* F21: mobile-only sticky bottom nav bar (unchanged from F18) */}
+      <div
+        data-testid="step-nav-mobile"
+        className={cn(
+          "md:hidden fixed inset-x-0 bottom-0 z-40 flex gap-3 border-t border-border bg-background p-3",
+          "shadow-[0_-2px_12px_color-mix(in_oklab,var(--mk-dark)_10%,transparent)]"
+        )}
+      >
+        {step > 1 && (
+          <Button
+            variant="outline"
+            size="lg"
+            data-testid="back-step-mobile"
+            className="min-h-11"
+            onClick={() => goToStep((step - 1) as 1 | 2)}
+          >
+            {t("back")}
+          </Button>
+        )}
+        <Button
+          size="lg"
+          data-testid="next-step-mobile"
+          className="min-h-11 flex-1"
+          onClick={() => goToStep((step + 1) as 1 | 2 | 3)}
+        >
+          {step === 1 ? t("nextStepDetails") : t("nextStepCeramic")}
+        </Button>
+      </div>
 
       {/* F15 sentinel: marks the preview's natural top for collapse detection */}
       <div ref={previewSentinel} aria-hidden className="h-0" />
@@ -318,37 +371,6 @@ export function ConfiguratorClient({
               onApply={applyCode}
             />
           )}
-
-          {/* F18: step navigation — under the sticky preview on desktop; a fixed
-              bottom bar on mobile, so Next/Back are reachable without scrolling
-              past the (long) option grid. */}
-          <div
-            data-testid="step-nav"
-            className={cn(
-              "flex gap-3",
-              "max-md:fixed max-md:inset-x-0 max-md:bottom-0 max-md:z-40 max-md:border-t max-md:border-border max-md:bg-background max-md:p-3 max-md:shadow-[0_-2px_12px_color-mix(in_oklab,var(--mk-dark)_10%,transparent)]"
-            )}
-          >
-            {step > 1 && (
-              <Button
-                variant="outline"
-                size="lg"
-                data-testid="back-step"
-                className="min-h-11"
-                onClick={() => goToStep((step - 1) as 1 | 2 | 3)}
-              >
-                {t("back")}
-              </Button>
-            )}
-            <Button
-              size="lg"
-              className="min-h-11 flex-1"
-              data-testid="next-step"
-              onClick={() => goToStep((step + 1) as 1 | 2 | 3)}
-            >
-              {step === 1 ? t("nextStepDetails") : t("nextStepCeramic")}
-            </Button>
-          </div>
         </div>
 
         {/* RIGHT: panel swaps with the step */}

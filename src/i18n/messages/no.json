@@ -140,7 +140,10 @@
     "backToCart": "Tilbake til handlekurven",
     "copyCode": "Kopier kode",
     "copied": "Kopiert",
-    "reopen": "Åpne igjen"
+    "reopen": "Åpne igjen",
+    "shipping": "Frakt",
+    "shippingIncluded": "Inkludert",
+    "itemCount": "{count, plural, =0 {Tom} one {# vare} other {# varer}}"
   },
   "order": {
     "title": "Send bestilling",

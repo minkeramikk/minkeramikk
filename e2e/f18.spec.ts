@@ -36,36 +36,53 @@ test("stepper jumps keep the design + option config; active has aria-current", a
   await expect(page).toHaveURL(new RegExp(opt.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
 });
 
-test("Next and Back are reachable without scrolling", async ({ page }) => {
+test("Next and Back are reachable without scrolling", async ({ page }, testInfo) => {
   await page.goto(STEP2);
   await page.getByTestId("details-step").waitFor();
-  await expect(page.getByTestId("step-nav")).toBeVisible();
-  await expect(page.getByTestId("next-step")).toBeInViewport();
-  await expect(page.getByTestId("back-step")).toBeInViewport();
+  if (testInfo.project.name === "mobile") {
+    // F21: mobile bottom bar holds the buttons
+    await expect(page.getByTestId("step-nav-mobile")).toBeVisible();
+    await expect(page.getByTestId("next-step-mobile")).toBeInViewport();
+    await expect(page.getByTestId("back-step-mobile")).toBeInViewport();
+  } else {
+    // F21: desktop nav cluster at top
+    await expect(page.getByTestId("step-nav")).toBeVisible();
+    await expect(page.getByTestId("next-step")).toBeInViewport();
+    await expect(page.getByTestId("back-step")).toBeInViewport();
+  }
 });
 
-test("layout: fixed bottom bar on mobile, under the preview on desktop", async ({
+test("layout: fixed bottom bar on mobile (F21: cluster at top on desktop)", async ({
   page,
 }, testInfo) => {
   await page.goto(STEP2);
   await page.getByTestId("details-step").waitFor();
-  const nav = (await page.getByTestId("step-nav").boundingBox())!;
   const vp = page.viewportSize()!;
   if (testInfo.project.name === "mobile") {
-    expect(nav.y + nav.height).toBeGreaterThanOrEqual(vp.height - 4); // pinned bottom
-    expect(nav.width).toBeGreaterThanOrEqual(vp.width - 2); // full width
+    const navMobile = (await page.getByTestId("step-nav-mobile").boundingBox())!;
+    expect(navMobile.y + navMobile.height).toBeGreaterThanOrEqual(vp.height - 4); // pinned bottom
+    expect(navMobile.width).toBeGreaterThanOrEqual(vp.width - 2); // full width
   } else {
+    // F21: nav cluster is at the TOP — above the grid, before the preview
+    const nav = (await page.getByTestId("step-nav").boundingBox())!;
     const preview = (await page.getByTestId("preview-canvas").boundingBox())!;
-    expect(nav.y).toBeGreaterThan(preview.y); // under the sticky preview column
+    expect(nav.y).toBeLessThan(preview.y); // cluster above the preview grid
   }
 });
 
-test("Next/Back have ≥44px touch targets", async ({ page }) => {
+test("Next/Back have ≥44px touch targets", async ({ page }, testInfo) => {
   await page.goto(STEP2);
   await page.getByTestId("details-step").waitFor();
-  for (const id of ["next-step", "back-step", "step-1"]) {
-    const box = (await page.getByTestId(id).boundingBox())!;
-    expect(box.height).toBeGreaterThanOrEqual(44);
+  if (testInfo.project.name === "mobile") {
+    for (const id of ["next-step-mobile", "back-step-mobile", "step-2"]) {
+      const box = (await page.getByTestId(id).boundingBox())!;
+      expect(box.height).toBeGreaterThanOrEqual(44);
+    }
+  } else {
+    for (const id of ["next-step", "back-step", "step-1"]) {
+      const box = (await page.getByTestId(id).boundingBox())!;
+      expect(box.height).toBeGreaterThanOrEqual(44);
+    }
   }
 });
 

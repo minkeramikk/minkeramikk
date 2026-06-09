@@ -17,14 +17,16 @@ export function Stepper({
   current,
   ariaLabel,
   onStepSelect,
+  className,
 }: {
   steps: Step[];
   current: number; // zero-based
   ariaLabel: string;
   onStepSelect?: (index: number) => void;
+  className?: string;
 }) {
   return (
-    <nav aria-label={ariaLabel} className="mb-7 mt-1 flex">
+    <nav aria-label={ariaLabel} className={cn("mb-7 mt-1 flex", className)}>
       {steps.map((step, i) => {
         const active = i === current;
         const last = i === steps.length - 1;

@@ -141,7 +141,10 @@
     "backToCart": "Back to basket",
     "copyCode": "Copy code",
     "copied": "Copied",
-    "reopen": "Reopen"
+    "reopen": "Reopen",
+    "shipping": "Shipping",
+    "shippingIncluded": "Included",
+    "itemCount": "{count, plural, =0 {Empty} one {# item} other {# items}}"
   },
   "order": {
     "title": "Send order",
