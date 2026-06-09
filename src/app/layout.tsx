@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Poppins } from "next/font/google";
 import { getLocale } from "next-intl/server";
-import { getThemeTokens } from "@/lib/theme";
+import { getThemeTokens } from "@/lib/theme.server";
 import "./globals.css";
 
 const poppins = Poppins({
