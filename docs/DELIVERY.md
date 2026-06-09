@@ -97,6 +97,14 @@ Checklist di review, in ordine:
 
 ---
 
+**F07b · Back-office fixes — righe cliccabili + cambio stato + conferma** — ✅ **DONE** (vedi sezione Done) — FE · dep: F07 [DONE] · *bug + UX da test reale 2026-06-09* · **dev leggero** (meccanico)
+- **Righe cliccabili** (lista ordini `/admin`): l'intera riga è un **link vero** (`<a>` → `/admin/orders/[id]`), non `onClick` JS → cmd/ctrl-click apre in tab, navigabile da tastiera, hover. "Open" resta come ancora visibile.
+- **Fix bug cambio stato** (dettaglio ordine): il `<select>` stato è **uncontrolled** (`defaultValue={order.status}`) → dopo il save si **desincronizza** da `order.status` (visualizzato ≠ salvato ≠ inviato): si invia un valore stale → sembra "tornato a Confirmed / non cambia / non si può tornare indietro" (ma `updated_at` si bumpa). **Backend OK**: `updateOrderStatus` accetta ogni transizione, nessun guard solo-avanti. Fix: select **controllato** (valore = `order.status`; in alternativa `key={order.status}` per rimontarlo) così *visualizzato = salvato = inviato*; **controllare l'errore** della `update` (oggi ignorato) e mostrarlo.
+- **Conferma prima del cambio**: dialog/step "Confermi: da *X* a *Y*?" prima di salvare lo stato (anti fat-finger).
+AC abbozzati: (1) click su qualunque punto della riga apre l'ordine, cmd-click in nuova tab, focus/tastiera ok; (2) il select stato riflette **sempre** lo stato salvato dopo un save, **anche all'indietro**, e il submit invia il valore mostrato; (3) errore di save **visibile**, non silenzioso; (4) conferma richiesta prima di applicare. Test: Playwright (riga→dettaglio; cambia stato avanti **e indietro** → persiste e il select combacia; annulla conferma → nessun cambio) + unit se utile. Nessuna regressione su F07 (filtri/KPI/note). Lista improvements back-office: questi + il ripensamento stati (parcheggiato).
+
+---
+
 **F20 · Doppio prezzo per regione (NO/EU) + spedizione-soglia + disclaimer** — FE+BE · dep: F09 [DONE], F03 [DONE], F16 [DONE] · change-order accettato 2026-06-09 (≈2 gg, ~350 €) · rif. **ADR 0015 (scope ristretto)**
 Richiesta del cliente dopo l'accettazione: prezzi diversi per regione (in Norvegia si vende a più che in Europa) + spedizione semplice + disclaimer legale nel configuratore. **Solo il "doppio prezzo", niente multicurrency** (decisione 2026-06-09).
 - **Doppio prezzo**: selettore regione (Norvegia/Europa) che cambia il **prezzo mostrato**; price book per regione (prezzo per prodotto × regione, gestito dal back-office, riusa il CRUD F09/F10). **Multicurrency RINVIATA**: per ora due livelli di prezzo, **nessun motore valute/FX/formattazione per valuta**. ⚠️ Da confermare col cliente: i prezzi EU restano in kr o vanno mostrati in €? (se €, è multicurrency minima → rivalutare scope).
@@ -107,7 +115,7 @@ AC abbozzati: (1) selettore regione persistito ri-prezza catalogo + carrello; (2
 
 ---
 
-**F21 · Configurator UI rework — nav in alto + step-3 carrello docked** — FE · dep: F18 [DONE], F16 [DONE], F19 [DONE], F03 [DONE] · *revisiona F18+F16, iterazione da test reale 2026-06-09*
+**F21 · Configurator UI rework — nav in alto + step-3 carrello docked** — ✅ **DONE** (vedi sezione Done) — FE · dep: F18 [DONE], F16 [DONE], F19 [DONE], F03 [DONE]
 Due fix UX emersi usando il configuratore (mockup approvato 2026-06-09):
 - **Navigazione**: Avanti/Indietro sotto la preview non si trovano (il task finisce a destra nelle opzioni, il bottone è a sinistra). → **cluster unico in alto** accanto allo stepper: ‹ Indietro · 1·2·3 · Avanti ›. Stepper resta cliccabile (aria-current, tastiera). **Desktop: rimuovere** i pulsanti sotto la preview (una sola posizione). **Mobile: resta la barra sticky in basso** (pollice). Allo step 3 "Avanti" è disabilitato (azione avanti = Invia nel carrello).
 - **Carrello allo step 3**: l'add nel drawer overlay non piace, si vuole **vedere il basket**. → step 3 = **due pannelli**: sx selezione ceramica + anteprima + Aggiungi; **dx carrello docked inline sempre aperto** (non più Sheet overlay) con righe (mini-piatto F19), delsum, frakt, total, Invio. Add → riga compare subito a lato. Il **form d'ordine** (F05: nome/email/telefono/Turnstile) vive nel pannello, "Invia" lo espande **inline**. Drawer overlay (F16) resta solo per step 1–2 dall'icona header. **Mobile**: carrello come sezione sotto la selezione + **barra riepilogo sticky** (N pezzi · totale · Invia) che espande.
@@ -173,13 +181,16 @@ AC (definitivi, 2026-06-08):
 Test: Playwright (salto via stepper mantiene la config; Next/Back raggiungibili senza scroll; barra mobile in basso a 390, colonna sotto-preview a 1280; tastiera sullo stepper) a 390/1280.
 
 ### In progress
-
-**F21 · Configurator UI rework** — in corso su `flow/f21-configurator-ui-rework` (scope/AC completi nella card in Backlog ↑). WIP=1.
+*(vuota)*
 
 ### In review
 *(vuota)*
 
 ### Done
+
+**F07b · Back-office fixes — righe cliccabili + cambio stato + conferma** — merged (squash) il 2026-06-09 (`flow/f07b-backoffice-fixes`). (1) **Righe cliccabili** (`admin/page.tsx`): stretched-link (`<tr relative>` + `<Link>` "Open" con `after:inset-0`) → click ovunque apre, cmd/middle-click nuova tab, tastiera ok, nessun `<a>` annidato. (2) **Select stato controllato** (nuovo `order-status-form.tsx`): `value={selected}` + `useEffect` resync su `currentStatus` → riflette sempre lo stato salvato, **anche backward** (Delivered→New). (3) **Errore visibile + conferma**: `updateOrderStatus` ora `(prevState, formData)→{error}` via `useActionState` (banner `role="alert"`); dialog inline "Change from X to Y? Confirm/Cancel" — pattern `onSubmit` `e.preventDefault()` al primo click, passa al secondo (Confirm). 8 e2e (row-click, middle-click, backward, cancel, error wired) + `f07.spec` aggiornato. **Review: approved** (firma action corretta, e2e falsificabili; note non bloccanti: no-op se selected==current, role/focus sul dialog). Stringhe admin English-only (convenzione, non i18n).
+
+**F21 · Configurator UI rework — nav cluster + step-3 carrello docked** — merged (squash) il 2026-06-09 (`37782a8`). Cluster nav in cima (‹ Indietro · stepper · Avanti ›), rimossi i pulsanti sotto la preview su desktop; mobile barra sticky in basso invariata; step 3 "Avanti" disabilitato. Step 3 a **due pannelli**: selezione+anteprima sx, **DockedCart inline sempre aperto** dx (compone `CartLineThumb` F19 + `OrderForm` F05 + `useCartContext` F16, **niente modifiche a `cart.ts`**), add→riga senza overlay, **checkout inline** ("Send" espande `OrderForm`, F05 intatto). Drawer overlay solo step 1–2; mobile: stack + barra riepilogo sticky. 14+ e2e (AC1–7, incl. F05 submit+clear, drawer-scope, regressioni F16/F18/F19), aggiornato `f18.spec`. **Review: approved** (nessuna duplicazione di dominio, e2e falsificabili). *Incidente: il squash di F11a aveva droppato il codice su un conflitto `DELIVERY` (commit board sul branch feature) → recuperato da `7e1a537`. **Lezione: board/doc solo su main, mai sui branch feature.***
 
 **F11a · Theme editor (colori del sito)** — merged (squash) il 2026-06-09 (branch `flow/f11a-theme-editor`, a4f6a8e + fix 7e1a537). `/admin/theme`: 3 color picker (light/dark/accent) + **anteprima live** (override `--mk-*` su container → token derivati ricalcolati via `color-mix`) + reset ai default. **Gate WCAG AA bloccante** su 3 coppie — text (dark/light), accent (primary-foreground su accent), muted (muted-foreground su **background**): sotto 4.5 → Save disabilitato con spiegazione+hint. `theme-contrast.ts` replica le derivazioni di `globals.css` (92%/38% **allineate** → controlla i colori reali); boundary test falsificabili su tutte e 3. `getThemeTokens` da **stub → legge `settings`** (il pubblico si ri-tematizza al refresh); salvataggio = server action **authenticated** (RLS, zod, service-role mai nel client, **re-check AA server-side**, revalidate layout). 149 unit + e2e f11a; build+e2e verdi in locale (Node 24). **Review: approved** — ratificata la coppia (c) su background (muted-su-muted = 4.06 sul default → consapevolmente **non gated**; hint dell'editor portato a `text-foreground`), documentata in **ADR 0008** (note F11a). 11b (mail brandizzate) resta card separata in Backlog.
 
