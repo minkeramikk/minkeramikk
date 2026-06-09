@@ -10,12 +10,13 @@ import {
   type AdminOrderItem,
 } from "@/lib/orders/admin-orders";
 import {
-  ORDER_STATUSES,
   STATUS_LABEL,
   STATUS_PIPELINE,
 } from "@/lib/orders/order-status";
+import type { OrderStatus } from "@/lib/orders/order-status";
 import { formatMoney } from "@/lib/money/money";
-import { updateOrderNotes, updateOrderStatus } from "../actions";
+import { OrderStatusForm } from "@/components/admin/order-status-form";
+import { updateOrderNotes } from "../actions";
 
 export const dynamic = "force-dynamic";
 
@@ -229,32 +230,11 @@ export default async function OrderDetailPage({
 
             <section className="rounded-lg border border-border bg-card p-5">
               <h2 className="mb-3 text-base font-semibold">Actions</h2>
-              <form action={updateOrderStatus} data-testid="order-status-form" className="flex flex-col gap-2.5">
-                <input type="hidden" name="id" value={order.id} />
-                <label className="text-sm" htmlFor="status-select">
-                  Change status
-                </label>
-                <select
-                  id="status-select"
-                  name="status"
-                  data-testid="status-select"
-                  defaultValue={order.status}
-                  className="h-9 rounded-sm border border-input bg-card px-2 text-sm"
-                >
-                  {ORDER_STATUSES.map((s) => (
-                    <option key={s} value={s}>
-                      {STATUS_LABEL[s]}
-                    </option>
-                  ))}
-                </select>
-                <button
-                  type="submit"
-                  data-testid="status-save"
-                  className="rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground"
-                >
-                  Save status
-                </button>
-              </form>
+              {/* F07b: controlled select + inline confirmation + error display */}
+              <OrderStatusForm
+                orderId={order.id}
+                currentStatus={order.status as OrderStatus}
+              />
               <a
                 href={`mailto:${order.email}?subject=${encodeURIComponent(`Order ${order.code}`)}`}
                 data-testid="email-customer"

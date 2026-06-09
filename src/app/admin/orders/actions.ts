@@ -10,26 +10,41 @@ import { ORDER_STATUSES } from "@/lib/orders/order-status";
  * through RLS (orders "authenticated update", 0002), so anon can't reach these
  * effects. `updated_at` is bumped by the `orders_set_updated_at` trigger.
  */
+
+/** Shared result shape used with React's useActionState. */
+export type ActionResult = { error?: string };
+
 const statusSchema = z.object({
   id: z.string().uuid(),
   status: z.enum(ORDER_STATUSES),
 });
 
-export async function updateOrderStatus(formData: FormData): Promise<void> {
+/**
+ * F07b: signature updated for useActionState (prevState, formData).
+ * The Supabase error is now captured and propagated — no more silent failures.
+ * Backend accepts every transition; no guard "forward-only" added here.
+ */
+export async function updateOrderStatus(
+  _prev: ActionResult,
+  formData: FormData
+): Promise<ActionResult> {
   const parsed = statusSchema.safeParse({
     id: formData.get("id"),
     status: formData.get("status"),
   });
-  if (!parsed.success) return;
+  if (!parsed.success) return { error: "Invalid status value." };
 
   const supabase = await createClient();
-  await supabase
+  const { error } = await supabase
     .from("orders")
     .update({ status: parsed.data.status })
     .eq("id", parsed.data.id);
 
+  if (error) return { error: "Failed to update status. Please try again." };
+
   revalidatePath(`/admin/orders/${parsed.data.id}`);
   revalidatePath("/admin");
+  return {};
 }
 
 const notesSchema = z.object({

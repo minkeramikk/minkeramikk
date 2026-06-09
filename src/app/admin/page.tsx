@@ -171,11 +171,17 @@ export default async function AdminOrdersPage({
                 </thead>
                 <tbody>
                   {rows.map((o) => (
+                    /* F07b: entire row is clickable via a stretched-link
+                       pseudo-element. The "Open" Link carries after:absolute
+                       after:inset-0 after:content-[''] so its ::after covers the
+                       whole <tr position:relative>. No nested <a> — the only
+                       link in the row is "Open". Cmd/ctrl-click opens in new tab
+                       (native <a> behaviour). */
                     <tr
                       key={o.id}
                       data-testid="order-row"
                       data-code={o.code}
-                      className="border-b border-border/50 last:border-0 hover:bg-muted/50"
+                      className="relative cursor-pointer border-b border-border/50 last:border-0 hover:bg-muted/50"
                     >
                       <td className="px-4 py-3">
                         <span className="font-mono text-xs font-medium">{o.code}</span>
@@ -203,7 +209,7 @@ export default async function AdminOrdersPage({
                         <Link
                           href={`/admin/orders/${o.id}`}
                           data-testid="order-open"
-                          className="text-sm font-medium text-primary underline-offset-2 hover:underline"
+                          className="text-sm font-medium text-primary underline-offset-2 hover:underline after:absolute after:inset-0 after:content-[''] focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-ring"
                         >
                           Open
                         </Link>

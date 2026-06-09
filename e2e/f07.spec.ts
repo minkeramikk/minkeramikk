@@ -114,14 +114,20 @@ test("AC2: search by order code finds the order", async ({ page }, testInfo) => 
   await expect(seededRow(page, testInfo)).toBeVisible();
 });
 
-test("AC3: status change persists and re-reads", async ({ page }) => {
+test("AC3: status change persists and re-reads (F07b: confirmation required)", async ({
+  page,
+}) => {
   test.skip(!ready, "needs admin creds + service role");
   await login(page);
   await page.goto(`/admin/orders/${orderId}`);
   await expect(page.getByTestId("order-detail")).toBeVisible();
 
   await page.getByTestId("status-select").selectOption("confirmed");
+  // F07b: first click shows the confirmation dialog
   await page.getByTestId("status-save").click();
+  await expect(page.getByTestId("status-confirm-dialog")).toBeVisible();
+  // confirm the change
+  await page.getByTestId("status-confirm").click();
 
   // Wait for the server action to settle (RSC refresh) BEFORE reloading, so we
   // don't race the revalidate. `order-detail[data-status]` is the page's source
