@@ -105,6 +105,15 @@ AC abbozzati: (1) click su qualunque punto della riga apre l'ordine, cmd-click i
 
 ---
 
+**PERF · Cache catalogo + tema (P-1/P-2/P-5)** — **cleanup-fix #2** (stesso branch) · BE · dal report AUDIT-2026-06-10 · **dev forte** (l'invalidazione cross-action è il punto delicato)
+Miglior rapporto effort/beneficio dell'audit: un solo pattern `unstable_cache` + tag + `revalidateTag` abbatte ~14 query/req sul configuratore, ~15 sull'apertura ordine admin, 1 query/pageview sul tema.
+- **Tag `catalog`** — avvolgere `getActiveDesigns` (`lib/catalog/designs.ts`) e `getDesignDetail` (`lib/catalog/design-options.ts`) in `unstable_cache(tags:['catalog'])`; **togliere `force-dynamic`** da `configurator/page.tsx:17` (ISR/`revalidate`). **`revalidateTag('catalog')` in OGNI server action admin che muta** designs/option_categories/options/products → F09 (prodotti/fornitori), F10 (asset/opzioni/categorie), F22 (template/duplicate/delete). A cache hit: ~0 query.
+- **P-2** — `getCodecDesigns` (`admin-orders.server.ts:41-46`, N+1 = 2+2·N) usa la **stessa cache `catalog`** (gratis dopo P-1) oppure 1 select annidata batch.
+- **Tag `theme`** — `getThemeTokens` (`theme.server.ts`, letto in `layout.tsx:28`) in `unstable_cache(tags:['theme'])` + `revalidateTag('theme')` in `theme/actions.ts` (F11a `updateTheme`); usare **`createPublicClient`** (riga anon-readable) al posto del cookie-client → niente refresh JWT per pageview.
+AC: (1) configuratore non più `force-dynamic`, a cache hit ~0 query catalogo; (2) **edit admin di design/opzione/prodotto → `revalidateTag('catalog')` → il configuratore riflette subito** (no stale); (3) apertura dettaglio ordine admin senza N+1; (4) tema cacheato, cambio tema dal theme editor → `revalidateTag('theme')` → sito aggiornato (no stale), public client; (5) nessuna regressione (ordini/PDF/snapshot invariati). **Punto critico:** censire **tutte** le action di mutazione catalogo e invalidare — dimenticarne una = stale nel configuratore. Test: e2e "edita opzione in admin → appare nel configuratore" + "cambia tema → sito aggiornato"; conteggio query prima/dopo in dev.
+
+---
+
 **F20 · Doppio prezzo per regione (NO/EU) + spedizione-soglia + disclaimer** — FE+BE · dep: F09 [DONE], F03 [DONE], F16 [DONE] · change-order accettato 2026-06-09 (≈2 gg, ~350 €) · rif. **ADR 0015 (scope ristretto)**
 Richiesta del cliente dopo l'accettazione: prezzi diversi per regione (in Norvegia si vende a più che in Europa) + spedizione semplice + disclaimer legale nel configuratore. **Solo il "doppio prezzo", niente multicurrency** (decisione 2026-06-09).
 - **Doppio prezzo**: selettore regione (Norvegia/Europa) che cambia il **prezzo mostrato**; price book per regione (prezzo per prodotto × regione, gestito dal back-office, riusa il CRUD F09/F10). **Multicurrency RINVIATA**: per ora due livelli di prezzo, **nessun motore valute/FX/formattazione per valuta**. ⚠️ Da confermare col cliente: i prezzi EU restano in kr o vanno mostrati in €? (se €, è multicurrency minima → rivalutare scope).
@@ -181,15 +190,14 @@ AC (definitivi, 2026-06-08):
 Test: Playwright (salto via stepper mantiene la config; Next/Back raggiungibili senza scroll; barra mobile in basso a 390, colonna sotto-preview a 1280; tastiera sullo stepper) a 390/1280.
 
 ### In progress
-
-**CLEANUP-fix — batch su `cleanup-fix`** (dal report fab 5, 2026-06-09). Interventi di pulizia raccolti su un branch condiviso (più dev), un commit per intervento:
-- **#1 — rimuovere le rotte legacy `/products` e `/products/[slug]`** (doppio catalogo divergente: leggevano `lib/data.ts` → `catalog.json` con `priceKr` **float** [ADR 0005 violato] e `{price} kr` hardcoded anche in EN; il configuratore usa già il data-layer corretto `lib/catalog/products.ts` DB+Money). **Eliminare:** `products/page.tsx`, `products/[slug]/page.tsx`, `components/site/product-card.tsx`, `lib/data.ts`. **Modificare:** togliere la voce "Produkter" → `/products` da `site-header.tsx` e `public-mobile-nav.tsx`; rimuovere `nav.products` + il blocco `products` da `no.json`/`en.json` (parità, `messages.test`); aggiornare e2e `f09`/`f12`/`evidence`. **Tenere `catalog.json`** (lo usano `design-templates.ts` di F22 + gli script). Risultato: **unica fonte prodotti** = `lib/catalog/products.ts`, ADR 0005 rispettato.
-- *(prossimi interventi qui)*
+*(vuota)*
 
 ### In review
 *(vuota)*
 
 ### Done
+
+**CLEANUP-fix batch — 4 interventi (dal report fab/AUDIT-2026-06-10)** — branch `cleanup-fix`, merged il 2026-06-10. **#1** rimosse le rotte legacy `/products` + `lib/data.ts`/`product-card` (doppio catalogo float → unica fonte `lib/catalog/products.ts`, ADR 0005); nav + i18n NO/EN ripuliti. **#2** cache `catalog`/`theme` (`unstable_cache` + `revalidateTag`): `force-dynamic` rimosso dal configuratore, **invalidazione completa** su tutte le 6 funzioni di `designs/actions` + options/products/suppliers + theme; **P-2 risolto gratis** (`getCodecDesigns` usa le funzioni cacheate); `theme.server` su `createPublicClient`. **#3** `error.tsx`/`not-found.tsx` brandizzati (`[locale]` + admin + global-error), niente leak dello stack al cliente, i18n NO/EN. **#4** `loading="lazy"` su swatch/icone (hero eager). **Review: approvati tutti e 4** (verificata la copertura `revalidateTag` funzione-per-funzione). e2e `f22` +50 (invalidazione), `f12` aggiornato.
 
 **QA-fixes batch — cart clear (#1) + new-design CTA (#2) + mobile preview no-flip (#3)** — merged (squash) il 2026-06-09 (`0ec0edd`). **#1**: `clear()` (`use-cart.ts`) svuota `localStorage` **sincrono** → carrello vuoto dopo l'invio anche post-navigazione (persistenza era via effetto differito, navigava prima del flush). **#2**: tolto il bottone nav disabilitato su step 3 (UI morta) + CTA **"Lag et nytt design"** che torna allo step 1 col design scelto, carrello intatto → invita al multi-pezzo. **#3**: rimosso il collapse mobile della preview (IntersectionObserver `threshold:0` che flip-floppava con la barra indirizzi) → su mobile scorre, desktop `md:sticky` invariato; e2e `f15` aggiornato. **TODO aperti:** e2e "invio → carrello vuoto post-nav"; commenti stale in `evidence`/`f15`; **giro QA mobile dedicato** (mobile mai testata a fondo).
 
