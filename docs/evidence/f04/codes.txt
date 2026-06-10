@@ -1,6 +1,0 @@
-blomster-1: MK-A-A-A
-blomster-2: MK-B-A-A
-amalfi-dyr: MK-C-A-A-A-A-A
-krabbe: MK-D-A-A-A
-striper: MK-E-A
-juletre: MK-F-A-A-A

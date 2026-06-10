@@ -16,8 +16,8 @@ Rifacimento di minkeramikk.no: configuratore di ceramica personalizzata + finto 
 - `../docs/theme/DESIGN-SYSTEM.md` — **design system**: token, componenti, shell, mapping shadcn; vincolante per ogni task UI (baseline visiva: `../docs/theme/template-*.html` + `preview-*.png`)
 - `../docs/preview/*.html` — spec UI del back-office (mockup approvati dal cliente)
 - `../docs/preventivo-minkeramikk.pdf` — scope contrattuale: ciò che non è in fornitura NON va implementato senza chiedere
-- `TODO.md` — fondamenta (fasi 0–1bis): prendere il primo task non spuntato, spuntarlo a lavoro finito
-- `docs/DELIVERY.md` — **board kanban a flussi** (dopo le fondamenta): ciclo AC → dev → test → PR (aperta solo a flusso finito, con evidenza) → review agent → merge. WIP=1.
+- `../docs/prs/TODO.md` — fondamenta (fasi 0–1bis), **fuori dalla repo** (gestito dal TL/PM): prendere il primo task non spuntato, spuntarlo a lavoro finito
+- `../docs/delivery/DELIVERY.md` — **board kanban a flussi**, **PM-only e fuori dalla repo**: ciclo AC → dev → test → PR (aperta solo a flusso finito, con evidenza) → review agent → merge. WIP=1. Il dev riceve la card dal TL; **board e TODO non si committano nella repo** (così non possono finire su un branch feature).
 
 ## Stack (non deviare senza motivo scritto in TODO.md)
 
