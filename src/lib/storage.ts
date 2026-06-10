@@ -10,6 +10,8 @@
  */
 export function assetUrl(path: string, _opts?: { width?: number }): string {
   void _opts;
+  // F22: template seeds can store CDN URLs directly; pass them through unchanged.
+  if (/^https?:\/\//.test(path)) return path;
   const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
   return `${base}/storage/v1/object/public/assets/${path}`;
 }

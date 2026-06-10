@@ -6,6 +6,24 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { uniqueSlug } from "@/lib/catalog/slug";
 import { assignMissingCodes } from "@/lib/configurator/assign-codes";
+import { PALETTE_COLORS, LOGO_ASSETS } from "@/lib/catalog/design-templates";
+import { planAssetCopy, ownedAssetsToDelete } from "@/lib/catalog/design-assets";
+
+const ASSET_BUCKET = "assets";
+
+/** Append new designs at the END of the catalog (max sort_order + 1) so a fresh
+ *  design never jumps ahead of the established default in the configurator. */
+async function nextSortOrder(
+  supabase: Awaited<ReturnType<typeof createClient>>
+): Promise<number> {
+  const { data } = await supabase
+    .from("designs")
+    .select("sort_order")
+    .order("sort_order", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return (data?.sort_order ?? -1) + 1;
+}
 
 export type DesignFormState = { error: string | null };
 
@@ -102,6 +120,257 @@ export async function saveDesign(
   redirect("/admin/designs");
 }
 
+// ── template wizard ─────────────────────────────────────────────────────────
+
+const TEMPLATE_KEYS = ["empty", "colors-only", "colors-and-logos"] as const;
+
+const templateSchema = z.object({
+  template: z.enum(TEMPLATE_KEYS),
+  name: z.string().trim().min(1, "Design name is required"),
+  supplierId: z.string().uuid("Select a supplier"),
+});
+
+/**
+ * F22: create a new design from a starting template.
+ *
+ * "Vuoto" → design only (active=false, no categories).
+ * "Solo colori" → adds a "Hoofdfarge / Colour" (color/base) category seeded
+ *   with 21 palette swatches from the F15 backfill (swatches/<hex>.png paths).
+ * "Colori + loghi" → same as above plus an "Dyr / Animal" (image/animal)
+ *   category seeded with 14 animal assets (CDN URLs, zero new uploads).
+ *
+ * All designs are created as active=false (drafts). Codes are assigned via
+ * the stable assignMissingCodes routine (ADR 0011).
+ */
+export async function createDesignFromTemplate(
+  _prev: DesignFormState,
+  formData: FormData,
+): Promise<DesignFormState> {
+  const parsed = templateSchema.safeParse({
+    template: formData.get("template") ?? "empty",
+    name: formData.get("name") ?? "",
+    supplierId: formData.get("supplierId") ?? "",
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
+  }
+  const { template, name, supplierId } = parsed.data;
+
+  const supabase = await createClient();
+
+  // unique slug for this design
+  const { data: existing } = await supabase.from("designs").select("slug");
+  const slug = uniqueSlug(name, (existing ?? []).map((r) => r.slug));
+
+  // create design (draft)
+  const { data: design, error: dErr } = await supabase
+    .from("designs")
+    .insert({
+      name,
+      slug,
+      supplier_id: supplierId,
+      active: false,
+      sort_order: await nextSortOrder(supabase),
+    })
+    .select("id")
+    .single();
+  if (dErr || !design) return { error: "Could not create the design." };
+  const designId = design.id;
+
+  // "Solo colori" + "Colori + loghi": seed Colour category
+  if (template === "colors-only" || template === "colors-and-logos") {
+    const { data: colorCat, error: ccErr } = await supabase
+      .from("option_categories")
+      .insert({
+        design_id: designId,
+        slug: "farge",
+        label_no: "Hovedfarge",
+        label_en: "Colour",
+        kind: "color",
+        layer_slot: "base",
+        sort_order: 0,
+      })
+      .select("id")
+      .single();
+    if (ccErr || !colorCat) return { error: "Could not create the Colour category." };
+
+    const { error: coErr } = await supabase.from("options").insert(
+      PALETTE_COLORS.map((p, i) => ({
+        category_id: colorCat.id,
+        name: p.name,
+        hex: p.hex,
+        image: p.image, // swatches/<hex>.png — already in Storage (F15)
+        sort_order: i,
+        active: true,
+      })),
+    );
+    if (coErr) return { error: "Could not seed palette options." };
+  }
+
+  // "Colori + loghi": additionally seed Animal category
+  if (template === "colors-and-logos") {
+    const { data: logoCat, error: lcErr } = await supabase
+      .from("option_categories")
+      .insert({
+        design_id: designId,
+        slug: "dyr",
+        label_no: "Dyr",
+        label_en: "Animal",
+        kind: "image",
+        layer_slot: "animal",
+        sort_order: 1,
+      })
+      .select("id")
+      .single();
+    if (lcErr || !logoCat) return { error: "Could not create the Animal category." };
+
+    const { error: loErr } = await supabase.from("options").insert(
+      LOGO_ASSETS.map((l, i) => ({
+        category_id: logoCat.id,
+        name: l.name,
+        image: l.image, // CDN URL — assetUrl() passes through absolute URLs
+        sort_order: i,
+        active: true,
+      })),
+    );
+    if (loErr) return { error: "Could not seed animal options." };
+  }
+
+  // ADR 0011: assign stable codes now
+  await assignMissingCodes(supabase);
+  revalidatePath("/admin/designs");
+  redirect(`/admin/designs/${designId}`);
+}
+
+/**
+ * Duplicate a design (categories + options + Storage assets) into a fresh draft.
+ * Owned assets (`designs/<slug>/…`: bespoke layers, preview) are COPIED to the
+ * clone's folder so it's fully independent; shared swatches and CDN thumbs are
+ * referenced as-is. The copy is ready immediately (preview composes) — it lands
+ * as a draft so you review + tick Active to publish.
+ */
+export async function duplicateDesign(
+  _prev: DesignFormState,
+  formData: FormData
+): Promise<DesignFormState> {
+  const id = z.string().uuid().safeParse(formData.get("id"));
+  if (!id.success) return { error: "Invalid design." };
+
+  const supabase = await createClient();
+
+  const { data: srcRaw } = await supabase
+    .from("designs")
+    .select(
+      "name, slug, supplier_id, description_no, description_en, preview_image, " +
+        "option_categories(slug, label_no, label_en, kind, layer_slot, sync_group, sort_order, " +
+        "options(name, hex, image, layer_image, sort_order, active))"
+    )
+    .eq("id", id.data)
+    .maybeSingle();
+  // deep nested selects defeat supabase's type inference → cast to the shape.
+  const src = srcRaw as unknown as {
+    name: string;
+    slug: string;
+    supplier_id: string;
+    description_no: string | null;
+    description_en: string | null;
+    preview_image: string | null;
+    option_categories:
+      | {
+          slug: string;
+          label_no: string | null;
+          label_en: string | null;
+          kind: "color" | "image";
+          layer_slot: string | null;
+          sync_group: string | null;
+          sort_order: number | null;
+          options:
+            | {
+                name: string;
+                hex: string | null;
+                image: string | null;
+                layer_image: string | null;
+                sort_order: number | null;
+                active: boolean;
+              }[]
+            | null;
+        }[]
+      | null;
+  } | null;
+  if (!src) return { error: "Design not found." };
+
+  const { data: all } = await supabase.from("designs").select("slug");
+  const fromSlug = src.slug;
+  const name = `${src.name} (copy)`;
+  const toSlug = uniqueSlug(name, (all ?? []).map((r) => r.slug));
+
+  // copy an owned asset to the clone's folder; fall back to referencing the
+  // original if the source object is missing — never leave a dangling path.
+  const resolveAsset = async (path: string | null): Promise<string | null> => {
+    const copy = planAssetCopy(path, fromSlug, toSlug);
+    if (!copy) return path ?? null;
+    const { error } = await supabase.storage
+      .from(ASSET_BUCKET)
+      .copy(copy.from, copy.to);
+    if (error && !/exist/i.test(error.message)) return path;
+    return copy.to;
+  };
+
+  const { data: design, error: dErr } = await supabase
+    .from("designs")
+    .insert({
+      name,
+      slug: toSlug,
+      supplier_id: src.supplier_id,
+      description_no: src.description_no,
+      description_en: src.description_en,
+      preview_image: await resolveAsset(src.preview_image),
+      active: false,
+      sort_order: await nextSortOrder(supabase),
+    })
+    .select("id")
+    .single();
+  if (dErr || !design) return { error: "Could not create the copy." };
+
+  for (const cat of src.option_categories ?? []) {
+    const { data: newCat, error: cErr } = await supabase
+      .from("option_categories")
+      .insert({
+        design_id: design.id,
+        slug: cat.slug,
+        label_no: cat.label_no,
+        label_en: cat.label_en,
+        kind: cat.kind,
+        layer_slot: cat.layer_slot,
+        sync_group: cat.sync_group,
+        sort_order: cat.sort_order ?? 0,
+      })
+      .select("id")
+      .single();
+    if (cErr || !newCat) return { error: "Could not copy a category." };
+
+    const rows = await Promise.all(
+      (cat.options ?? []).map(async (o) => ({
+        category_id: newCat.id,
+        name: o.name,
+        hex: o.hex,
+        image: await resolveAsset(o.image),
+        layer_image: await resolveAsset(o.layer_image),
+        sort_order: o.sort_order ?? 0,
+        active: o.active,
+      }))
+    );
+    if (rows.length) {
+      const { error: oErr } = await supabase.from("options").insert(rows);
+      if (oErr) return { error: "Could not copy options." };
+    }
+  }
+
+  await assignMissingCodes(supabase); // fresh codes for the clone
+  revalidatePath("/admin/designs");
+  redirect(`/admin/designs/${design.id}`);
+}
+
 export async function deleteDesign(
   _prev: DesignFormState,
   formData: FormData
@@ -110,9 +379,37 @@ export async function deleteDesign(
   if (!id.success) return { error: "Invalid design." };
 
   const supabase = await createClient();
+
+  // collect the design's OWNED storage objects BEFORE the row (and its options,
+  // via CASCADE) disappear, so we can free the Storage too.
+  const { data: designRaw } = await supabase
+    .from("designs")
+    .select("slug, preview_image, option_categories(options(image, layer_image))")
+    .eq("id", id.data)
+    .maybeSingle();
+  const design = designRaw as unknown as {
+    slug: string;
+    preview_image: string | null;
+    option_categories:
+      | { options: { image: string | null; layer_image: string | null }[] | null }[]
+      | null;
+  } | null;
+  if (!design) return { error: "Design not found." };
+
+  const paths: (string | null)[] = [design.preview_image];
+  for (const c of design.option_categories ?? [])
+    for (const o of c.options ?? []) paths.push(o.image, o.layer_image);
+  const toRemove = ownedAssetsToDelete(paths, design.slug);
+
   // CASCADE removes its categories + options; orders keep their snapshots (no FK).
   const { error } = await supabase.from("designs").delete().eq("id", id.data);
   if (error) return { error: "Could not delete the design." };
+
+  // free the design's own Storage objects (never the shared swatches/) — keeps
+  // Supabase Storage from filling up with deleted designs' assets.
+  if (toRemove.length) {
+    await supabase.storage.from(ASSET_BUCKET).remove(toRemove);
+  }
 
   revalidatePath("/admin/designs");
   redirect("/admin/designs");

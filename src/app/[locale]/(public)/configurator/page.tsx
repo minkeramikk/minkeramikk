@@ -42,7 +42,11 @@ export default async function ConfiguratorPage({
 
   const selected =
     (designSlug ? designs.find((d) => d.slug === designSlug) : undefined) ??
-    designs[0]; // sort_order=1 default (F14 AC1)
+    // Default to the first design that actually composes a preview, so an active
+    // but layer-less design (e.g. a freshly created one) never blanks the
+    // configurator's default view. Falls back to the first design (F14 AC1).
+    designs.find((d) => d.defaultLayers.length > 0) ??
+    designs[0];
 
   // ── step 3: ceramics + cart (separate layout, no shared preview) ──
   if (step === "3" && selected) {

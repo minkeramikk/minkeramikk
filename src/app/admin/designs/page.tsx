@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { AdminShell } from "@/components/shell/admin-shell";
+import { DuplicateDesignButton } from "@/components/admin/duplicate-design-button";
 import { createClient } from "@/lib/supabase/server";
 
 // Live data: a new/edited design (and its active flag) is reflected at once.
@@ -69,13 +70,16 @@ export default async function AdminDesignsPage() {
                         </span>
                       </td>
                       <td className="px-4 py-3 text-right">
-                        <Link
-                          href={`/admin/designs/${d.id}`}
-                          data-testid="design-edit"
-                          className="text-sm font-medium text-primary underline-offset-2 hover:underline"
-                        >
-                          Edit
-                        </Link>
+                        <div className="flex items-center justify-end gap-3">
+                          <DuplicateDesignButton designId={d.id} />
+                          <Link
+                            href={`/admin/designs/${d.id}`}
+                            data-testid="design-edit"
+                            className="text-sm font-medium text-primary underline-offset-2 hover:underline"
+                          >
+                            Edit
+                          </Link>
+                        </div>
                       </td>
                     </tr>
                   );

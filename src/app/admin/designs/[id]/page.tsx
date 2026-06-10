@@ -2,7 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AdminShell } from "@/components/shell/admin-shell";
 import { DesignForm } from "@/components/admin/design-form";
-import { CategoryEditor, type CategoryValues } from "@/components/admin/category-editor";
+import { DesignTree, type CategorySlot, type OptionSlot } from "@/components/admin/design-tree";
+import { DeleteDesignButton } from "@/components/admin/delete-design-button";
 import { PreviewCanvas } from "@/components/ui-domain/preview-canvas";
 import { createClient } from "@/lib/supabase/server";
 import { assetUrl } from "@/lib/storage";
@@ -38,32 +39,52 @@ export default async function EditDesignPage({
   const cats = (design.option_categories ?? []).slice().sort(
     (a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)
   );
-
-  // default preview: each category's first option (by sort_order) layer_image,
-  // composed exactly like the public configurator (multiply / animal on top).
   const catIds = cats.map((c) => c.id);
-  let selected: SelectedCategory[] = [];
-  if (catIds.length > 0) {
-    const { data: opts } = await supabase
-      .from("options")
-      .select("category_id, layer_image, sort_order")
-      .in("category_id", catIds)
-      .order("sort_order", { ascending: true });
-    const firstByCat = new Map<string, string | null>();
-    for (const o of opts ?? []) {
-      if (!firstByCat.has(o.category_id)) firstByCat.set(o.category_id, o.layer_image);
-    }
-    selected = cats.map((c) => ({
-      layerSlot: (c.layer_slot ?? "base") as LayerSlot,
-      layerImage: firstByCat.get(c.id) ?? null,
-    }));
+
+  // ── fetch ALL options for the tree (F22) + first-per-cat for preview ────────
+  const allOptionsRows =
+    catIds.length > 0
+      ? ((
+          await supabase
+            .from("options")
+            .select("id, category_id, name, hex, image, layer_image, code, sort_order, active")
+            .in("category_id", catIds)
+            .order("sort_order", { ascending: true })
+        ).data ?? [])
+      : [];
+
+  // ── preview: first option per category (unchanged from before) ──────────────
+  const firstByCat = new Map<string, string | null>();
+  for (const o of allOptionsRows) {
+    if (!firstByCat.has(o.category_id)) firstByCat.set(o.category_id, o.layer_image);
   }
+  const selected: SelectedCategory[] = cats.map((c) => ({
+    layerSlot: (c.layer_slot ?? "base") as LayerSlot,
+    layerImage: firstByCat.get(c.id) ?? null,
+  }));
   const previewLayers = getPreviewLayers(null, selected).map((l) => ({
     src: assetUrl(l.src),
     recolor: l.blend === "multiply",
   }));
 
-  const categoryValues: CategoryValues[] = cats.map((c) => ({
+  // ── build CategorySlot[] for DesignTree ──────────────────────────────────────
+  const optionsByCat = new Map<string, OptionSlot[]>();
+  for (const o of allOptionsRows) {
+    const slot: OptionSlot = {
+      id: o.id,
+      name: o.name,
+      hex: o.hex,
+      image: o.image,
+      layerImage: o.layer_image,
+      code: o.code,
+      sortOrder: o.sort_order ?? 0,
+      active: o.active,
+    };
+    if (!optionsByCat.has(o.category_id)) optionsByCat.set(o.category_id, []);
+    optionsByCat.get(o.category_id)!.push(slot);
+  }
+
+  const categorySlots: CategorySlot[] = cats.map((c) => ({
     id: c.id,
     labelNo: c.label_no ?? "",
     labelEn: c.label_en ?? "",
@@ -71,6 +92,7 @@ export default async function EditDesignPage({
     layerSlot: c.layer_slot ?? "base",
     syncGroup: c.sync_group,
     sortOrder: c.sort_order ?? 0,
+    options: optionsByCat.get(c.id) ?? [],
   }));
 
   return (
@@ -78,13 +100,21 @@ export default async function EditDesignPage({
       active="/admin/designs"
       title={design.name}
       action={
-        <Link href="/admin/designs" className="text-sm text-muted-foreground underline-offset-2 hover:underline">
+        <Link
+          href="/admin/designs"
+          className="text-sm text-muted-foreground underline-offset-2 hover:underline"
+        >
           ‹ All designs
         </Link>
       }
     >
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-[1fr_360px]" data-testid="design-detail" data-active={design.active}>
+      <div
+        className="grid grid-cols-1 gap-8 lg:grid-cols-[1fr_360px]"
+        data-testid="design-detail"
+        data-active={design.active}
+      >
         <div className="flex flex-col gap-8">
+          {/* Design metadata form */}
           <section>
             <h2 className="mb-3 text-base font-semibold">Design</h2>
             <DesignForm
@@ -103,17 +133,29 @@ export default async function EditDesignPage({
             />
           </section>
 
+          {/* F22: accordion tree replaces flat CategoryEditor */}
           <section>
-            <h2 className="mb-1 text-base font-semibold">Categories</h2>
+            <h2 className="mb-1 text-base font-semibold">Categories &amp; options</h2>
             <p className="mb-3 text-xs text-muted-foreground">
-              Options live inside each category (added in the asset step). Deleting
-              a category removes its options too.
+              Expand a category to see and manage its options inline. Deleting a
+              category removes all its options too.{" "}
+              <span className="text-foreground">
+                The live preview composes once each category&rsquo;s first option
+                has a compositing layer
+              </span>{" "}
+              — options without one are tagged &ldquo;no layer&rdquo;; open{" "}
+              <em>Edit</em> on an option to upload it.
             </p>
-            <CategoryEditor designId={design.id} categories={categoryValues} />
+            <DesignTree designId={design.id} categories={categorySlots} />
+          </section>
+
+          {/* Danger zone */}
+          <section>
+            <DeleteDesignButton designId={design.id} designName={design.name} />
           </section>
         </div>
 
-        {/* preview before publishing */}
+        {/* sticky preview sidebar */}
         <aside className="lg:sticky lg:top-4 lg:self-start">
           <h2 className="mb-3 text-base font-semibold">Preview</h2>
           <PreviewCanvas
@@ -126,8 +168,8 @@ export default async function EditDesignPage({
             }
           />
           <p className="mt-3 text-xs text-muted-foreground">
-            Composed from each category&rsquo;s first option (multiply). Review it,
-            then tick <em>Active</em> above and save to publish.
+            Composed from each category&rsquo;s first option (multiply). Review
+            it, then tick <em>Active</em> above and save to publish.
           </p>
         </aside>
       </div>

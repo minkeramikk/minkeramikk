@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import { saveDesign, type DesignFormState } from "@/app/admin/designs/actions";
 import { assetUrl } from "@/lib/storage";
+import { FileThumbInput } from "@/components/admin/file-thumb-input";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -75,11 +76,11 @@ export function DesignForm({
 
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="previewImage">Preview image (PNG/JPG/WebP)</Label>
-        {design?.previewImage && (
-          // eslint-disable-next-line @next/next/no-img-element -- catalog art from storage
-          <img src={assetUrl(design.previewImage)} alt="" className="mb-1 size-20 rounded-sm border object-contain" />
-        )}
-        <Input id="previewImage" name="previewImage" type="file" accept="image/png,image/jpeg,image/webp" data-testid="design-preview-image" />
+        <FileThumbInput
+          name="previewImage"
+          existingSrc={design?.previewImage ? assetUrl(design.previewImage) : null}
+          testid="design-preview-image"
+        />
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
