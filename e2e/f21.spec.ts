@@ -48,14 +48,53 @@ test("AC1b: nav cluster navigates and preserves config (URL state)", async ({
   await expect(page).toHaveURL(new RegExp(opt.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
 });
 
-test("AC1c: step-3 'Next' button is disabled in cluster", async ({
+test("AC1c: step-3 cluster has no dead 'Next' — discreet new-design secondary instead", async ({
   page,
 }, testInfo) => {
   if (testInfo.project.name !== "desktop") return;
   await page.goto(STEP(3));
   await page.getByTestId("ceramics-step").waitFor();
-  await expect(page.getByTestId("next-step")).toBeDisabled();
+  // QA-fix #2: the disabled forward button is gone (dead UI on the last step)
+  await expect(page.getByTestId("next-step")).toHaveCount(0);
+  await expect(page.getByTestId("new-design-nav")).toBeEnabled();
   await expect(page.getByTestId("back-step")).toBeEnabled();
+});
+
+test("QA-fix #2: add → 'new design' CTA returns to step 1 with config preserved, cart intact", async ({
+  page,
+}) => {
+  // arrive at step 2 and pick an option so the URL carries an opt_
+  await page.goto(STEP(2));
+  await page.getByTestId("details-step").waitFor();
+  await page
+    .getByTestId("details-step")
+    .getByRole("radiogroup")
+    .first()
+    .getByRole("radio")
+    .nth(1)
+    .click();
+  await expect(page).toHaveURL(/opt_/);
+  const opt = new URL(page.url()).search.match(/opt_[^&=]+=[^&]+/)![0];
+
+  // to step 3 (config preserved), add the selected ceramic to the cart
+  await page.getByTestId("step-3").click();
+  await page.getByTestId("ceramics-step").waitFor();
+  await page.getByTestId("add-to-cart").click();
+  await expect(page.getByTestId("cart-badge")).toHaveText("1");
+
+  // the CTA appears under the add feedback; clicking returns to step 1 (DESIGN)
+  const cta = page.getByTestId("new-design-cta");
+  await expect(cta).toBeVisible();
+  await cta.click();
+
+  await expect(page).not.toHaveURL(/step=/); // step 1
+  await expect(page).toHaveURL(/design=blomster-1/); // same design, not reset
+  await expect(page).toHaveURL(
+    new RegExp(opt.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")) // options preserved
+  );
+
+  // the cart still holds the item just added (persistent, untouched)
+  await expect(page.getByTestId("cart-badge")).toHaveText("1");
 });
 
 test("AC1d: mobile step 1-2 uses bottom sticky bar (not desktop cluster buttons)", async ({

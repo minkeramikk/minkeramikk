@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
 import { usePathname, useRouter } from "@/i18n/navigation";
@@ -112,23 +112,13 @@ export function ConfiguratorClient({
   );
   const hasSyncGroup = detail.categories.some((c) => c.syncGroup);
 
-  // ── F15: keep the live preview in view while the (long) option list scrolls ──
-  // Desktop: the preview column is sticky (CSS only). Mobile: the preview pins to
-  // the top and collapses to a compact thumbnail once scrolled past its natural
-  // position — detected with a zero-height sentinel + IntersectionObserver (no
-  // scroll math). The shrink transition honours prefers-reduced-motion via CSS.
-  const previewSentinel = useRef<HTMLDivElement>(null);
-  const [previewCollapsed, setPreviewCollapsed] = useState(false);
-  useEffect(() => {
-    const el = previewSentinel.current;
-    if (!el || typeof IntersectionObserver === "undefined") return;
-    const io = new IntersectionObserver(
-      ([entry]) => setPreviewCollapsed(!entry.isIntersecting),
-      { threshold: 0 }
-    );
-    io.observe(el);
-    return () => io.disconnect();
-  }, []);
+  // ── F15 / QA#3: keep the live preview visible while the option list scrolls ──
+  // Desktop: the preview column is sticky (CSS only, md:sticky). Mobile: it scrolls
+  // normally with the content. The old mobile collapse-to-thumbnail (zero-height
+  // sentinel + IntersectionObserver + width toggle) was removed: with threshold 0
+  // and no hysteresis it flip-flopped at the boundary (mobile URL-bar resize churn)
+  // → the preview "flipped" continuously. A tested mobile sticky preview can return
+  // in the dedicated mobile QA pass.
 
   // ── config code (ADR 0011): encode current, decode on paste ──
   const codecDesigns = useMemo(
@@ -335,30 +325,15 @@ export function ConfiguratorClient({
         </Button>
       </div>
 
-      {/* F15 sentinel: marks the preview's natural top for collapse detection */}
-      <div ref={previewSentinel} aria-hidden className="h-0" />
-
       <div className="grid grid-cols-1 items-start gap-7 md:grid-cols-2">
         {/* LEFT: the persistent preview — never remounts across steps (AC2).
             F15: sticky so it stays visible while the option list scrolls; on
             mobile it pins to the top and collapses to a compact thumbnail. */}
         <div className="z-30 flex min-w-0 flex-col gap-3 md:sticky md:top-4 md:self-start">
-          <div
-            data-testid="preview-sticky"
-            data-collapsed={previewCollapsed}
-            className={cn(
-              // definite width (not max-width): the preview's layers are absolutely
-              // positioned, so a shrink-to-fit width would collapse to 0 height.
-              "max-md:sticky max-md:top-0 max-md:mx-auto",
-              "max-md:transition-[width] max-md:duration-200 motion-reduce:transition-none",
-              previewCollapsed ? "max-md:w-[140px]" : "max-md:w-full",
-              previewCollapsed &&
-                "max-md:rounded-b-lg max-md:bg-background/90 max-md:py-1 max-md:shadow-(--shadow-card) max-md:backdrop-blur-sm",
-            )}
-          >
+          <div data-testid="preview-sticky" className="max-md:mx-auto max-md:w-full">
             <PreviewCanvas
               alt={selected.name}
-              caption={previewCollapsed ? undefined : t("previewNote")}
+              caption={t("previewNote")}
               layers={previewLayers}
             />
           </div>

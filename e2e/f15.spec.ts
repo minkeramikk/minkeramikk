@@ -102,23 +102,18 @@ test("AC5: the preview stays pinned in the viewport after scrolling the options"
   expect(box!.y).toBeLessThan(vh * 0.5); // pinned to the top region
 });
 
-test("AC5 (mobile): the preview collapses to a compact thumbnail on scroll", async ({
+test("AC5 (mobile): live preview present, no flip-flop collapse (QA#3)", async ({
   page,
 }, testInfo) => {
   test.skip(testInfo.project.name !== "mobile", "mobile-only behaviour");
   await page.goto(AMALFI);
   await page.getByTestId("details-step").waitFor({ state: "visible" });
   const sticky = page.getByTestId("preview-sticky");
-
-  await expect(sticky).toHaveAttribute("data-collapsed", "false");
-  const wide = (await sticky.boundingBox())!.width;
-
-  await scrollToBottom(page);
-
-  await expect(sticky).toHaveAttribute("data-collapsed", "true");
-  const narrow = (await sticky.boundingBox())!.width;
-  expect(narrow).toBeLessThan(wide); // shrank to a compact thumbnail
-  await expect(page.getByTestId("preview-canvas")).toBeInViewport();
+  await expect(sticky).toBeVisible();
+  // QA#3: the IntersectionObserver collapse-to-thumbnail was removed (it
+  // flip-flopped at the threshold on mobile). The preview no longer toggles.
+  await expect(sticky).not.toHaveAttribute("data-collapsed");
+  await expect(page.getByTestId("preview-canvas")).toBeVisible();
 });
 
 test("AC5: selecting an option while scrolled updates the still-visible preview", async ({

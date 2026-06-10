@@ -298,15 +298,18 @@ export function CeramicsStep({
           onStepSelect={(i) => goToStep((i + 1) as 1 | 2 | 3)}
           className="mb-0 mt-0 flex-1"
         />
-        {/* Next disabled at step 3 — forward action is "Send" in the cart panel */}
+        {/* Last step has no "next" — the real submit is "Send" in the cart
+            panel (a disabled nav button there was dead UI). A discreet
+            secondary starts a new design, keeping the current selection +
+            options in the URL (QA-fix #2). */}
         <Button
+          variant="outline"
           size="lg"
-          data-testid="next-step"
+          data-testid="new-design-nav"
           className="min-h-11 shrink-0 max-md:hidden"
-          disabled
-          aria-disabled="true"
+          onClick={() => goToStep(1)}
         >
-          {to("title")} ›
+          + {tc("newDesign")}
         </Button>
       </div>
 
@@ -460,15 +463,31 @@ export function CeramicsStep({
             </Button>
           </div>
 
-          {/* add feedback */}
+          {/* add feedback + "start a new design" CTA (QA-fix #2): returns to
+              step 1 keeping the current design + options in the URL; the cart
+              (with the item just added) is left untouched. */}
           {justAdded && (
-            <p
-              data-testid="add-feedback"
-              aria-live="polite"
-              className="mt-2 text-sm text-muted-foreground"
+            <div
+              data-testid="add-feedback-block"
+              className="mt-2 flex flex-col items-start gap-2"
             >
-              {t("added")}
-            </p>
+              <p
+                data-testid="add-feedback"
+                aria-live="polite"
+                className="text-sm text-muted-foreground"
+              >
+                {t("added")}
+              </p>
+              <Button
+                variant="outline"
+                size="lg"
+                className="min-h-11"
+                data-testid="new-design-cta"
+                onClick={() => goToStep(1)}
+              >
+                {tc("newDesign")} →
+              </Button>
+            </div>
           )}
 
           {/* Mobile: docked cart section (below selector, above sticky bar) */}

@@ -56,7 +56,16 @@ export function useCart() {
   const remove = useCallback((id: string) => {
     setCart((c) => removeLine(c, id));
   }, []);
-  const clear = useCallback(() => setCart([]), []);
+  const clear = useCallback(() => {
+    setCart([]);
+    // Persist the empty cart SYNCHRONOUSLY: the persistence effect runs after
+    // render, but order submit calls clear() then immediately router.push()s —
+    // navigation can unmount before the effect flushes, leaving localStorage
+    // full → the cart "never empties". Writing here makes it empty before nav.
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify([]));
+    }
+  }, []);
 
   return { cart, hydrated, add, setQuantity, remove, clear };
 }

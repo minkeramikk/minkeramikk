@@ -60,6 +60,7 @@
     "stepIndicator": "Steg {step} av 3",
     "nextStepDetails": "Neste steg: Detaljer",
     "nextStepCeramic": "Neste steg: Keramikk",
+    "newDesign": "Lag et nytt design",
     "back": "Tilbake",
     "previewNote": "Konfigurator viser designet ditt i et rundt mønster, husk at du kan også bestille serveringsfat, kopper, ildfastformer osv. i samme design, sluttresultatet bare ikke vises i konfigurator.",
     "step1": {
