@@ -1,7 +1,7 @@
 "use server";
 
 import { z } from "zod";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { slugify } from "@/lib/catalog/slug";
 import { assignMissingCodes } from "@/lib/configurator/assign-codes";
@@ -114,6 +114,7 @@ export async function saveOption(
 
   if (!o.id) await assignMissingCodes(supabase); // ADR 0011 stable code
 
+  revalidateTag("catalog");
   const designId = String(formData.get("designId") ?? "");
   revalidatePath(`/admin/designs/${designId}/categories/${o.categoryId}`);
   revalidatePath(`/admin/designs/${designId}`);
@@ -136,6 +137,7 @@ export async function deleteOption(
   const { error } = await supabase.from("options").delete().eq("id", id.data);
   if (error) return { error: "Could not delete the option." };
 
+  revalidateTag("catalog");
   const designId = String(formData.get("designId") ?? "");
   if (opt?.category_id)
     revalidatePath(`/admin/designs/${designId}/categories/${opt.category_id}`);

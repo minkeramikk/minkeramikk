@@ -2,7 +2,7 @@
 
 import { z } from "zod";
 import { redirect } from "next/navigation";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { uniqueSlug } from "@/lib/catalog/slug";
 import { assignMissingCodes } from "@/lib/configurator/assign-codes";
@@ -115,6 +115,7 @@ export async function saveDesign(
     await assignMissingCodes(supabase);
   }
 
+  revalidateTag("catalog");
   revalidatePath("/admin/designs");
   if (!d.id) redirect(`/admin/designs/${designId}`);
   redirect("/admin/designs");
@@ -238,6 +239,7 @@ export async function createDesignFromTemplate(
 
   // ADR 0011: assign stable codes now
   await assignMissingCodes(supabase);
+  revalidateTag("catalog");
   revalidatePath("/admin/designs");
   redirect(`/admin/designs/${designId}`);
 }
@@ -367,6 +369,7 @@ export async function duplicateDesign(
   }
 
   await assignMissingCodes(supabase); // fresh codes for the clone
+  revalidateTag("catalog");
   revalidatePath("/admin/designs");
   redirect(`/admin/designs/${design.id}`);
 }
@@ -411,6 +414,7 @@ export async function deleteDesign(
     await supabase.storage.from(ASSET_BUCKET).remove(toRemove);
   }
 
+  revalidateTag("catalog");
   revalidatePath("/admin/designs");
   redirect("/admin/designs");
 }
@@ -484,6 +488,7 @@ export async function saveCategory(
     : await supabase.from("option_categories").insert(row);
   if (error) return { error: "Could not save the category." };
 
+  revalidateTag("catalog");
   revalidatePath(`/admin/designs/${c.designId}`);
   return { error: null };
 }
@@ -504,6 +509,7 @@ export async function deleteCategory(
     .eq("id", id.data);
   if (error) return { error: "Could not delete the category." };
 
+  revalidateTag("catalog");
   revalidatePath(`/admin/designs/${designId.data}`);
   return { error: null };
 }

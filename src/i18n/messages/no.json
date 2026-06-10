@@ -1,10 +1,20 @@
 {
+  "error": {
+    "title": "Noe gikk galt",
+    "body": "Beklager, noe gikk galt på vår side. Prøv igjen, eller gå tilbake til konfiguratoren.",
+    "retry": "Prøv igjen",
+    "cta": "Til konfiguratoren"
+  },
+  "notFound": {
+    "title": "Siden finnes ikke",
+    "body": "Vi fant ikke siden du lette etter. Den kan ha blitt flyttet eller fjernet.",
+    "cta": "Til konfiguratoren"
+  },
   "common": {
     "siteName": "minkeramikk.no",
     "email": "bestilling@minkeramikk.no"
   },
   "nav": {
-    "products": "Produkter",
     "configurator": "Bygg din design",
     "contact": "Ta kontakt",
     "menu": "Meny"
@@ -44,16 +54,6 @@
       "subtitle": "Håndlaget porselen – alle priser inkluderer toll, MVA og frakt.",
       "ctaAll": "Se alle produktene"
     }
-  },
-  "products": {
-    "title": "Produkter",
-    "intro": "Alle produktene er håndlaget og kan bestilles i ditt eget design. Prisene inkluderer toll, MVA og frakt.",
-    "price": "{price} kr"
-  },
-  "product": {
-    "description": "Håndlaget porselen i ditt eget design. Velg mønster og farger i konfiguratoren – vi tar kontakt før noe skal betales. Prisen inkluderer toll, MVA og frakt.",
-    "ctaDesign": "Design denne",
-    "ctaAll": "Alle produktene"
   },
   "configurator": {
     "pageTitle": "Bygg din design",

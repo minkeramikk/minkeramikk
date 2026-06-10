@@ -35,14 +35,34 @@ test("mobile menu opens, traps focus, and navigates", async ({ page }, testInfo)
   // Esc closes (Radix)
   await page.keyboard.press("Escape");
   await expect(page.getByTestId("mobile-menu-drawer")).toBeHidden();
-  // reopen and navigate
+  // reopen and navigate (legacy /products removed → use the configurator link)
   await page.getByTestId("mobile-menu").click();
-  await page.getByTestId("mobile-nav-products").click();
-  await expect(page).toHaveURL(/\/no\/products$/);
+  await page.getByTestId("mobile-nav-configurator").click();
+  await expect(page).toHaveURL(/\/no\/configurator$/);
 });
 
 test("mobile menu trigger is hidden on desktop", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop", "desktop-only");
   await page.goto("/no");
   await expect(page.getByTestId("mobile-menu")).toBeHidden();
+});
+
+// ── CQ-2: branded error / not-found ──────────────────────────────────────────
+
+test("CQ-2: an unknown URL under /[locale] renders the branded 404 (not Next default)", async ({
+  page,
+}) => {
+  const res = await page.goto("/no/denne-siden-finnes-ikke");
+  expect(res?.status()).toBe(404);
+  await expect(page.getByTestId("not-found-page")).toBeVisible();
+  // home/configurator link works
+  await page.getByTestId("not-found-home").click();
+  await expect(page).toHaveURL(/\/no\/configurator/);
+});
+
+test("CQ-2: an out-of-locale URL is routed to a branded 404", async ({ page }) => {
+  // localePrefix:"always" → middleware adds the default locale, landing on the
+  // branded not-found rather than Next's bare 404.
+  await page.goto("/totally-outside-locale-xyz");
+  await expect(page.getByTestId("not-found-page")).toBeVisible();
 });

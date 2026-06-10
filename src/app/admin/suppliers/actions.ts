@@ -2,7 +2,7 @@
 
 import { z } from "zod";
 import { redirect } from "next/navigation";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 
 export type SupplierFormState = { error: string | null };
@@ -50,6 +50,7 @@ export async function saveSupplier(
 
   if (error) return { error: "Could not save the supplier." };
 
+  revalidateTag("catalog");
   revalidatePath("/admin/suppliers");
   redirect("/admin/suppliers");
 }
@@ -77,6 +78,7 @@ export async function deleteSupplier(
     return { error: "Could not delete the supplier." };
   }
 
+  revalidateTag("catalog");
   revalidatePath("/admin/suppliers");
   redirect("/admin/suppliers");
 }

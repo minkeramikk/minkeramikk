@@ -1,7 +1,7 @@
 "use server";
 
 import { z } from "zod";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { checkThemeContrast } from "@/lib/theme-contrast";
 
@@ -49,6 +49,7 @@ export async function updateTheme(
     .eq("id", 1);
   if (error) return { error: "Could not save. Please try again." };
 
+  revalidateTag("theme"); // invalidate the cached getThemeTokens (P-5)
   revalidatePath("/", "layout"); // re-theme the whole public site
   revalidatePath("/admin/theme");
   return { error: null, ok: true };

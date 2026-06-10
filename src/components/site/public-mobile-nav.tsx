@@ -23,7 +23,6 @@ export function PublicMobileNav() {
   const [open, setOpen] = useState(false);
 
   const links = [
-    { href: "/products", label: t("nav.products") },
     { href: "/configurator", label: t("nav.configurator") },
     { href: "/terms", label: t("footer.terms") },
     { href: "/privacy", label: t("footer.privacy") },

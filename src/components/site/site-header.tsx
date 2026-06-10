@@ -23,12 +23,6 @@ export function SiteHeader() {
               (docs/theme/preview-frontoffice-mobile.png) shows brand + locale
               switcher; the hamburger menu is tracked for F12. */}
           <Link
-            href="/products"
-            className="hidden text-ink-muted transition-colors hover:text-white sm:inline"
-          >
-            {t("nav.products")}
-          </Link>
-          <Link
             href="/configurator"
             className="hidden text-ink-muted transition-colors hover:text-white sm:inline"
           >

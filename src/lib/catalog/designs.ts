@@ -1,5 +1,6 @@
 import "server-only";
 
+import { unstable_cache } from "next/cache";
 import { createPublicClient } from "@/lib/supabase/public";
 import {
   getPreviewLayers,
@@ -29,7 +30,7 @@ export interface DesignSummary {
  * explicit `active=true` filter (role-independent, F10) AND by RLS for anon
  * (AC1/AC4 of F01). Supplier names come from the public_suppliers view (ADR 0009).
  */
-export async function getActiveDesigns(): Promise<DesignSummary[]> {
+async function loadActiveDesigns(): Promise<DesignSummary[]> {
   const supabase = createPublicClient();
 
   const [designsRes, suppliersRes] = await Promise.all([
@@ -78,3 +79,12 @@ export async function getActiveDesigns(): Promise<DesignSummary[]> {
     };
   });
 }
+
+/**
+ * Active designs, cached under the `catalog` tag (PERF-1 / P-1). Anon + RLS
+ * reads are identical for every viewer, so a process-wide data cache is safe;
+ * every admin write to the catalog calls `revalidateTag("catalog")`.
+ */
+export const getActiveDesigns = unstable_cache(loadActiveDesigns, ["active-designs"], {
+  tags: ["catalog"],
+});

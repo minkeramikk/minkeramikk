@@ -129,3 +129,19 @@ test("AC5: selecting an option while scrolled updates the still-visible preview"
   await expect(page).toHaveURL(/opt_/);
   await expect(page.getByTestId("preview-canvas")).toBeInViewport();
 });
+
+test("P-4: below-the-fold swatch images lazy-load; the hero preview stays eager", async ({
+  page,
+}) => {
+  await page.goto(B1);
+  await page.getByTestId("details-step").waitFor({ state: "visible" });
+
+  // swatch photos defer loading (CLEANUP-fix #4 / P-4)
+  const swatch = page.getByTestId("swatch-photo").first();
+  await expect(swatch).toHaveAttribute("loading", "lazy");
+  await expect(swatch).toHaveAttribute("decoding", "async");
+
+  // the main preview must NOT be lazy — F14 keeps it eager + preloaded.
+  const previewImg = page.locator('[data-testid="preview-canvas"] img').first();
+  await expect(previewImg).not.toHaveAttribute("loading", "lazy");
+});

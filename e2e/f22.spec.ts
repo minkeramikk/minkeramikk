@@ -436,6 +436,56 @@ test("New design: start from an existing design clones it into a draft editor", 
   await expect(page.getByTestId("template-wizard")).toBeVisible();
 });
 
+test("PERF-1: editing an option in admin invalidates the catalog cache → configurator shows it", async ({
+  page,
+}) => {
+  test.skip(!ready, "needs admin creds + service role");
+  const db = adminClient();
+  const { data: supplier } = await db.from("suppliers").select("id").limit(1).single();
+  const stamp = Date.now();
+  const slug = `perf-cat-${stamp}`;
+  const { data: d } = await db
+    .from("designs")
+    .insert({ name: `Perf Cat ${stamp}`, slug, supplier_id: supplier!.id, active: true, sort_order: 50 })
+    .select("id")
+    .single();
+  createdIds.push(d!.id);
+  const { data: cat } = await db
+    .from("option_categories")
+    .insert({ design_id: d!.id, slug: "farge", label_no: "Farge", label_en: "Colour", kind: "color", layer_slot: "base", sort_order: 0 })
+    .select("id")
+    .single();
+  await db.from("options").insert([
+    { category_id: cat!.id, name: `Before ${stamp}`, hex: "#3366cc", sort_order: 0, active: true },
+    { category_id: cat!.id, name: `Other ${stamp}`, hex: "#cc3366", sort_order: 1, active: true },
+  ]);
+
+  // edit the option in admin — saveOption calls revalidateTag('catalog')
+  await login(page);
+  await page.goto(`/admin/designs/${d!.id}`);
+  await page.getByTestId("category-summary").first().click();
+  await page
+    .getByTestId("tree-option-row")
+    .filter({ hasText: `Before ${stamp}` })
+    .getByTestId("tree-option-edit")
+    .click();
+  await page
+    .getByTestId("tree-option-edit-form")
+    .getByLabel("Option name")
+    .fill(`After ${stamp}`);
+  await page.getByTestId("tree-option-edit-save").click();
+  await expect(
+    page.getByTestId("tree-option-row").filter({ hasText: `After ${stamp}` })
+  ).toBeVisible();
+
+  // the public configurator reads the catalog through the cache; after the
+  // invalidation it must show the NEW name and not the stale one.
+  await page.goto(`/no/configurator?design=${slug}&step=2`);
+  await page.getByTestId("details-step").waitFor();
+  await expect(page.getByRole("radio", { name: `After ${stamp}` })).toBeVisible();
+  await expect(page.getByRole("radio", { name: `Before ${stamp}` })).toHaveCount(0);
+});
+
 test("fix: a blank active design at the front doesn't blank the configurator default", async ({
   page,
 }) => {

@@ -1,5 +1,6 @@
 import "server-only";
 
+import { unstable_cache } from "next/cache";
 import { createPublicClient } from "@/lib/supabase/public";
 import type { LayerSlot } from "@/lib/configurator/preview";
 
@@ -40,9 +41,20 @@ export interface DesignDetail {
  * Full step-2 data for a design: its categories (sorted) with active options
  * (sorted). Read with the anon client — RLS exposes only active rows.
  */
+/**
+ * Cached per-slug under the `catalog` tag (PERF-1 / P-1). The keyParts carry the
+ * slug so each design is its own cache entry; admin catalog writes invalidate the
+ * whole `catalog` tag. Anon/RLS reads → safe to share process-wide.
+ */
 export async function getDesignDetail(
   slug: string
 ): Promise<DesignDetail | null> {
+  return unstable_cache(() => loadDesignDetail(slug), ["design-detail", slug], {
+    tags: ["catalog"],
+  })();
+}
+
+async function loadDesignDetail(slug: string): Promise<DesignDetail | null> {
   const supabase = createPublicClient();
 
   const { data: design, error: designErr } = await supabase

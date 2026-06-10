@@ -12,10 +12,9 @@ import { ConfiguratorClient } from "./configurator-client";
 import { CeramicsStep } from "./ceramics-step";
 import type { ConfigSnapshot } from "@/lib/cart/cart";
 
-// Catalog is live data: render per-request so back-office changes
-// (e.g. a design switched to active=false) are reflected immediately.
-export const dynamic = "force-dynamic";
-
+// Catalog reads go through the `catalog`-tagged data cache (PERF-1 / P-1): no
+// force-dynamic, so on a cache hit the configurator render issues ~0 catalog
+// queries. Admin writes call revalidateTag('catalog') to keep it fresh.
 const PREVIEW_WIDTH = 800;
 
 export async function generateMetadata(): Promise<Metadata> {

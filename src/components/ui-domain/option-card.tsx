@@ -50,6 +50,8 @@ export function OptionCard({
             src={imageUrl}
             alt=""
             aria-hidden
+            loading="lazy"
+            decoding="async"
             className="h-14 w-14 object-contain"
           />
         </span>

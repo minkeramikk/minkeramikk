@@ -1,11 +1,21 @@
 {
   "_review": "DRAFT — English translations pending client review (see AGENTS.md i18n rule 6)",
+  "error": {
+    "title": "Something went wrong",
+    "body": "Sorry, something went wrong on our end. Please try again, or go back to the configurator.",
+    "retry": "Try again",
+    "cta": "Go to the configurator"
+  },
+  "notFound": {
+    "title": "Page not found",
+    "body": "We couldn't find the page you were looking for. It may have moved or been removed.",
+    "cta": "Go to the configurator"
+  },
   "common": {
     "siteName": "minkeramikk.no",
     "email": "bestilling@minkeramikk.no"
   },
   "nav": {
-    "products": "Products",
     "configurator": "Build your design",
     "contact": "Get in touch",
     "menu": "Menu"
@@ -45,16 +55,6 @@
       "subtitle": "Handmade porcelain – all prices include customs, VAT and shipping.",
       "ctaAll": "See all products"
     }
-  },
-  "products": {
-    "title": "Products",
-    "intro": "All products are handmade and can be ordered in your own design. Prices include customs, VAT and shipping.",
-    "price": "{price} kr"
-  },
-  "product": {
-    "description": "Handmade porcelain in your own design. Choose pattern and colours in the configurator – we get in touch before anything is paid. The price includes customs, VAT and shipping.",
-    "ctaDesign": "Design this one",
-    "ctaAll": "All products"
   },
   "configurator": {
     "pageTitle": "Build your design",

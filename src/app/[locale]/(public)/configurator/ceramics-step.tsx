@@ -409,6 +409,9 @@ export function CeramicsStep({
                     <img
                       src={assetUrl(p.image)}
                       alt=""
+                      loading="lazy"
+                      decoding="async"
+                      data-testid="product-thumb"
                       className="h-16 w-16 object-contain"
                     />
                   )}

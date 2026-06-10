@@ -2,7 +2,7 @@
 
 import { z } from "zod";
 import { redirect } from "next/navigation";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { parsePriceToCents } from "@/lib/money/parse";
 import { uniqueSlug } from "@/lib/catalog/slug";
@@ -99,6 +99,7 @@ export async function saveProduct(
 
   if (error) return { error: "Could not save the product." };
 
+  revalidateTag("catalog");
   revalidatePath("/admin/products");
   redirect("/admin/products");
 }
@@ -122,6 +123,7 @@ export async function deleteProduct(
     return { error: "Could not delete the product." };
   }
 
+  revalidateTag("catalog");
   revalidatePath("/admin/products");
   redirect("/admin/products");
 }
@@ -134,5 +136,6 @@ export async function toggleProductVisible(formData: FormData): Promise<void> {
 
   const supabase = await createClient();
   await supabase.from("products").update({ visible }).eq("id", id.data);
+  revalidateTag("catalog");
   revalidatePath("/admin/products");
 }

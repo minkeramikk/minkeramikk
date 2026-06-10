@@ -1,17 +1,17 @@
 import "server-only";
 
-import { createClient } from "@/lib/supabase/server";
+import { unstable_cache } from "next/cache";
+import { createPublicClient } from "@/lib/supabase/public";
 import { DEFAULT_THEME, type ThemeTokens } from "@/lib/theme";
 
 /**
- * Read the 3 managed theme tokens from `settings` (ADR 0008). Public-readable
- * row (RLS 0002), so the anon cookie-session client is enough. Falls back to the
- * defaults when the row is missing or unreadable. The root layout injects the
- * result on <html>, so a back-office save re-themes the public site on refresh.
+ * Read the 3 managed theme tokens from `settings` (ADR 0008). The row is
+ * public-readable (RLS 0002), so we use the session-less ANON client — no
+ * per-pageview JWT refresh (PERF-1 / P-5). Falls back to defaults when missing.
  */
-export async function getThemeTokens(): Promise<ThemeTokens> {
+async function loadThemeTokens(): Promise<ThemeTokens> {
   try {
-    const supabase = await createClient();
+    const supabase = createPublicClient();
     const { data } = await supabase
       .from("settings")
       .select("color_light, color_dark, color_accent")
@@ -29,3 +29,13 @@ export async function getThemeTokens(): Promise<ThemeTokens> {
   }
   return DEFAULT_THEME;
 }
+
+/**
+ * Cached under the `theme` tag: the root layout injects this on <html> for every
+ * pageview, so a single cached read replaces a per-request query + JWT refresh.
+ * `updateTheme` (F11a) calls `revalidateTag("theme")` so a back-office save
+ * re-themes the public site on the next load.
+ */
+export const getThemeTokens = unstable_cache(loadThemeTokens, ["theme-tokens"], {
+  tags: ["theme"],
+});

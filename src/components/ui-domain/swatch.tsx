@@ -115,6 +115,8 @@ export function Swatch({
             src={imageSrc}
             alt=""
             aria-hidden
+            loading="lazy"
+            decoding="async"
             data-testid="swatch-photo"
             className="pointer-events-none absolute inset-0 size-full object-cover"
           />
