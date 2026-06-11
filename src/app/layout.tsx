@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Poppins } from "next/font/google";
 import { getLocale } from "next-intl/server";
 import { getThemeTokens } from "@/lib/theme.server";
+import { AssetVariantFallback } from "@/components/asset-variant-fallback";
 import "./globals.css";
 
 const poppins = Poppins({
@@ -36,7 +37,10 @@ export default async function RootLayout({
         ["--mk-accent" as string]: theme.accent,
       }}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <AssetVariantFallback />
+        {children}
+      </body>
     </html>
   );
 }

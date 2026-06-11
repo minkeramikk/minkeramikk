@@ -8,6 +8,8 @@ import { uniqueSlug } from "@/lib/catalog/slug";
 import { assignMissingCodes } from "@/lib/configurator/assign-codes";
 import { PALETTE_COLORS, LOGO_ASSETS } from "@/lib/catalog/design-templates";
 import { planAssetCopy, ownedAssetsToDelete } from "@/lib/catalog/design-assets";
+import { uploadVariant } from "@/lib/asset-variant-image";
+import { variantPath, variantWidth } from "@/lib/asset-variants";
 
 const ASSET_BUCKET = "assets";
 
@@ -86,6 +88,7 @@ export async function saveDesign(
       .from("assets")
       .upload(path, buf, { contentType: file.type, upsert: true });
     if (up.error) return { error: "Could not upload the preview image." };
+    await uploadVariant(supabase, path, buf); // F26 resize-at-source (best-effort)
     previewPath = path;
   }
 
@@ -315,6 +318,12 @@ export async function duplicateDesign(
       .from(ASSET_BUCKET)
       .copy(copy.from, copy.to);
     if (error && !/exist/i.test(error.message)) return path;
+    // F26: bring the @<w>.webp variant along (best-effort — the onError
+    // fallback covers the clone until the backfill regenerates it).
+    const w = variantWidth(copy.from);
+    const vFrom = w ? variantPath(copy.from, w) : null;
+    const vTo = w ? variantPath(copy.to, w) : null;
+    if (vFrom && vTo) await supabase.storage.from(ASSET_BUCKET).copy(vFrom, vTo);
     return copy.to;
   };
 
@@ -402,7 +411,12 @@ export async function deleteDesign(
   const paths: (string | null)[] = [design.preview_image];
   for (const c of design.option_categories ?? [])
     for (const o of c.options ?? []) paths.push(o.image, o.layer_image);
-  const toRemove = ownedAssetsToDelete(paths, design.slug);
+  // F26: remove each owned master together with its @<w>.webp variant
+  const toRemove = ownedAssetsToDelete(paths, design.slug).flatMap((p) => {
+    const w = variantWidth(p);
+    const v = w ? variantPath(p, w) : null;
+    return v ? [p, v] : [p];
+  });
 
   // CASCADE removes its categories + options; orders keep their snapshots (no FK).
   const { error } = await supabase.from("designs").delete().eq("id", id.data);
