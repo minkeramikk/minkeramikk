@@ -6,9 +6,9 @@ beforeAll(() => {
 });
 
 describe("assetUrl", () => {
-  it("resolves design layers to their @800 webp variant (F26)", () => {
+  it("resolves design layers to their @512 webp variant (F26 / F26.1)", () => {
     expect(assetUrl("designs/juletre/borders/lilla.png")).toBe(
-      "https://example.supabase.co/storage/v1/object/public/assets/designs/juletre/borders/lilla@800.webp"
+      "https://example.supabase.co/storage/v1/object/public/assets/designs/juletre/borders/lilla@512.webp"
     );
   });
 

@@ -4,7 +4,7 @@
  * A variant is a resized WebP stored NEXT TO its master, same folder,
  * `@<width>` suffix:
  *   swatches/a3759f.png              → swatches/a3759f@96.webp
- *   designs/amalfi-dyr/dots/lilla.png → designs/amalfi-dyr/dots/lilla@800.webp
+ *   designs/amalfi-dyr/dots/lilla.png → designs/amalfi-dyr/dots/lilla@512.webp
  * Masters are never touched — lab-PDF (F08) and compose-plate keep downloading
  * the full-res originals straight from Storage.
  *
@@ -13,7 +13,7 @@
  * Node 24 strips types natively, so keep the syntax erasable (no enums).
  */
 
-/** `…@800.webp` — an object that already IS a variant. */
+/** `…@512.webp` — an object that already IS a variant. */
 export const VARIANT_SUFFIX_RE = /@\d+\.webp$/;
 
 export function isVariantPath(path: string): boolean {
@@ -27,7 +27,8 @@ export const VARIANT_WIDTHS: Record<AssetClass, number> = {
   swatches: 96, // 40px swatch circles, shared library (F15)
   animal: 128, // 56px animal icons
   products: 256, // 64px product/supplier thumbs (photos)
-  designs: 800, // compositing layers + design previews (squares, PREVIEW_WIDTH)
+  designs: 512, // was 800 — hero compositing layers + design previews, flat
+  // tints displayed at 312px (mobile) / 417px (desktop) (F26.1)
 };
 
 /** Compositing layers inside an animal category folder: `-layer` is the admin
@@ -38,8 +39,8 @@ const ANIMAL_LAYER_RE = /-(layer|shape)\.(png|jpe?g|webp)$/i;
  * Classify a Storage path. Animal icons live under the category folder, which
  * is slugged "dyr" by the F22 template and "animal" when created by hand from
  * the EN label — match both. The SAME folder also holds the animal compositing
- * layers (`…-layer.png` / legacy `…-shape.png`, 1500² masters composed at
- * PREVIEW_WIDTH): those are design layers → 800, only the 56px grid icons
+ * layers (`…-layer.png` / legacy `…-shape.png`, 1500² masters composed in the
+ * hero preview): those are design layers → 512, only the 56px grid icons
  * stay at 128. External URLs and existing variants → null.
  */
 export function assetClass(path: string): AssetClass | null {

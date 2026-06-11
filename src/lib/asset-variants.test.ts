@@ -19,14 +19,14 @@ describe("assetClass", () => {
     expect(assetClass("designs/amalfi/animal/elg.png")).toBe("animal");
   });
 
-  it("keeps animal COMPOSITING LAYERS in the designs class (800, not 128)", () => {
-    // composed at PREVIEW_WIDTH in the hero preview — 128 would blur them
+  it("keeps animal COMPOSITING LAYERS in the designs class (512, not 128)", () => {
+    // composed in the hero preview — 128 would blur them
     expect(assetClass("designs/amalfi/animal/elg-layer.png")).toBe("designs");
     expect(assetClass("designs/amalfi-dyr/animal/krabbeamalfi-shape.png")).toBe(
       "designs"
     );
     expect(assetClass("designs/amalfi/dyr/elg-layer.png")).toBe("designs");
-    expect(variantWidth("designs/amalfi/animal/elg-shape.png")).toBe(800);
+    expect(variantWidth("designs/amalfi/animal/elg-shape.png")).toBe(512);
   });
 
   it("returns null for external URLs, existing variants and unknown prefixes", () => {
@@ -41,7 +41,7 @@ describe("variantWidth", () => {
     expect(variantWidth("swatches/a3759f.png")).toBe(96);
     expect(variantWidth("designs/amalfi/dyr/elg.png")).toBe(128);
     expect(variantWidth("products/krus.png")).toBe(256);
-    expect(variantWidth("designs/amalfi/dots/lilla.png")).toBe(800);
+    expect(variantWidth("designs/amalfi/dots/lilla.png")).toBe(512); // F26.1: was 800
     expect(variantWidth("misc/x.png")).toBeNull();
   });
 });
@@ -49,8 +49,8 @@ describe("variantWidth", () => {
 describe("variantPath", () => {
   it("replaces the image extension with @<width>.webp, next to the master", () => {
     expect(variantPath("swatches/a3759f.png", 96)).toBe("swatches/a3759f@96.webp");
-    expect(variantPath("designs/amalfi-dyr/dots/lilla.png", 800)).toBe(
-      "designs/amalfi-dyr/dots/lilla@800.webp"
+    expect(variantPath("designs/amalfi-dyr/dots/lilla.png", 512)).toBe(
+      "designs/amalfi-dyr/dots/lilla@512.webp"
     );
     expect(variantPath("products/foto.jpg", 256)).toBe("products/foto@256.webp");
   });
