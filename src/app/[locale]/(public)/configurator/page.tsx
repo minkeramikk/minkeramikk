@@ -15,7 +15,6 @@ import type { ConfigSnapshot } from "@/lib/cart/cart";
 // Catalog reads go through the `catalog`-tagged data cache (PERF-1 / P-1): no
 // force-dynamic, so on a cache hit the configurator render issues ~0 catalog
 // queries. Admin writes call revalidateTag('catalog') to keep it fresh.
-const PREVIEW_WIDTH = 800;
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("configurator");
@@ -86,8 +85,9 @@ export default async function ConfiguratorPage({
         : `MK-${selected.slug}`;
 
       // F19: composited design layers (no plate) for the cart-row mini preview,
-      // resolved at the SAME width the big preview uses so the browser image
-      // cache hits → instant thumbnail. The plate is prepended at add-time.
+      // resolved to the SAME variant URL the big preview uses (class width,
+      // F26.1) so the browser image cache hits → instant thumbnail. The plate
+      // is prepended at add-time.
       const designLayers = getPreviewLayers(
         null,
         detail.categories.map((c) => {
@@ -96,7 +96,7 @@ export default async function ConfiguratorPage({
           return { layerSlot: c.layerSlot, layerImage: opt?.layerImage ?? null };
         })
       ).map((l) => ({
-        src: assetUrl(l.src, { width: PREVIEW_WIDTH }),
+        src: assetUrl(l.src),
         recolor: l.blend === "multiply",
       }));
 
@@ -144,8 +144,10 @@ export default async function ConfiguratorPage({
 
   // Preload the default design's composed layers so the first paint is the
   // composed plate, not a hole/skeleton (F14 AC1).
+  // F26.1 invariant: preload URL === render URL (both class-derived @512),
+  // otherwise the browser downloads two variants of every layer.
   for (const layer of selected.defaultLayers) {
-    ReactDOM.preload(assetUrl(layer.src, { width: PREVIEW_WIDTH }), {
+    ReactDOM.preload(assetUrl(layer.src), {
       as: "image",
       fetchPriority: "high",
     });

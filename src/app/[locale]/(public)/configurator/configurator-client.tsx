@@ -28,8 +28,6 @@ import { ConfigCodeBar } from "./config-code-bar";
 import type { DesignDetail } from "@/lib/catalog/design-options";
 import type { PreviewLayer } from "@/lib/configurator/preview";
 
-const PREVIEW_WIDTH = 800;
-
 export interface DesignChoice {
   id: string;
   slug: string;
@@ -91,8 +89,10 @@ export function ConfiguratorClient({
       const opt = c.options.find((o) => o.id === selections[c.slug]);
       return { layerSlot: c.layerSlot, layerImage: opt?.layerImage ?? null };
     });
+    // F26.1: no width override — assetUrl derives the class width (designs@512),
+    // the SAME URL the server page preloads (browser cache hit, no double fetch)
     return getPreviewLayers(null, cats).map((l) => ({
-      src: assetUrl(l.src, { width: PREVIEW_WIDTH }),
+      src: assetUrl(l.src),
       recolor: l.blend === "multiply",
     }));
   }, [detail, selections]);

@@ -10,6 +10,7 @@ import {
   optionAssetError,
   duplicateOptionMessage,
 } from "@/lib/catalog/option-rules";
+import { uploadVariant } from "@/lib/asset-variant-image";
 
 export type OptionFormState = { error: string | null };
 
@@ -35,6 +36,7 @@ async function uploadIf(
     .from("assets")
     .upload(path, buf, { contentType: file.type, upsert: true });
   if (up.error) return { error: "Could not upload the image." };
+  await uploadVariant(supabase, path, buf); // F26 resize-at-source (best-effort)
   return { path };
 }
 

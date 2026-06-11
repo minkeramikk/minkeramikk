@@ -6,6 +6,7 @@ import { revalidatePath, revalidateTag } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { parsePriceToCents } from "@/lib/money/parse";
 import { uniqueSlug } from "@/lib/catalog/slug";
+import { uploadVariant } from "@/lib/asset-variant-image";
 
 export type ProductFormState = { error: string | null };
 
@@ -78,6 +79,7 @@ export async function saveProduct(
       .from("assets")
       .upload(path, buf, { contentType: file.type, upsert: true });
     if (up.error) return { error: "Could not upload the image." };
+    await uploadVariant(supabase, path, buf); // F26 resize-at-source (best-effort)
     imagePath = path;
   }
 
