@@ -54,7 +54,8 @@ test("AC1c: step-3 cluster has no dead 'Next' — discreet new-design secondary 
   if (testInfo.project.name !== "desktop") return;
   await page.goto(STEP(3));
   await page.getByTestId("ceramics-step").waitFor();
-  // QA-fix #2: the disabled forward button is gone (dead UI on the last step)
+  // QA-fix #2: the disabled forward button is gone (dead UI on the last step).
+  // (CA-2 moved steps 1-2 CTAs in-flow; step 3 keeps its F21 layout.)
   await expect(page.getByTestId("next-step")).toHaveCount(0);
   await expect(page.getByTestId("new-design-nav")).toBeEnabled();
   await expect(page.getByTestId("back-step")).toBeEnabled();
@@ -97,17 +98,16 @@ test("QA-fix #2: add → 'new design' CTA returns to step 1 with config preserve
   await expect(page.getByTestId("cart-badge")).toHaveText("1");
 });
 
-test("AC1d: mobile step 1-2 uses bottom sticky bar (not desktop cluster buttons)", async ({
+test("AC1d (CA-2): mobile step 1-2 has NO bottom sticky bar — in-flow CTA at the end of the column", async ({
   page,
 }, testInfo) => {
   if (testInfo.project.name !== "mobile") return;
   await page.goto(STEP(2));
   await page.getByTestId("details-step").waitFor();
-  const bar = page.getByTestId("step-nav-mobile");
-  await expect(bar).toBeVisible();
-  const vp = page.viewportSize()!;
-  const bb = (await bar.boundingBox())!;
-  expect(bb.y + bb.height).toBeGreaterThanOrEqual(vp.height - 4);
+  await expect(page.getByTestId("step-nav-mobile")).toHaveCount(0);
+  const next = page.getByTestId("next-step");
+  await next.scrollIntoViewIfNeeded();
+  await expect(next).toBeInViewport();
 });
 
 // ── AC2: Desktop no nav under preview ────────────────────────────────────────
@@ -168,7 +168,8 @@ test("AC3c: docked cart total updates after add", async ({ page }, testInfo) => 
   await page.goto(STEP(3));
   await page.getByTestId("ceramics-step").waitFor();
   await page.getByTestId("add-to-cart").click();
-  const total = page.getByTestId("docked-total");
+  // the cart panel exists twice in the DOM (mobile section + desktop panel)
+  const total = page.locator('[data-testid="docked-total"]:visible');
   await expect(total).toBeVisible();
   const text = await total.textContent();
   expect(text).toMatch(/\d/); // contains a number
@@ -183,9 +184,9 @@ test("AC4a: 'Send bestilling' button expands order form inline in cart panel", a
   await page.goto(STEP(3));
   await page.getByTestId("ceramics-step").waitFor();
   await page.getByTestId("add-to-cart").click();
-  await page.getByTestId("docked-checkout").click();
-  await expect(page.getByTestId("docked-checkout-form")).toBeVisible();
-  await expect(page.getByTestId("order-form")).toBeVisible();
+  await page.locator('[data-testid="docked-checkout"]:visible').click();
+  await expect(page.locator('[data-testid="docked-checkout-form"]:visible')).toBeVisible();
+  await expect(page.locator('[data-testid="order-form"]:visible')).toBeVisible();
   // overlay drawer should NOT open
   await expect(page.getByTestId("cart-drawer")).toBeHidden();
 });
@@ -197,16 +198,16 @@ test("AC4b: order form submits and clears cart (F05 path)", async ({
   await page.goto(STEP(3));
   await page.getByTestId("ceramics-step").waitFor();
   await page.getByTestId("add-to-cart").click();
-  await page.getByTestId("docked-checkout").click();
-  await page.getByTestId("order-form").waitFor();
+  await page.locator('[data-testid="docked-checkout"]:visible').click();
+  await page.locator('[data-testid="order-form"]:visible').waitFor();
 
-  // fill the form
-  await page.getByTestId("order-name").fill("Test Testesen");
-  await page.getByTestId("order-email").fill("test@example.com");
-  await page.getByTestId("order-phone").fill("90000000");
+  // fill the form (it renders in BOTH cart panel copies → target the visible one)
+  await page.locator('[data-testid="order-name"]:visible').fill("Test Testesen");
+  await page.locator('[data-testid="order-email"]:visible').fill("test@example.com");
+  await page.locator('[data-testid="order-phone"]:visible').fill("90000000");
 
   // submit — Turnstile is test-mode (no challenge in CI)
-  await page.getByTestId("order-submit").click();
+  await page.locator('[data-testid="order-submit"]:visible').click();
 
   // on success: navigate to /order confirmation page OR cart cleared
   await expect(page).toHaveURL(/\/order\?code=/, { timeout: 10_000 });
@@ -230,7 +231,7 @@ test("AC5: cart drawer from header opens on step 1 and 2, not on step 3 (drawer 
   await page.goto(STEP(3));
   await page.getByTestId("ceramics-step").waitFor();
   await expect(page.getByTestId("cart-drawer")).toBeHidden();
-  await expect(page.getByTestId("docked-cart")).toBeVisible();
+  await expect(page.locator('[data-testid="docked-cart"]:visible')).toHaveCount(1);
 });
 
 // ── AC6: Mobile step 3 ───────────────────────────────────────────────────────

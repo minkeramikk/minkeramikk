@@ -168,8 +168,8 @@ test("AC4: tree — expand/collapse category accordion", async ({ page }) => {
 
   const details = page.getByTestId("category-accordion").first();
 
-  // starts collapsed — options list not visible
-  await expect(page.getByTestId("tree-options-list")).toHaveCount(0);
+  // starts collapsed — the list is in the DOM (<details> child) but hidden
+  await expect(page.getByTestId("tree-options-list")).toBeHidden();
 
   // expand
   await page.getByTestId("category-summary").first().click();

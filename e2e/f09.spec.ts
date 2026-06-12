@@ -82,6 +82,9 @@ test("AC1/AC2/AC3: create a product → shows in list + configurator step 3; hid
   await page.goto("/admin/products");
   const row = page.locator('[data-testid="product-row"]', { hasText: `${TAG} NO` });
   await row.getByTestId("product-toggle-visible").click(); // Yes → No
+  // the toggle is a server action: wait for the row to re-render as hidden
+  // BEFORE hitting the public page, or we race the revalidate
+  await expect(row.getByTestId("product-toggle-visible")).toHaveText("No");
   await page.goto("/no/configurator?design=blomster-1&step=3");
   await page.getByTestId("ceramics-step").waitFor();
   await expect(page.getByText(`${TAG} NO`)).toHaveCount(0);

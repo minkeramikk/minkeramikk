@@ -23,7 +23,6 @@ import {
   toCodecDesign,
   type CodecDesign,
 } from "@/lib/configurator/config-code";
-import { cn } from "@/lib/utils";
 import { ConfigCodeBar } from "./config-code-bar";
 import type { DesignDetail } from "@/lib/catalog/design-options";
 import type { PreviewLayer } from "@/lib/configurator/preview";
@@ -61,9 +60,12 @@ function resolveSelections(
 export function ConfiguratorClient({
   designs,
   detailsBySlug,
+  teaserProducts = {},
 }: {
   designs: DesignChoice[];
   detailsBySlug: Record<string, DesignDetail>;
+  /** CA-6: supplierId → up to 3 product image paths for the step-2 teaser. */
+  teaserProducts?: Record<string, string[]>;
 }) {
   const t = useTranslations("configurator");
   const locale = useLocale();
@@ -111,6 +113,19 @@ export function ConfiguratorClient({
     [detail]
   );
   const hasSyncGroup = detail.categories.some((c) => c.syncGroup);
+
+  // ── CA-6: "what's next" teaser under the preview (informative only) ──
+  // step 1 → swatches of the SELECTED design's first colour category;
+  // step 2 → the supplier's ceramic thumbs (F26 @256 variants, lazy).
+  const teaserSwatches = useMemo(() => {
+    const colorCat = detail.categories.find((c) => c.kind === "color");
+    return (colorCat?.options ?? []).slice(0, 7);
+  }, [detail]);
+  /** First swatches crisp, the rest progressively blurred — "there's more". */
+  const TEASER_CRISP = 4;
+  const teaserThumbs = teaserProducts[selected.supplierId] ?? [];
+  const showTeaser =
+    step === 1 ? teaserSwatches.length > 0 : teaserThumbs.length > 0;
 
   // ── F15 / QA#3: keep the live preview visible while the option list scrolls ──
   // Desktop: the preview column is sticky (CSS only, md:sticky). Mobile: it scrolls
@@ -260,20 +275,13 @@ export function ConfiguratorClient({
   }
 
   return (
-    <div data-testid="configurator" className="max-md:pb-24">
-      {/* F21: nav cluster — stepper always visible; Back/Next flanking on desktop only */}
-      <div className="mb-4 flex items-center gap-2" data-testid="step-nav">
-        <Button
-          variant="outline"
-          size="lg"
-          data-testid="back-step"
-          className="max-md:hidden min-h-11 shrink-0"
-          disabled={step === 1}
-          onClick={() => step > 1 && goToStep((step - 1) as 1 | 2)}
-          aria-label={t("back")}
-        >
-          ‹ {t("back")}
-        </Button>
+    <div data-testid="configurator">
+      {/* CA-2: the top cluster holds ONLY the stepper (orientation + step
+          jumps, F18). The advance/back CTAs moved in-flow to the END of the
+          options column — no fixed bottom bar on mobile (thumb-tap issue),
+          no climb back to the top on desktop. Decision closed with the
+          client's written ok (mockup-ca2-next-button.html). */}
+      <div className="mb-4" data-testid="step-nav">
         <Stepper
           ariaLabel={t("stepperLabel")}
           current={step - 1}
@@ -283,46 +291,8 @@ export function ConfiguratorClient({
             { label: t("steps.ceramics") },
           ]}
           onStepSelect={(i) => goToStep((i + 1) as 1 | 2 | 3)}
-          className="mb-0 mt-0 flex-1"
+          className="mb-0 mt-0"
         />
-        <Button
-          size="lg"
-          data-testid="next-step"
-          className="max-md:hidden min-h-11 shrink-0"
-          onClick={() => goToStep((step + 1) as 1 | 2 | 3)}
-          aria-label={step === 1 ? t("nextStepDetails") : t("nextStepCeramic")}
-        >
-          {step === 1 ? t("nextStepDetails") : t("nextStepCeramic")} ›
-        </Button>
-      </div>
-
-      {/* F21: mobile-only sticky bottom nav bar (unchanged from F18) */}
-      <div
-        data-testid="step-nav-mobile"
-        className={cn(
-          "md:hidden fixed inset-x-0 bottom-0 z-40 flex gap-3 border-t border-border bg-background p-3",
-          "shadow-[0_-2px_12px_color-mix(in_oklab,var(--mk-dark)_10%,transparent)]"
-        )}
-      >
-        {step > 1 && (
-          <Button
-            variant="outline"
-            size="lg"
-            data-testid="back-step-mobile"
-            className="min-h-11"
-            onClick={() => goToStep((step - 1) as 1 | 2)}
-          >
-            {t("back")}
-          </Button>
-        )}
-        <Button
-          size="lg"
-          data-testid="next-step-mobile"
-          className="min-h-11 flex-1"
-          onClick={() => goToStep((step + 1) as 1 | 2 | 3)}
-        >
-          {step === 1 ? t("nextStepDetails") : t("nextStepCeramic")}
-        </Button>
       </div>
 
       <div className="grid grid-cols-1 items-start gap-7 md:grid-cols-2">
@@ -337,14 +307,73 @@ export function ConfiguratorClient({
               layers={previewLayers}
             />
           </div>
-          {/* F19: save/share this design — by the preview, present in every step
-              (replaces the per-step ConfigCodeBar box in step 2/3). */}
-          {currentCode && (
-            <ConfigCodeBar
-              code={currentCode}
-              shareUrl={shareUrl}
-              onApply={applyCode}
-            />
+          {/* CA-6: informative teaser of the NEXT step — not clickable (no
+              role, no handler; decision 2026-06-12) and desktop-only: on
+              mobile it would lengthen the scroll to the options, the very
+              CA-2 pain point. Inside the sticky block so it follows the
+              preview (F15). Images: existing F26 variants only, lazy. */}
+          {showTeaser && (
+            <div
+              data-testid="next-step-teaser"
+              data-design={selected.slug}
+              className="max-md:hidden flex items-center gap-4 rounded-sm border border-border bg-card/55 p-4"
+            >
+              {step === 1 ? (
+                // our REAL swatch assets (F26 @96): the first few crisp, the
+                // rest progressively blurred — an elegant "there's more" cue
+                <div className="flex shrink-0" aria-hidden>
+                  {teaserSwatches.map((o, i) => {
+                    const fade =
+                      i >= TEASER_CRISP
+                        ? {
+                            filter: "blur(2px)",
+                            opacity: Math.max(0.3, 0.75 - (i - TEASER_CRISP) * 0.2),
+                          }
+                        : undefined;
+                    return o.image ? (
+                      // eslint-disable-next-line @next/next/no-img-element -- catalog art from storage
+                      <img
+                        key={o.id}
+                        src={assetUrl(o.image)}
+                        alt=""
+                        loading="lazy"
+                        decoding="async"
+                        className="-ml-2.5 size-8 rounded-full border-2 border-card object-cover first:ml-0"
+                        style={fade}
+                      />
+                    ) : o.hex ? (
+                      <span
+                        key={o.id}
+                        className="-ml-2.5 size-8 rounded-full border-2 border-card first:ml-0"
+                        style={{ background: o.hex, ...fade }}
+                      />
+                    ) : null;
+                  })}
+                </div>
+              ) : (
+                <div className="flex shrink-0 gap-2.5" aria-hidden>
+                  {teaserThumbs.map((img) => (
+                    // eslint-disable-next-line @next/next/no-img-element -- catalog art from storage
+                    <img
+                      key={img}
+                      src={assetUrl(img)}
+                      alt=""
+                      loading="lazy"
+                      decoding="async"
+                      className="size-12 rounded-sm border border-border bg-card object-contain"
+                    />
+                  ))}
+                </div>
+              )}
+              <div className="min-w-0">
+                <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
+                  {t("teaser.nextStep")}
+                </p>
+                <p className="truncate text-sm font-medium">
+                  {step === 1 ? t("teaser.colors") : t("teaser.ceramics")}
+                </p>
+              </div>
+            </div>
           )}
         </div>
 
@@ -370,6 +399,30 @@ export function ConfiguratorClient({
                 />
               ))}
             </div>
+            {/* CA-2: advance CTA closes the options column — natural end of
+                the flow, single instance for every viewport. No Back here:
+                step 1 is the first step. */}
+            <div data-testid="step-nav-flow">
+              <Button
+                size="lg"
+                data-testid="next-step"
+                className="min-h-11 w-full"
+                onClick={() => goToStep(2)}
+              >
+                {t("nextStepDetails")} ›
+              </Button>
+            </div>
+            {/* F19 save/share — moved from under the preview to the action
+                column, below the CTA (CA-6 follow-up, 2026-06-12) */}
+            {currentCode && (
+              <div className="mt-3">
+                <ConfigCodeBar
+                  code={currentCode}
+                  shareUrl={shareUrl}
+                  onApply={applyCode}
+                />
+              </div>
+            )}
           </div>
         ) : (
           <div
@@ -465,6 +518,36 @@ export function ConfiguratorClient({
                 </fieldset>
               );
             })}
+
+            {/* CA-2: Back + advance close the options column (last in DOM →
+                natural tab order: options → CTA). */}
+            <div className="flex gap-3" data-testid="step-nav-flow">
+              <Button
+                variant="outline"
+                size="lg"
+                data-testid="back-step"
+                className="min-h-11 shrink-0"
+                onClick={() => goToStep(1)}
+              >
+                ‹ {t("back")}
+              </Button>
+              <Button
+                size="lg"
+                data-testid="next-step"
+                className="min-h-11 flex-1"
+                onClick={() => goToStep(3)}
+              >
+                {t("nextStepCeramic")} ›
+              </Button>
+            </div>
+            {/* F19 save/share — action column, below the CTA (see step 1) */}
+            {currentCode && (
+              <ConfigCodeBar
+                code={currentCode}
+                shareUrl={shareUrl}
+                onApply={applyCode}
+              />
+            )}
           </div>
         )}
       </div>

@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { Suspense } from "react";
 import ReactDOM from "react-dom";
 import { getTranslations } from "next-intl/server";
 import { getActiveDesigns } from "@/lib/catalog/designs";
@@ -100,11 +99,15 @@ export default async function ConfiguratorPage({
         recolor: l.blend === "multiply",
       }));
 
+      // No <Suspense> around the client steps: the page already awaits all
+      // data (dynamic via `await searchParams`), so the boundary never showed
+      // a fallback — it only made React stream the subtree as a hidden
+      // `div#S:0` at the end of <body>, briefly leaving TWO copies of the
+      // step in the DOM (flaky Playwright strict-mode violations).
       return (
         <section>
           <h1 className="sr-only">{t("pageTitle")}</h1>
-          <Suspense>
-            <CeramicsStep
+          <CeramicsStep
               products={products.map((p) => ({
                 id: p.id,
                 slug: p.slug,
@@ -124,7 +127,6 @@ export default async function ConfiguratorPage({
               configCode={configCode}
               designLayers={designLayers}
             />
-          </Suspense>
         </section>
       );
     }
@@ -142,6 +144,21 @@ export default async function ConfiguratorPage({
     if (detail) detailsBySlug[d.slug] = detail;
   });
 
+  // CA-6: light data for the step-2 "what's next" teaser — 3 product thumbs
+  // per supplier (the selected design switches client-side, so cover every
+  // supplier on the page). Catalog-cached (PERF-1) → ~0 extra queries.
+  const supplierIds = [...new Set(designs.map((d) => d.supplierId))];
+  const productsPerSupplier = await Promise.all(
+    supplierIds.map((id) => getSupplierProducts(id))
+  );
+  const teaserProducts: Record<string, string[]> = {};
+  supplierIds.forEach((id, i) => {
+    teaserProducts[id] = productsPerSupplier[i]
+      .map((p) => p.image)
+      .filter((img): img is string => Boolean(img))
+      .slice(0, 3);
+  });
+
   // Preload the default design's composed layers so the first paint is the
   // composed plate, not a hole/skeleton (F14 AC1).
   // F26.1 invariant: preload URL === render URL (both class-derived @512),
@@ -156,9 +173,12 @@ export default async function ConfiguratorPage({
   return (
     <section>
       <h1 className="sr-only">{t("pageTitle")}</h1>
-      <Suspense>
-        <ConfiguratorClient designs={designs} detailsBySlug={detailsBySlug} />
-      </Suspense>
+      {/* no <Suspense>: see the step-3 note above */}
+      <ConfiguratorClient
+        designs={designs}
+        detailsBySlug={detailsBySlug}
+        teaserProducts={teaserProducts}
+      />
     </section>
   );
 }

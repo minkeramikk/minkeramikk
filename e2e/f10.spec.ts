@@ -59,23 +59,25 @@ test("AC: create design (code auto) → add category → activate → shows in c
 
   await login(page);
 
-  // create (default: draft / not active)
+  // create (default: draft / not active) — F22 replaced the old form with the
+  // template wizard (blank template is the default)
   await page.goto("/admin/designs/new");
-  await page.getByTestId("design-name").fill(NAME);
-  await page.getByTestId("design-supplier").selectOption({ label: "Vietri" });
-  await page.getByTestId("design-save").click();
+  await page.getByTestId("wizard-supplier").selectOption({ label: "Vietri" });
+  await page.getByTestId("wizard-name").clear();
+  await page.getByTestId("wizard-name").fill(NAME);
+  await page.getByTestId("wizard-submit").click();
 
   // landed on the detail page, with a code assigned (ADR 0011)
-  await expect(page).toHaveURL(/\/admin\/designs\/[0-9a-f-]{36}$/);
+  await page.waitForURL(/\/admin\/designs\/[0-9a-f-]{36}$/);
   await expect(page.getByTestId("design-detail")).toBeVisible();
   await expect(page.getByTestId("design-detail")).toHaveAttribute("data-active", "false");
 
-  // add a category
-  const add = page.getByTestId("add-category-form");
-  await add.getByLabel("Label NO").fill("Farge");
-  await add.getByLabel("Label EN").fill("Colour");
-  await page.getByTestId("category-add").click();
-  await expect(page.getByTestId("category-row")).toHaveCount(1);
+  // add a category (F22 design tree)
+  await page.getByTestId("add-category-button").click();
+  await page.getByRole("textbox", { name: "Label NO" }).fill("Farge");
+  await page.getByRole("textbox", { name: "Label EN" }).fill("Colour");
+  await page.getByTestId("add-category-submit").click();
+  await expect(page.getByTestId("category-accordion")).toHaveCount(1);
 
   // draft → NOT in the public configurator
   await page.goto("/no/configurator");
@@ -101,9 +103,14 @@ test("AC: an invalid preview upload is rejected with a form error", async ({
 }) => {
   test.skip(!hasAdmin, "needs a seeded admin");
   await login(page);
+  // F22: the upload lives on the EDIT form — create a draft first
   await page.goto("/admin/designs/new");
-  await page.getByTestId("design-name").fill("E2E F10 Design BadUpload");
-  await page.getByTestId("design-supplier").selectOption({ label: "Vietri" });
+  await page.getByTestId("wizard-supplier").selectOption({ label: "Vietri" });
+  await page.getByTestId("wizard-name").clear();
+  await page.getByTestId("wizard-name").fill(`E2E F10 Design BadUpload ${Date.now()}`);
+  await page.getByTestId("wizard-submit").click();
+  await page.waitForURL(/\/admin\/designs\/[0-9a-f-]{36}$/);
+
   await page.getByTestId("design-preview-image").setInputFiles({
     name: "note.txt",
     mimeType: "text/plain",

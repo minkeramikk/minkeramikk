@@ -1,5 +1,6 @@
 import "server-only";
 
+import { unstable_cache } from "next/cache";
 import { createPublicClient } from "@/lib/supabase/public";
 import { money, type Money } from "@/lib/money/money";
 import type { Currency } from "@/lib/money/money";
@@ -19,8 +20,21 @@ export interface SupplierProduct {
  * Visible products of one supplier, ordered by sort_order. Read with the
  * anon client: RLS exposes only `visible=true` rows (F03 AC1), and the
  * supplier filter implements the design→supplier hook (ADR 0007).
+ * Cached per-supplier under the `catalog` tag (PERF-1 / P-1): anon + RLS
+ * reads are identical for every viewer, and every admin product write
+ * calls `revalidateTag("catalog")`.
  */
 export async function getSupplierProducts(
+  supplierId: string
+): Promise<SupplierProduct[]> {
+  return unstable_cache(
+    () => loadSupplierProducts(supplierId),
+    ["supplier-products", supplierId],
+    { tags: ["catalog"] }
+  )();
+}
+
+async function loadSupplierProducts(
   supplierId: string
 ): Promise<SupplierProduct[]> {
   const supabase = createPublicClient();

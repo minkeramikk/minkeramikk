@@ -103,6 +103,11 @@
       "pasteApply": "Load",
       "pasteError": "Unknown or invalid code",
       "help": "Copy the code to save your design, or paste a code to restore it."
+    },
+    "teaser": {
+      "nextStep": "Next step",
+      "colors": "Pick your colours",
+      "ceramics": "Pick your ceramics"
     }
   },
   "orderForm": {

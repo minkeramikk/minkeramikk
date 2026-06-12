@@ -46,3 +46,6 @@ test-results/
 # F26 backfill checkpoints (local run state, machine-specific)
 scripts/.variants-progress.log
 scripts/.variants-failed.log
+
+# e2e evidence screenshots (PM material lives outside the repo)
+docs/evidence/

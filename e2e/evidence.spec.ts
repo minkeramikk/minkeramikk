@@ -78,11 +78,12 @@ test("F10a: designs list + design detail (form + categories + preview)", async (
   await page.waitForTimeout(500);
   await page.screenshot({ path: `${OUT10}/f10-design-detail.png`, fullPage: true });
 
-  // F10b: options of the first category (swatches/hex/upload, anti-dup)
-  await page.getByTestId("manage-options").first().click();
-  await page.getByTestId("option-editor").waitFor();
+  // F10b/F22: options are managed inline in the design tree — expand the
+  // first category accordion and capture it
+  await page.getByTestId("category-summary").first().click();
+  await page.getByTestId("tree-options-list").first().waitFor({ state: "visible" });
   await page.waitForTimeout(300);
-  await page.screenshot({ path: `${OUT10}/f10-options.png` });
+  await page.screenshot({ path: `${OUT10}/f10-options.png`, fullPage: true });
 });
 
 const OUT09 = "docs/evidence/f09";

@@ -12,6 +12,10 @@ const products = (page: Page) =>
 /** Open the cart drawer from the header button. */
 const openCart = (page: Page) => page.getByTestId("cart-button").click();
 
+/** Scope cart queries to the DRAWER: since F21 the step-3 docked panels render
+ *  the same cart-line/cart-total testids twice more in the DOM. */
+const drawer = (page: Page) => page.getByTestId("cart-drawer");
+
 test("AC1: shows the supplier's visible ceramics with formatted prices", async ({
   page,
 }) => {
@@ -36,13 +40,13 @@ test("AC2+AC4: add to cart creates a drawer line with product, design, subtotal"
   await expect(page.getByTestId("cart-badge")).toHaveText("2");
 
   await openCart(page);
-  const line = page.getByTestId("cart-line");
+  const line = drawer(page).getByTestId("cart-line");
   await expect(line).toHaveCount(1);
   await expect(line).toContainText("Vietri Flat");
   await expect(line).toContainText("Blomster 1"); // configured design
   // 2 × 500 kr = 1000 kr
   await expect(line).toContainText(/1\s?000\s*kr/);
-  await expect(page.getByTestId("cart-total")).toContainText(/1\s?000\s*kr/);
+  await expect(drawer(page).getByTestId("cart-total")).toContainText(/1\s?000\s*kr/);
 });
 
 test("AC3: cart persists across a reload (badge + drawer)", async ({ page }) => {
@@ -55,8 +59,8 @@ test("AC3: cart persists across a reload (badge + drawer)", async ({ page }) => 
   await expect(page.getByTestId("ceramics-step")).toBeVisible();
   await expect(page.getByTestId("cart-badge")).toHaveText("1");
   await openCart(page);
-  await expect(page.getByTestId("cart-line")).toHaveCount(1);
-  await expect(page.getByTestId("cart-line")).toContainText("Vietri Dyp");
+  await expect(drawer(page).getByTestId("cart-line")).toHaveCount(1);
+  await expect(drawer(page).getByTestId("cart-line")).toContainText("Vietri Dyp");
 });
 
 test("AC4: two different products → two lines, total is their sum", async ({
@@ -69,8 +73,8 @@ test("AC4: two different products → two lines, total is their sum", async ({
   await page.getByTestId("add-to-cart").click();
 
   await openCart(page);
-  await expect(page.getByTestId("cart-line")).toHaveCount(2);
-  await expect(page.getByTestId("cart-total")).toContainText(/1\s?800\s*kr/);
+  await expect(drawer(page).getByTestId("cart-line")).toHaveCount(2);
+  await expect(drawer(page).getByTestId("cart-total")).toContainText(/1\s?800\s*kr/);
 });
 
 test("AC5: changing quantity and removing updates total; empty → empty state", async ({
@@ -82,10 +86,10 @@ test("AC5: changing quantity and removing updates total; empty → empty state",
   await openCart(page);
 
   // bump qty in the drawer line to 3 → 1500 kr
-  const line = page.getByTestId("cart-line");
+  const line = drawer(page).getByTestId("cart-line");
   await line.getByRole("button", { name: "+" }).click();
   await line.getByRole("button", { name: "+" }).click();
-  await expect(page.getByTestId("cart-total")).toContainText(/1\s?500\s*kr/);
+  await expect(drawer(page).getByTestId("cart-total")).toContainText(/1\s?500\s*kr/);
 
   // remove → empty state with CTA (drawer stays open)
   await page.getByTestId("cart-remove").click();

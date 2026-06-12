@@ -18,11 +18,13 @@ test("cart row renders a pattern-only mini + the chosen ceramic below", async ({
 }) => {
   await addOne(page);
   await page.getByTestId("cart-button").click();
-  const thumb = page.getByTestId("cart-thumb").first();
+  // scope to the drawer: the F21 docked panels render the same thumbs again
+  const drawer = page.getByTestId("cart-drawer");
+  const thumb = drawer.getByTestId("cart-thumb").first();
   await expect(thumb).toBeVisible();
   expect(await thumb.locator("img").count()).toBeGreaterThan(0);
   // the chosen ceramic shows as a separate small image under the pattern
-  await expect(page.getByTestId("cart-plate").first()).toBeVisible();
+  await expect(drawer.getByTestId("cart-plate").first()).toBeVisible();
 });
 
 test("save/share widget sits by the preview in step 1 and step 2 (copy + paste)", async ({
@@ -38,7 +40,13 @@ test("save/share widget sits by the preview in step 1 and step 2 (copy + paste)"
   await page.getByTestId("details-step").waitFor();
   await expect(page.getByTestId("config-code-bar")).toBeVisible(); // and step 2
   // change a colour, then paste the earlier code → it reloads that config
-  await page.getByTestId("category-colors").getByRole("radio").nth(3).click();
+  await page
+    .getByTestId("details-step")
+    .getByRole("radiogroup")
+    .first()
+    .getByRole("radio")
+    .nth(3)
+    .click();
   await page.getByTestId("paste-input").fill(code);
   await page.getByTestId("paste-apply").click();
   await expect(page.getByTestId("config-code")).toHaveText(code);
@@ -80,7 +88,8 @@ test("a pre-F19 line (no layers) falls back to the chip, no crash", async ({
   });
   await page.reload();
   await page.getByTestId("cart-button").click();
-  await expect(page.getByTestId("cart-line")).toHaveCount(1);
-  await expect(page.getByTestId("cart-thumb-chip").first()).toBeVisible();
-  await expect(page.getByTestId("cart-thumb")).toHaveCount(0);
+  const drawer2 = page.getByTestId("cart-drawer");
+  await expect(drawer2.getByTestId("cart-line")).toHaveCount(1);
+  await expect(drawer2.getByTestId("cart-thumb-chip").first()).toBeVisible();
+  await expect(drawer2.getByTestId("cart-thumb")).toHaveCount(0);
 });

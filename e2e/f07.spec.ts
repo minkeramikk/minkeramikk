@@ -154,6 +154,15 @@ test("AC4: internal notes persist", async ({ page }) => {
   const note = `call back ${Date.now()}`;
   await page.getByTestId("notes-input").fill(note);
   await page.getByTestId("notes-save").click();
+  // plain server-action form (no pending UI): wait for the DB commit before
+  // reloading, or the reload races the action
+  const db = adminClient();
+  await expect
+    .poll(async () =>
+      (await db.from("orders").select("internal_notes").eq("id", orderId).single())
+        .data?.internal_notes
+    )
+    .toBe(note);
   await page.reload();
   await expect(page.getByTestId("notes-input")).toHaveValue(note);
 });

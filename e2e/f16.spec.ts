@@ -10,6 +10,10 @@ const STEP = (n: 1 | 2 | 3) => (n === 1 ? DESIGN : `${DESIGN}&step=${n}`);
 
 const openCart = (page: Page) => page.getByTestId("cart-button").click();
 
+/** Scope cart queries to the DRAWER: since F21 the step-3 docked panels render
+ *  the same cart testids twice more in the DOM. */
+const drawer = (page: Page) => page.getByTestId("cart-drawer");
+
 async function addOneAtStep3(page: Page) {
   await page.goto(STEP(3));
   await page.getByTestId("ceramics-step").waitFor();
@@ -70,17 +74,17 @@ test("AC4: edit quantity and remove from the drawer updates total/badge", async 
   await addOneAtStep3(page);
   await openCart(page);
 
-  const line = page.getByTestId("cart-line");
+  const line = drawer(page).getByTestId("cart-line");
   await expect(line).toHaveCount(1);
   await line.getByRole("button", { name: "+" }).click(); // qty 2
-  await expect(page.getByTestId("cart-total")).toContainText(/1\s?000\s*kr/);
+  await expect(drawer(page).getByTestId("cart-total")).toContainText(/1\s?000\s*kr/);
   await expect(page.getByTestId("cart-badge")).toHaveText("2");
 
   await line.getByRole("button", { name: "-" }).click(); // qty 1
-  await expect(page.getByTestId("cart-total")).toContainText(/500\s*kr/);
+  await expect(drawer(page).getByTestId("cart-total")).toContainText(/500\s*kr/);
 
-  await page.getByTestId("cart-remove").click();
-  await expect(page.getByTestId("cart-empty")).toBeVisible();
+  await drawer(page).getByTestId("cart-remove").click();
+  await expect(drawer(page).getByTestId("cart-empty")).toBeVisible();
   await expect(page.getByTestId("cart-badge")).toBeHidden();
 });
 
@@ -99,11 +103,13 @@ test("AC5: checkout is reached from the drawer (cart ↔ form)", async ({
   await expect(page.getByTestId("cart-total")).toBeVisible();
 });
 
-test("AC6: 'View basket' on step 3 opens the drawer", async ({ page }) => {
+test("AC6 (F21): step 3 shows the cart inline in the docked panel", async ({ page }) => {
+  // F21 superseded the "View basket" button: on step 3 the cart IS the docked
+  // panel (desktop right column / mobile inline section) — no drawer needed.
   await addOneAtStep3(page);
-  await page.getByTestId("open-cart").click();
-  await expect(page.getByTestId("cart-drawer")).toBeVisible();
-  await expect(page.getByTestId("cart-line")).toHaveCount(1);
+  const visiblePanel = page.locator('[data-testid="docked-cart"]:visible');
+  await expect(visiblePanel).toHaveCount(1);
+  await expect(visiblePanel.getByTestId("cart-line")).toHaveCount(1);
 });
 
 test("AC7 (mobile): drawer is full-height, button ≥44px, no overflow", async ({

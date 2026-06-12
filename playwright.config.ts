@@ -22,12 +22,13 @@ export default defineConfig({
   projects: [
     {
       name: "desktop",
-      testMatch: /f\d\d\.spec\.ts/,
+      // [ab]? — sub-flow specs (f07b, f11a) were silently excluded by /f\d\d\.spec/
+      testMatch: /f\d\d[ab]?\.spec\.ts/,
       use: { ...devices["Desktop Chrome"], viewport: { width: 1280, height: 800 } },
     },
     {
       name: "mobile",
-      testMatch: /f\d\d\.spec\.ts/,
+      testMatch: /f\d\d[ab]?\.spec\.ts/,
       use: { ...devices["Desktop Chrome"], viewport: { width: 390, height: 844 } },
     },
     {

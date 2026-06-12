@@ -19,7 +19,8 @@ test("AC1 (F15): swatches show the real glaze photo, not a flat disc", async ({
   await expect(swatch).toBeVisible();
   // the real swatch asset (options.image) is rendered inside the swatch
   const photo = swatch.getByTestId("swatch-photo");
-  await expect(photo).toHaveAttribute("src", /swatches\/.+\.png/);
+  // F26: assetUrl resolves to the resized WebP variant of the real asset
+  await expect(photo).toHaveAttribute("src", /swatches\/.+@\d+\.webp/);
 });
 
 test("AC2 (F15): kind=image icons show the original art (no mask/currentColor)", async ({
@@ -30,7 +31,7 @@ test("AC2 (F15): kind=image icons show the original art (no mask/currentColor)",
   await expect(icon).toBeVisible();
   // the tile contains a real <img> of the curated art, not a masked silhouette
   const img = icon.locator("img");
-  await expect(img).toHaveAttribute("src", /animal\/.+\.png/);
+  await expect(img).toHaveAttribute("src", /animal\/.+@\d+\.webp/); // F26 variant
   const mask = await icon.evaluate(
     (el) => getComputedStyle(el).maskImage || getComputedStyle(el).webkitMaskImage
   );
@@ -48,7 +49,7 @@ test("AC3: hover shows the pattern preview popup; Esc closes it", async ({
   await swatch.hover();
   const popup = page.getByTestId("swatch-preview");
   await expect(popup).toBeVisible();
-  await expect(popup.locator("img")).toHaveAttribute("src", /designs\/.+\.png/);
+  await expect(popup.locator("img")).toHaveAttribute("src", /designs\/.+@\d+\.webp/); // F26
   await page.keyboard.press("Escape");
   await expect(popup).toHaveCount(0);
 });

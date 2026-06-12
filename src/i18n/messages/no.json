@@ -102,6 +102,11 @@
       "pasteApply": "Hent",
       "pasteError": "Ukjent eller ugyldig kode",
       "help": "Kopier koden for å lagre designet ditt, eller lim inn en kode for å hente det igjen."
+    },
+    "teaser": {
+      "nextStep": "Neste steg",
+      "colors": "Velg fargene dine",
+      "ceramics": "Velg keramikken din"
     }
   },
   "orderForm": {

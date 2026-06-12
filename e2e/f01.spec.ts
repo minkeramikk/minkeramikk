@@ -6,23 +6,34 @@ import { adminClient } from "./helpers";
 const designCards = (page: Page) =>
   page.getByTestId("design-step").locator("button[aria-pressed]");
 
-test("AC1: the 6 active designs render in sort_order with supplier badge", async ({
+/** Exact-label card filter — `hasText` is substring-based and would also match
+ *  e.g. "Blomster 1 Fake1" when looking for "Blomster 1". */
+const cardNamed = (page: Page, name: string) =>
+  designCards(page).filter({ has: page.getByText(name, { exact: true }) });
+
+/** The live catalog evolves (client demo designs, admin work): assert against
+ *  the CURRENT active designs instead of a hardcoded snapshot. */
+async function activeDesignNames(): Promise<string[]> {
+  const { data, error } = await adminClient()
+    .from("designs")
+    .select("name")
+    .eq("active", true)
+    .order("sort_order");
+  if (error) throw error;
+  return (data ?? []).map((d) => d.name);
+}
+
+test("AC1: every active design renders in sort_order with supplier badge", async ({
   page,
 }) => {
+  const names = await activeDesignNames();
   await page.goto("/no/configurator");
   const cards = designCards(page);
-  await expect(cards).toHaveCount(6);
+  await expect(cards).toHaveCount(names.length);
 
-  // sort_order from the imported catalog
+  // sort_order from the live catalog
   const labels = await cards.allInnerTexts();
-  expect(labels.map((l) => l.split("\n")[0])).toEqual([
-    "Blomster 1",
-    "Blomster 2",
-    "Amalfi Dyr",
-    "Krabbe",
-    "Striper",
-    "Juletre",
-  ]);
+  expect(labels.map((l) => l.split("\n")[0])).toEqual(names);
 
   // supplier badge on every card (public name per ADR 0009);
   // innerText is uppercased by the badge CSS, so compare case-insensitively
@@ -42,25 +53,21 @@ test("AC2: selection drives preview + URL; refresh and back/forward preserve it"
   ).toHaveAttribute("src", /designs\/blomster-1\//);
 
   // selecting a DIFFERENT design drives the URL + preview
-  await designCards(page).filter({ hasText: "Krabbe" }).click();
+  await cardNamed(page, "Krabbe").click();
   await expect(page).toHaveURL(/design=krabbe/);
 
   await page.reload();
   await expect(page).toHaveURL(/design=krabbe/);
-  await expect(
-    designCards(page).filter({ hasText: "Krabbe" })
-  ).toHaveAttribute("aria-pressed", "true");
+  await expect(cardNamed(page, "Krabbe")).toHaveAttribute("aria-pressed", "true");
 
   await page.goBack();
   await expect(
-    designCards(page).filter({ hasText: "Blomster 1" })
+    cardNamed(page, "Blomster 1")
   ).toHaveAttribute("aria-pressed", "true");
 
   await page.goForward();
   await expect(page).toHaveURL(/design=krabbe/);
-  await expect(
-    designCards(page).filter({ hasText: "Krabbe" })
-  ).toHaveAttribute("aria-pressed", "true");
+  await expect(cardNamed(page, "Krabbe")).toHaveAttribute("aria-pressed", "true");
 });
 
 test("AC3: supplierId exposed; CTA enabled (a design is always selected, F14)", async ({
@@ -76,7 +83,7 @@ test("AC3: supplierId exposed; CTA enabled (a design is always selected, F14)", 
     /^[0-9a-f-]{36}$/
   );
 
-  await designCards(page).filter({ hasText: "Striper" }).click();
+  await cardNamed(page, "Striper").click();
   await expect(cta).toBeEnabled();
   expect(await step.getAttribute("data-supplier-id")).toMatch(
     /^[0-9a-f-]{36}$/
@@ -107,8 +114,9 @@ test("AC4: a design flipped to active=false via SQL does not render", async ({
   expect(error).toBeNull();
 
   try {
+    const names = await activeDesignNames();
     await page.goto("/no/configurator");
-    await expect(designCards(page)).toHaveCount(6);
+    await expect(designCards(page)).toHaveCount(names.length);
     await expect(page.getByText("E2E Inactive Design")).toHaveCount(0);
   } finally {
     await admin.from("designs").delete().eq("id", created!.id);
@@ -130,9 +138,10 @@ test("AC5: 390px — 2-column grid, no horizontal overflow, ≥44px touch target
 }, testInfo) => {
   test.skip(testInfo.project.name !== "mobile", "mobile-only assertions");
 
+  const names = await activeDesignNames();
   await page.goto("/no/configurator");
   const cards = designCards(page);
-  await expect(cards).toHaveCount(6);
+  await expect(cards).toHaveCount(names.length);
 
   // 2 columns: cards 0 and 1 share a row, card 2 goes below
   const [a, b, c] = await Promise.all([

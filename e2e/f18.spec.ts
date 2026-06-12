@@ -1,6 +1,8 @@
 import { test, expect } from "@playwright/test";
 
-/** F18 — clickable stepper + sticky Next/Back. Pure front-end; 390 + 1280. */
+/** F18 — clickable stepper (+ CA-2: Next/Back moved in-flow at the end of the
+ *  options column — the sticky mobile bar and the top-cluster buttons are gone
+ *  on steps 1–2). Pure front-end; 390 + 1280. */
 
 const STEP2 = "/no/configurator?design=blomster-1&step=2";
 
@@ -36,53 +38,54 @@ test("stepper jumps keep the design + option config; active has aria-current", a
   await expect(page).toHaveURL(new RegExp(opt.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
 });
 
-test("Next and Back are reachable without scrolling", async ({ page }, testInfo) => {
-  await page.goto(STEP2);
-  await page.getByTestId("details-step").waitFor();
-  if (testInfo.project.name === "mobile") {
-    // F21: mobile bottom bar holds the buttons
-    await expect(page.getByTestId("step-nav-mobile")).toBeVisible();
-    await expect(page.getByTestId("next-step-mobile")).toBeInViewport();
-    await expect(page.getByTestId("back-step-mobile")).toBeInViewport();
-  } else {
-    // F21: desktop nav cluster at top
-    await expect(page.getByTestId("step-nav")).toBeVisible();
-    await expect(page.getByTestId("next-step")).toBeInViewport();
-    await expect(page.getByTestId("back-step")).toBeInViewport();
-  }
-});
-
-test("layout: fixed bottom bar on mobile (F21: cluster at top on desktop)", async ({
+test("CA-2: Next/Back are in-flow at the END of the options column (single instance, both viewports)", async ({
   page,
-}, testInfo) => {
+}) => {
   await page.goto(STEP2);
   await page.getByTestId("details-step").waitFor();
-  const vp = page.viewportSize()!;
-  if (testInfo.project.name === "mobile") {
-    const navMobile = (await page.getByTestId("step-nav-mobile").boundingBox())!;
-    expect(navMobile.y + navMobile.height).toBeGreaterThanOrEqual(vp.height - 4); // pinned bottom
-    expect(navMobile.width).toBeGreaterThanOrEqual(vp.width - 2); // full width
-  } else {
-    // F21: nav cluster is at the TOP — above the grid, before the preview
-    const nav = (await page.getByTestId("step-nav").boundingBox())!;
-    const preview = (await page.getByTestId("preview-canvas").boundingBox())!;
-    expect(nav.y).toBeLessThan(preview.y); // cluster above the preview grid
-  }
+  // the mobile sticky bar is gone on steps 1–2
+  await expect(page.getByTestId("step-nav-mobile")).toHaveCount(0);
+  // one instance of each CTA serves every viewport
+  await expect(page.getByTestId("next-step")).toHaveCount(1);
+  await expect(page.getByTestId("back-step")).toHaveCount(1);
+  // the nav block is the LAST element of the options column (natural tab order)
+  const isLast = await page
+    .getByTestId("step-nav-flow")
+    .evaluate((el) => el === el.parentElement!.lastElementChild);
+  expect(isLast).toBe(true);
+  // reached at the end of the scroll, then usable
+  await page.getByTestId("next-step").scrollIntoViewIfNeeded();
+  await expect(page.getByTestId("next-step")).toBeInViewport();
+  await expect(page.getByTestId("back-step")).toBeInViewport();
 });
 
-test("Next/Back have ≥44px touch targets", async ({ page }, testInfo) => {
+test("CA-2 layout: nothing fixed/sticky pinned to the bottom viewport; stepper-only cluster stays on top", async ({
+  page,
+}) => {
   await page.goto(STEP2);
   await page.getByTestId("details-step").waitFor();
-  if (testInfo.project.name === "mobile") {
-    for (const id of ["next-step-mobile", "back-step-mobile", "step-2"]) {
-      const box = (await page.getByTestId(id).boundingBox())!;
-      expect(box.height).toBeGreaterThanOrEqual(44);
+  // the CTA has no fixed/sticky ancestor — it scrolls with the content
+  const pinned = await page.getByTestId("next-step").evaluate((el) => {
+    for (let n: Element | null = el; n; n = n.parentElement) {
+      const pos = getComputedStyle(n).position;
+      if (pos === "fixed" || pos === "sticky") return pos;
     }
-  } else {
-    for (const id of ["next-step", "back-step", "step-1"]) {
-      const box = (await page.getByTestId(id).boundingBox())!;
-      expect(box.height).toBeGreaterThanOrEqual(44);
-    }
+    return "none";
+  });
+  expect(pinned).toBe("none");
+  // top cluster (stepper only) above the preview grid (F18/F21 unchanged)
+  const nav = (await page.getByTestId("step-nav").boundingBox())!;
+  const preview = (await page.getByTestId("preview-canvas").boundingBox())!;
+  expect(nav.y).toBeLessThan(preview.y);
+});
+
+test("Next/Back have ≥44px touch targets", async ({ page }) => {
+  await page.goto(STEP2);
+  await page.getByTestId("details-step").waitFor();
+  for (const id of ["next-step", "back-step", "step-2"]) {
+    await page.getByTestId(id).scrollIntoViewIfNeeded();
+    const box = (await page.getByTestId(id).boundingBox())!;
+    expect(box.height).toBeGreaterThanOrEqual(44);
   }
 });
 
