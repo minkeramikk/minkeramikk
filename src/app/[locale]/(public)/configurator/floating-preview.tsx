@@ -95,10 +95,12 @@ export function FloatingPreview({
       aria-hidden={!visible}
       tabIndex={visible ? 0 : -1}
       onClick={scrollBack}
-      // above the iOS safe-area; z-40 = above content, below Radix overlays (z-50)
-      style={{ bottom: "calc(1rem + env(safe-area-inset-bottom))" }}
+      // above the iOS safe-area AND lifted clear of the one-handed thumb
+      // rest zone (the very bottom-right corner is where the thumb sits);
+      // z-40 = above content, below Radix overlays (z-50)
+      style={{ bottom: "calc(2.5rem + env(safe-area-inset-bottom))" }}
       className={cn(
-        "fixed right-4 z-40 size-20 overflow-hidden rounded-full border border-border bg-card shadow-(--shadow-card) md:hidden",
+        "fixed right-4 z-40 size-24 overflow-hidden rounded-full border border-border bg-card shadow-(--shadow-card) md:hidden",
         "transition-[opacity,transform] duration-200",
         "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
         visible
