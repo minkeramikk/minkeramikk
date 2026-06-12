@@ -71,6 +71,17 @@ erDiagram
         timestamptz updated_at
     }
 
+    featured_configs {
+        uuid id PK
+        text kind "CHECK design | set (ADR 0016)"
+        text payload UK "config code (ADR 0011) o set param CA-3 - mai prezzi/id"
+        text label_no "opzionale, fallback nome design / Sett N deler"
+        text label_en
+        text thumb_image "NOT NULL - thumb pre-composta featured/<id>.webp"
+        int sort_order
+        timestamptz created_at
+    }
+
     products {
         uuid id PK
         text slug UK
@@ -131,6 +142,7 @@ Enum `order_status`: `new → contacted → confirmed → in_production → deli
 | `designs.supplier_id` | catalogo per fornitore (ADR 0007) |
 | `order_items.supplier_id` | split PDF/email per laboratorio e filtro ordini per fornitore (ADR 0007) |
 | `orders.email` | storico ordini dello stesso cliente nel back-office |
+| `featured_configs.sort_order` | la strip della home legge ordinata a ogni render (cache-ato, F28) |
 
 Vincoli aggiuntivi: `UNIQUE(design_id, slug)` su option_categories (slug di categoria
 unici dentro il design, non globali). `UNIQUE(designs.code)` e `UNIQUE(category_id, code)`

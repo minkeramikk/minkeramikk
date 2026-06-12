@@ -437,26 +437,30 @@ export function CeramicsStep({
                     >
                       {t("remove")}
                     </button>
-                    {/* CA-3 E: expansion as a LABELLED action (the bare ▾ icon
-                        read as decoration) — one row open at a time */}
-                    <button
-                      type="button"
-                      data-testid="cart-expand"
-                      aria-expanded={expandedId === line.id}
-                      onClick={() =>
-                        setExpandedId((id) => (id === line.id ? null : line.id))
-                      }
-                      className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
-                    >
-                      {expandedId === line.id
-                        ? `${t("line.collapse")} ▴`
-                        : `${t("line.expand")} ▾`}
-                    </button>
                   </div>
                 </div>
-                <span className="shrink-0 text-right text-sm font-medium tabular-nums">
-                  {formatMoney(lineSubtotal(line), locale)}
-                </span>
+                <div className="flex shrink-0 flex-col items-end justify-between self-stretch">
+                  <span className="text-right text-sm font-medium tabular-nums">
+                    {formatMoney(lineSubtotal(line), locale)}
+                  </span>
+                  {/* CA-3 E: expansion as a LABELLED action (the bare ▾ icon
+                      read as decoration) — price top-right, toggle BOTTOM
+                      right on the qty/Remove baseline (mb compensates the
+                      qty box centring); one row open at a time */}
+                  <button
+                    type="button"
+                    data-testid="cart-expand"
+                    aria-expanded={expandedId === line.id}
+                    onClick={() =>
+                      setExpandedId((id) => (id === line.id ? null : line.id))
+                    }
+                    className="mb-2.5 text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground max-sm:mb-3.5"
+                  >
+                    {expandedId === line.id
+                      ? `${t("line.collapse")} ▴`
+                      : `${t("line.expand")} ▾`}
+                  </button>
+                </div>
                 </div>
 
                 {/* CA-3 E: inline detail (frame 2) — big composition from the
@@ -519,29 +523,22 @@ export function CeramicsStep({
                         </div>
                       </dl>
                     )}
-                    <div className="flex items-center gap-2">
-                      <Button
+                    {/* one discreet action, bottom-right: Edit design as a
+                        text link (the chunky button shouted); NO second
+                        Remove — the row above already has one */}
+                    <div className="flex justify-end">
+                      <button
                         type="button"
-                        size="sm"
-                        variant="outline"
                         data-testid="cart-edit-design"
                         onClick={() =>
                           router.push(
                             `/configurator?code=${encodeURIComponent(line.configCode)}&step=2`
                           )
                         }
+                        className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
                       >
                         ✎ {t("line.edit")}
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        data-testid="cart-detail-remove"
-                        onClick={() => remove(line.id)}
-                      >
-                        {t("remove")}
-                      </Button>
+                      </button>
                     </div>
                   </div>
                 )}

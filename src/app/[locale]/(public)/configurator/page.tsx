@@ -6,6 +6,8 @@ import { getDesignDetail, type DesignDetail } from "@/lib/catalog/design-options
 import { getSupplierProducts } from "@/lib/catalog/products";
 import { assetUrl } from "@/lib/storage";
 import { buildConfigLinePayload } from "@/lib/configurator/line-payload";
+import { getFeaturedConfigs } from "@/lib/catalog/featured";
+import { FeaturedStrip } from "./featured-strip";
 import { ConfiguratorClient } from "./configurator-client";
 import { CeramicsStep } from "./ceramics-step";
 import { resolveSharedSet } from "./resolve-shared-set";
@@ -146,6 +148,13 @@ export default async function ConfiguratorPage({
     });
   }
 
+  // F28: admin-curated featured strip, home/step 1 only (ADR 0016). Valid
+  // rows only — an entry that no longer resolves is hidden here, badged in
+  // admin. Cache tags featured+catalog → ~0 queries on hit. 0 valid → the
+  // section does not exist and the home is identical to before.
+  const featured =
+    step !== "2" ? (await getFeaturedConfigs()).filter((f) => f.valid) : [];
+
   return (
     <section>
       <h1 className="sr-only">{t("pageTitle")}</h1>
@@ -154,6 +163,23 @@ export default async function ConfiguratorPage({
         designs={designs}
         detailsBySlug={detailsBySlug}
         teaserProducts={teaserProducts}
+        featuredSlot={
+          featured.length > 0 ? (
+            <FeaturedStrip
+              key="featured-strip"
+              items={featured.map((f) => ({
+                id: f.id,
+                kind: f.kind,
+                payload: f.payload,
+                thumbUrl: assetUrl(f.thumbImage),
+                labelNo: f.labelNo,
+                labelEn: f.labelEn,
+                designName: f.designName ?? "",
+                setCount: f.setCount,
+              }))}
+            />
+          ) : null
+        }
       />
     </section>
   );

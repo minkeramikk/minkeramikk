@@ -62,11 +62,14 @@ export function ConfiguratorClient({
   designs,
   detailsBySlug,
   teaserProducts = {},
+  featuredSlot = null,
 }: {
   designs: DesignChoice[];
   detailsBySlug: Record<string, DesignDetail>;
   /** CA-6: supplierId → up to 3 product image paths for the step-2 teaser. */
   teaserProducts?: Record<string, string[]>;
+  /** F28: server-rendered featured strip — step 1 only, between stepper and grid. */
+  featuredSlot?: React.ReactNode;
 }) {
   const t = useTranslations("configurator");
   const locale = useLocale();
@@ -383,6 +386,9 @@ export function ConfiguratorClient({
           className="mb-0 mt-0"
         />
       </div>
+
+      {/* F28: featured strip between stepper and grid (wireframe v2), home only */}
+      {step === 1 && featuredSlot}
 
       <div className="grid grid-cols-1 items-start gap-7 md:grid-cols-2">
         {/* LEFT: the persistent preview — never remounts across steps (AC2).

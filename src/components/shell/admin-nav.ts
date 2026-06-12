@@ -5,6 +5,7 @@ export const ADMIN_NAV = [
   { href: "/admin/products", label: "Products" },
   { href: "/admin/suppliers", label: "Suppliers" },
   { href: "/admin/designs", label: "Configurator assets" },
+  { href: "/admin/featured", label: "Featured" },
   { href: "/admin/theme", label: "Theme" },
 ] as const;
 

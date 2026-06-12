@@ -249,3 +249,76 @@ describe.skipIf(!hasEnv)("RLS — anon client", () => {
     expect(viaTable.data).toHaveLength(0);
   });
 });
+
+describe.skipIf(!hasEnv)("RLS — featured_configs (F28)", () => {
+  let anon: SupabaseClient;
+  let admin: SupabaseClient;
+  let featuredId: string;
+
+  beforeAll(async () => {
+    anon = createClient(url!, anonKey!);
+    admin = createClient(url!, serviceKey!, {
+      auth: { persistSession: false },
+    });
+    const row = await admin
+      .from("featured_configs")
+      .insert({
+        kind: "design",
+        payload: `MK-RLSTEST-${Date.now()}`,
+        thumb_image: "featured/rls-test.webp",
+        sort_order: 999,
+      })
+      .select("id")
+      .single();
+    if (row.error) throw row.error;
+    featuredId = row.data.id;
+  });
+
+  afterAll(async () => {
+    await admin.from("featured_configs").delete().eq("id", featuredId);
+  });
+
+  it("anon CAN read featured rows (the strip is public)", async () => {
+    const { data, error } = await anon
+      .from("featured_configs")
+      .select("id")
+      .eq("id", featuredId);
+    expect(error).toBeNull();
+    expect(data).toHaveLength(1);
+  });
+
+  it("anon cannot INSERT a featured row", async () => {
+    const { error } = await anon.from("featured_configs").insert({
+      kind: "design",
+      payload: "MK-ANON-WRITE",
+      thumb_image: "featured/anon.webp",
+    });
+    expect(error).not.toBeNull();
+    expect(error!.code).toBe("42501");
+  });
+
+  it("anon cannot UPDATE or DELETE a featured row", async () => {
+    const upd = await anon
+      .from("featured_configs")
+      .update({ label_no: "hacked" })
+      .eq("id", featuredId)
+      .select("id");
+    // RLS filters the row out of the write path: no error surface needed,
+    // but nothing may be touched
+    expect(upd.data ?? []).toHaveLength(0);
+
+    const del = await anon
+      .from("featured_configs")
+      .delete()
+      .eq("id", featuredId)
+      .select("id");
+    expect(del.data ?? []).toHaveLength(0);
+
+    const still = await admin
+      .from("featured_configs")
+      .select("label_no")
+      .eq("id", featuredId)
+      .single();
+    expect(still.data?.label_no ?? null).toBeNull();
+  });
+});

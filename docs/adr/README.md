@@ -24,5 +24,6 @@ aggiornamento delle regole in `../../AGENTS.md`.
 | [0013](0013-deploy-email-antibot-fail-closed.md) | Deploy: email/anti-bot fail-closed in produzione (reminder go-live) | Accepted |
 | [0014](0014-hosting-vps-supabase-cloud-cloudflare.md) | Hosting: VPS + Supabase Cloud + Cloudflare | Deferred (Vercel free per ora, 2026-06-09) |
 | [0015](0015-prezzi-multi-zona-e-spedizione.md) | Prezzi multi-zona e spedizione a soglia (change-order F20) | Proposed |
+| [0016](0016-featured-configs-curation.md) | Featured configs: curation by config code, thumb pre-composta | Accepted |
 
 Diagramma del modello dati e indici: [schema-er.md](schema-er.md) (deriva da ADR 0004–0008).
