@@ -48,11 +48,22 @@ test("CA-2: Next/Back are in-flow at the END of the options column (single insta
   // one instance of each CTA serves every viewport
   await expect(page.getByTestId("next-step")).toHaveCount(1);
   await expect(page.getByTestId("back-step")).toHaveCount(1);
-  // the nav block is the LAST element of the options column (natural tab order)
-  const isLast = await page
+  // the nav block CLOSES the flow: after every option fieldset, followed at
+  // most by the save/share code bar (deliberately below the CTA, CA-6 v2).
+  // NOTE for CA-6b: the inline mobile teaser must stay BEFORE this block.
+  const closesFlow = await page
     .getByTestId("step-nav-flow")
-    .evaluate((el) => el === el.parentElement!.lastElementChild);
-  expect(isLast).toBe(true);
+    .evaluate((el) => {
+      const after = [];
+      for (let n = el.nextElementSibling; n; n = n.nextElementSibling) {
+        after.push(n.getAttribute("data-testid") ?? n.tagName.toLowerCase());
+      }
+      const fieldsetAfter = after.some((t) => t === "fieldset");
+      const onlyCodeBarAfter = after.every((t) => t === "config-code-bar");
+      return { fieldsetAfter, onlyCodeBarAfter };
+    });
+  expect(closesFlow.fieldsetAfter).toBe(false);
+  expect(closesFlow.onlyCodeBarAfter).toBe(true);
   // reached at the end of the scroll, then usable
   await page.getByTestId("next-step").scrollIntoViewIfNeeded();
   await expect(page.getByTestId("next-step")).toBeInViewport();

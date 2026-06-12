@@ -241,7 +241,9 @@ export function ConfiguratorClient({
     params.set("design", selected.slug);
     if (target === 1) params.delete("step");
     else params.set("step", String(target));
-    router.push(`${pathname}?${params.toString()}`, { scroll: false });
+    // CA-6b: default scroll (top) on step change — the new step starts from
+    // its beginning; option selects keep scroll:false (same view).
+    router.push(`${pathname}?${params.toString()}`);
   }
 
   function label(c: DesignDetail["categories"][number]) {
@@ -272,6 +274,77 @@ export function ConfiguratorClient({
     radios[next]?.focus();
     const optId = cat.options[next]?.id;
     if (optId) selectOption(cat.slug, optId);
+  }
+
+  // CA-6 / CA-6b: informative teaser of the NEXT step — not clickable (no
+  // role, no handler; decision 2026-06-12). Rendered twice: desktop under the
+  // sticky preview (F15), mobile at the END of the options column (CA-6b) so
+  // it never lengthens the scroll to the options (the CA-2 pain point).
+  // Images: existing F26 variants only, lazy.
+  function renderTeaser(className: string) {
+    return (
+      <div
+        data-testid="next-step-teaser"
+        data-design={selected.slug}
+        className={`${className} flex items-center gap-4 rounded-sm border border-border bg-card/55 p-4`}
+      >
+        {step === 1 ? (
+          // our REAL swatch assets (F26 @96): the first few crisp, the
+          // rest progressively blurred — an elegant "there's more" cue
+          <div className="flex shrink-0" aria-hidden>
+            {teaserSwatches.map((o, i) => {
+              const fade =
+                i >= TEASER_CRISP
+                  ? {
+                      filter: "blur(2px)",
+                      opacity: Math.max(0.3, 0.75 - (i - TEASER_CRISP) * 0.2),
+                    }
+                  : undefined;
+              return o.image ? (
+                // eslint-disable-next-line @next/next/no-img-element -- catalog art from storage
+                <img
+                  key={o.id}
+                  src={assetUrl(o.image)}
+                  alt=""
+                  loading="lazy"
+                  decoding="async"
+                  className="-ml-2.5 size-8 rounded-full border-2 border-card object-cover first:ml-0"
+                  style={fade}
+                />
+              ) : o.hex ? (
+                <span
+                  key={o.id}
+                  className="-ml-2.5 size-8 rounded-full border-2 border-card first:ml-0"
+                  style={{ background: o.hex, ...fade }}
+                />
+              ) : null;
+            })}
+          </div>
+        ) : (
+          <div className="flex shrink-0 gap-2.5" aria-hidden>
+            {teaserThumbs.map((img) => (
+              // eslint-disable-next-line @next/next/no-img-element -- catalog art from storage
+              <img
+                key={img}
+                src={assetUrl(img)}
+                alt=""
+                loading="lazy"
+                decoding="async"
+                className="size-12 rounded-sm border border-border bg-card object-contain"
+              />
+            ))}
+          </div>
+        )}
+        <div className="min-w-0">
+          <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
+            {t("teaser.nextStep")}
+          </p>
+          <p className="truncate text-sm font-medium">
+            {step === 1 ? t("teaser.colors") : t("teaser.ceramics")}
+          </p>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -307,74 +380,9 @@ export function ConfiguratorClient({
               layers={previewLayers}
             />
           </div>
-          {/* CA-6: informative teaser of the NEXT step — not clickable (no
-              role, no handler; decision 2026-06-12) and desktop-only: on
-              mobile it would lengthen the scroll to the options, the very
-              CA-2 pain point. Inside the sticky block so it follows the
-              preview (F15). Images: existing F26 variants only, lazy. */}
-          {showTeaser && (
-            <div
-              data-testid="next-step-teaser"
-              data-design={selected.slug}
-              className="max-md:hidden flex items-center gap-4 rounded-sm border border-border bg-card/55 p-4"
-            >
-              {step === 1 ? (
-                // our REAL swatch assets (F26 @96): the first few crisp, the
-                // rest progressively blurred — an elegant "there's more" cue
-                <div className="flex shrink-0" aria-hidden>
-                  {teaserSwatches.map((o, i) => {
-                    const fade =
-                      i >= TEASER_CRISP
-                        ? {
-                            filter: "blur(2px)",
-                            opacity: Math.max(0.3, 0.75 - (i - TEASER_CRISP) * 0.2),
-                          }
-                        : undefined;
-                    return o.image ? (
-                      // eslint-disable-next-line @next/next/no-img-element -- catalog art from storage
-                      <img
-                        key={o.id}
-                        src={assetUrl(o.image)}
-                        alt=""
-                        loading="lazy"
-                        decoding="async"
-                        className="-ml-2.5 size-8 rounded-full border-2 border-card object-cover first:ml-0"
-                        style={fade}
-                      />
-                    ) : o.hex ? (
-                      <span
-                        key={o.id}
-                        className="-ml-2.5 size-8 rounded-full border-2 border-card first:ml-0"
-                        style={{ background: o.hex, ...fade }}
-                      />
-                    ) : null;
-                  })}
-                </div>
-              ) : (
-                <div className="flex shrink-0 gap-2.5" aria-hidden>
-                  {teaserThumbs.map((img) => (
-                    // eslint-disable-next-line @next/next/no-img-element -- catalog art from storage
-                    <img
-                      key={img}
-                      src={assetUrl(img)}
-                      alt=""
-                      loading="lazy"
-                      decoding="async"
-                      className="size-12 rounded-sm border border-border bg-card object-contain"
-                    />
-                  ))}
-                </div>
-              )}
-              <div className="min-w-0">
-                <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
-                  {t("teaser.nextStep")}
-                </p>
-                <p className="truncate text-sm font-medium">
-                  {step === 1 ? t("teaser.colors") : t("teaser.ceramics")}
-                </p>
-              </div>
-            </div>
-          )}
+          {/* CA-6: informative teaser of the NEXT step — desktop instance,
+              inside the sticky block so it follows the preview (F15). */}
+          {showTeaser && renderTeaser("max-md:hidden")}
         </div>
 
         {/* RIGHT: panel swaps with the step */}
@@ -399,6 +407,10 @@ export function ConfiguratorClient({
                 />
               ))}
             </div>
+            {/* CA-6b: mobile teaser sits right BEFORE the CTA — "what's next"
+                read before tapping Next (card decision 2026-06-12; also keeps
+                the f18 invariant: nav block closed only by the code bar). */}
+            {showTeaser && renderTeaser("md:hidden mt-3")}
             {/* CA-2: advance CTA closes the options column — natural end of
                 the flow, single instance for every viewport. No Back here:
                 step 1 is the first step. */}
@@ -519,6 +531,8 @@ export function ConfiguratorClient({
               );
             })}
 
+            {/* CA-6b: mobile teaser right BEFORE the CTA (see step 1) */}
+            {showTeaser && renderTeaser("md:hidden")}
             {/* CA-2: Back + advance close the options column (last in DOM →
                 natural tab order: options → CTA). */}
             <div className="flex gap-3" data-testid="step-nav-flow">

@@ -135,7 +135,8 @@ export function CeramicsStep({
     params.set("design", design.slug);
     if (target === 1) params.delete("step");
     else params.set("step", String(target));
-    router.push(`${pathname}?${params.toString()}`, { scroll: false });
+    // CA-6b: default scroll (top) on step change, like the steps 1–2 shell.
+    router.push(`${pathname}?${params.toString()}`);
   }
 
   const stepperSteps = [

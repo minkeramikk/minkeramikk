@@ -65,6 +65,11 @@ Supabase (Postgres, Auth, Storage) · Resend · embla-carousel · Vercel
 - `npm ci` (NON `npm install`) passa pulito in locale prima della PR: usa lo stesso
   install rigoroso della CI e becca il drift del lockfile prima che diventi rosso in CI.
 - `npm run lint`, `npm run build` e `npm test` passano
+- **e2e (politica 2026-06-12, fase di iterazione UI)**: per ogni PR basta
+  `make run-e2e-core` verde (flussi di dominio: carrello, ordine, login, admin ordini).
+  La suite intera (`make run-e2e`) la lancia Daniele e deve essere verde **prima di
+  aggiornare il branch `preview`** e al go-live; i rossi noti stanno in
+  `../E2E-QUARANTINE.md` (mai `skip` silenziosi nel codice — lezione F07).
 - Nessuna chiave i18n mancante in uno dei due dizionari
 - Responsive verificato (375px / 768px / 1280px) per task con UI
 - TODO.md aggiornato (task spuntato, eventuali task nuovi scoperti aggiunti)
