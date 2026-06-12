@@ -111,6 +111,7 @@
       "ceramics": "Pick your ceramics"
     },
     "setBadge": "Set · {count, plural, one {# piece} other {# pieces}}",
+    "backToPreview": "Back to the preview",
     "featured": {
       "title": "Popular designs",
       "curated": "curated by the shop",

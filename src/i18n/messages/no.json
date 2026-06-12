@@ -110,6 +110,7 @@
       "ceramics": "Velg keramikken din"
     },
     "setBadge": "Sett · {count, plural, one {# del} other {# deler}}",
+    "backToPreview": "Tilbake til forhåndsvisningen",
     "featured": {
       "title": "Populære design",
       "curated": "utvalgt av butikken",
