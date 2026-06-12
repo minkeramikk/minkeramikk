@@ -5,6 +5,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
 import { usePathname, useRouter } from "@/i18n/navigation";
 import { OptionCard } from "@/components/ui-domain/option-card";
+import { useWarmupPreviews } from "@/components/ui-domain/hover-preview";
 import { PreviewCanvas } from "@/components/ui-domain/preview-canvas";
 import { Stepper } from "@/components/ui-domain/stepper";
 import { Swatch } from "@/components/ui-domain/swatch";
@@ -114,6 +115,21 @@ export function ConfiguratorClient({
   );
   const hasSyncGroup = detail.categories.some((c) => c.syncGroup);
 
+  // R1-FB2: warm the hover-popup images (colour options' layerImage) in idle,
+  // desktop-only — first hover shows instantly. Same assetUrl the Swatch
+  // popup uses, so the cache hit is guaranteed. Design switch → new URLs
+  // warm up, already-warmed ones are skipped (module-level Set).
+  const warmupUrls = useMemo(
+    () =>
+      detail.categories.flatMap((c) =>
+        c.kind === "color"
+          ? c.options.map((o) => (o.layerImage ? assetUrl(o.layerImage) : null))
+          : []
+      ),
+    [detail]
+  );
+  useWarmupPreviews(warmupUrls);
+
   // ── CA-6: "what's next" teaser under the preview (informative only) ──
   // step 1 → swatches of the SELECTED design's first colour category;
   // step 2 → the supplier's ceramic thumbs (F26 @256 variants, lazy).
@@ -121,7 +137,7 @@ export function ConfiguratorClient({
     const colorCat = detail.categories.find((c) => c.kind === "color");
     return (colorCat?.options ?? []).slice(0, 7);
   }, [detail]);
-  /** First swatches crisp, the rest progressively blurred — "there's more". */
+  /** First swatches fully opaque, the rest ramp down — "there's more". */
   const TEASER_CRISP = 4;
   const teaserThumbs = teaserProducts[selected.supplierId] ?? [];
   const showTeaser =
@@ -289,16 +305,16 @@ export function ConfiguratorClient({
         className={`${className} flex items-center gap-4 rounded-sm border border-border bg-card/55 p-4`}
       >
         {step === 1 ? (
-          // our REAL swatch assets (F26 @96): the first few crisp, the
-          // rest progressively blurred — an elegant "there's more" cue
+          // our REAL swatch assets (F26 @96). R1-FB5 (round 2, Daniele): the
+          // annoyance was the white border ring itself (and the crescents it
+          // cut where circles overlap) — gone entirely. The "there's more"
+          // tail stays the original opacity ramp, WITHOUT blur (the blur was
+          // what smeared the ring into halos; plain opacity reads clean).
           <div className="flex shrink-0" aria-hidden>
             {teaserSwatches.map((o, i) => {
               const fade =
                 i >= TEASER_CRISP
-                  ? {
-                      filter: "blur(2px)",
-                      opacity: Math.max(0.3, 0.75 - (i - TEASER_CRISP) * 0.2),
-                    }
+                  ? { opacity: Math.max(0.3, 0.75 - (i - TEASER_CRISP) * 0.2) }
                   : undefined;
               return o.image ? (
                 // eslint-disable-next-line @next/next/no-img-element -- catalog art from storage
@@ -308,13 +324,13 @@ export function ConfiguratorClient({
                   alt=""
                   loading="lazy"
                   decoding="async"
-                  className="-ml-2.5 size-8 rounded-full border-2 border-card object-cover first:ml-0"
+                  className="-ml-2.5 size-8 rounded-full object-cover first:ml-0"
                   style={fade}
                 />
               ) : o.hex ? (
                 <span
                   key={o.id}
-                  className="-ml-2.5 size-8 rounded-full border-2 border-card first:ml-0"
+                  className="-ml-2.5 size-8 rounded-full first:ml-0"
                   style={{ background: o.hex, ...fade }}
                 />
               ) : null;
@@ -472,6 +488,14 @@ export function ConfiguratorClient({
             {detail.categories.map((cat) => {
               const sel = selections[cat.slug];
               const single = cat.options.length === 1;
+              // R1-FB1: the selected COLOUR's name doubles the swatch as text
+              // (manager+ceramist double check). Catalog proper noun, no i18n.
+              // Derived from `selections` (URL params), so click, keyboard,
+              // ?code= reloads and sync_group (color-lock) all update it.
+              const selectedName =
+                cat.kind === "color"
+                  ? cat.options.find((o) => o.id === sel)?.name
+                  : undefined;
               return (
                 <fieldset
                   key={cat.id}
@@ -480,6 +504,15 @@ export function ConfiguratorClient({
                 >
                   <legend className="mb-2 text-[11px] font-semibold uppercase tracking-[0.06em]">
                     {label(cat)}
+                    {selectedName && (
+                      <span
+                        data-testid="legend-selected"
+                        className="ml-1.5 font-medium normal-case tracking-normal text-muted-foreground"
+                      >
+                        <span className="sr-only">{t("selectedLabel")} </span>
+                        · {selectedName}
+                      </span>
+                    )}
                     {single && (
                       <span className="ml-2 font-normal text-muted-foreground">
                         {t("singleOption")}

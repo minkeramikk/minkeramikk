@@ -1,6 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  HoverPreviewCard,
+  useHoverPreview,
+  useWarmupPreviews,
+} from "@/components/ui-domain/hover-preview";
 import { useLocale, useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
 import { usePathname, useRouter } from "@/i18n/navigation";
@@ -44,6 +49,88 @@ export interface DesignRef {
 /** First selection colour of a cart line → colour chip fallback. */
 function thumbHex(line: CartLine): string | undefined {
   return line.configSnapshot?.selections.find((s) => s.hex)?.hex ?? undefined;
+}
+
+/**
+ * R1-FB4 — step-3 ceramic card with the shared F13 hover/focus preview:
+ * bigger product photo + name + price. Desktop-only (hoverCapable inside the
+ * hook); on touch "see it bigger" stays with the cart-row expansion (CA-3).
+ * The popup reuses the SAME products@256 variant URL as the thumb (F26):
+ * browser-cache hit, masters never leave Storage.
+ */
+function CeramicOptionCard({
+  product: p,
+  selected,
+  locale,
+  onSelect,
+}: {
+  product: CeramicProduct;
+  selected: boolean;
+  locale: "no" | "en";
+  onSelect: () => void;
+}) {
+  const ref = useRef<HTMLButtonElement>(null);
+  const { show, hide, ...preview } = useHoverPreview(ref, Boolean(p.image));
+  const name = locale === "no" ? p.nameNo : p.nameEn;
+  const price = formatMoney(money(p.priceCents, p.currency), locale);
+
+  return (
+    <>
+      <button
+        ref={ref}
+        type="button"
+        role="radio"
+        aria-checked={selected}
+        data-testid={`product-${p.slug}`}
+        onClick={onSelect}
+        onMouseEnter={show}
+        onMouseLeave={hide}
+        onFocus={show}
+        onBlur={hide}
+        className={[
+          "flex min-h-11 flex-col items-center gap-1 rounded-sm border-[1.5px] p-2 text-center transition-colors",
+          "focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring",
+          selected
+            ? "border-primary bg-primary/5"
+            : "border-border bg-card hover:border-ring",
+        ].join(" ")}
+      >
+        {p.image && (
+          // eslint-disable-next-line @next/next/no-img-element -- catalog art from storage
+          <img
+            src={assetUrl(p.image)}
+            alt=""
+            loading="lazy"
+            decoding="async"
+            data-testid="product-thumb"
+            className="h-16 w-16 object-contain"
+          />
+        )}
+        <span className="text-xs font-medium">{name}</span>
+        <span className="text-xs text-muted-foreground">{price}</span>
+      </button>
+
+      {p.image && (
+        <HoverPreviewCard
+          state={{ show, hide, ...preview }}
+          testId="product-preview"
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element -- catalog art from storage */}
+          <img
+            src={assetUrl(p.image)}
+            alt={name}
+            className="size-44 object-contain"
+          />
+          <span className="mt-1 block text-center text-xs font-medium">
+            {name}
+          </span>
+          <span className="block text-center text-xs text-muted-foreground">
+            {price}
+          </span>
+        </HoverPreviewCard>
+      )}
+    </>
+  );
 }
 
 /**
@@ -114,8 +201,14 @@ export function CeramicsStep({
   const setConsumedRef = useRef(false);
 
   const selected = products.find((p) => p.id === selectedId) ?? null;
-  const productName = (p: CeramicProduct) =>
-    locale === "no" ? p.nameNo : p.nameEn;
+
+  // R1-FB2/FB4: warm the ceramic photos in idle (desktop) — covers the
+  // lazy-loaded below-the-fold thumbs so the hover popup is instant too.
+  const warmupUrls = useMemo(
+    () => products.map((p) => (p.image ? assetUrl(p.image) : null)),
+    [products]
+  );
+  useWarmupPreviews(warmupUrls);
 
   const count = hydrated ? itemCount(cart) : 0;
   const total = cartTotal(cart);
@@ -754,45 +847,15 @@ export function CeramicsStep({
             aria-label={t("title")}
             className="grid grid-cols-2 gap-2.5 sm:grid-cols-3"
           >
-            {products.map((p) => {
-              const isSel = p.id === selectedId;
-              return (
-                <button
-                  key={p.id}
-                  type="button"
-                  role="radio"
-                  aria-checked={isSel}
-                  data-testid={`product-${p.slug}`}
-                  onClick={() => setSelectedId(p.id)}
-                  className={[
-                    "flex min-h-11 flex-col items-center gap-1 rounded-sm border-[1.5px] p-2 text-center transition-colors",
-                    "focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring",
-                    isSel
-                      ? "border-primary bg-primary/5"
-                      : "border-border bg-card hover:border-ring",
-                  ].join(" ")}
-                >
-                  {p.image && (
-                    // eslint-disable-next-line @next/next/no-img-element -- catalog art from storage
-                    <img
-                      src={assetUrl(p.image)}
-                      alt=""
-                      loading="lazy"
-                      decoding="async"
-                      data-testid="product-thumb"
-                      className="h-16 w-16 object-contain"
-                    />
-                  )}
-                  <span className="text-xs font-medium">{productName(p)}</span>
-                  <span className="text-xs text-muted-foreground">
-                    {formatMoney(
-                      money(p.priceCents, p.currency),
-                      locale as "no" | "en"
-                    )}
-                  </span>
-                </button>
-              );
-            })}
+            {products.map((p) => (
+              <CeramicOptionCard
+                key={p.id}
+                product={p}
+                selected={p.id === selectedId}
+                locale={locale}
+                onSelect={() => setSelectedId(p.id)}
+              />
+            ))}
           </div>
 
           {/* quantity + add */}

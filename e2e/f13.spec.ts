@@ -113,3 +113,41 @@ test("AC5 (mobile): no hover popup; tap selects and updates the main preview", a
   ).toBeVisible();
   await context.close();
 });
+
+test("R1-FB1: the legend shows the selected colour name and tracks changes (incl. sync_group)", async ({
+  page,
+}) => {
+  await page.goto(B1);
+  const group = page.getByTestId("category-details");
+  const legendName = group.getByTestId("legend-selected");
+  await expect(legendName).toBeVisible();
+
+  // select the 3rd swatch → the legend text matches its accessible name
+  const target = group.getByRole("radio").nth(2);
+  const targetName = await target.getAttribute("aria-label");
+  await target.click();
+  await expect(legendName).toContainText(targetName!);
+
+  // change again (keyboard path is covered by AC6 above; same URL mechanism)
+  const other = group.getByRole("radio").nth(4);
+  const otherName = await other.getAttribute("aria-label");
+  await other.click();
+  await expect(legendName).toContainText(otherName!);
+
+  // sync_group (Krabbe, color-lock ON): BOTH legends reflect the new name
+  await page.goto("/no/configurator?design=krabbe&step=2&lock=1");
+  const colors = page.getByTestId("category-colors");
+  const borders = page.getByTestId("category-borders");
+  const bordersBefore = await borders
+    .getByTestId("legend-selected")
+    .innerText();
+  const pick = colors.getByRole("radio").nth(1);
+  const pickName = await pick.getAttribute("aria-label");
+  await pick.click();
+  await expect(colors.getByTestId("legend-selected")).toContainText(pickName!);
+  // the synced category follows by hex (ADR 0004) — its legend must update
+  // too (names may differ between categories, so assert the change itself)
+  await expect(borders.getByTestId("legend-selected")).not.toHaveText(
+    bordersBefore
+  );
+});

@@ -93,6 +93,7 @@
     "lockColors": "Lås farger",
     "lockColorsHint": "Samme farge på begge kategoriene",
     "singleOption": "Valgt automatisk",
+    "selectedLabel": "Valgt:",
     "code": {
       "title": "Din design-kode",
       "copyCode": "Kopier kode",

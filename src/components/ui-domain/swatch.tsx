@@ -1,8 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
+import { useRef } from "react";
 import { cn } from "@/lib/utils";
+import {
+  HoverPreviewCard,
+  useHoverPreview,
+} from "@/components/ui-domain/hover-preview";
 
 /**
  * Color option (kind=color, ADR 0004). The ONLY place where a raw hex reaches
@@ -30,13 +33,6 @@ const SPECKLE = `url("data:image/svg+xml,${encodeURIComponent(
   `<svg xmlns='http://www.w3.org/2000/svg' width='90' height='90'><filter id='s'><feTurbulence type='fractalNoise' baseFrequency='0.55' numOctaves='2' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/><feComponentTransfer><feFuncR type='linear' slope='3' intercept='-1.3'/><feFuncG type='linear' slope='3' intercept='-1.3'/><feFuncB type='linear' slope='3' intercept='-1.3'/><feFuncA type='discrete' tableValues='0 0 0 0 1'/></feComponentTransfer></filter><rect width='100%' height='100%' filter='url(#s)'/></svg>`
 )}")`;
 
-function hoverCapable(): boolean {
-  return (
-    typeof window !== "undefined" &&
-    window.matchMedia?.("(hover: hover) and (pointer: fine)").matches
-  );
-}
-
 export function Swatch({
   hex,
   name,
@@ -63,26 +59,9 @@ export function Swatch({
   tabIndex?: number;
 }) {
   const ref = useRef<HTMLButtonElement>(null);
-  const [open, setOpen] = useState(false);
-  const [pos, setPos] = useState<{ left: number; top: number } | null>(null);
-
-  const show = () => {
-    if (!previewSrc || !hoverCapable()) return;
-    const r = ref.current?.getBoundingClientRect();
-    if (!r) return;
-    setPos({ left: r.left + r.width / 2, top: r.top });
-    setOpen(true);
-  };
-  const hide = () => setOpen(false);
-
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open]);
+  // R1-FB4: popup mechanics extracted to the shared hover-preview — same
+  // behaviour as the original F13 inline version (AC3: zero regression).
+  const { show, hide, ...preview } = useHoverPreview(ref, Boolean(previewSrc));
 
   return (
     <>
@@ -103,9 +82,11 @@ export function Swatch({
         className={cn(
           "relative size-11 overflow-hidden rounded-full border-2 border-card transition-shadow",
           "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+          // R1-FB3: hover ring sits between idle and selected so the circle
+          // itself signals "selectable" (before, only the popup reacted)
           selected
             ? "shadow-[0_0_0_2.5px_var(--ring)]"
-            : "shadow-[0_0_0_1.5px_var(--border)]"
+            : "shadow-[0_0_0_1.5px_var(--border)] hover:shadow-[0_0_0_2px_var(--ring)]"
         )}
       >
         {imageSrc ? (
@@ -138,29 +119,22 @@ export function Swatch({
         )}
       </button>
 
-      {open &&
-        pos &&
-        previewSrc &&
-        typeof document !== "undefined" &&
-        createPortal(
-          <div
-            role="tooltip"
-            data-testid="swatch-preview"
-            className="pointer-events-none fixed z-50 -translate-x-1/2 -translate-y-full rounded-lg border bg-card p-2 shadow-(--shadow-card)"
-            style={{ left: pos.left, top: pos.top - 8 }}
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element -- catalog art from storage */}
-            <img
-              src={previewSrc}
-              alt={previewAlt ?? name}
-              className="size-32 object-contain"
-            />
-            <span className="mt-1 block text-center text-xs font-medium">
-              {name}
-            </span>
-          </div>,
-          document.body
-        )}
+      {previewSrc && (
+        <HoverPreviewCard
+          state={{ show, hide, ...preview }}
+          testId="swatch-preview"
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element -- catalog art from storage */}
+          <img
+            src={previewSrc}
+            alt={previewAlt ?? name}
+            className="size-32 object-contain"
+          />
+          <span className="mt-1 block text-center text-xs font-medium">
+            {name}
+          </span>
+        </HoverPreviewCard>
+      )}
     </>
   );
 }

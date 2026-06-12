@@ -94,6 +94,7 @@
     "lockColors": "Lock colours",
     "lockColorsHint": "Same colour on both categories",
     "singleOption": "Selected automatically",
+    "selectedLabel": "Selected:",
     "code": {
       "title": "Your design code",
       "copyCode": "Copy code",

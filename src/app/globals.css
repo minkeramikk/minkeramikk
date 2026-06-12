@@ -114,4 +114,11 @@
   h3 {
     @apply font-heading font-semibold tracking-[0.01em];
   }
+  /* R1-FB3 — Tailwind v4 preflight sets `cursor: default` on buttons (v3
+   * regression for us): restore the pointer EVERYWHERE in one place.
+   * Disabled controls keep the default arrow on purpose. Norm in
+   * DESIGN-SYSTEM.md §interaction. */
+  button:not(:disabled) {
+    cursor: pointer;
+  }
 }
