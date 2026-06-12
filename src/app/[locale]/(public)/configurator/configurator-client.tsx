@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
 import { usePathname, useRouter } from "@/i18n/navigation";
 import { OptionCard } from "@/components/ui-domain/option-card";
 import { useWarmupPreviews } from "@/components/ui-domain/hover-preview";
+import { FloatingPreview } from "./floating-preview";
 import { PreviewCanvas } from "@/components/ui-domain/preview-canvas";
 import { Stepper } from "@/components/ui-domain/stepper";
 import { Swatch } from "@/components/ui-domain/swatch";
@@ -76,6 +77,8 @@ export function ConfiguratorClient({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  /** F31: the big preview's container — observed by the mobile floating bubble */
+  const previewRef = useRef<HTMLDivElement>(null);
 
   const step = searchParams.get("step") === "2" ? 2 : 1;
   const urlSlug = searchParams.get("design");
@@ -395,7 +398,11 @@ export function ConfiguratorClient({
             F15: sticky so it stays visible while the option list scrolls; on
             mobile it pins to the top and collapses to a compact thumbnail. */}
         <div className="z-30 flex min-w-0 flex-col gap-3 md:sticky md:top-4 md:self-start">
-          <div data-testid="preview-sticky" className="max-md:mx-auto max-md:w-full">
+          <div
+            ref={previewRef}
+            data-testid="preview-sticky"
+            className="max-md:mx-auto max-md:w-full"
+          >
             <PreviewCanvas
               alt={selected.name}
               caption={t("previewNote")}
@@ -606,6 +613,13 @@ export function ConfiguratorClient({
           </div>
         )}
       </div>
+
+      {/* F31: mobile-only floating mini-plate, step 2 only (step 1 has the
+          design grid previews, step 3 the cart panel). Fixed OVERLAY sibling
+          of the layout — its visibility can never reflow the page. */}
+      {step === 2 && (
+        <FloatingPreview targetRef={previewRef} layers={previewLayers} />
+      )}
     </div>
   );
 }
