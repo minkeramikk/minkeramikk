@@ -104,6 +104,7 @@ export async function resolveSharedSet(raw: string): Promise<ResolvedSharedSet> 
         layers: designLayers,
         plateImage: product.image ? assetUrl(product.image) : undefined,
         productSlug: product.slug,
+        pieces: product.pieces,
       });
     } catch {
       // undecodable code (unknown design, garbage) → degrade the single row

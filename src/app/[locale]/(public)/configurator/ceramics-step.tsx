@@ -26,6 +26,7 @@ import {
   type ConfigSnapshot,
 } from "@/lib/cart/cart";
 import { encodeSetParam, SET_LINK_BUDGET } from "@/lib/cart/set-code";
+import { SetBadge } from "@/components/ui-domain/set-badge";
 import type { ResolvedSharedSet } from "./resolve-shared-set";
 import { cn } from "@/lib/utils";
 
@@ -37,6 +38,8 @@ export interface CeramicProduct {
   priceCents: number;
   currency: Currency;
   image: string | null;
+  /** F29: pieces in the product. 1 = single item; >1 = set. */
+  pieces: number;
 }
 
 export interface DesignRef {
@@ -88,13 +91,15 @@ function CeramicOptionCard({
         onFocus={show}
         onBlur={hide}
         className={[
-          "flex min-h-11 flex-col items-center gap-1 rounded-sm border-[1.5px] p-2 text-center transition-colors",
+          "relative flex min-h-11 flex-col items-center gap-1 rounded-sm border-[1.5px] p-2 text-center transition-colors",
           "focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring",
           selected
             ? "border-primary bg-primary/5"
             : "border-border bg-card hover:border-ring",
         ].join(" ")}
       >
+        {/* F29: set marker on the corner — doesn't cover the photo, readable at 390 */}
+        <SetBadge count={p.pieces} className="absolute right-1 top-1 z-10" />
         {p.image && (
           // eslint-disable-next-line @next/next/no-img-element -- catalog art from storage
           <img
@@ -127,6 +132,11 @@ function CeramicOptionCard({
           <span className="block text-center text-xs text-muted-foreground">
             {price}
           </span>
+          {p.pieces > 1 && (
+            <span className="mt-1 flex justify-center">
+              <SetBadge count={p.pieces} />
+            </span>
+          )}
         </HoverPreviewCard>
       )}
     </>
@@ -178,8 +188,6 @@ export function CeramicsStep({
   );
   const [qty, setQty] = useState(1);
   const [justAdded, setJustAdded] = useState(false);
-  /** Mobile: controls the sticky bottom bar expansion for checkout. */
-  const [mobileCheckoutOpen, setMobileCheckoutOpen] = useState(false);
   /** Desktop + mobile inline: expands the order form in the cart panel. */
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -229,6 +237,7 @@ export function CeramicsStep({
       layers: designLayers,
       plateImage: selected.image ? assetUrl(selected.image) : undefined,
       productSlug: selected.slug,
+      pieces: selected.pieces,
     });
     setQty(1);
     setJustAdded(true);
@@ -384,8 +393,13 @@ export function CeramicsStep({
                   plateImage={line.plateImage}
                 />
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium">
-                    {locale === "no" ? line.productNameNo : line.productNameEn}
+                  <p className="flex items-center gap-1.5 text-sm font-medium">
+                    <span className="truncate">
+                      {locale === "no" ? line.productNameNo : line.productNameEn}
+                    </span>
+                    {/* F29: set marker on the cart row (legacy lines lack
+                        `pieces` → SetBadge renders nothing) */}
+                    <SetBadge count={line.pieces ?? 1} className="shrink-0" />
                   </p>
                   <p className="truncate text-xs text-muted-foreground">
                     {line.configSnapshot?.designName ?? "—"}
@@ -515,10 +529,11 @@ export function CeramicsStep({
                           <dt className="text-muted-foreground">
                             {t("line.ceramic")}
                           </dt>
-                          <dd className="font-medium">
+                          <dd className="flex items-center gap-1.5 font-medium">
                             {locale === "no"
                               ? line.productNameNo
                               : line.productNameEn}
+                            <SetBadge count={line.pieces ?? 1} />
                           </dd>
                         </div>
                       </dl>
@@ -649,7 +664,7 @@ export function CeramicsStep({
   );
 
   return (
-    <div data-testid="ceramics-step" className="max-md:pb-24">
+    <div data-testid="ceramics-step">
       {/* F21: nav cluster — stepper always; Back active; Next disabled at step 3 */}
       <div className="mb-4 flex items-center gap-2" data-testid="step-nav">
         <Button
@@ -759,76 +774,10 @@ export function CeramicsStep({
         </div>
       )}
 
-      {/* F21: mobile-only sticky summary bar for step 3 */}
-      <div
-        data-testid="step-nav-mobile"
-        className={cn(
-          "md:hidden fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background",
-          "shadow-[0_-2px_12px_color-mix(in_oklab,var(--mk-dark)_10%,transparent)]"
-        )}
-      >
-        {mobileCheckoutOpen ? (
-          <div className="flex flex-col gap-3 p-4">
-            <button
-              type="button"
-              onClick={() => setMobileCheckoutOpen(false)}
-              className="self-start text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
-            >
-              ← {t("backToCart")}
-            </button>
-            <OrderForm
-              cart={cart}
-              onSuccess={() => {
-                clear();
-                setMobileCheckoutOpen(false);
-              }}
-            />
-          </div>
-        ) : (
-          <div className="flex items-center gap-3 p-3">
-            <Button
-              variant="outline"
-              size="lg"
-              className="min-h-11 shrink-0"
-              data-testid="back-step-mobile"
-              onClick={() => goToStep(2)}
-            >
-              {tc("back")}
-            </Button>
-            <div className="min-w-0 flex-1 truncate text-sm">
-              <span className="font-medium tabular-nums">
-                {t("itemCount", { count })}
-              </span>
-              {count > 0 && (
-                <span className="ml-2 text-muted-foreground tabular-nums">
-                  · {formatMoney(total, locale)}
-                </span>
-              )}
-            </div>
-            {/* CA-3: share next to Send (frame 5) — navigator.share on mobile */}
-            <Button
-              variant="outline"
-              size="lg"
-              data-testid="share-set-mobile"
-              className="min-h-11 shrink-0 px-3"
-              disabled={count === 0}
-              aria-label={t("share.button")}
-              onClick={() => shareSet(true)}
-            >
-              ⤴
-            </Button>
-            <Button
-              size="lg"
-              data-testid="mobile-send"
-              className="min-h-11 shrink-0"
-              disabled={count === 0}
-              onClick={() => setMobileCheckoutOpen(true)}
-            >
-              {to("title")}
-            </Button>
-          </div>
-        )}
-      </div>
+      {/* No fixed mobile action bar on step 3 (client, 2026-06-12): the
+          inline cart panel below already carries the total + Send + share,
+          and the stepper above handles navigation. The old sticky summary
+          bar read as a stray "action footer" on mobile. */}
 
       {/* F21: two-column grid on desktop; single column + stacked cart on mobile */}
       <div className="grid grid-cols-1 items-start gap-7 md:grid-cols-2">

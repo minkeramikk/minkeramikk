@@ -95,6 +95,7 @@ erDiagram
         text image
         bool visible
         int sort_order
+        int pieces "F29: pezzi del prodotto, default 1; >1 = set (badge Sett N deler)"
     }
 
     orders {

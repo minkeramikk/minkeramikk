@@ -23,6 +23,7 @@ export interface ProductValues {
   image: string | null;
   visible: boolean;
   sortOrder: number;
+  pieces: number;
 }
 
 const initial: ProductFormState = { error: null };
@@ -120,17 +121,33 @@ export function ProductForm({
             <Label htmlFor="sortOrder">Sort order</Label>
             <Input id="sortOrder" name="sortOrder" type="number" min={0} defaultValue={product?.sortOrder ?? 0} />
           </div>
-          <label className="flex items-center gap-2 self-end pb-2 text-sm">
-            <input
-              type="checkbox"
-              name="visible"
-              defaultChecked={product ? product.visible : true}
-              className="size-4 accent-[var(--primary)]"
-              data-testid="product-visible"
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="pieces">Pieces</Label>
+            <Input
+              id="pieces"
+              name="pieces"
+              type="number"
+              min={1}
+              max={99}
+              defaultValue={product?.pieces ?? 1}
+              data-testid="product-pieces"
             />
-            Visible in the shop
-          </label>
+            <p className="text-xs text-muted-foreground">
+              1 = single item; &gt;1 = set, shown as &ldquo;Sett · N deler&rdquo;.
+            </p>
+          </div>
         </div>
+
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            name="visible"
+            defaultChecked={product ? product.visible : true}
+            className="size-4 accent-[var(--primary)]"
+            data-testid="product-visible"
+          />
+          Visible in the shop
+        </label>
 
         {state.error && (
           <p data-testid="product-error" role="alert" className="text-sm text-destructive">

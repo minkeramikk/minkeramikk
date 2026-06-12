@@ -14,6 +14,8 @@ export interface SupplierProduct {
   /** Unit price as a Money value object (ADR 0005) — never a raw number. */
   price: Money;
   image: string | null;
+  /** F29: pieces in the product. 1 = single item; >1 = set. */
+  pieces: number;
 }
 
 /**
@@ -41,7 +43,7 @@ async function loadSupplierProducts(
 
   const { data, error } = await supabase
     .from("products")
-    .select("id, slug, name_no, name_en, price_cents, currency, image")
+    .select("id, slug, name_no, name_en, price_cents, currency, image, pieces")
     .eq("supplier_id", supplierId)
     .eq("visible", true)
     .order("sort_order", { ascending: true });
@@ -54,5 +56,6 @@ async function loadSupplierProducts(
     nameEn: p.name_en,
     price: money(p.price_cents, p.currency as Currency),
     image: p.image,
+    pieces: p.pieces,
   }));
 }

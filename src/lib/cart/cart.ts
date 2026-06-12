@@ -72,6 +72,12 @@ export interface CartLine {
    * notice — carts are ephemeral, not worth a resolver.
    */
   productSlug?: string;
+  /**
+   * F29 — pieces in the chosen ceramic (>1 → "Sett · N deler" badge).
+   * Optional/back-compatible like `layers`: legacy lines without it show no
+   * badge, no error. No migration.
+   */
+  pieces?: number;
 }
 
 export type Cart = CartLine[];

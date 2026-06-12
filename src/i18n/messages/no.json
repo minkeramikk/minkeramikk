@@ -109,10 +109,10 @@
       "colors": "Velg fargene dine",
       "ceramics": "Velg keramikken din"
     },
+    "setBadge": "Sett · {count, plural, one {# del} other {# deler}}",
     "featured": {
       "title": "Populære design",
       "curated": "utvalgt av butikken",
-      "setBadge": "Sett · {count, plural, one {# del} other {# deler}}",
       "prev": "Forrige",
       "next": "Neste"
     }

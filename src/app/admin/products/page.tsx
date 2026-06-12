@@ -12,7 +12,7 @@ export default async function AdminProductsPage() {
   const supabase = await createClient();
   const { data: products } = await supabase
     .from("products")
-    .select("id, name_no, price_cents, currency, visible, sort_order, suppliers(name)")
+    .select("id, name_no, price_cents, currency, visible, sort_order, pieces, suppliers(name)")
     .order("sort_order", { ascending: true });
 
   const rows = products ?? [];
@@ -58,7 +58,17 @@ export default async function AdminProductsPage() {
                       data-testid="product-row"
                       className="border-b border-border/50 last:border-0 hover:bg-muted/50"
                     >
-                      <td className="px-4 py-3 font-medium">{p.name_no}</td>
+                      <td className="px-4 py-3 font-medium">
+                        {p.name_no}
+                        {p.pieces > 1 && (
+                          <span
+                            data-testid="product-set-chip"
+                            className="ml-2 rounded-full bg-ink px-2 py-0.5 align-middle text-[10px] font-bold uppercase text-ink-foreground"
+                          >
+                            Set · {p.pieces}
+                          </span>
+                        )}
+                      </td>
                       <td className="hidden px-4 py-3 text-muted-foreground sm:table-cell">
                         {supplierName}
                       </td>

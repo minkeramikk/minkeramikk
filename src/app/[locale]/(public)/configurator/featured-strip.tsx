@@ -4,6 +4,7 @@ import { useCallback } from "react";
 import useEmblaCarousel from "embla-carousel-react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
+import { SetBadge } from "@/components/ui-domain/set-badge";
 
 export interface FeaturedStripItem {
   id: string;
@@ -29,6 +30,7 @@ export interface FeaturedStripItem {
  */
 export function FeaturedStrip({ items }: { items: FeaturedStripItem[] }) {
   const t = useTranslations("configurator.featured");
+  const tc = useTranslations("configurator");
   const locale = useLocale();
   const [viewportRef, embla] = useEmblaCarousel({
     align: "start",
@@ -42,7 +44,7 @@ export function FeaturedStrip({ items }: { items: FeaturedStripItem[] }) {
     const custom = locale === "no" ? f.labelNo : f.labelEn;
     if (custom) return custom;
     return f.kind === "set" && f.setCount != null
-      ? t("setBadge", { count: f.setCount })
+      ? tc("setBadge", { count: f.setCount })
       : f.designName;
   };
 
@@ -104,12 +106,11 @@ export function FeaturedStrip({ items }: { items: FeaturedStripItem[] }) {
               className="relative w-28 shrink-0 snap-start rounded-lg border border-border bg-card p-2.5 text-center transition-colors hover:border-ring focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring sm:w-32"
             >
               {f.kind === "set" && f.setCount != null && (
-                <span
-                  data-testid="featured-set-badge"
-                  className="absolute right-1.5 top-1.5 z-10 rounded-full bg-ink px-2 py-0.5 text-[9.5px] font-bold uppercase text-ink-foreground"
-                >
-                  {t("setBadge", { count: f.setCount })}
-                </span>
+                <SetBadge
+                  count={f.setCount}
+                  testId="featured-set-badge"
+                  className="absolute right-1.5 top-1.5 z-10"
+                />
               )}
               {/* eslint-disable-next-line @next/next/no-img-element -- pre-composed thumb from storage */}
               <img

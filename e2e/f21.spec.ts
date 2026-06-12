@@ -234,44 +234,47 @@ test("AC5: cart drawer from header opens on step 1 and 2, not on step 3 (drawer 
   await expect(page.locator('[data-testid="docked-cart"]:visible')).toHaveCount(1);
 });
 
-// ── AC6: Mobile step 3 ───────────────────────────────────────────────────────
+// ── AC6: Mobile step 3 — inline cart panel, NO fixed action bar ──────────────
+// The sticky bottom summary bar was removed (client, 2026-06-12): on mobile
+// the inline cart panel carries the total + Send, and the stepper navigates.
 
-test("AC6a: mobile step 3 sticky summary bar visible", async ({
+test("AC6a: mobile step 3 has the inline cart panel and NO fixed action bar", async ({
   page,
 }, testInfo) => {
   if (testInfo.project.name !== "mobile") return;
   await page.goto(STEP(3));
   await page.getByTestId("ceramics-step").waitFor();
-  const bar = page.getByTestId("step-nav-mobile");
-  await expect(bar).toBeVisible();
-  const vp = page.viewportSize()!;
-  const bb = (await bar.boundingBox())!;
-  expect(bb.y + bb.height).toBeGreaterThanOrEqual(vp.height - 4);
+  await expect(page.getByTestId("step-nav-mobile")).toHaveCount(0);
+  // the inline cart section IS the mobile cart view (total + Send live there)
+  await expect(page.getByTestId("mobile-cart-section")).toBeVisible();
+  await expect(
+    page.getByTestId("mobile-cart-section").getByTestId("docked-checkout")
+  ).toBeVisible();
 });
 
-test("AC6b: mobile step 3 back button navigates to step 2", async ({
+test("AC6b: mobile step 3 navigates back to step 2 via the stepper", async ({
   page,
 }, testInfo) => {
   if (testInfo.project.name !== "mobile") return;
   await page.goto(STEP(3));
   await page.getByTestId("ceramics-step").waitFor();
-  await page.getByTestId("back-step-mobile").click();
+  await page.getByTestId("step-2").click();
   await expect(page).toHaveURL(/step=2/);
   await expect(page.getByTestId("details-step")).toBeVisible();
 });
 
-test("AC6c: mobile step 3 summary bar shows count and total after add", async ({
+test("AC6c: mobile step 3 inline total updates after add", async ({
   page,
 }, testInfo) => {
   if (testInfo.project.name !== "mobile") return;
   await page.goto(STEP(3));
   await page.getByTestId("ceramics-step").waitFor();
   await page.getByTestId("add-to-cart").click();
-  // the bar shows the item count or total
-  const bar = page.getByTestId("step-nav-mobile");
-  await expect(bar).toBeVisible();
-  const text = await bar.textContent();
-  expect(text).toMatch(/\d/);
+  const total = page
+    .getByTestId("mobile-cart-section")
+    .getByTestId("docked-total");
+  await expect(total).toBeVisible();
+  await expect(total).toHaveText(/\d/);
 });
 
 // ── AC7: Regressions ─────────────────────────────────────────────────────────

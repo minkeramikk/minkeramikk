@@ -110,10 +110,10 @@
       "colors": "Pick your colours",
       "ceramics": "Pick your ceramics"
     },
+    "setBadge": "Set · {count, plural, one {# piece} other {# pieces}}",
     "featured": {
       "title": "Popular designs",
       "curated": "curated by the shop",
-      "setBadge": "Set · {count, plural, one {# piece} other {# pieces}}",
       "prev": "Previous",
       "next": "Next"
     }

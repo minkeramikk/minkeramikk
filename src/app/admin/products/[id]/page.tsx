@@ -17,7 +17,7 @@ export default async function EditProductPage({
     supabase
       .from("products")
       .select(
-        "id, name_no, name_en, description_no, description_en, price_cents, supplier_id, image, visible, sort_order"
+        "id, name_no, name_en, description_no, description_en, price_cents, supplier_id, image, visible, sort_order, pieces"
       )
       .eq("id", id)
       .maybeSingle(),
@@ -49,6 +49,7 @@ export default async function EditProductPage({
           image: product.image,
           visible: product.visible,
           sortOrder: product.sort_order,
+          pieces: product.pieces,
         }}
       />
     </AdminShell>

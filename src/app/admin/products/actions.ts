@@ -6,6 +6,7 @@ import { revalidatePath, revalidateTag } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { parsePriceToCents } from "@/lib/money/parse";
 import { uniqueSlug } from "@/lib/catalog/slug";
+import { piecesSchema } from "@/lib/catalog/pieces";
 import { uploadVariant } from "@/lib/asset-variant-image";
 
 export type ProductFormState = { error: string | null };
@@ -18,6 +19,8 @@ const productSchema = z.object({
   descriptionEn: z.string().trim().optional().or(z.literal("")),
   supplierId: z.string().uuid("Pick a supplier"),
   sortOrder: z.coerce.number().int().min(0).default(0),
+  // F29: 1 = single item; >1 = set ("Sett · N deler"). Does not affect price.
+  pieces: piecesSchema,
   visible: z.coerce.boolean(),
 });
 
@@ -35,6 +38,7 @@ export async function saveProduct(
     descriptionEn: formData.get("descriptionEn") ?? "",
     supplierId: formData.get("supplierId") ?? "",
     sortOrder: formData.get("sortOrder") ?? 0,
+    pieces: formData.get("pieces") ?? 1,
     visible: formData.get("visible") === "on" || formData.get("visible") === "true",
   });
   if (!parsed.success) {
@@ -91,6 +95,7 @@ export async function saveProduct(
     price_cents: priceCents,
     supplier_id: p.supplierId,
     sort_order: p.sortOrder,
+    pieces: p.pieces,
     visible: p.visible,
     ...(imagePath ? { image: imagePath } : {}),
   };
