@@ -149,7 +149,29 @@
     "reopen": "Åpne igjen",
     "shipping": "Frakt",
     "shippingIncluded": "Inkludert",
-    "itemCount": "{count, plural, =0 {Tom} one {# vare} other {# varer}}"
+    "itemCount": "{count, plural, =0 {Tom} one {# vare} other {# varer}}",
+    "share": {
+      "button": "Del settet",
+      "copied": "Lenke kopiert — den som åpner den finner dette settet",
+      "manual": "Kopier denne lenken — den som åpner den finner dette settet",
+      "tooBig": "Settet er for stort for en lenke",
+      "notShareable": "{count, plural, one {# vare kan ikke deles} other {# varer kan ikke deles}}"
+    },
+    "sharedSet": {
+      "badge": "Delt sett",
+      "loaded": "Sett lastet inn: {designs, plural, one {# design} other {# design}} · {pieces, plural, one {# stk} other {# stk}}",
+      "choiceTitle": "Denne lenken inneholder et sett med {designs, plural, one {# design} other {# design}}. I handlekurven din har du allerede {items, plural, one {# vare} other {# varer}}.",
+      "add": "Legg til i handlekurven min",
+      "replace": "Erstatt handlekurven",
+      "ignore": "Ignorer",
+      "unavailable": "{count, plural, one {# vare er ikke lenger tilgjengelig} other {# varer er ikke lenger tilgjengelige}}"
+    },
+    "line": {
+      "expand": "Vis detaljer",
+      "collapse": "Skjul detaljer",
+      "edit": "Rediger design",
+      "ceramic": "Keramikk"
+    }
   },
   "order": {
     "title": "Send bestilling",

@@ -409,8 +409,10 @@ export function ConfiguratorClient({
             </div>
             {/* CA-6b: mobile teaser sits right BEFORE the CTA — "what's next"
                 read before tapping Next (card decision 2026-06-12; also keeps
-                the f18 invariant: nav block closed only by the code bar). */}
-            {showTeaser && renderTeaser("md:hidden mt-3")}
+                the f18 invariant: nav block closed only by the code bar).
+                mb-6 = the step-2 column's gap-6, so the teaser→CTA breathing
+                room matches across steps (this column has no flex gap). */}
+            {showTeaser && renderTeaser("md:hidden mt-3 mb-6")}
             {/* CA-2: advance CTA closes the options column — natural end of
                 the flow, single instance for every viewport. No Back here:
                 step 1 is the first step. */}

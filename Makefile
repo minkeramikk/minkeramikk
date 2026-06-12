@@ -5,7 +5,7 @@
 #   make run-e2e        → suite intera (core + UI/layout). La lancia Daniele,
 #                         OBBLIGATORIA VERDE prima di aggiornare il branch
 #                         `preview` (è ciò che vede il cliente) e al go-live.
-#   Rossi noti della suite intera: vedi E2E-QUARANTINE.md (root progetto).
+#   Rossi noti della suite intera: vedi ../docs/pm/E2E-QUARANTINE.md.
 #
 # Il webServer di Playwright avvia `npm run start -p 3199` (serve la build PROD:
 # qui si builda prima, sempre). `reuseExistingServer: true` → un server già

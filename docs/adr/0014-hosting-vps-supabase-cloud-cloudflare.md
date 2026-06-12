@@ -1,6 +1,6 @@
 # ADR 0014 — Hosting: VPS (Next standalone) + Supabase Cloud + Cloudflare
 
-**Stato**: Accepted · 2026-06-09
+**Stato**: Deferred · 2026-06-09 (deciso lo stesso giorno: si resta su **Vercel + piani gratuiti** per ora; VPS = fallback su intervento, rivalutazione dopo ~3 mesi di monitoraggio da settembre)
 
 ## Contesto
 

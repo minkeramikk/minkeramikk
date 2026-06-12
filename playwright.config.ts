@@ -23,7 +23,8 @@ export default defineConfig({
     {
       name: "desktop",
       // [ab]? — sub-flow specs (f07b, f11a) were silently excluded by /f\d\d\.spec/
-      testMatch: /f\d\d[ab]?\.spec\.ts/,
+      // ca\d+ — change-order specs (CA-3 …) run desktop-only by policy 2026-06-12
+      testMatch: /(?:f\d\d[ab]?|ca\d+)\.spec\.ts/,
       use: { ...devices["Desktop Chrome"], viewport: { width: 1280, height: 800 } },
     },
     {

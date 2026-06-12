@@ -5,11 +5,10 @@ import { getActiveDesigns } from "@/lib/catalog/designs";
 import { getDesignDetail, type DesignDetail } from "@/lib/catalog/design-options";
 import { getSupplierProducts } from "@/lib/catalog/products";
 import { assetUrl } from "@/lib/storage";
-import { encodeConfigCode, toCodecDesign } from "@/lib/configurator/config-code";
-import { getPreviewLayers } from "@/lib/configurator/preview";
+import { buildConfigLinePayload } from "@/lib/configurator/line-payload";
 import { ConfiguratorClient } from "./configurator-client";
 import { CeramicsStep } from "./ceramics-step";
-import type { ConfigSnapshot } from "@/lib/cart/cart";
+import { resolveSharedSet } from "./resolve-shared-set";
 
 // Catalog reads go through the `catalog`-tagged data cache (PERF-1 / P-1): no
 // force-dynamic, so on a cache hit the configurator render issues ~0 catalog
@@ -52,24 +51,9 @@ export default async function ConfiguratorPage({
       getSupplierProducts(selected.supplierId),
     ]);
     if (detail) {
-      const selections = detail.categories.map((c) => {
-        const optId =
-          typeof params[`opt_${c.slug}`] === "string"
-            ? (params[`opt_${c.slug}`] as string)
-            : undefined;
-        const opt = c.options.find((o) => o.id === optId) ?? c.options[0];
-        return {
-          label: (c.labelNo ?? c.slug) as string,
-          option: opt?.name ?? "",
-          hex: opt?.hex ?? null,
-        };
-      });
-      const snapshot: ConfigSnapshot = {
-        designSlug: selected.slug,
-        designName: selected.name,
-        selections,
-      };
-      // canonical config code (ADR 0011) — the SAME format F05/F08 reuse
+      // snapshot + canonical code (ADR 0011) + F19 mini-preview layers, all
+      // from the shared builder (CA-3: the set landing reuses it so shared
+      // lines come out byte-identical to manual adds).
       const selById: Record<string, string> = {};
       for (const c of detail.categories) {
         const v = params[`opt_${c.slug}`];
@@ -78,26 +62,17 @@ export default async function ConfiguratorPage({
           c.options[0];
         if (opt) selById[c.slug] = opt.id;
       }
-      const codec = toCodecDesign(detail);
-      const configCode = codec
-        ? encodeConfigCode(codec, selById)
-        : `MK-${selected.slug}`;
+      const { snapshot, configCode, designLayers } = buildConfigLinePayload(
+        detail,
+        selected.name,
+        selById
+      );
 
-      // F19: composited design layers (no plate) for the cart-row mini preview,
-      // resolved to the SAME variant URL the big preview uses (class width,
-      // F26.1) so the browser image cache hits → instant thumbnail. The plate
-      // is prepended at add-time.
-      const designLayers = getPreviewLayers(
-        null,
-        detail.categories.map((c) => {
-          const opt =
-            c.options.find((o) => o.id === selById[c.slug]) ?? c.options[0];
-          return { layerSlot: c.layerSlot, layerImage: opt?.layerImage ?? null };
-        })
-      ).map((l) => ({
-        src: assetUrl(l.src),
-        recolor: l.blend === "multiply",
-      }));
+      // CA-3: a `set=` param is a shared basket — resolve it server-side
+      // (multi-supplier, live prices); the client applies/asks and then
+      // consumes the param.
+      const rawSet = typeof params.set === "string" ? params.set : "";
+      const sharedSet = rawSet ? await resolveSharedSet(rawSet) : null;
 
       // No <Suspense> around the client steps: the page already awaits all
       // data (dynamic via `await searchParams`), so the boundary never showed
@@ -126,6 +101,7 @@ export default async function ConfiguratorPage({
               snapshot={snapshot}
               configCode={configCode}
               designLayers={designLayers}
+              sharedSet={sharedSet}
             />
         </section>
       );

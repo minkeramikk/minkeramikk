@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
 import { usePathname, useRouter } from "@/i18n/navigation";
@@ -20,6 +20,8 @@ import {
   type CartLayer,
   type ConfigSnapshot,
 } from "@/lib/cart/cart";
+import { encodeSetParam, SET_LINK_BUDGET } from "@/lib/cart/set-code";
+import type { ResolvedSharedSet } from "./resolve-shared-set";
 import { cn } from "@/lib/utils";
 
 export interface CeramicProduct {
@@ -63,6 +65,7 @@ export function CeramicsStep({
   snapshot,
   configCode,
   designLayers,
+  sharedSet = null,
 }: {
   products: CeramicProduct[];
   design: DesignRef;
@@ -70,6 +73,8 @@ export function CeramicsStep({
   configCode: string;
   /** F19: composited design layers (no plate); plate prepended at add-time. */
   designLayers: CartLayer[];
+  /** CA-3: server-resolved `?set=` lines (live prices), or null when no set. */
+  sharedSet?: ResolvedSharedSet | null;
 }) {
   const t = useTranslations("cart");
   const tc = useTranslations("configurator");
@@ -91,6 +96,22 @@ export function CeramicsStep({
   /** Desktop + mobile inline: expands the order form in the cart panel. */
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  /** CA-3 E: id of the one expanded cart row (one at a time), or null. */
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  /** CA-3 C: share feedback under the panel header (aria-live). */
+  const [shareState, setShareState] = useState<
+    | null
+    | { kind: "copied" | "manual"; url: string }
+    | { kind: "tooBig" }
+    | { kind: "none" }
+  >(null);
+  /** CA-3 D: landing banner for a `?set=` arrival. */
+  const [setBanner, setSetBanner] = useState<
+    | null
+    | { kind: "choice"; designs: number; unavailable: number }
+    | { kind: "loaded"; designs: number; pieces: number; unavailable: number }
+  >(null);
+  const setConsumedRef = useRef(false);
 
   const selected = products.find((p) => p.id === selectedId) ?? null;
   const productName = (p: CeramicProduct) =>
@@ -114,10 +135,112 @@ export function CeramicsStep({
       configSnapshot: snapshot,
       layers: designLayers,
       plateImage: selected.image ? assetUrl(selected.image) : undefined,
+      productSlug: selected.slug,
     });
     setQty(1);
     setJustAdded(true);
   }
+
+  // ── CA-3 C: share the basket as a stateless link (?step=3&set=…) ──
+  // TODO:nb-review — the new cart.share.* / cart.sharedSet.* / cart.line.*
+  // Norwegian strings in no.json are fresh translations (naming "Share your
+  // set" is provisional, dedicated keys so the client rename is cheap).
+  /** Legacy rows (pre-CA-3, no productSlug) can't travel in the link. */
+  const notShareable = cart.filter((l) => !l.productSlug || !l.configCode).length;
+
+  // NEVER fail silently: every path lands on a visible state — the click must
+  // always produce the link on screen, clipboard/native share are a bonus
+  // (clipboard throws NotAllowedError in plenty of real contexts).
+  //
+  // @param preferNative try the OS share sheet first. ONLY the mobile sticky
+  //   bar passes true (frame 5): desktop Chrome/Safari also expose
+  //   navigator.share, but on desktop the expected gesture is copy-link
+  //   (frame 1, ConfigCodeBar pattern), not a system share dialog.
+  async function shareSet(preferNative: boolean) {
+    const param = encodeSetParam(cart);
+    if (!param) {
+      // only legacy rows (no productSlug) → nothing can travel in the link
+      setShareState({ kind: "none" });
+      return;
+    }
+    const url = `${window.location.origin}${window.location.pathname}?step=3&set=${param}`;
+    if (url.length > SET_LINK_BUDGET) {
+      // decision 5: silent budget check — overflow is academic, just say so
+      setShareState({ kind: "tooBig" });
+      return;
+    }
+    if (preferNative && typeof navigator.share === "function") {
+      try {
+        await navigator.share({ url });
+        return; // the OS share sheet was the feedback
+      } catch {
+        /* user cancelled or share unsupported for URLs → fall back to copy */
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      setShareState({ kind: "copied", url });
+    } catch {
+      // clipboard blocked → still show the link for manual copy
+      setShareState({ kind: "manual", url });
+    }
+  }
+
+  // ── CA-3 D: landing from a shared link. The server resolved `set=` into
+  // ready lines (live prices); here we apply (empty basket) or ask (3-way
+  // banner) and consume the param once — same decode-once pattern as ?code=.
+  const sharedDesigns = sharedSet
+    ? new Set(sharedSet.lines.map((l) => l.configSnapshot?.designSlug)).size
+    : 0;
+  const sharedPieces = sharedSet
+    ? sharedSet.lines.reduce((n, l) => n + l.quantity, 0)
+    : 0;
+
+  function consumeSetParam() {
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("set");
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  }
+
+  function applySharedSet(mode: "add" | "replace") {
+    if (!sharedSet) return;
+    if (mode === "replace") clear();
+    for (const line of sharedSet.lines) add(line);
+    setSetBanner({
+      kind: "loaded",
+      designs: sharedDesigns,
+      pieces: sharedPieces,
+      unavailable: sharedSet.unavailable,
+    });
+    consumeSetParam();
+  }
+
+  useEffect(() => {
+    if (!sharedSet || !hydrated || setConsumedRef.current) return;
+    if (!searchParams.get("set")) return; // already consumed (back/forward)
+    setConsumedRef.current = true;
+    if (sharedSet.lines.length === 0) {
+      // nothing usable survived the parse/resolution — inform and consume
+      setSetBanner({
+        kind: "loaded",
+        designs: 0,
+        pieces: 0,
+        unavailable: sharedSet.unavailable,
+      });
+      consumeSetParam();
+    } else if (cart.length === 0) {
+      applySharedSet("add");
+    } else {
+      // never overwrite silently: the set stays UNapplied until a choice;
+      // `set=` survives a refresh on purpose (the banner must come back)
+      setSetBanner({
+        kind: "choice",
+        designs: sharedDesigns,
+        unavailable: sharedSet.unavailable,
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot apply on arrival
+  }, [sharedSet, hydrated]);
 
   async function copyCode(id: string, code: string) {
     try {
@@ -159,8 +282,9 @@ export function CeramicsStep({
               <div
                 key={line.id}
                 data-testid="cart-line"
-                className="flex gap-3 border-b border-border/60 py-3 last:border-0"
+                className="border-b border-border/60 py-3 last:border-0"
               >
+                <div className="flex gap-3">
                 <CartLineThumb
                   layers={line.layers}
                   hex={thumbHex(line)}
@@ -220,11 +344,114 @@ export function CeramicsStep({
                     >
                       {t("remove")}
                     </button>
+                    {/* CA-3 E: expansion as a LABELLED action (the bare ▾ icon
+                        read as decoration) — one row open at a time */}
+                    <button
+                      type="button"
+                      data-testid="cart-expand"
+                      aria-expanded={expandedId === line.id}
+                      onClick={() =>
+                        setExpandedId((id) => (id === line.id ? null : line.id))
+                      }
+                      className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+                    >
+                      {expandedId === line.id
+                        ? `${t("line.collapse")} ▴`
+                        : `${t("line.expand")} ▾`}
+                    </button>
                   </div>
                 </div>
                 <span className="shrink-0 text-right text-sm font-medium tabular-nums">
                   {formatMoney(lineSubtotal(line), locale)}
                 </span>
+                </div>
+
+                {/* CA-3 E: inline detail (frame 2) — big composition from the
+                    line's stored F19 layers (zero fetch), readable selections
+                    from the snapshot (R1-FB1 extended to the cart), edit+remove. */}
+                {expandedId === line.id && (
+                  <div
+                    data-testid="cart-line-detail"
+                    className="mt-3 flex flex-col gap-3 rounded-sm border border-primary/40 bg-card/55 p-3"
+                  >
+                    <span
+                      aria-hidden
+                      className="relative mx-auto block size-52 overflow-hidden rounded-md border border-border bg-card sm:size-56"
+                      style={
+                        !(line.layers && line.layers.length > 0) && thumbHex(line)
+                          ? { backgroundColor: thumbHex(line) }
+                          : undefined
+                      }
+                    >
+                      {(line.layers ?? []).map((l, i) => (
+                        // eslint-disable-next-line @next/next/no-img-element -- composited catalog art from storage
+                        <img
+                          key={`${l.src}-${i}`}
+                          src={l.src}
+                          alt=""
+                          className="absolute inset-0 size-full object-contain"
+                          style={l.recolor ? { mixBlendMode: "multiply" } : undefined}
+                        />
+                      ))}
+                    </span>
+                    {line.configSnapshot && (
+                      <dl className="flex flex-col gap-1">
+                        {line.configSnapshot.selections.map((s) => (
+                          <div
+                            key={s.label}
+                            className="flex items-center gap-2 text-xs"
+                          >
+                            {s.hex && (
+                              <span
+                                aria-hidden
+                                className="size-3.5 shrink-0 rounded-full border border-border"
+                                style={{ background: s.hex }}
+                              />
+                            )}
+                            <dt className="text-muted-foreground">
+                              {locale === "no" ? s.label : (s.labelEn ?? s.label)}
+                            </dt>
+                            <dd className="font-medium">{s.option}</dd>
+                          </div>
+                        ))}
+                        <div className="flex items-center gap-2 text-xs">
+                          <dt className="text-muted-foreground">
+                            {t("line.ceramic")}
+                          </dt>
+                          <dd className="font-medium">
+                            {locale === "no"
+                              ? line.productNameNo
+                              : line.productNameEn}
+                          </dd>
+                        </div>
+                      </dl>
+                    )}
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        data-testid="cart-edit-design"
+                        onClick={() =>
+                          router.push(
+                            `/configurator?code=${encodeURIComponent(line.configCode)}&step=2`
+                          )
+                        }
+                      >
+                        ✎ {t("line.edit")}
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        data-testid="cart-detail-remove"
+                        onClick={() => remove(line.id)}
+                      >
+                        {t("remove")}
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -263,14 +490,67 @@ export function CeramicsStep({
                 />
               </div>
             ) : (
-              <Button
-                size="lg"
-                className="min-h-11 w-full"
-                data-testid="docked-checkout"
-                onClick={() => setCheckoutOpen(true)}
-              >
-                {to("title")}
-              </Button>
+              <>
+                <Button
+                  size="lg"
+                  className="min-h-11 w-full"
+                  data-testid="docked-checkout"
+                  onClick={() => setCheckoutOpen(true)}
+                >
+                  {to("title")}
+                </Button>
+                {/* CA-3: share under Send order (Alessio) — light gesture,
+                    ConfigCodeBar pattern */}
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  data-testid="share-set"
+                  onClick={() => shareSet(false)}
+                >
+                  ⤴ {t("share.button")}
+                </Button>
+                {/* share feedback: announced, link visible (frame 1) */}
+                <div aria-live="polite">
+                  {shareState && (
+                    <div
+                      data-testid="share-feedback"
+                      className="rounded-sm border border-primary/40 bg-primary/5 p-2.5 text-xs"
+                    >
+                      {shareState.kind === "tooBig" ? (
+                        <p>{t("share.tooBig")}</p>
+                      ) : shareState.kind === "none" ? null : (
+                        <>
+                          <p className="font-medium">
+                            {shareState.kind === "copied"
+                              ? t("share.copied")
+                              : t("share.manual")}
+                          </p>
+                          <code
+                            className={cn(
+                              "mt-1 block select-all font-mono text-[10px] text-muted-foreground",
+                              // manual copy needs the WHOLE link visible
+                              shareState.kind === "manual"
+                                ? "break-all"
+                                : "truncate"
+                            )}
+                          >
+                            {shareState.url}
+                          </code>
+                        </>
+                      )}
+                      {notShareable > 0 && (
+                        <p
+                          data-testid="share-not-shareable"
+                          className="mt-1 text-muted-foreground"
+                        >
+                          {t("share.notShareable", { count: notShareable })}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </>
             )}
           </div>
         </>
@@ -313,6 +593,81 @@ export function CeramicsStep({
           + {tc("newDesign")}
         </Button>
       </div>
+
+      {/* CA-3 D: shared-set landing banner (frames 3–4). The 3-way choice
+          never applies the set silently; `set=` is consumed after auto-load
+          or after the choice (decode-once, like ?code=). */}
+      {setBanner && (
+        <div
+          data-testid="shared-set-banner"
+          aria-live="polite"
+          className="mb-4 flex flex-col gap-2.5 rounded-sm border border-primary/50 bg-primary/5 p-3.5"
+        >
+          <p className="text-sm">
+            <span className="mr-2 rounded-full border border-primary px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.06em] text-primary">
+              {t("sharedSet.badge")}
+            </span>
+            {setBanner.kind === "choice" ? (
+              <span data-testid="shared-set-choice-text">
+                {t("sharedSet.choiceTitle", {
+                  designs: setBanner.designs,
+                  items: count,
+                })}
+              </span>
+            ) : (
+              setBanner.pieces > 0 && (
+                <span data-testid="shared-set-loaded-text">
+                  {t("sharedSet.loaded", {
+                    designs: setBanner.designs,
+                    pieces: setBanner.pieces,
+                  })}
+                </span>
+              )
+            )}
+          </p>
+          {setBanner.unavailable > 0 && (
+            <p
+              data-testid="shared-set-unavailable"
+              className="text-xs text-muted-foreground"
+            >
+              {t("sharedSet.unavailable", { count: setBanner.unavailable })}
+            </p>
+          )}
+          {setBanner.kind === "choice" && (
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                size="sm"
+                data-testid="shared-set-add"
+                onClick={() => applySharedSet("add")}
+              >
+                {t("sharedSet.add")}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                data-testid="shared-set-replace"
+                onClick={() => applySharedSet("replace")}
+              >
+                {t("sharedSet.replace")}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                data-testid="shared-set-ignore"
+                onClick={() => {
+                  setSetBanner(null);
+                  consumeSetParam();
+                }}
+              >
+                {t("sharedSet.ignore")}
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* F21: mobile-only sticky summary bar for step 3 */}
       <div
@@ -360,6 +715,18 @@ export function CeramicsStep({
                 </span>
               )}
             </div>
+            {/* CA-3: share next to Send (frame 5) — navigator.share on mobile */}
+            <Button
+              variant="outline"
+              size="lg"
+              data-testid="share-set-mobile"
+              className="min-h-11 shrink-0 px-3"
+              disabled={count === 0}
+              aria-label={t("share.button")}
+              onClick={() => shareSet(true)}
+            >
+              ⤴
+            </Button>
             <Button
               size="lg"
               data-testid="mobile-send"

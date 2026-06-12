@@ -15,11 +15,11 @@ Rifacimento di minkeramikk.no: configuratore di ceramica personalizzata + finto 
 - `../docs/stack-tecnologico.md` — architettura, stack, modello dati
 - `../docs/theme/DESIGN-SYSTEM.md` — **design system**: token, componenti, shell, mapping shadcn; vincolante per ogni task UI (baseline visiva: `../docs/theme/template-*.html` + `preview-*.png`)
 - `../docs/preview/*.html` — spec UI del back-office (mockup approvati dal cliente)
-- `../docs/preventivo-minkeramikk.pdf` — scope contrattuale: ciò che non è in fornitura NON va implementato senza chiedere
-- `../docs/prs/TODO.md` — fondamenta (fasi 0–1bis), **fuori dalla repo** (gestito dal TL/PM): prendere il primo task non spuntato, spuntarlo a lavoro finito
-- `../docs/delivery/DELIVERY.md` — **board kanban a flussi**, **PM-only e fuori dalla repo**: ciclo AC → dev → test → PR (aperta solo a flusso finito, con evidenza) → review agent → merge. WIP=1. Il dev riceve la card dal TL; **board e TODO non si committano nella repo** (così non possono finire su un branch feature).
+- `../docs/client/preventivo-minkeramikk.pdf` — scope contrattuale: ciò che non è in fornitura NON va implementato senza chiedere
+- `../STATO.md` — **stato del progetto** (PM-only, fuori repo): dove siamo, cosa è in volo, prossimi lavori. È la prima cosa da leggere in una sessione nuova.
+- `../docs/delivery/DELIVERY.md` — **board kanban a flussi**, **PM-only e fuori dalla repo**: ciclo AC → dev → test → PR (aperta solo a flusso finito, con evidenza) → review agent → merge. WIP=1. Il dev riceve la card dal TL (file in `../docs/cards/`); **board, STATO e card non si committano nella repo** (così non possono finire su un branch feature). Fondamenta storiche (ex TODO.md) in `../docs/archive/`.
 
-## Stack (non deviare senza motivo scritto in TODO.md)
+## Stack (non deviare senza motivo scritto in un ADR)
 
 Next.js 15 (App Router) · React 19 · Tailwind 4 + shadcn/ui · next-intl ·
 Supabase (Postgres, Auth, Storage) · Resend · embla-carousel · Vercel
@@ -55,7 +55,7 @@ Supabase (Postgres, Auth, Storage) · Resend · embla-carousel · Vercel
 - Prezzi: minor units + valuta (`price_cents int` + `currency char(3)`, default NOK). Mai float, mai importi senza valuta. Aritmetica e formattazione SOLO via value object `Money` (`src/lib/money/`), formattazione localizzata con `Intl.NumberFormat`. Vedi ADR 0005.
 - Stati ordine: `new → contacted → confirmed → in_production → delivered` (+ `cancelled`).
 - Database: nomi di tabelle e colonne SEMPRE in inglese, snake_case (`sort_order`, non `ordine`). Schema e indici normativi: `docs/adr/schema-er.md`.
-- Commit piccoli e descrittivi, in inglese. Un task di TODO.md = uno o pochi commit.
+- Commit piccoli e descrittivi, in inglese. Una card = uno o pochi commit.
 - Database remoto: VIETATO `supabase db reset --linked` (o qualsiasi comando distruttivo
   sul DB collegato) da quando esistono ordini reali. Le modifiche schema passano SOLO
   da nuove migrations additive (`db push`).
@@ -69,10 +69,12 @@ Supabase (Postgres, Auth, Storage) · Resend · embla-carousel · Vercel
   `make run-e2e-core` verde (flussi di dominio: carrello, ordine, login, admin ordini).
   La suite intera (`make run-e2e`) la lancia Daniele e deve essere verde **prima di
   aggiornare il branch `preview`** e al go-live; i rossi noti stanno in
-  `../E2E-QUARANTINE.md` (mai `skip` silenziosi nel codice — lezione F07).
+  `../docs/pm/E2E-QUARANTINE.md` (mai `skip` silenziosi nel codice — lezione F07).
 - Nessuna chiave i18n mancante in uno dei due dizionari
 - Responsive verificato (375px / 768px / 1280px) per task con UI
-- TODO.md aggiornato (task spuntato, eventuali task nuovi scoperti aggiunti)
+- A merge avvenuto: **`../STATO.md` e board aggiornati dal TL/PM** (ogni card lo
+  riporta come ultimo punto del proprio DoD; il dev segnala il merge, l'aggiornamento
+  è compito del PM)
 
 ## Versione Node (fonte unica)
 

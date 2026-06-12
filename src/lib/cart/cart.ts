@@ -13,8 +13,18 @@ import { money, multiply, sum, type Currency, type Money } from "@/lib/money/mon
 export interface ConfigSnapshot {
   designSlug: string;
   designName: string;
-  /** One entry per category: what the customer picked. */
-  selections: { label: string; option: string; hex: string | null }[];
+  /**
+   * One entry per category: what the customer picked. `label` is the
+   * Norwegian category label (the canonical one — orders/F08 lab PDF read
+   * it); `labelEn` is optional/back-compatible (CA-3: the expanded cart row
+   * is bilingual). Option names are single-column in the DB.
+   */
+  selections: {
+    label: string;
+    labelEn?: string;
+    option: string;
+    hex: string | null;
+  }[];
 }
 
 /**
@@ -55,6 +65,13 @@ export interface CartLine {
    * thumbnail under the pattern. Optional/back-compatible like `layers`.
    */
   plateImage?: string;
+  /**
+   * CA-3 — the ceramic's public slug, so the line can travel in a share link
+   * (the link carries slugs, never internal ids). Optional/back-compatible
+   * like `layers`: legacy lines without it are excluded from the link with a
+   * notice — carts are ephemeral, not worth a resolver.
+   */
+  productSlug?: string;
 }
 
 export type Cart = CartLine[];
