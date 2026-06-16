@@ -466,6 +466,12 @@ export function ConfiguratorClient({
                   key={d.id}
                   label={d.name}
                   supplierName={d.supplierName ?? undefined}
+                  // CA-7: design-as-a-button — composited plate from the same
+                  // default layers the preview uses (zero new assets).
+                  layers={d.defaultLayers.map((l) => ({
+                    src: assetUrl(l.src),
+                    recolor: l.blend === "multiply",
+                  }))}
                   selected={d.slug === selected.slug}
                   onSelect={() => selectDesign(d)}
                 />
