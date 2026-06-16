@@ -192,6 +192,11 @@
     "confirmBody": "Your order code is {code}. We'll be in touch shortly to confirm the design.",
     "confirmCta": "Build a new design",
     "emptyTitle": "No order",
-    "emptyBody": "You don't have an active order."
+    "emptyBody": "You don't have an active order.",
+    "saveInvite": "Save your code — you can reopen your set anytime.",
+    "recapTitle": "Your set",
+    "shareCta": "Share your set",
+    "shareCopied": "Link copied!",
+    "pieceCount": "{count, plural, one {# piece} other {# pieces}}"
   }
 }

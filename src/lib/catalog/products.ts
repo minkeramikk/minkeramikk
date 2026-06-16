@@ -59,3 +59,37 @@ async function loadSupplierProducts(
     pieces: p.pieces,
   }));
 }
+
+/** Minimal visible-product fields, keyed by slug (F30: resolve a shared set). */
+export interface ProductCard {
+  slug: string;
+  nameNo: string;
+  nameEn: string;
+  image: string | null;
+}
+
+async function loadProductsBySlug(): Promise<Record<string, ProductCard>> {
+  const supabase = createPublicClient();
+  const { data, error } = await supabase
+    .from("products")
+    .select("slug, name_no, name_en, image")
+    .eq("visible", true);
+  if (error) throw error;
+  const out: Record<string, ProductCard> = {};
+  for (const p of data ?? []) {
+    out[p.slug] = {
+      slug: p.slug,
+      nameNo: p.name_no,
+      nameEn: p.name_en,
+      image: p.image,
+    };
+  }
+  return out;
+}
+
+/** All visible products keyed by slug, cached under the `catalog` tag. */
+export const getProductsBySlug = unstable_cache(
+  loadProductsBySlug,
+  ["products-by-slug"],
+  { tags: ["catalog"] }
+);

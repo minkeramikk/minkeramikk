@@ -39,3 +39,17 @@ async function loadThemeTokens(): Promise<ThemeTokens> {
 export const getThemeTokens = unstable_cache(loadThemeTokens, ["theme-tokens"], {
   tags: ["theme"],
 });
+
+/**
+ * Theme tokens for code paths that may run OUTSIDE a Next request context
+ * (F30 emails, sent from server actions/tests where `unstable_cache`'s
+ * incremental cache is absent). Falls back to the defaults instead of throwing
+ * — a themed email is best-effort, it must never break order creation.
+ */
+export async function getThemeTokensSafe(): Promise<ThemeTokens> {
+  try {
+    return await getThemeTokens();
+  } catch {
+    return DEFAULT_THEME;
+  }
+}
