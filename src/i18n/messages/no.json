@@ -191,6 +191,11 @@
     "confirmBody": "Bestillingskoden din er {code}. Vi tar kontakt med deg om kort tid for å bekrefte designet.",
     "confirmCta": "Bygg en ny design",
     "emptyTitle": "Ingen bestilling",
-    "emptyBody": "Du har ingen aktiv bestilling."
+    "emptyBody": "Du har ingen aktiv bestilling.",
+    "saveInvite": "Lagre koden din — du kan hente settet ditt igjen når som helst.",
+    "recapTitle": "Settet ditt",
+    "shareCta": "Del settet",
+    "shareCopied": "Lenke kopiert!",
+    "pieceCount": "{count, plural, one {# del} other {# deler}}"
   }
 }

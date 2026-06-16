@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Turnstile } from "@/components/ui-domain/turnstile";
 import type { Cart } from "@/lib/cart/cart";
 import { orderFormSchema } from "@/lib/orders/schema";
+import { encodeSetParam } from "@/lib/cart/set-code";
 
 /**
  * Order form (F05): client-validated with the SAME zod schema as the server,
@@ -68,6 +69,7 @@ export function OrderForm({
             quantity: l.quantity,
             configCode: l.configCode,
             configSnapshot: l.configSnapshot,
+            productSlug: l.productSlug,
           })),
         }),
       });
@@ -76,8 +78,19 @@ export function OrderForm({
         return; // cart preserved
       }
       const { code } = (await res.json()) as { code: string };
+      // F30-B: carry the set (CA-3 codec) so the confirmation page can recap it
+      // with mini-plates + a share link — built BEFORE onSuccess clears the cart.
+      const set = encodeSetParam(
+        cart.map((l) => ({
+          configCode: l.configCode,
+          productSlug: l.productSlug,
+          quantity: l.quantity,
+        }))
+      );
       onSuccess();
-      router.push(`/order?code=${encodeURIComponent(code)}`);
+      const qs = new URLSearchParams({ code });
+      if (set) qs.set("set", set);
+      router.push(`/order?${qs.toString()}`);
     } catch {
       setStatus("error");
     }

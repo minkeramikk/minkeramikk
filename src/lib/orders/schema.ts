@@ -17,6 +17,10 @@ export const orderItemSchema = z.object({
   quantity: z.number().int().positive(),
   configCode: z.string().min(1),
   configSnapshot: z.unknown().nullable(),
+  /** F30: lets the customer email build the CA-3 "reopen your set" link.
+   *  Optional + not persisted (no order_items column) — absent rows just drop
+   *  out of the set link. */
+  productSlug: z.string().optional(),
 });
 
 export type OrderItemInput = z.infer<typeof orderItemSchema>;
