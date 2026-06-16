@@ -26,6 +26,7 @@ import {
   type CodecDesign,
 } from "@/lib/configurator/config-code";
 import { ConfigCodeBar } from "./config-code-bar";
+import { cn } from "@/lib/utils";
 import type { DesignDetail } from "@/lib/catalog/design-options";
 import type { PreviewLayer } from "@/lib/configurator/preview";
 
@@ -396,19 +397,53 @@ export function ConfiguratorClient({
       <div className="grid grid-cols-1 items-start gap-7 md:grid-cols-2">
         {/* LEFT: the persistent preview — never remounts across steps (AC2).
             F15: sticky so it stays visible while the option list scrolls; on
-            mobile it pins to the top and collapses to a compact thumbnail. */}
-        <div className="z-30 flex min-w-0 flex-col gap-3 md:sticky md:top-4 md:self-start">
+            mobile it pins to the top.
+            CA-7 (variant B): on mobile STEP 1 only, this column drops BELOW the
+            design grid (max-md:order-last) and the hero shrinks to a compact
+            "Valgt: {name}" confirmation — design-first browsing. Same
+            PreviewCanvas instance, toggled purely via CSS (order + width), never
+            remounted. Desktop and steps 2–3 are unchanged. */}
+        <div
+          className={cn(
+            "z-30 flex min-w-0 flex-col gap-3 md:sticky md:top-4 md:self-start",
+            step === 1 && "max-md:order-last"
+          )}
+        >
           <div
             ref={previewRef}
             data-testid="preview-sticky"
-            className="max-md:mx-auto max-md:w-full"
+            className={cn(
+              "max-md:mx-auto max-md:w-full",
+              // CA-7: compact hero on mobile step 1 — cap the square at ~112px
+              step === 1 && "max-md:max-w-[112px]"
+            )}
           >
             <PreviewCanvas
               alt={selected.name}
-              caption={t("previewNote")}
+              // step 1: caption rendered below (responsive — see next block);
+              // steps 2–3: the live-preview note, unchanged.
+              caption={step === 1 ? undefined : t("previewNote")}
               layers={previewLayers}
             />
           </div>
+          {step === 1 && (
+            <>
+              {/* desktop step 1: the original live-preview note (unchanged) */}
+              <p className="max-md:hidden text-center text-xs italic text-muted-foreground">
+                {t("previewNote")}
+              </p>
+              {/* mobile step 1: compact confirmation of the chosen design */}
+              <p
+                data-testid="preview-confirm"
+                className="truncate text-center text-xs text-muted-foreground md:hidden"
+              >
+                {t("step1.selected")}{" "}
+                <span className="font-medium text-foreground">
+                  {selected.name}
+                </span>
+              </p>
+            </>
+          )}
           {/* CA-6: informative teaser of the NEXT step — desktop instance,
               inside the sticky block so it follows the preview (F15). */}
           {showTeaser && renderTeaser("max-md:hidden")}
@@ -417,7 +452,7 @@ export function ConfiguratorClient({
         {/* RIGHT: panel swaps with the step */}
         {step === 1 ? (
           <div
-            className="flex min-w-0 flex-col"
+            className="flex min-w-0 flex-col max-md:order-first"
             data-testid="design-step"
             data-supplier-id={selected.supplierId}
           >

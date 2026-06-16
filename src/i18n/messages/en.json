@@ -65,7 +65,8 @@
     "back": "Back",
     "previewNote": "The configurator shows your design in a round pattern. Remember you can also order serving dishes, cups, oven dishes etc. in the same design – the final result is just not shown in the configurator.",
     "step1": {
-      "title": "Choose design"
+      "title": "Choose design",
+      "selected": "Selected:"
     },
     "step2": {
       "titleDetails": "Choose details",

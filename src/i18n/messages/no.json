@@ -64,7 +64,8 @@
     "back": "Tilbake",
     "previewNote": "Konfigurator viser designet ditt i et rundt mønster, husk at du kan også bestille serveringsfat, kopper, ildfastformer osv. i samme design, sluttresultatet bare ikke vises i konfigurator.",
     "step1": {
-      "title": "Velg design"
+      "title": "Velg design",
+      "selected": "Valgt:"
     },
     "step2": {
       "titleDetails": "Velg detaljer",
