@@ -74,8 +74,17 @@ const toMailItem = (i: OrderItemInput): MailItem => ({
   configCode: i.configCode,
 });
 
-/** CA-3 "reopen your set" link from the ordered items (null if none shareable). */
-function reopenSetUrl(items: OrderItemInput[], locale: "no" | "en"): string | null {
+/**
+ * "Reopen your set" link for the customer email → the order confirmation page
+ * (/order?code=…&set=…), which recaps the set with mini-plates and a share
+ * button. Null when no line is shareable. The set-code alphabet is URL-safe by
+ * design, so the param stays raw/readable.
+ */
+function reopenSetUrl(
+  items: OrderItemInput[],
+  locale: "no" | "en",
+  code: string
+): string | null {
   const param = encodeSetParam(
     items.map((i) => ({
       configCode: i.configCode,
@@ -84,9 +93,7 @@ function reopenSetUrl(items: OrderItemInput[], locale: "no" | "en"): string | nu
     }))
   );
   if (!param) return null;
-  // CA-3 landing convention: ?step=3&set=… (set= is only resolved on step 3).
-  // The set-code alphabet is URL-safe by design, so the param stays raw/readable.
-  return `${siteUrl()}/${locale}/configurator?step=3&set=${param}`;
+  return `${siteUrl()}/${locale}/order?code=${encodeURIComponent(code)}&set=${param}`;
 }
 
 export async function sendOrderEmails(
@@ -107,7 +114,7 @@ export async function sendOrderEmails(
     code: params.code,
     locale: params.locale,
     items,
-    setUrl: reopenSetUrl(params.items, params.locale),
+    setUrl: reopenSetUrl(params.items, params.locale, params.code),
     theme,
   });
   await transport.send({
