@@ -84,7 +84,9 @@ function reopenSetUrl(items: OrderItemInput[], locale: "no" | "en"): string | nu
     }))
   );
   if (!param) return null;
-  return `${siteUrl()}/${locale}/configurator?set=${encodeURIComponent(param)}`;
+  // CA-3 landing convention: ?step=3&set=… (set= is only resolved on step 3).
+  // The set-code alphabet is URL-safe by design, so the param stays raw/readable.
+  return `${siteUrl()}/${locale}/configurator?step=3&set=${param}`;
 }
 
 export async function sendOrderEmails(

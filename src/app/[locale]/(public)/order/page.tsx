@@ -45,8 +45,9 @@ export default async function OrderConfirmationPage({
   }
 
   const lines = await resolveSetPreviews(set, locale === "no" ? "no" : "en");
+  // CA-3 landing convention: ?step=3&set=… (set= is only resolved on step 3).
   const shareUrl = set
-    ? `${siteUrl()}/${locale}/configurator?set=${encodeURIComponent(set)}`
+    ? `${siteUrl()}/${locale}/configurator?step=3&set=${set}`
     : null;
 
   return (
