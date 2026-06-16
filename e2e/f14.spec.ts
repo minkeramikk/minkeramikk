@@ -47,25 +47,27 @@ test("AC2 (desktop): step1 → step2 keeps the preview pixel-identical", async (
   expect(Buffer.compare(before, after)).toBe(0); // identical
 });
 
-test("AC2 (mobile, CA-7): step1 → step2 keeps the SAME preview instance (no remount)", async ({
+test("AC2 (mobile, CA-7): hero hidden on step1, same instance full-size on step2 (no remount)", async ({
   page,
 }, testInfo) => {
   test.skip(testInfo.project.name !== "mobile", "mobile continuity check (CA-7)");
 
   await page.goto("/no/configurator");
   const canvas = page.getByTestId("preview-canvas");
-  await expect(previewImgs(page).first()).toBeVisible();
+  // CA-7 variant B: on mobile step 1 the hero is hidden (cards are the preview),
+  // but it stays MOUNTED — attached and tag-able even while display:none.
+  await expect(canvas).toBeAttached();
+  await expect(canvas).toBeHidden();
   // tag the live DOM node; if it survives the step change, it was never remounted
   await canvas.evaluate((el) => el.setAttribute("data-ca7-marker", "1"));
-  // step 1: compact confirmation present, hero alt = design name (continuity)
-  await expect(page.getByTestId("preview-confirm")).toBeVisible();
   const altStep1 = await previewImgs(page).first().getAttribute("alt");
 
   await page.getByTestId("next-step").click(); // → step 2
   await expect(page.getByTestId("details-step")).toBeVisible();
 
-  // same node (marker survived) → not remounted; no skeleton; alt preserved
-  await expect(page.locator('[data-testid="preview-canvas"][data-ca7-marker="1"]')).toBeVisible();
+  // same node (marker survived) → not remounted; now visible; no skeleton; alt kept
+  const marked = page.locator('[data-testid="preview-canvas"][data-ca7-marker="1"]');
+  await expect(marked).toBeVisible();
   await expect(page.getByTestId("preview-skeleton")).toHaveCount(0);
   expect(await previewImgs(page).first().getAttribute("alt")).toBe(altStep1);
 });

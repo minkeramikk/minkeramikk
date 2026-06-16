@@ -406,44 +406,25 @@ export function ConfiguratorClient({
         <div
           className={cn(
             "z-30 flex min-w-0 flex-col gap-3 md:sticky md:top-4 md:self-start",
-            step === 1 && "max-md:order-last"
+            // CA-7 (variant B): design-first on mobile step 1 — the hero is
+            // hidden entirely (the design cards double as the preview). It stays
+            // MOUNTED (display:none only) so the same PreviewCanvas instance
+            // comes back full-size from step 2 with no remount (F14). Desktop
+            // and steps 2–3 are unchanged.
+            step === 1 && "max-md:hidden"
           )}
         >
           <div
             ref={previewRef}
             data-testid="preview-sticky"
-            className={cn(
-              "max-md:mx-auto max-md:w-full",
-              // CA-7: compact hero on mobile step 1 — cap the square at ~112px
-              step === 1 && "max-md:max-w-[112px]"
-            )}
+            className="max-md:mx-auto max-md:w-full"
           >
             <PreviewCanvas
               alt={selected.name}
-              // step 1: caption rendered below (responsive — see next block);
-              // steps 2–3: the live-preview note, unchanged.
-              caption={step === 1 ? undefined : t("previewNote")}
+              caption={t("previewNote")}
               layers={previewLayers}
             />
           </div>
-          {step === 1 && (
-            <>
-              {/* desktop step 1: the original live-preview note (unchanged) */}
-              <p className="max-md:hidden text-center text-xs italic text-muted-foreground">
-                {t("previewNote")}
-              </p>
-              {/* mobile step 1: compact confirmation of the chosen design */}
-              <p
-                data-testid="preview-confirm"
-                className="truncate text-center text-xs text-muted-foreground md:hidden"
-              >
-                {t("step1.selected")}{" "}
-                <span className="font-medium text-foreground">
-                  {selected.name}
-                </span>
-              </p>
-            </>
-          )}
           {/* CA-6: informative teaser of the NEXT step — desktop instance,
               inside the sticky block so it follows the preview (F15). */}
           {showTeaser && renderTeaser("max-md:hidden")}
@@ -452,7 +433,7 @@ export function ConfiguratorClient({
         {/* RIGHT: panel swaps with the step */}
         {step === 1 ? (
           <div
-            className="flex min-w-0 flex-col max-md:order-first"
+            className="flex min-w-0 flex-col"
             data-testid="design-step"
             data-supplier-id={selected.supplierId}
           >
