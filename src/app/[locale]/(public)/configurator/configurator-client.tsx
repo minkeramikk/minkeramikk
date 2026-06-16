@@ -26,6 +26,7 @@ import {
   type CodecDesign,
 } from "@/lib/configurator/config-code";
 import { ConfigCodeBar } from "./config-code-bar";
+import { cn } from "@/lib/utils";
 import type { DesignDetail } from "@/lib/catalog/design-options";
 import type { PreviewLayer } from "@/lib/configurator/preview";
 
@@ -396,8 +397,23 @@ export function ConfiguratorClient({
       <div className="grid grid-cols-1 items-start gap-7 md:grid-cols-2">
         {/* LEFT: the persistent preview — never remounts across steps (AC2).
             F15: sticky so it stays visible while the option list scrolls; on
-            mobile it pins to the top and collapses to a compact thumbnail. */}
-        <div className="z-30 flex min-w-0 flex-col gap-3 md:sticky md:top-4 md:self-start">
+            mobile it pins to the top.
+            CA-7 (variant B): on mobile STEP 1 only, this column drops BELOW the
+            design grid (max-md:order-last) and the hero shrinks to a compact
+            "Valgt: {name}" confirmation — design-first browsing. Same
+            PreviewCanvas instance, toggled purely via CSS (order + width), never
+            remounted. Desktop and steps 2–3 are unchanged. */}
+        <div
+          className={cn(
+            "z-30 flex min-w-0 flex-col gap-3 md:sticky md:top-4 md:self-start",
+            // CA-7 (variant B): design-first on mobile step 1 — the hero is
+            // hidden entirely (the design cards double as the preview). It stays
+            // MOUNTED (display:none only) so the same PreviewCanvas instance
+            // comes back full-size from step 2 with no remount (F14). Desktop
+            // and steps 2–3 are unchanged.
+            step === 1 && "max-md:hidden"
+          )}
+        >
           <div
             ref={previewRef}
             data-testid="preview-sticky"
@@ -431,6 +447,12 @@ export function ConfiguratorClient({
                   key={d.id}
                   label={d.name}
                   supplierName={d.supplierName ?? undefined}
+                  // CA-7: design-as-a-button — composited plate from the same
+                  // default layers the preview uses (zero new assets).
+                  layers={d.defaultLayers.map((l) => ({
+                    src: assetUrl(l.src),
+                    recolor: l.blend === "multiply",
+                  }))}
                   selected={d.slug === selected.slug}
                   onSelect={() => selectDesign(d)}
                 />
