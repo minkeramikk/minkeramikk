@@ -1,14 +1,25 @@
 import { test, expect, type Browser, type Page } from "@playwright/test";
+import { designWithCode } from "./helpers";
 
-/** CA-3 — "Share your set": shareable basket link + expandable cart rows.
- *  Desktop-only by the 2026-06-12 test policy: the two domain flows live here,
- *  everything else (parser degradation, cap, clamp) is unit-tested in
- *  src/lib/cart/set-code.test.ts. */
+/**
+ * Journey 8 — Share your set (CA-3). ACCEPTANCE.md §8 · ADR 0016.
+ * Desktop-only by policy (i due flussi di dominio; parser/cap/clamp sono unit).
+ * Resilient: design con codice (righe condivisibili) + prodotti scoperti a runtime.
+ * NB: il codice di riga vive nel dettaglio ESPANSO (`cart-line-detail`), non nella
+ * riga collassata — si legge solo dopo `cart-expand`.
+ */
 
-const STEP3 = "/no/configurator?design=blomster-1&step=3";
+let step3 = "";
+test.beforeAll(async () => {
+  const design = await designWithCode();
+  step3 = `/no/configurator?design=${design.slug}&step=3`;
+});
 
-async function addProduct(page: Page, slug: string) {
-  await page.getByTestId(`product-${slug}`).click();
+const ceramics = (page: Page) =>
+  page.getByTestId("ceramics-step").getByRole("radio");
+
+async function addNthCeramic(page: Page, n: number) {
+  await ceramics(page).nth(n).click();
   await page.getByTestId("add-to-cart").click();
 }
 
@@ -18,40 +29,34 @@ async function forgeShareUrl(browser: Browser) {
     permissions: ["clipboard-read", "clipboard-write"],
   });
   const page = await ctx.newPage();
-  await page.goto(STEP3);
+  await page.goto(step3);
   await page.getByTestId("ceramics-step").waitFor();
-  await addProduct(page, "vietri-flat");
-  await addProduct(page, "vietri-dyp");
+  await addNthCeramic(page, 0);
+  await addNthCeramic(page, 1);
 
   const panel = page.getByTestId("docked-cart-panel");
   await expect(panel.getByTestId("cart-line")).toHaveCount(2);
   const total = await panel.getByTestId("docked-total").innerText();
-  const firstCode = await panel
-    .getByTestId("cart-line")
-    .first()
-    .locator("code")
-    .first()
-    .innerText();
 
   await panel.getByTestId("share-set").click();
   const link = panel.getByTestId("share-feedback").locator("code");
   await expect(link).toBeVisible();
   const url = await link.innerText();
   await ctx.close();
-  return { url, total, firstCode };
+  return { url, total };
 }
 
-test("happy path round-trip: share 2 rows → clean context lands at step 3 → expand → edit design", async ({
+test("AC1/AC2/AC5: share 2 rows → clean context lands at step 3 → expand → edit", async ({
   browser,
 }) => {
-  const { url, total, firstCode } = await forgeShareUrl(browser);
+  const { url, total } = await forgeShareUrl(browser);
 
-  // AC1: the link carries only codes/slugs/qty — no prices, no internal ids
+  // AC1: link carries only codes/slugs/qty — no prices, no internal ids
   expect(url).toContain("step=3");
   expect(url).toMatch(/set=MK-/);
   expect(url).not.toMatch(/price|cents|[0-9a-f]{8}-[0-9a-f]{4}/i);
 
-  // AC2: a clean browser context (empty basket) lands with the set loaded
+  // AC2: a clean browser context lands with the set loaded, live-repriced
   const ctx = await browser.newContext();
   const page = await ctx.newPage();
   await page.goto(url);
@@ -63,55 +68,56 @@ test("happy path round-trip: share 2 rows → clean context lands at step 3 → 
 
   const panel = page.getByTestId("docked-cart-panel");
   await expect(panel.getByTestId("cart-line")).toHaveCount(2);
-  // live re-price from the catalog = same total as the sharer saw
   await expect(panel.getByTestId("docked-total")).toHaveText(total);
-  // `set=` consumed once (decode-once, like ?code=)
   await expect(page).not.toHaveURL(/set=/);
 
-  // AC5: expand the first row → big composition + readable selections + edit
+  // AC5: expand the first row → big composition + the row's config code + edit
   await panel.getByTestId("cart-expand").first().click();
   const detail = panel.getByTestId("cart-line-detail");
   await expect(detail).toBeVisible();
-  await expect(
-    panel.getByTestId("cart-expand").first()
-  ).toHaveAttribute("aria-expanded", "true");
+  await expect(panel.getByTestId("cart-expand").first()).toHaveAttribute(
+    "aria-expanded",
+    "true"
+  );
   expect(await detail.locator("img").count()).toBeGreaterThan(0);
 
+  // the code lives in the expanded detail; edit-design must round-trip to it
+  const code = (await detail.locator("code").first().innerText()).trim();
   await detail.getByTestId("cart-edit-design").click();
   await page.getByTestId("details-step").waitFor();
-  // the ?code= deep link reloads that exact configuration (F19 semantics)
-  await expect(page.getByTestId("config-code")).toHaveText(firstCode);
+  await expect(page.getByTestId("config-code")).toHaveText(code);
   await ctx.close();
 });
 
-test("3-way banner: non-empty basket → Add merges to 3 rows; set= consumed, no banner on refresh", async ({
+test("AC3: non-empty basket → 3-way banner; Add merges; set= consumed; no banner on refresh", async ({
   browser,
 }) => {
   const { url } = await forgeShareUrl(browser);
 
-  // context with 1 PREEXISTING row (a ceramic not in the shared set)
   const ctx = await browser.newContext();
   const page = await ctx.newPage();
-  await page.goto(STEP3);
+  await page.goto(step3);
   await page.getByTestId("ceramics-step").waitFor();
-  await addProduct(page, "vietri-asjett");
+  test.skip((await ceramics(page).count()) < 3, "needs ≥3 ceramics for a distinct preexisting row");
+
+  await addNthCeramic(page, 2); // a row NOT in the shared set
   const panel = page.getByTestId("docked-cart-panel");
   await expect(panel.getByTestId("cart-line")).toHaveCount(1);
 
-  // AC3: landing shows the 3-way choice and applies NOTHING until chosen
+  // landing shows the 3-way choice and applies NOTHING until chosen
   await page.goto(url);
   await page.getByTestId("ceramics-step").waitFor();
   const banner = page.getByTestId("shared-set-banner");
   await expect(banner).toBeVisible();
   await expect(banner.getByTestId("shared-set-choice-text")).toBeVisible();
   await expect(panel.getByTestId("cart-line")).toHaveCount(1);
-  await expect(page).toHaveURL(/set=/); // not consumed before the choice
+  await expect(page).toHaveURL(/set=/);
 
   await banner.getByTestId("shared-set-add").click();
   await expect(panel.getByTestId("cart-line")).toHaveCount(3);
   await expect(page).not.toHaveURL(/set=/);
 
-  // refresh → the set is NOT re-proposed (consumed), basket intact
+  // refresh → set NOT re-proposed (consumed), basket intact
   await page.reload();
   await page.getByTestId("ceramics-step").waitFor();
   await expect(page.getByTestId("shared-set-banner")).toHaveCount(0);

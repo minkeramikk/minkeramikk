@@ -1,28 +1,33 @@
 # minkeramikk/web — dev shortcuts
 #
-# Politica test e2e (decisa 2026-06-12, fase di iterazione UI):
-#   make run-e2e-core   → OGNI PR (bloccante): flussi di dominio completi.
-#   make run-e2e        → suite intera (core + UI/layout). La lancia Daniele,
-#                         OBBLIGATORIA VERDE prima di aggiornare il branch
-#                         `preview` (è ciò che vede il cliente) e al go-live.
-#   Rossi noti della suite intera: vedi ../docs/pm/E2E-QUARANTINE.md.
+# Suite e2e snella (riscritta 2026-06-17). 8 journey ↔ docs/release/ACCEPTANCE.md.
+#   make run-e2e-core   → OGNI PR (bloccante): i 6 journey core (desktop+mobile).
+#   make run-e2e        → suite intera (core + supplier-pdf + share-set). La lancia
+#                         Daniele, VERDE prima di aggiornare `preview` e al go-live.
+#   make test-email     → OPT-IN: un solo ordine che invia email REALI alla casella
+#                         dedicata (default dangeli88.daniele+mke2e@gmail.com).
+#   make run-e2e-grep G=cart → una spec singola.
 #
-# Il webServer di Playwright avvia `npm run start -p 3199` (serve la build PROD:
-# qui si builda prima, sempre). `reuseExistingServer: true` → un server già
-# attivo sulla 3199 viene riusato.
+# Email: la suite core/full gira con RESEND disattivata (transport no-op → ZERO
+# invii). L'ordine viene comunque creato e la conferma testata.
+#
+# Turnstile: la build e2e usa NEXT_PUBLIC_TURNSTILE_SITE_KEY VUOTA, così il widget
+# emette il token di test always-pass (il server, senza TURNSTILE_SECRET_KEY, usa
+# il secret always-pass). Senza questo, una site key invalida romperebbe l'invio.
 
 SHELL := /bin/bash
 
 NODE_WANTED := $(shell cat .nvmrc)
 NODE_ACTUAL := $(shell node -v 2>/dev/null | sed -E 's/^v([0-9]+).*/\1/')
 
-# CORE = dominio e flussi completi: carrello/step3 (f03), config code (f04),
-# invio ordine (f05), login/guard admin (f06), gestione ordini (f07),
-# persistenza carrello/drawer (f16). Niente spec di puro layout qui.
-CORE_SPECS := e2e/f03.spec.ts e2e/f04.spec.ts e2e/f05.spec.ts \
-	e2e/f06.spec.ts e2e/f07.spec.ts e2e/f16.spec.ts
+# Casella dedicata per il test invio reale (override: make test-email E2E_EMAIL_TO=...).
+E2E_EMAIL_TO ?= dangeli88.daniele+mke2e@gmail.com
 
-.PHONY: check-node build run-e2e run-e2e-core run-e2e-grep
+# CORE = i 6 journey critici (per-PR). supplier-pdf e share-set stanno nella full.
+CORE_SPECS := e2e/configurator.spec.ts e2e/config-code.spec.ts e2e/cart.spec.ts \
+	e2e/order.spec.ts e2e/admin-auth.spec.ts e2e/admin-orders.spec.ts
+
+.PHONY: check-node build run-e2e run-e2e-core run-e2e-grep test-email
 
 check-node:
 	@if [ "$(NODE_ACTUAL)" != "$(NODE_WANTED)" ]; then \
@@ -31,17 +36,24 @@ check-node:
 	fi
 	@echo "✓ Node $(NODE_WANTED)"
 
+# La build e2e azzera la site key Turnstile (vedi testata). Override del client a
+# build-time: una var d'ambiente vince sui file .env*.
 build: check-node
-	npm run build
+	NEXT_PUBLIC_TURNSTILE_SITE_KEY= npm run build
 
-# gate per ogni PR
+# gate per ogni PR — desktop + mobile dei 6 journey core
 run-e2e-core: build
-	npx playwright test $(CORE_SPECS)
+	npx playwright test $(CORE_SPECS) --project=desktop --project=mobile
 
-# suite intera — gate manuale prima di push su `preview` / go-live
+# suite intera (no email, no evidence) — gate manuale prima di `preview` / go-live
 run-e2e: build
-	npx playwright test
+	npx playwright test --project=desktop --project=mobile
 
-# una spec singola: make run-e2e-grep G=f18
+# OPT-IN: un solo ordine invia email reali alla casella dedicata
+test-email: build
+	MK_E2E_REAL_EMAIL=1 E2E_EMAIL_TO=$(E2E_EMAIL_TO) \
+		npx playwright test --project=email
+
+# una spec singola: make run-e2e-grep G=cart
 run-e2e-grep: build
 	npx playwright test e2e/$(G).spec.ts
