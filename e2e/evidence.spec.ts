@@ -196,7 +196,8 @@ test("F05: order form + confirmation at 390/1280", async ({ page }) => {
     await page.setViewportSize({ width, height: 1300 });
     await page.goto("/no/configurator?design=blomster-1&step=3");
     await page.getByTestId("ceramics-step").waitFor({ state: "visible" });
-    await page.getByTestId("add-vietri-flat").click(); // F33: per-card "+"
+    await page.getByTestId("product-vietri-flat").click();
+    await page.getByTestId("add-to-cart").click();
     // F16: checkout lives in the cart drawer
     await page.getByTestId("cart-button").click();
     await page.getByTestId("cart-checkout").click();
@@ -306,9 +307,11 @@ test("F03: capture 390/768/1280 with a populated cart", async ({ page }) => {
     await page.setViewportSize({ width, height: width < 700 ? 1100 : 1000 });
     await page.goto("/no/configurator?design=blomster-1&step=3");
     await page.getByTestId("ceramics-step").waitFor({ state: "visible" });
-    // F33: per-card "+" quick-add (qty edited in the cart, not before)
-    await page.getByTestId("add-vietri-flat").click();
-    await page.getByTestId("add-serveringsfat-stor").click();
+    await page.getByTestId("product-vietri-flat").click();
+    await page.getByTestId("qty-inc").click();
+    await page.getByTestId("add-to-cart").click();
+    await page.getByTestId("product-serveringsfat-stor").click();
+    await page.getByTestId("add-to-cart").click();
     // F16: the populated cart now lives in the drawer
     await page.getByTestId("cart-button").click();
     await page.getByTestId("cart-drawer").waitFor({ state: "visible" });
@@ -326,9 +329,11 @@ test("F16: cart drawer + badge at 390/1280", async ({ page }) => {
     // populate from step 3
     await page.goto("/no/configurator?design=blomster-1&step=3");
     await page.getByTestId("ceramics-step").waitFor({ state: "visible" });
-    // F33: per-card "+" quick-add
-    await page.getByTestId("add-vietri-flat").click();
-    await page.getByTestId("add-serveringsfat-stor").click();
+    await page.getByTestId("product-vietri-flat").click();
+    await page.getByTestId("qty-inc").click();
+    await page.getByTestId("add-to-cart").click();
+    await page.getByTestId("product-serveringsfat-stor").click();
+    await page.getByTestId("add-to-cart").click();
     // badge in the header
     await page.getByTestId("cart-badge").waitFor({ state: "visible" });
     // open drawer

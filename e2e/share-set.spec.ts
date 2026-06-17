@@ -18,14 +18,9 @@ test.beforeAll(async () => {
 const ceramics = (page: Page) =>
   page.getByTestId("ceramics-step").getByRole("radio");
 
-// F33: add the nth product via its per-card "+" (qty 1).
 async function addNthCeramic(page: Page, n: number) {
-  await page
-    .getByTestId("ceramics-step")
-    .getByRole("radiogroup")
-    .locator('button[data-testid^="add-"]')
-    .nth(n)
-    .click();
+  await ceramics(page).nth(n).click();
+  await page.getByTestId("add-to-cart").click();
 }
 
 /** Compose a 2-row basket in a throwaway context and return its share link. */
