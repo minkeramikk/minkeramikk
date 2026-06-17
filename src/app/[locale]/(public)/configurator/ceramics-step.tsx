@@ -241,6 +241,13 @@ export function CeramicsStep({
   const count = hydrated ? itemCount(cart) : 0;
   const total = cartTotal(cart);
 
+  // F33: desktop needs an explicit affordance to scroll the 2-row strip (a
+  // mouse has no horizontal wheel; touch swipes natively). ~2 columns per click.
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  function scrollCeramics(dir: 1 | -1) {
+    scrollerRef.current?.scrollBy({ left: dir * 320, behavior: "smooth" });
+  }
+
   // F33: add ANY product (parametrised) keeping the current design context
   // (configCode/snapshot/layers are the same for every ceramic of this design).
   function addProduct(product: CeramicProduct, quantity: number) {
@@ -809,7 +816,31 @@ export function CeramicsStep({
           <p className="text-[11px] uppercase tracking-[0.06em] text-muted-foreground">
             {tc("stepIndicator", { step: 3 })}
           </p>
-          <h2 className="mb-4 mt-1 text-xl font-semibold">{t("title")}</h2>
+          <div className="mb-4 mt-1 flex items-center gap-2">
+            <h2 className="text-xl font-semibold">{t("title")}</h2>
+            {/* F33: desktop scroll arrows — touch scrolls natively (no arrows).
+                TODO:nb-review — cart.scrollPrev/scrollNext NO strings are fresh. */}
+            <span className="ml-auto flex gap-1.5 max-md:hidden">
+              <button
+                type="button"
+                aria-label={t("scrollPrev")}
+                data-testid="ceramics-scroll-prev"
+                onClick={() => scrollCeramics(-1)}
+                className="flex size-8 items-center justify-center rounded-full border border-border bg-card text-sm hover:border-ring"
+              >
+                ‹
+              </button>
+              <button
+                type="button"
+                aria-label={t("scrollNext")}
+                data-testid="ceramics-scroll-next"
+                onClick={() => scrollCeramics(1)}
+                className="flex size-8 items-center justify-center rounded-full border border-border bg-card text-sm hover:border-ring"
+              >
+                ›
+              </button>
+            </span>
+          </div>
 
           {/* F33: horizontal 2-row scroller (FeaturedStrip pattern) — ~6
               products visible on desktop, ~4–5 + peek on mobile, instead of a
@@ -817,6 +848,7 @@ export function CeramicsStep({
               top→bottom then across; right peek via mask; snap + overlay scroll
               so it never reflows the layout. */}
           <div
+            ref={scrollerRef}
             role="radiogroup"
             aria-label={t("title")}
             className="grid grid-flow-col grid-rows-2 auto-cols-[150px] gap-2.5 overflow-x-auto overscroll-x-contain pb-1 snap-x snap-mandatory [mask-image:linear-gradient(to_right,black_92%,transparent)] [-webkit-mask-image:linear-gradient(to_right,black_92%,transparent)]"

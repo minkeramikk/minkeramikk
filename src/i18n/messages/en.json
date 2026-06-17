@@ -145,6 +145,8 @@
     "quantity": "Quantity",
     "add": "Add to basket",
     "addProduct": "Add {name}",
+    "scrollPrev": "Previous",
+    "scrollNext": "Next",
     "added": "Added to basket",
     "cartTitle": "Basket",
     "empty": "Your basket is empty",
