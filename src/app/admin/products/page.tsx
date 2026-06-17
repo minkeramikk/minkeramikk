@@ -3,6 +3,7 @@ import { AdminShell } from "@/components/shell/admin-shell";
 import { createClient } from "@/lib/supabase/server";
 import { formatMoney, money, type Currency } from "@/lib/money/money";
 import { toggleProductVisible } from "./actions";
+import { ProductMoveActions } from "@/components/admin/product-move-actions";
 
 // Live data: a new/edited/hidden product is reflected immediately (and so is the
 // public configurator step 3, which is force-dynamic).
@@ -13,7 +14,8 @@ export default async function AdminProductsPage() {
   const { data: products } = await supabase
     .from("products")
     .select("id, name_no, price_cents, currency, visible, sort_order, pieces, suppliers(name)")
-    .order("sort_order", { ascending: true });
+    .order("sort_order", { ascending: true })
+    .order("id", { ascending: true }); // stable tiebreak — matches moveProduct
 
   const rows = products ?? [];
 
@@ -41,6 +43,7 @@ export default async function AdminProductsPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border text-left text-[11px] uppercase tracking-[0.06em] text-muted-foreground">
+                  <th className="px-4 py-2.5 font-medium">Order</th>
                   <th className="px-4 py-2.5 font-medium">Name</th>
                   <th className="hidden px-4 py-2.5 font-medium sm:table-cell">Supplier</th>
                   <th className="px-4 py-2.5 font-medium">Price</th>
@@ -49,7 +52,7 @@ export default async function AdminProductsPage() {
                 </tr>
               </thead>
               <tbody>
-                {rows.map((p) => {
+                {rows.map((p, i) => {
                   const supplierName =
                     (p.suppliers as { name: string } | null)?.name ?? "—";
                   return (
@@ -58,6 +61,13 @@ export default async function AdminProductsPage() {
                       data-testid="product-row"
                       className="border-b border-border/50 last:border-0 hover:bg-muted/50"
                     >
+                      <td className="px-4 py-3 align-top">
+                        <ProductMoveActions
+                          id={p.id}
+                          isFirst={i === 0}
+                          isLast={i === rows.length - 1}
+                        />
+                      </td>
                       <td className="px-4 py-3 font-medium">
                         {p.name_no}
                         {p.pieces > 1 && (

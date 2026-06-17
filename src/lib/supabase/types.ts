@@ -287,7 +287,9 @@ export type Database = {
       }
       orders: {
         Row: {
+          address: string | null
           code: string
+          country: string | null
           created_at: string
           customer_name: string
           email: string
@@ -298,9 +300,12 @@ export type Database = {
           phone: string | null
           status: Database["public"]["Enums"]["order_status"]
           updated_at: string
+          zipcode: string | null
         }
         Insert: {
+          address?: string | null
           code: string
+          country?: string | null
           created_at?: string
           customer_name: string
           email: string
@@ -311,9 +316,12 @@ export type Database = {
           phone?: string | null
           status?: Database["public"]["Enums"]["order_status"]
           updated_at?: string
+          zipcode?: string | null
         }
         Update: {
+          address?: string | null
           code?: string
+          country?: string | null
           created_at?: string
           customer_name?: string
           email?: string
@@ -324,6 +332,7 @@ export type Database = {
           phone?: string | null
           status?: Database["public"]["Enums"]["order_status"]
           updated_at?: string
+          zipcode?: string | null
         }
         Relationships: []
       }
@@ -468,12 +477,15 @@ export type Database = {
     Functions: {
       create_order: {
         Args: {
+          p_address?: string
+          p_country?: string
           p_customer_name: string
           p_email: string
           p_items: Json
           p_locale: string
           p_message: string
           p_phone: string
+          p_zipcode?: string
         }
         Returns: string
       }

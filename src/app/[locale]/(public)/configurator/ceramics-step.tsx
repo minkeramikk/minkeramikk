@@ -404,21 +404,6 @@ export function CeramicsStep({
                   <p className="truncate text-xs text-muted-foreground">
                     {line.configSnapshot?.designName ?? "—"}
                   </p>
-                  {line.configCode && (
-                    <div className="mt-1 flex items-center gap-2">
-                      <code className="min-w-0 truncate font-mono text-[10px] text-muted-foreground">
-                        {line.configCode}
-                      </code>
-                      <button
-                        type="button"
-                        data-testid="cart-copy-code"
-                        onClick={() => copyCode(line.id, line.configCode)}
-                        className="shrink-0 text-[10px] text-muted-foreground underline underline-offset-2 hover:text-foreground"
-                      >
-                        {copiedId === line.id ? t("copied") : t("copyCode")}
-                      </button>
-                    </div>
-                  )}
                   <div className="mt-1.5 flex items-center gap-2">
                     <div className="flex items-center rounded-sm border border-border">
                       <button
@@ -538,10 +523,28 @@ export function CeramicsStep({
                         </div>
                       </dl>
                     )}
-                    {/* one discreet action, bottom-right: Edit design as a
-                        text link (the chunky button shouted); NO second
-                        Remove — the row above already has one */}
-                    <div className="flex justify-end">
+                    {/* bottom action row: config code + copy on the left
+                        (moved here from the compact row for a cleaner closed
+                        line — design decision 2026-06-16), Edit design on the
+                        right. No second Remove — the row above already has one */}
+                    <div className="flex items-center justify-between gap-2 border-t border-border/50 pt-2.5">
+                      {line.configCode ? (
+                        <div className="flex min-w-0 items-center gap-2">
+                          <code className="min-w-0 truncate font-mono text-[10px] text-muted-foreground">
+                            {line.configCode}
+                          </code>
+                          <button
+                            type="button"
+                            data-testid="cart-copy-code"
+                            onClick={() => copyCode(line.id, line.configCode)}
+                            className="shrink-0 text-[10px] text-muted-foreground underline underline-offset-2 hover:text-foreground"
+                          >
+                            {copiedId === line.id ? t("copied") : t("copyCode")}
+                          </button>
+                        </div>
+                      ) : (
+                        <span />
+                      )}
                       <button
                         type="button"
                         data-testid="cart-edit-design"
@@ -550,7 +553,7 @@ export function CeramicsStep({
                             `/configurator?code=${encodeURIComponent(line.configCode)}&step=2`
                           )
                         }
-                        className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+                        className="shrink-0 text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
                       >
                         ✎ {t("line.edit")}
                       </button>

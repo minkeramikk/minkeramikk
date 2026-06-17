@@ -123,8 +123,11 @@
     "email": "E-postadresse",
     "phone": "Telefonnummer",
     "address": "Leveringsadresse",
+    "zipcode": "Postnummer",
+    "country": "Land",
     "message": "Melding",
-    "submit": "Send din ordre til oss"
+    "submit": "Send din ordre til oss",
+    "legal": "For mer om salgsvilkår og personvern — inkludert hvordan vi behandler informasjonskapsler og personopplysninger — se våre <terms>salgsvilkår</terms> og <privacy>personvernerklæring</privacy>."
   },
   "legal": {
     "privacy": {

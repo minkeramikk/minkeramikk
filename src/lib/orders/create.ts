@@ -44,6 +44,9 @@ export async function createOrder(
     p_message: payload.message || "",
     p_locale: payload.locale,
     p_items: buildOrderItemRows(payload.items) as unknown as Json,
+    p_address: payload.address || "",
+    p_zipcode: payload.zipcode || "",
+    p_country: payload.country || "",
   });
   if (error || !code) {
     return { ok: false, status: 500, error: "could not create order" };

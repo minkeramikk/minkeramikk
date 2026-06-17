@@ -15,7 +15,13 @@ declare global {
     turnstile?: {
       render: (
         el: HTMLElement,
-        opts: { sitekey: string; callback: (token: string) => void; "error-callback"?: () => void }
+        opts: {
+          sitekey: string;
+          callback: (token: string) => void;
+          "error-callback"?: () => void;
+          theme?: "auto" | "light" | "dark";
+          size?: "normal" | "flexible" | "compact";
+        }
       ) => string;
       remove: (id: string) => void;
     };
@@ -44,6 +50,10 @@ export function Turnstile({ onToken }: { onToken: (token: string) => void }) {
       if (!ref.current || !window.turnstile || widgetId.current) return;
       widgetId.current = window.turnstile.render(ref.current, {
         sitekey,
+        // flexible = widget spans the form box width; light = white-ish to sit
+        // on our cream card (the iframe internals can't be brand-coloured).
+        theme: "light",
+        size: "flexible",
         callback: (token) => onToken(token),
         "error-callback": () => onToken(""),
       });
@@ -71,5 +81,5 @@ export function Turnstile({ onToken }: { onToken: (token: string) => void }) {
     }
   }, [onToken]);
 
-  return <div ref={ref} data-testid="turnstile" className="min-h-[65px]" />;
+  return <div ref={ref} data-testid="turnstile" className="min-h-[65px] w-full" />;
 }
