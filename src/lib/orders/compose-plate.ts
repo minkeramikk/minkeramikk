@@ -54,3 +54,24 @@ export async function composePlate(
     .png()
     .toBuffer();
 }
+
+/**
+ * Shrink a product photo (the untouched Storage master, e.g. 1277²) to a small
+ * PNG thumbnail for the lab PDF (F32). @react-pdf only embeds PNG/JPEG — never
+ * webp — and we must keep the document light, so we never embed the raw master.
+ * `fit: "inside"` keeps the aspect ratio (no distortion). Returns null on any
+ * decode/resize failure so a bad photo can never block PDF generation.
+ */
+export async function resizeProductPhoto(
+  bytes: Buffer,
+  size = 208
+): Promise<Buffer | null> {
+  try {
+    return await sharp(bytes)
+      .resize(size, size, { fit: "inside", withoutEnlargement: true })
+      .png()
+      .toBuffer();
+  } catch {
+    return null;
+  }
+}
