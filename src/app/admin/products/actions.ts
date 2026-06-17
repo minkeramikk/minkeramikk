@@ -146,3 +146,48 @@ export async function toggleProductVisible(formData: FormData): Promise<void> {
   revalidateTag("catalog");
   revalidatePath("/admin/products");
 }
+
+/**
+ * Move a product up/down (arrows ↑↓, same UX as F28 featured). The list is
+ * RENUMBERED 1..n after the move, never value-swapped: products default to
+ * sort_order=0 so duplicates are the norm and a swap of equal values would be a
+ * silent no-op — renumbering is idempotent and self-healing. Tie-break is `id`
+ * (products has no created_at), matching the list page ordering.
+ */
+export async function moveProduct(
+  // bound client-side: React does NOT forward the submitter button's
+  // name/value to plain form server actions.
+  direction: "up" | "down",
+  formData: FormData
+): Promise<void> {
+  const id = z.string().uuid().safeParse(formData.get("id"));
+  if (!id.success || (direction !== "up" && direction !== "down")) return;
+
+  const supabase = await createClient();
+  const { data: rows } = await supabase
+    .from("products")
+    .select("id, sort_order")
+    .order("sort_order", { ascending: true })
+    .order("id", { ascending: true }); // stable tiebreak (no created_at)
+  if (!rows) return;
+
+  const idx = rows.findIndex((r) => r.id === id.data);
+  const target = direction === "up" ? idx - 1 : idx + 1;
+  if (idx === -1 || target < 0 || target >= rows.length) return;
+
+  const order = rows.map((r) => r.id);
+  [order[idx], order[target]] = [order[target], order[idx]];
+
+  for (let i = 0; i < order.length; i++) {
+    const row = rows.find((r) => r.id === order[i])!;
+    if (row.sort_order !== i + 1) {
+      await supabase
+        .from("products")
+        .update({ sort_order: i + 1 })
+        .eq("id", order[i]);
+    }
+  }
+
+  revalidateTag("catalog");
+  revalidatePath("/admin/products");
+}
