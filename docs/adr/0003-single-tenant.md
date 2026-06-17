@@ -4,19 +4,17 @@
 
 ## Contesto
 
-Il committente è un singolo artigiano. Un'evoluzione plausibile è vendere il configuratore
-ad altri ceramisti (multi-tenant), ma oggi non è in scope né in preventivo.
+Il committente è un singolo artigiano. Il multi-tenant (vendere il configuratore ad altri
+ceramisti) è plausibile ma fuori scope e fuori preventivo.
 
 ## Decisione
 
-- Nessuna tabella `suppliers`/`tenants`, nessun tenant_id, un solo utente admin.
-- Si evita però ciò che precluderebbe il multi-tenant: chiavi UUID, niente singleton
-  globali nel codice, configurazione (nome negozio, email ordini) in un modulo unico
-  e non sparsa.
+- Nessuna tabella `tenants`, nessun `tenant_id`, un solo utente admin.
+- Si evita però ciò che precluderebbe il multi-tenant: **chiavi UUID**, niente singleton
+  globali, configurazione (nome negozio, email ordini) in un **modulo unico**.
 
 ## Conseguenze
 
-- (+) Meno tabelle, meno join, back-office più semplice — coerente col budget fisso.
-- (+) L'eventuale multi-tenant è una migration additiva (aggiunta colonna tenant_id),
+- (+) Meno tabelle e join; un eventuale multi-tenant è una migration additiva (`tenant_id`),
   non un rifacimento.
-- (−) Se il multi-tenant arrivasse, RLS e auth vanno ripensate comunque.
+- (−) Se arrivasse, RLS e auth vanno comunque ripensate.

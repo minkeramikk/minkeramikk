@@ -108,6 +108,12 @@
   }
   html {
     @apply font-sans;
+    /* BUG-1: always reserve the scrollbar gutter so its appearance/disappearance
+       between pages (e.g. taller step-1 with the featured strip vs. step-2)
+       never changes the content width — otherwise the preview-canvas column
+       reflows and the plate "jumps". Canonical, zero-cost fix; kills this whole
+       class of layout-shift everywhere, not just the configurator. */
+    scrollbar-gutter: stable;
   }
   h1,
   h2,
