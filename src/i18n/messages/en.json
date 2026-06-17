@@ -124,8 +124,11 @@
     "email": "Email address",
     "phone": "Phone number",
     "address": "Delivery address",
+    "zipcode": "Postal code",
+    "country": "Country",
     "message": "Message",
-    "submit": "Send your order to us"
+    "submit": "Send your order to us",
+    "legal": "For more on our sales terms and privacy — including how we handle cookies and personal data — see our <terms>Terms of Sale</terms> and <privacy>Privacy Policy</privacy>."
   },
   "legal": {
     "privacy": {

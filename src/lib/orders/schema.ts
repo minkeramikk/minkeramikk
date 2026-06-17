@@ -30,6 +30,11 @@ export const orderFormSchema = z.object({
   customerName: z.string().trim().min(1).max(120),
   email: z.string().trim().email().max(200),
   phone: z.string().trim().max(40).optional().or(z.literal("")),
+  // Shipping address (pre-launch). OPTIONAL for now — the "mandatory" rule is
+  // pending the client's confirmation; only the max length is enforced.
+  address: z.string().trim().max(200).optional().or(z.literal("")),
+  zipcode: z.string().trim().max(20).optional().or(z.literal("")),
+  country: z.string().trim().max(80).optional().or(z.literal("")),
   message: z.string().trim().max(2000).optional().or(z.literal("")),
 });
 

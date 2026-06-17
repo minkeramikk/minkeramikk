@@ -140,15 +140,22 @@ export function ConfiguratorClient({
   // ── CA-6: "what's next" teaser under the preview (informative only) ──
   // step 1 → swatches of the SELECTED design's first colour category;
   // step 2 → the supplier's ceramic thumbs (F26 @256 variants, lazy).
-  const teaserSwatches = useMemo(() => {
-    const colorCat = detail.categories.find((c) => c.kind === "color");
-    return (colorCat?.options ?? []).slice(0, 7);
-  }, [detail]);
-  /** First swatches fully opaque, the rest ramp down — "there's more". */
+  /** First dots fully opaque, the rest ramp down — "there's more". */
   const TEASER_CRISP = 4;
+  /** Decorative colour-teaser dots (step 1): FIXED, identical for every design,
+   *  no assets/fetch. Illustrative content colours, not theme tokens. */
+  const TEASER_PALETTE = [
+    "#c9a3c4",
+    "#7d4f9c",
+    "#5a8f7b",
+    "#3e8ea2",
+    "#d9b36a",
+    "#cf7b6b",
+    "#9bb7d4",
+  ];
   const teaserThumbs = teaserProducts[selected.supplierId] ?? [];
-  const showTeaser =
-    step === 1 ? teaserSwatches.length > 0 : teaserThumbs.length > 0;
+  // step 1 teaser is now static → always shown; step 2 still needs real thumbs.
+  const showTeaser = step === 1 ? true : teaserThumbs.length > 0;
 
   // ── F15 / QA#3: keep the live preview visible while the option list scrolls ──
   // Desktop: the preview column is sticky (CSS only, md:sticky). Mobile: it scrolls
@@ -312,36 +319,23 @@ export function ConfiguratorClient({
         className={`${className} flex items-center gap-4 rounded-sm border border-border bg-card/55 p-4`}
       >
         {step === 1 ? (
-          // our REAL swatch assets (F26 @96). R1-FB5 (round 2, Daniele): the
-          // annoyance was the white border ring itself (and the crescents it
-          // cut where circles overlap) — gone entirely. The "there's more"
-          // tail stays the original opacity ramp, WITHOUT blur (the blur was
-          // what smeared the ring into halos; plain opacity reads clean).
+          // Decorative colour teaser: FIXED dots, identical for every design,
+          // no <img>/assetUrl → never refetches on design change (the old
+          // per-design swatch images reloaded each click). Opacity ramp keeps
+          // the "there's more" tail.
           <div className="flex shrink-0" aria-hidden>
-            {teaserSwatches.map((o, i) => {
-              const fade =
-                i >= TEASER_CRISP
-                  ? { opacity: Math.max(0.3, 0.75 - (i - TEASER_CRISP) * 0.2) }
-                  : undefined;
-              return o.image ? (
-                // eslint-disable-next-line @next/next/no-img-element -- catalog art from storage
-                <img
-                  key={o.id}
-                  src={assetUrl(o.image)}
-                  alt=""
-                  loading="lazy"
-                  decoding="async"
-                  className="-ml-2.5 size-8 rounded-full object-cover first:ml-0"
-                  style={fade}
-                />
-              ) : o.hex ? (
-                <span
-                  key={o.id}
-                  className="-ml-2.5 size-8 rounded-full first:ml-0"
-                  style={{ background: o.hex, ...fade }}
-                />
-              ) : null;
-            })}
+            {TEASER_PALETTE.map((color, i) => (
+              <span
+                key={color}
+                className="-ml-2.5 size-8 rounded-full first:ml-0"
+                style={{
+                  background: color,
+                  ...(i >= TEASER_CRISP
+                    ? { opacity: Math.max(0.3, 0.75 - (i - TEASER_CRISP) * 0.2) }
+                    : {}),
+                }}
+              />
+            ))}
           </div>
         ) : (
           <div className="flex shrink-0 gap-2.5" aria-hidden>
