@@ -90,8 +90,13 @@ test("AC1: click anywhere on a desktop row opens the detail", async ({
   const row = seededRow(page, testInfo);
   await expect(row).toBeVisible();
 
-  // Click a cell that is NOT the "Open" link (the first td: order code)
-  await row.locator("td").first().click();
+  // Click the row over the first cell (order code), NOT the "Open" link.
+  // The whole <tr> is clickable via the "Open" anchor's stretched-link
+  // `::after` (after:inset-0). Clicking a bare <td> fails the actionability
+  // check — the `::after` overlay intercepts the pointer — so we click the
+  // <tr> itself at a left-edge position: the intercepting `::after` belongs to
+  // a descendant <a>, which Playwright accepts as a valid hit.
+  await row.click({ position: { x: 12, y: 10 } });
   await expect(page).toHaveURL(new RegExp(`/admin/orders/${orderId}`));
   await expect(page.getByTestId("order-detail")).toBeVisible();
 });
