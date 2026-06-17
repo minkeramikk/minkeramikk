@@ -13,7 +13,7 @@ import { mapOrderRow, type AdminOrder, type RawOrderRow } from "./admin-orders";
  */
 const ORDER_SELECT =
   "id, code, customer_name, email, phone, message, locale, status, internal_notes, created_at, updated_at, " +
-  "order_items ( id, supplier_id, supplier_name_snapshot, product_name_snapshot, price_cents_snapshot, currency_snapshot, quantity, config_code, config_snapshot )";
+  "order_items ( id, supplier_id, supplier_name_snapshot, product_name_snapshot, price_cents_snapshot, currency_snapshot, quantity, config_code, config_snapshot, product_id, products ( image ) )";
 
 export async function listOrders(): Promise<AdminOrder[]> {
   const supabase = await createClient();

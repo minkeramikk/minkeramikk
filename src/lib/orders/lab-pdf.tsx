@@ -57,6 +57,9 @@ const s = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: THEME.border,
   },
+  media: { flexDirection: "row", gap: 8 },
+  mediaCol: { alignItems: "center", gap: 3 },
+  mediaCaption: { fontSize: 7, color: THEME.muted, textTransform: "uppercase", letterSpacing: 0.5 },
   plate: { width: 104, height: 104, borderWidth: 1, borderColor: THEME.border, borderRadius: 6, objectFit: "contain" },
   platePlaceholder: { width: 104, height: 104, borderWidth: 1, borderColor: THEME.border, borderRadius: 6, backgroundColor: "#f4eef2" },
   itemBody: { flex: 1 },
@@ -92,6 +95,8 @@ export interface LabPdfRenderItem {
   item: LabPdfDoc["items"][number];
   /** Composed plate as a data URI, or null when it could not be composed. */
   plateDataUri: string | null;
+  /** F32: ordered ceramic photo as a PNG data URI, or null → placeholder. */
+  productPhotoDataUri: string | null;
 }
 
 export function LabPdfDocument({
@@ -132,14 +137,28 @@ export function LabPdfDocument({
           </View>
         </View>
 
-        {items.map(({ item, plateDataUri }, i) => (
+        {items.map(({ item, plateDataUri, productPhotoDataUri }, i) => (
           <View key={i} style={s.item} wrap={false}>
-            {plateDataUri ? (
-              // eslint-disable-next-line jsx-a11y/alt-text -- @react-pdf Image has no alt
-              <Image src={plateDataUri} style={s.plate} />
-            ) : (
-              <View style={s.platePlaceholder} />
-            )}
+            <View style={s.media}>
+              <View style={s.mediaCol}>
+                {plateDataUri ? (
+                  // eslint-disable-next-line jsx-a11y/alt-text -- @react-pdf Image has no alt
+                  <Image src={plateDataUri} style={s.plate} />
+                ) : (
+                  <View style={s.platePlaceholder} />
+                )}
+                <Text style={s.mediaCaption}>Design</Text>
+              </View>
+              <View style={s.mediaCol}>
+                {productPhotoDataUri ? (
+                  // eslint-disable-next-line jsx-a11y/alt-text -- @react-pdf Image has no alt
+                  <Image src={productPhotoDataUri} style={s.plate} />
+                ) : (
+                  <View style={s.platePlaceholder} />
+                )}
+                <Text style={s.mediaCaption}>Ceramic</Text>
+              </View>
+            </View>
             <View style={s.itemBody}>
               <View style={s.itemHead}>
                 <View>

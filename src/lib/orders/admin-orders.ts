@@ -32,6 +32,11 @@ export interface AdminOrderItem {
   quantity: number;
   configCode: string | null;
   configSnapshot: OrderConfigSnapshot | null;
+  /** F32: product photo path (`products/<slug>.png`) for the PDF visual recap,
+   *  left-joined from `products` at fetch time. Null when `product_id` is NULL
+   *  (product deleted/reimported → ON DELETE SET NULL) or the product has no
+   *  image → degrade: no photo, the rest of the PDF is unaffected. */
+  productImage: string | null;
 }
 
 export interface AdminOrder {
@@ -72,6 +77,8 @@ export interface RawOrderRow {
     quantity: number;
     config_code: string | null;
     config_snapshot: unknown;
+    product_id: string | null;
+    products: { image: string | null } | null;
   }[];
 }
 
@@ -98,6 +105,7 @@ export function mapOrderRow(row: RawOrderRow): AdminOrder {
       quantity: it.quantity,
       configCode: it.config_code,
       configSnapshot: (it.config_snapshot as OrderConfigSnapshot | null) ?? null,
+      productImage: it.products?.image ?? null,
     })),
   };
 }

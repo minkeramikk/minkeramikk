@@ -25,6 +25,7 @@ function item(p: Partial<AdminOrderItem> = {}): AdminOrderItem {
     quantity: p.quantity ?? 1,
     configCode: p.configCode ?? null,
     configSnapshot: p.configSnapshot ?? null,
+    productImage: p.productImage ?? null,
   };
 }
 
@@ -55,13 +56,46 @@ describe("mapOrderRow", () => {
         { id: "i1", supplier_id: "s1", supplier_name_snapshot: "Vietri",
           product_name_snapshot: "Flat", price_cents_snapshot: 50000,
           currency_snapshot: "NOK", quantity: 2, config_code: "MK-A-K3",
-          config_snapshot: { designName: "Blomster 1", selections: [] } },
+          config_snapshot: { designName: "Blomster 1", selections: [] },
+          product_id: "p1", products: { image: "products/flat.png" } },
       ],
     };
     const o = mapOrderRow(raw);
     expect(o.status).toBe("new"); // unknown → safe default
     expect(o.items[0].quantity).toBe(2);
     expect(o.items[0].configSnapshot?.designName).toBe("Blomster 1");
+  });
+
+  it("resolves productImage from the joined product (F32 visual recap)", () => {
+    const raw: RawOrderRow = {
+      id: "o2", code: "MK-2", customer_name: "A", email: "a@b.no", phone: null,
+      message: null, locale: "no", status: "new", internal_notes: null,
+      created_at: "2026-06-04T09:14:00Z", updated_at: "2026-06-04T09:14:00Z",
+      order_items: [
+        // product still linked → photo path resolved
+        { id: "i1", supplier_id: "s1", supplier_name_snapshot: "Vietri",
+          product_name_snapshot: "Flat", price_cents_snapshot: 50000,
+          currency_snapshot: "NOK", quantity: 1, config_code: null,
+          config_snapshot: null,
+          product_id: "p1", products: { image: "products/flat.png" } },
+        // product deleted/reimported (product_id NULL) → degrade, no photo
+        { id: "i2", supplier_id: "s1", supplier_name_snapshot: "Vietri",
+          product_name_snapshot: "Bowl", price_cents_snapshot: 30000,
+          currency_snapshot: "NOK", quantity: 1, config_code: null,
+          config_snapshot: null,
+          product_id: null, products: null },
+        // linked product without an image → degrade, no photo
+        { id: "i3", supplier_id: "s1", supplier_name_snapshot: "Vietri",
+          product_name_snapshot: "Mug", price_cents_snapshot: 20000,
+          currency_snapshot: "NOK", quantity: 1, config_code: null,
+          config_snapshot: null,
+          product_id: "p3", products: { image: null } },
+      ],
+    };
+    const o = mapOrderRow(raw);
+    expect(o.items[0].productImage).toBe("products/flat.png");
+    expect(o.items[1].productImage).toBeNull();
+    expect(o.items[2].productImage).toBeNull();
   });
 });
 
