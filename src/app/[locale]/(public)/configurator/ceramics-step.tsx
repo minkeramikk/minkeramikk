@@ -60,25 +60,33 @@ function thumbHex(line: CartLine): string | undefined {
  * hook); on touch "see it bigger" stays with the cart-row expansion (CA-3).
  * The popup reuses the SAME products@256 variant URL as the thumb (F26):
  * browser-cache hit, masters never leave Storage.
+ *
+ * F33: the card stays a `radio` (tap → selects → shows the preview popup); a
+ * separate "+" button quick-adds this product with qty 1. The "+" is a sibling
+ * (NOT nested — invalid HTML), absolutely placed over the card; it sits on top
+ * (z) so clicking it adds without changing the selection.
  */
 function CeramicOptionCard({
   product: p,
   selected,
   locale,
   onSelect,
+  onAdd,
 }: {
   product: CeramicProduct;
   selected: boolean;
   locale: "no" | "en";
   onSelect: () => void;
+  onAdd: () => void;
 }) {
+  const t = useTranslations("cart");
   const ref = useRef<HTMLButtonElement>(null);
   const { show, hide, ...preview } = useHoverPreview(ref, Boolean(p.image));
   const name = locale === "no" ? p.nameNo : p.nameEn;
   const price = formatMoney(money(p.priceCents, p.currency), locale);
 
   return (
-    <>
+    <div className="relative snap-start">
       <button
         ref={ref}
         type="button"
@@ -91,15 +99,16 @@ function CeramicOptionCard({
         onFocus={show}
         onBlur={hide}
         className={[
-          "relative flex min-h-11 flex-col items-center gap-1 rounded-sm border-[1.5px] p-2 text-center transition-colors",
+          "flex min-h-11 w-full flex-col items-center gap-1 rounded-sm border-[1.5px] p-2 text-center transition-colors",
           "focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring",
           selected
             ? "border-primary bg-primary/5"
             : "border-border bg-card hover:border-ring",
         ].join(" ")}
       >
-        {/* F29: set marker on the corner — doesn't cover the photo, readable at 390 */}
-        <SetBadge count={p.pieces} className="absolute right-1 top-1 z-10" />
+        {/* F29: set marker on the corner — top-left so it never clashes with
+            the "+" quick-add (top-right); readable at 390 */}
+        <SetBadge count={p.pieces} className="absolute left-1 top-1 z-10" />
         {p.image && (
           // eslint-disable-next-line @next/next/no-img-element -- catalog art from storage
           <img
@@ -113,6 +122,20 @@ function CeramicOptionCard({
         )}
         <span className="text-xs font-medium">{name}</span>
         <span className="text-xs text-muted-foreground">{price}</span>
+      </button>
+
+      {/* F33: per-card quick-add (qty 1; quantity is edited in the cart). Own
+          button with an i18n aria-label; ≥44px touch target on mobile.
+          TODO:nb-review — cart.addProduct NO string ("Legg til {name}") is a
+          fresh translation. */}
+      <button
+        type="button"
+        data-testid={`add-${p.slug}`}
+        aria-label={t("addProduct", { name })}
+        onClick={onAdd}
+        className="absolute right-1 top-1 z-20 flex size-11 items-center justify-center rounded-full bg-primary text-lg leading-none text-primary-foreground shadow-card transition-colors hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring sm:size-9"
+      >
+        +
       </button>
 
       {p.image && (
@@ -139,7 +162,7 @@ function CeramicOptionCard({
           )}
         </HoverPreviewCard>
       )}
-    </>
+    </div>
   );
 }
 
@@ -186,7 +209,6 @@ export function CeramicsStep({
   const [selectedId, setSelectedId] = useState<string | null>(
     products[0]?.id ?? null
   );
-  const [qty, setQty] = useState(1);
   const [justAdded, setJustAdded] = useState(false);
   /** Desktop + mobile inline: expands the order form in the cart panel. */
   const [checkoutOpen, setCheckoutOpen] = useState(false);
@@ -208,8 +230,6 @@ export function CeramicsStep({
   >(null);
   const setConsumedRef = useRef(false);
 
-  const selected = products.find((p) => p.id === selectedId) ?? null;
-
   // R1-FB2/FB4: warm the ceramic photos in idle (desktop) — covers the
   // lazy-loaded below-the-fold thumbs so the hover popup is instant too.
   const warmupUrls = useMemo(
@@ -221,25 +241,25 @@ export function CeramicsStep({
   const count = hydrated ? itemCount(cart) : 0;
   const total = cartTotal(cart);
 
-  function addSelected() {
-    if (!selected) return;
+  // F33: add ANY product (parametrised) keeping the current design context
+  // (configCode/snapshot/layers are the same for every ceramic of this design).
+  function addProduct(product: CeramicProduct, quantity: number) {
     add({
-      productId: selected.id,
-      productNameNo: selected.nameNo,
-      productNameEn: selected.nameEn,
+      productId: product.id,
+      productNameNo: product.nameNo,
+      productNameEn: product.nameEn,
       supplierId: design.supplierId,
       supplierName: design.supplierName ?? "",
-      unitPriceCents: selected.priceCents,
-      currency: selected.currency,
-      quantity: qty,
+      unitPriceCents: product.priceCents,
+      currency: product.currency,
+      quantity,
       configCode,
       configSnapshot: snapshot,
       layers: designLayers,
-      plateImage: selected.image ? assetUrl(selected.image) : undefined,
-      productSlug: selected.slug,
-      pieces: selected.pieces,
+      plateImage: product.image ? assetUrl(product.image) : undefined,
+      productSlug: product.slug,
+      pieces: product.pieces,
     });
-    setQty(1);
     setJustAdded(true);
   }
 
@@ -791,10 +811,15 @@ export function CeramicsStep({
           </p>
           <h2 className="mb-4 mt-1 text-xl font-semibold">{t("title")}</h2>
 
+          {/* F33: horizontal 2-row scroller (FeaturedStrip pattern) — ~6
+              products visible on desktop, ~4–5 + peek on mobile, instead of a
+              very tall radio grid with 28 items. Fixed 150px columns flow
+              top→bottom then across; right peek via mask; snap + overlay scroll
+              so it never reflows the layout. */}
           <div
             role="radiogroup"
             aria-label={t("title")}
-            className="grid grid-cols-2 gap-2.5 sm:grid-cols-3"
+            className="grid grid-flow-col grid-rows-2 auto-cols-[150px] gap-2.5 overflow-x-auto overscroll-x-contain pb-1 snap-x snap-mandatory [mask-image:linear-gradient(to_right,black_92%,transparent)] [-webkit-mask-image:linear-gradient(to_right,black_92%,transparent)]"
           >
             {products.map((p) => (
               <CeramicOptionCard
@@ -803,47 +828,9 @@ export function CeramicsStep({
                 selected={p.id === selectedId}
                 locale={locale}
                 onSelect={() => setSelectedId(p.id)}
+                onAdd={() => addProduct(p, 1)}
               />
             ))}
-          </div>
-
-          {/* quantity + add */}
-          <div className="mt-5 flex items-center gap-3">
-            <div className="flex items-center rounded-sm border">
-              <button
-                type="button"
-                aria-label="-"
-                data-testid="qty-dec"
-                onClick={() => setQty((q) => Math.max(1, q - 1))}
-                className="flex size-11 items-center justify-center text-lg"
-              >
-                −
-              </button>
-              <span
-                data-testid="qty-value"
-                className="w-10 text-center text-sm tabular-nums"
-              >
-                {qty}
-              </span>
-              <button
-                type="button"
-                aria-label="+"
-                data-testid="qty-inc"
-                onClick={() => setQty((q) => q + 1)}
-                className="flex size-11 items-center justify-center text-lg"
-              >
-                +
-              </button>
-            </div>
-            <Button
-              className="min-h-11 flex-1"
-              size="lg"
-              disabled={!selected}
-              data-testid="add-to-cart"
-              onClick={addSelected}
-            >
-              {t("add")}
-            </Button>
           </div>
 
           {/* add feedback + "start a new design" CTA (QA-fix #2): returns to

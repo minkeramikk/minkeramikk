@@ -3,6 +3,7 @@ import {
   firstActiveDesign,
   addFirstCeramic,
   ceramicRadios,
+  ceramicAddButtons,
   horizontalOverflow,
 } from "./helpers";
 
@@ -73,10 +74,10 @@ test("AC4: two different products → two lines, total is their sum", async ({
   const radios = ceramicRadios(page);
   test.skip((await radios.count()) < 2, "needs at least two ceramics");
 
-  await radios.nth(0).click();
-  await page.getByTestId("add-to-cart").click();
-  await radios.nth(1).click();
-  await page.getByTestId("add-to-cart").click();
+  // F33: add two different products via their per-card "+" (qty 1 each).
+  const addBtns = ceramicAddButtons(page);
+  await addBtns.nth(0).click();
+  await addBtns.nth(1).click();
 
   await openCart(page);
   await expect(drawer(page).getByTestId("cart-line")).toHaveCount(2);

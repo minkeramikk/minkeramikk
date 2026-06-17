@@ -143,6 +143,7 @@
     "title": "Velg keramikk",
     "quantity": "Antall",
     "add": "Legg i handlekurv",
+    "addProduct": "Legg til {name}",
     "added": "Lagt i handlekurven",
     "cartTitle": "Handlekurv",
     "empty": "Handlekurven er tom",

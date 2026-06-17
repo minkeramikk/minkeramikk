@@ -95,8 +95,16 @@ export async function firstSupplier(): Promise<{ id: string; name: string }> {
 export const ceramicRadios = (page: Page) =>
   page.getByTestId("ceramics-step").getByRole("radio");
 
+/** F33: per-card quick-add "+" buttons (data-testid="add-<slug>"), in product
+ *  order. Scoped to the radiogroup so it never matches add-feedback etc. */
+export const ceramicAddButtons = (page: Page) =>
+  page
+    .getByTestId("ceramics-step")
+    .getByRole("radiogroup")
+    .locator('button[data-testid^="add-"]');
+
 /**
- * Select the first available ceramic and add it to the cart.
+ * Add the first available ceramic to the cart via its per-card "+" (qty 1).
  * Returns the product's visible name so callers can assert on the cart line.
  */
 export async function addFirstCeramic(page: Page): Promise<string> {
@@ -104,8 +112,7 @@ export async function addFirstCeramic(page: Page): Promise<string> {
   const first = ceramicRadios(page).first();
   await expect(first).toBeVisible();
   const name = (await first.innerText()).split("\n")[0].trim();
-  await first.click();
-  await page.getByTestId("add-to-cart").click();
+  await ceramicAddButtons(page).first().click();
   return name;
 }
 

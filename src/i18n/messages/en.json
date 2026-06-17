@@ -144,6 +144,7 @@
     "title": "Choose ceramics",
     "quantity": "Quantity",
     "add": "Add to basket",
+    "addProduct": "Add {name}",
     "added": "Added to basket",
     "cartTitle": "Basket",
     "empty": "Your basket is empty",
