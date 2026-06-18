@@ -146,3 +146,56 @@ export async function deleteOption(
   revalidatePath(`/admin/designs/${designId}`);
   return { error: null };
 }
+
+const setDefaultSchema = z.object({
+  optionId: z.string().uuid(),
+  categoryId: z.string().uuid(),
+  designId: z.string().uuid(),
+});
+
+/**
+ * R2-1a: mark one option as the category's cover default. Clears the previous
+ * default first, then sets the chosen one. RLS authenticated (anon key client);
+ * the partial-unique index `options_one_default_per_category` is the safety net
+ * for a concurrent double-set (23505 → friendly message).
+ */
+export async function setDefaultOption(
+  _prev: OptionFormState,
+  formData: FormData
+): Promise<OptionFormState> {
+  const parsed = setDefaultSchema.safeParse({
+    optionId: formData.get("optionId") ?? "",
+    categoryId: formData.get("categoryId") ?? "",
+    designId: formData.get("designId") ?? "",
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
+  }
+  const { optionId, categoryId, designId } = parsed.data;
+
+  const supabase = await createClient();
+
+  // Clear the current default in this category (no-op if optionId already is it).
+  const clear = await supabase
+    .from("options")
+    .update({ is_default: false })
+    .eq("category_id", categoryId)
+    .neq("id", optionId);
+  if (clear.error) return { error: "Could not update the default." };
+
+  const set = await supabase
+    .from("options")
+    .update({ is_default: true })
+    .eq("id", optionId)
+    .eq("category_id", categoryId);
+  if (set.error) {
+    if (set.error.code === "23505") {
+      return { error: "Another default already exists for this category — retry." };
+    }
+    return { error: "Could not set the default." };
+  }
+
+  revalidateTag("catalog");
+  revalidatePath(`/admin/designs/${designId}`);
+  return { error: null };
+}
