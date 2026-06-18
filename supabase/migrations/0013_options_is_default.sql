@@ -13,9 +13,6 @@
 -- Backfill: flag today's first ACTIVE option (by sort_order) per category, so the
 -- cover of every design is IDENTICAL to before until the shop changes it. The
 -- WHERE NOT EXISTS clause makes the backfill idempotent (a re-run is a no-op).
---
--- Indexes/columns: `is_default` IS in the generated types — regenerate or
--- hand-edit src/lib/supabase/types.ts (a later task).
 
 alter table options
   add column if not exists is_default boolean not null default false;

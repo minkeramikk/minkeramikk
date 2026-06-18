@@ -58,6 +58,7 @@ export default async function EditDesignPage({
   // see per category is the sort_order fallback; an is_default row overrides it.
   const coverByCat = new Map<string, string | null>();
   for (const o of allOptionsRows) {
+    if (!o.active) continue;
     if (!coverByCat.has(o.category_id)) coverByCat.set(o.category_id, o.layer_image);
     if (o.is_default) coverByCat.set(o.category_id, o.layer_image);
   }
@@ -172,7 +173,7 @@ export default async function EditDesignPage({
             }
           />
           <p className="mt-3 text-xs text-muted-foreground">
-            Composed from each category&rsquo;s first option (multiply). Review
+            Composed from each category&rsquo;s cover-default option (multiply). Review
             it, then tick <em>Active</em> above and save to publish.
           </p>
         </aside>
