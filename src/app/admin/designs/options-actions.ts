@@ -187,12 +187,16 @@ export async function setDefaultOption(
     .from("options")
     .update({ is_default: true })
     .eq("id", optionId)
-    .eq("category_id", categoryId);
+    .eq("category_id", categoryId)
+    .select("id");
   if (set.error) {
     if (set.error.code === "23505") {
       return { error: "Another default already exists for this category — retry." };
     }
     return { error: "Could not set the default." };
+  }
+  if (!set.data || set.data.length === 0) {
+    return { error: "Could not set the default — option not found." };
   }
 
   revalidateTag("catalog");
