@@ -138,6 +138,20 @@ test("R2-1a: changing the cover default in F10 changes the step-1 cover", async 
 }) => {
   const db = adminClient();
 
+  interface OptRow {
+    id: string;
+    is_default: boolean;
+    layer_image: string | null;
+    active: boolean;
+    sort_order: number;
+  }
+  interface CatRow {
+    id: string;
+    design_id: string;
+    designs: { slug: string; name: string; active: boolean } | null;
+    options: OptRow[] | null;
+  }
+
   // Find a category on an ACTIVE design with >=2 active options that have a
   // compositing layer, so the cover visibly differs when the default switches.
   const { data: cats, error } = await db
@@ -147,25 +161,27 @@ test("R2-1a: changing the cover default in F10 changes the step-1 cover", async 
     );
   if (error) throw error;
 
-  const target = (cats ?? [])
-    .filter((c: any) => c.designs?.active)
-    .map((c: any) => ({
-      ...c,
+  const rows = (cats ?? []) as unknown as CatRow[];
+
+  const target = rows
+    .filter((c: CatRow) => c.designs?.active)
+    .map((c: CatRow) => ({
+      cat: c,
       usable: (c.options ?? [])
-        .filter((o: any) => o.active && o.layer_image)
-        .sort((a: any, b: any) => a.sort_order - b.sort_order),
+        .filter((o: OptRow) => o.active && o.layer_image)
+        .sort((a: OptRow, b: OptRow) => a.sort_order - b.sort_order),
     }))
-    .find((c: any) => c.usable.length >= 2);
+    .find((c) => c.usable.length >= 2);
 
   test.skip(
     !target,
     "no category with >=2 layered active options to switch between"
   );
 
-  const designName = target.designs.name as string;
-  const current =
-    target.usable.find((o: any) => o.is_default) ?? target.usable[0];
-  const next = target.usable.find((o: any) => o.id !== current.id);
+  const designName = target!.cat.designs!.name;
+  const current: OptRow =
+    target!.usable.find((o: OptRow) => o.is_default) ?? target!.usable[0];
+  const next = target!.usable.find((o: OptRow) => o.id !== current.id)!;
 
   const coverSrcs = async (): Promise<(string | null)[]> => {
     await page.goto("/no/configurator");
@@ -186,7 +202,7 @@ test("R2-1a: changing the cover default in F10 changes the step-1 cover", async 
 
   // Switch the default via the admin UI (F10 design tree).
   await loginAdmin(page);
-  await page.goto(`/admin/designs/${target.design_id}`);
+  await page.goto(`/admin/designs/${target!.cat.design_id}`);
 
   const details = page.locator(
     `details:has(input[name="optionId"][value="${next.id}"])`
@@ -210,7 +226,7 @@ test("R2-1a: changing the cover default in F10 changes the step-1 cover", async 
   await db
     .from("options")
     .update({ is_default: false })
-    .eq("category_id", target.id)
+    .eq("category_id", target!.cat.id)
     .neq("id", current.id);
   await db.from("options").update({ is_default: true }).eq("id", current.id);
 });
