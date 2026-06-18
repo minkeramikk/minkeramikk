@@ -5,6 +5,7 @@ import {
   firstSupplier,
   ceramicRadios,
   horizontalOverflow,
+  loginAdmin,
 } from "./helpers";
 
 /**
@@ -130,4 +131,86 @@ test("AC5 (mobile): no horizontal overflow, touch targets ≥44px", async ({
   const box = await card.boundingBox();
   expect(box!.height).toBeGreaterThanOrEqual(44);
   expect(await horizontalOverflow(page)).toBeLessThanOrEqual(0);
+});
+
+test("R2-1a: changing the cover default in F10 changes the step-1 cover", async ({
+  page,
+}) => {
+  const db = adminClient();
+
+  // Find a category on an ACTIVE design with >=2 active options that have a
+  // compositing layer, so the cover visibly differs when the default switches.
+  const { data: cats, error } = await db
+    .from("option_categories")
+    .select(
+      "id, design_id, designs(slug, name, active), options(id, is_default, layer_image, active, sort_order)"
+    );
+  if (error) throw error;
+
+  const target = (cats ?? [])
+    .filter((c: any) => c.designs?.active)
+    .map((c: any) => ({
+      ...c,
+      usable: (c.options ?? [])
+        .filter((o: any) => o.active && o.layer_image)
+        .sort((a: any, b: any) => a.sort_order - b.sort_order),
+    }))
+    .find((c: any) => c.usable.length >= 2);
+
+  test.skip(
+    !target,
+    "no category with >=2 layered active options to switch between"
+  );
+
+  const designName = target.designs.name as string;
+  const current =
+    target.usable.find((o: any) => o.is_default) ?? target.usable[0];
+  const next = target.usable.find((o: any) => o.id !== current.id);
+
+  const coverSrcs = async (): Promise<(string | null)[]> => {
+    await page.goto("/no/configurator");
+    const card = page
+      .getByTestId("design-step")
+      .locator("button[aria-pressed]")
+      .filter({ hasText: designName });
+    await expect(card.first()).toBeVisible();
+    return card
+      .first()
+      .locator("img")
+      .evaluateAll((els) =>
+        els.map((e) => (e as HTMLImageElement).getAttribute("src"))
+      );
+  };
+
+  const before = await coverSrcs();
+
+  // Switch the default via the admin UI (F10 design tree).
+  await loginAdmin(page);
+  await page.goto(`/admin/designs/${target.design_id}`);
+
+  const details = page.locator(
+    `details:has(input[name="optionId"][value="${next.id}"])`
+  );
+  // Open the accordion if collapsed.
+  if (!(await details.evaluate((d: HTMLDetailsElement) => d.open))) {
+    await details.locator('summary[data-testid="category-summary"]').first().click();
+  }
+  const defaultBtn = details
+    .locator(
+      `form:has(input[name="optionId"][value="${next.id}"]) [data-testid="tree-option-default"]`
+    )
+    .first();
+  await defaultBtn.click();
+  await expect(defaultBtn).toHaveAttribute("data-default", "1");
+
+  const after = await coverSrcs();
+  expect(after).not.toEqual(before);
+
+  // Restore the original default so the suite stays order-independent.
+  await db
+    .from("options")
+    .update({ is_default: false })
+    .eq("category_id", target.id)
+    .neq("id", current.id);
+  await db.from("options").update({ is_default: true }).eq("id", current.id);
 });
