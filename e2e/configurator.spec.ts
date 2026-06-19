@@ -131,3 +131,33 @@ test("AC5 (mobile): no horizontal overflow, touch targets ≥44px", async ({
   expect(box!.height).toBeGreaterThanOrEqual(44);
   expect(await horizontalOverflow(page)).toBeLessThanOrEqual(0);
 });
+
+test("R2-1b: mobile @390 — Next-step CTA is reachable without scrolling", async ({
+  page,
+}, testInfo) => {
+  test.skip(
+    testInfo.project.name !== "mobile",
+    "mobile-only CTA (sticky bar is md:hidden)"
+  );
+
+  await page.goto("/no/configurator");
+
+  // Choose the first design (AC6 frames the CTA as "after choosing a design").
+  await designCards(page).first().click();
+
+  const cta = page.getByTestId("next-step-mobile");
+  await expect(cta).toBeVisible();
+
+  // Reachable WITHOUT scrolling: inside the viewport at the initial scroll
+  // position (scrollY === 0) and tall enough to tap (≥44px).
+  expect(await page.evaluate(() => window.scrollY)).toBe(0);
+  const box = await cta.boundingBox();
+  expect(box).not.toBeNull();
+  expect(box!.height).toBeGreaterThanOrEqual(44);
+  expect(box!.y + box!.height).toBeLessThanOrEqual(844);
+
+  // Navigates to step 2 keeping the config in the URL.
+  await cta.click();
+  await expect(page).toHaveURL(/[?&]step=2/);
+  await expect(page).toHaveURL(/[?&]design=/);
+});
