@@ -7,6 +7,7 @@ import {
   type LayerSlot,
   type PreviewLayer,
 } from "@/lib/configurator/preview";
+import { pickDefaultOption } from "@/lib/configurator/default-option";
 
 /** What step 1 of the configurator needs to render a design choice. */
 export interface DesignSummary {
@@ -37,7 +38,7 @@ async function loadActiveDesigns(): Promise<DesignSummary[]> {
     supabase
       .from("designs")
       .select(
-        "id, slug, name, supplier_id, preview_image, sort_order, option_categories(layer_slot, sort_order, options(layer_image, sort_order, active))"
+        "id, slug, name, supplier_id, preview_image, sort_order, option_categories(layer_slot, sort_order, options(layer_image, sort_order, active, is_default))"
       )
       // Explicit active gate (F10): the configurator shows only published designs
       // for EVERY viewer — not just anon via RLS. A draft (active=false) created
@@ -60,12 +61,17 @@ async function loadActiveDesigns(): Promise<DesignSummary[]> {
       .slice()
       .sort((a, b) => a.sort_order - b.sort_order)
       .map((c) => {
-        const first = (c.options ?? [])
+        // R2-1a: cover = the option flagged is_default, else first active by
+        // sort_order. `pickDefaultOption` takes options already sorted by
+        // sort_order, so map snake_case → isDefault and sort first.
+        const active = (c.options ?? [])
           .filter((o) => o.active)
-          .sort((a, b) => a.sort_order - b.sort_order)[0];
+          .sort((a, b) => a.sort_order - b.sort_order)
+          .map((o) => ({ layerImage: o.layer_image, isDefault: o.is_default }));
+        const chosen = pickDefaultOption(active);
         return {
           layerSlot: (c.layer_slot ?? "detail") as LayerSlot,
-          layerImage: first?.layer_image ?? null,
+          layerImage: chosen?.layerImage ?? null,
         };
       });
     return {

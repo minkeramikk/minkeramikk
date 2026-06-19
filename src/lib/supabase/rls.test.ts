@@ -174,6 +174,28 @@ describe.skipIf(!hasEnv)("RLS — anon client", () => {
     expect(after.data!.color_accent).not.toBe("#000000");
   });
 
+  // R2-1a / AC4: only authenticated admins may set the cover default; anon is
+  // blocked by RLS. Self-contained: reads a real option id with the service
+  // role, then verifies the anon update affects no rows (so it mutates nothing).
+  it("cannot set an option's is_default (R2-1a)", async () => {
+    const existing = await admin
+      .from("options")
+      .select("id")
+      .limit(1)
+      .maybeSingle();
+    if (!existing.data) return; // no options in this DB — nothing to assert
+    const optionId = existing.data.id;
+
+    const { data, error } = await anon
+      .from("options")
+      .update({ is_default: true })
+      .eq("id", optionId)
+      .select("id");
+
+    // RLS blocks the write: either an explicit error or zero rows affected.
+    expect(error ? true : (data ?? []).length === 0).toBe(true);
+  });
+
   it("CAN insert an order (public insert is allowed) but cannot read it back", async () => {
     const code = `RLS-ANON-${Date.now()}`;
     const { error } = await anon.from("orders").insert({
