@@ -12,6 +12,8 @@
  * and NEVER throws in a way that crashes the page.
  */
 
+import { pickDefaultOption } from "./default-option";
+
 /** Safe alphabet (ADR 0011): A–Z minus O,I,L, plus 2–9. 31 symbols. */
 export const CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
 
@@ -53,7 +55,7 @@ export function toCodecDesign(detail: {
   slug: string;
   categories: {
     slug: string;
-    options: { id: string; code: string | null }[];
+    options: { id: string; code: string | null; isDefault?: boolean }[];
   }[];
 }): CodecDesign | null {
   if (!detail.code) return null;
@@ -63,10 +65,13 @@ export function toCodecDesign(detail: {
     categories: detail.categories.map((c) => {
       const optionCodeToId: Record<string, string> = {};
       for (const o of c.options) if (o.code) optionCodeToId[o.code] = o.id;
+      // cover/code default = the option flagged is_default, else first-by-sort_order.
+      // The caller passes options pre-sorted, so config codes stay stable (ADR 0011)
+      // when nothing is flagged (pre-R2-1 behaviour preserved).
       return {
         slug: c.slug,
         optionCodeToId,
-        defaultOptionId: c.options[0]?.id ?? null,
+        defaultOptionId: pickDefaultOption(c.options)?.id ?? null,
       };
     }),
   };

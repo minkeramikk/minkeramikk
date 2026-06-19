@@ -47,6 +47,8 @@ export async function resolveCodeLayers(
   if (!detail) return null;
 
   const cats: SelectedCategory[] = detail.categories.map((cat) => {
+    // NOTE (R2-1a): intentionally first-option fallback here — these are SAVED
+    // featured selections, not a fresh cover; the default lives in designs.ts.
     const opt = cat.options.find((o) => o.id === selections[cat.slug]) ?? cat.options[0];
     return { layerSlot: cat.layerSlot, layerImage: opt?.layerImage ?? null };
   });

@@ -178,6 +178,7 @@ export type Database = {
           hex: string | null
           id: string
           image: string | null
+          is_default: boolean
           layer_image: string | null
           name: string
           sort_order: number
@@ -189,6 +190,7 @@ export type Database = {
           hex?: string | null
           id?: string
           image?: string | null
+          is_default?: boolean
           layer_image?: string | null
           name: string
           sort_order?: number
@@ -200,6 +202,7 @@ export type Database = {
           hex?: string | null
           id?: string
           image?: string | null
+          is_default?: boolean
           layer_image?: string | null
           name?: string
           sort_order?: number
