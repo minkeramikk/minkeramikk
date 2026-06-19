@@ -427,7 +427,7 @@ export function ConfiguratorClient({
         {/* RIGHT: panel swaps with the step */}
         {step === 1 ? (
           <div
-            className="flex min-w-0 flex-col"
+            className="flex min-w-0 flex-col max-md:pb-20"
             data-testid="design-step"
             data-supplier-id={selected.supplierId}
           >
@@ -482,6 +482,25 @@ export function ConfiguratorClient({
                 />
               </div>
             )}
+            {/* R2-1b: mobile-only sticky CTA — after choosing a design the
+                "Next step" is reachable without scrolling to the bottom of the
+                grid. Desktop keeps the in-column CTA above (unchanged). Step 1
+                only: the F31 floating preview mounts on step 2, so no overlap.
+                Keeps the config in the URL via goToStep (design + opt_* + lock). */}
+            <div
+              data-testid="next-step-mobile-bar"
+              className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 p-3 backdrop-blur supports-[backdrop-filter]:bg-background/80 md:hidden"
+              style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom))" }}
+            >
+              <Button
+                size="lg"
+                data-testid="next-step-mobile"
+                className="min-h-11 w-full"
+                onClick={() => goToStep(2)}
+              >
+                {t("teaser.nextStep")} ›
+              </Button>
+            </div>
           </div>
         ) : (
           <div
