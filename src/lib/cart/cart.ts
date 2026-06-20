@@ -25,6 +25,13 @@ export interface ConfigSnapshot {
     option: string;
     hex: string | null;
   }[];
+  /**
+   * R2-2b — the customer's free-text colour note. Present (possibly "") only on
+   * designs that accept notes (`acceptsCustomNotes`); absent otherwise. ""/absent
+   * mean "studio's complementary colours". Does NOT travel in the config code or
+   * the `set=` link (lean) — it lives only in the order snapshot.
+   */
+  customNote?: string;
 }
 
 /**
