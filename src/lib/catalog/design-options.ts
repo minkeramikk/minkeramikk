@@ -35,6 +35,8 @@ export interface DesignDetail {
   /** Stable design code, the <D> segment of the config code (ADR 0011). */
   code: string | null;
   name: string;
+  /** R2-2a: shop opted this design into custom colour notes (step-2 block). */
+  acceptsCustomNotes: boolean;
   categories: DesignCategory[];
 }
 
@@ -60,7 +62,7 @@ async function loadDesignDetail(slug: string): Promise<DesignDetail | null> {
 
   const { data: design, error: designErr } = await supabase
     .from("designs")
-    .select("id, slug, code, name")
+    .select("id, slug, code, name, accepts_custom_notes")
     .eq("slug", slug)
     .maybeSingle();
   if (designErr) throw designErr;
@@ -80,6 +82,7 @@ async function loadDesignDetail(slug: string): Promise<DesignDetail | null> {
     slug: design.slug,
     code: design.code,
     name: design.name,
+    acceptsCustomNotes: design.accepts_custom_notes ?? false,
     categories: (categories ?? []).map((c) => ({
       id: c.id,
       slug: c.slug,
