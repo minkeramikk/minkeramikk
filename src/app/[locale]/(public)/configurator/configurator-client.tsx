@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
 import { usePathname, useRouter } from "@/i18n/navigation";
@@ -94,6 +94,31 @@ export function ConfiguratorClient({
     [detail, searchParams]
   );
 
+  // R2-2b: custom colour note. Lives in component state during steps 1–2; it is
+  // written into the working URL (note=) only on the way to step 3 (goToStep),
+  // so the server-rendered step-3 snapshot can pick it up. It never enters the
+  // config code nor the set= link. // TODO:nb-review — Norwegian copy from card.
+  const noteFromUrl = searchParams.get("note") ?? "";
+  const [noteMode, setNoteMode] = useState<"default" | "custom">(
+    noteFromUrl ? "custom" : "default"
+  );
+  const [noteText, setNoteText] = useState(noteFromUrl);
+  const noteTextareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Reset the note when the selected design changes (the block is per design;
+  // a different design is a different config).
+  useEffect(() => {
+    const fromUrl = new URLSearchParams(searchParams.toString()).get("note") ?? "";
+    setNoteText(fromUrl);
+    setNoteMode(fromUrl ? "custom" : "default");
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- key on design only
+  }, [selected.slug]);
+
+  // Focus the textarea when "I'll choose" is selected (AC3, also for SR users).
+  useEffect(() => {
+    if (noteMode === "custom") noteTextareaRef.current?.focus();
+  }, [noteMode]);
+
   // compose preview layers from the current selections (defaults at first paint)
   const previewLayers = useMemo(() => {
     const cats: SelectedCategory[] = detail.categories.map((c) => {
@@ -180,7 +205,11 @@ export function ConfiguratorClient({
   }, [detail, selections]);
   const shareUrl =
     typeof window !== "undefined"
-      ? `${window.location.origin}${window.location.pathname}?${searchParams.toString()}`
+      ? (() => {
+          const p = new URLSearchParams(searchParams.toString());
+          p.delete("note"); // R2-2b: the note lives in the order, not the link
+          return `${window.location.origin}${window.location.pathname}?${p.toString()}`;
+        })()
       : "";
 
   function applyCode(raw: string): boolean {
@@ -234,6 +263,7 @@ export function ConfiguratorClient({
       if (key.startsWith("opt_")) params.delete(key);
     }
     params.delete("lock");
+    params.delete("note"); // R2-2b: a new design starts without a note
     router.push(`${pathname}?${params.toString()}`, { scroll: false });
   }
 
@@ -272,6 +302,13 @@ export function ConfiguratorClient({
     params.set("design", selected.slug);
     if (target === 1) params.delete("step");
     else params.set("step", String(target));
+    // R2-2b: carry the note forward only when the design accepts it and the
+    // customer chose "I'll choose"; otherwise it is the studio default.
+    if (detail.acceptsCustomNotes && noteMode === "custom" && noteText.trim()) {
+      params.set("note", noteText.trim());
+    } else {
+      params.delete("note");
+    }
     // CA-6b: default scroll (top) on step change — the new step starts from
     // its beginning; option selects keep scroll:false (same view).
     router.push(`${pathname}?${params.toString()}`);
@@ -305,6 +342,20 @@ export function ConfiguratorClient({
     radios[next]?.focus();
     const optId = cat.options[next]?.id;
     if (optId) selectOption(cat.slug, optId);
+  }
+
+  // AC3 / F13: two-way note toggle as a radiogroup (arrows/Home/End move + select).
+  function onNoteKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
+    const order: ("default" | "custom")[] = ["default", "custom"];
+    const idx = order.indexOf(noteMode);
+    let next = idx;
+    if (e.key === "ArrowRight" || e.key === "ArrowDown") next = (idx + 1) % 2;
+    else if (e.key === "ArrowLeft" || e.key === "ArrowUp") next = (idx + 1) % 2;
+    else if (e.key === "Home") next = 0;
+    else if (e.key === "End") next = 1;
+    else return;
+    e.preventDefault();
+    setNoteMode(order[next]);
   }
 
   // CA-6 / CA-6b: informative teaser of the NEXT step — not clickable (no
@@ -614,6 +665,78 @@ export function ConfiguratorClient({
                 </fieldset>
               );
             })}
+
+            {/* R2-2b: custom colour note block — only when the design supports it (AC2).
+                The note lives in state + URL param only; it never enters selections or
+                previewLayers (AC3, no-preview-mutation invariant). */}
+            {detail.acceptsCustomNotes && (
+              <section
+                data-testid="custom-notes"
+                className="rounded-sm border border-border bg-card/40 p-4"
+              >
+                <h3 className="mb-1 text-[11px] font-semibold uppercase tracking-[0.06em]">
+                  {t("customNotes.title")}
+                </h3>
+                <div
+                  role="radiogroup"
+                  aria-label={t("customNotes.title")}
+                  onKeyDown={onNoteKeyDown}
+                  data-testid="custom-notes-toggle"
+                  className="mt-2 flex flex-col gap-2"
+                >
+                  {(["default", "custom"] as const).map((mode) => (
+                    <button
+                      key={mode}
+                      type="button"
+                      role="radio"
+                      aria-checked={noteMode === mode}
+                      tabIndex={noteMode === mode ? 0 : -1}
+                      data-testid={`custom-notes-${mode}`}
+                      onClick={() => setNoteMode(mode)}
+                      className={[
+                        "flex min-h-11 items-center gap-2 rounded-sm border-[1.5px] px-3 text-left text-sm transition-colors",
+                        "focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring",
+                        noteMode === mode
+                          ? "border-primary bg-primary/5"
+                          : "border-border bg-card hover:border-ring",
+                      ].join(" ")}
+                    >
+                      {mode === "default"
+                        ? t("customNotes.optionDefault")
+                        : t("customNotes.optionCustom")}
+                    </button>
+                  ))}
+                </div>
+
+                {noteMode === "custom" && (
+                  <div className="mt-3">
+                    <textarea
+                      ref={noteTextareaRef}
+                      data-testid="custom-notes-text"
+                      value={noteText}
+                      maxLength={250}
+                      rows={3}
+                      onChange={(e) => setNoteText(e.target.value)}
+                      placeholder={t("customNotes.placeholder")}
+                      aria-describedby="custom-notes-helper"
+                      className="w-full rounded-sm border border-input bg-card p-2 text-sm focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
+                    />
+                    <div className="mt-1 flex items-start justify-between gap-3">
+                      <p
+                        id="custom-notes-helper"
+                        data-testid="custom-notes-helper"
+                        className="text-xs text-muted-foreground"
+                      >
+                        {t("customNotes.helper")}
+                      </p>
+                      <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+                        {t("customNotes.counter", { count: noteText.length })}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </section>
+            )}
 
             {/* CA-6b: mobile teaser right BEFORE the CTA (see step 1) */}
             {showTeaser && renderTeaser("md:hidden")}
