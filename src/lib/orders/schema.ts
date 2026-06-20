@@ -12,7 +12,6 @@ export const MAX_CUSTOM_NOTE = 250;
  *  itself happens at each sink (email HTML); here we only normalise the input. */
 export function cleanCustomNote(input: string): string {
   // Strip ASCII control chars (keep \n = \x0A), DEL and the C1 block.
-  // eslint-disable-next-line no-control-regex
   return input.replace(/[\x00-\x09\x0B-\x1F\x7F-\x9F]/g, "").trim();
 }
 
