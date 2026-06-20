@@ -230,3 +230,33 @@ test("R2-1a: changing the cover default in F10 changes the step-1 cover", async 
     .neq("id", current.id);
   await db.from("options").update({ is_default: true }).eq("id", current.id);
 });
+
+test("R2-1b: mobile @390 — Next-step CTA is reachable without scrolling", async ({
+  page,
+}, testInfo) => {
+  test.skip(
+    testInfo.project.name !== "mobile",
+    "mobile-only CTA (sticky bar is md:hidden)"
+  );
+
+  await page.goto("/no/configurator");
+
+  // Choose the first design (AC6 frames the CTA as "after choosing a design").
+  await designCards(page).first().click();
+
+  const cta = page.getByTestId("next-step-mobile");
+  await expect(cta).toBeVisible();
+
+  // Reachable WITHOUT scrolling: inside the viewport at the initial scroll
+  // position (scrollY === 0) and tall enough to tap (≥44px).
+  expect(await page.evaluate(() => window.scrollY)).toBe(0);
+  const box = await cta.boundingBox();
+  expect(box).not.toBeNull();
+  expect(box!.height).toBeGreaterThanOrEqual(44);
+  expect(box!.y + box!.height).toBeLessThanOrEqual(844);
+
+  // Navigates to step 2 keeping the config in the URL.
+  await cta.click();
+  await expect(page).toHaveURL(/[?&]step=2/);
+  await expect(page).toHaveURL(/[?&]design=/);
+});
