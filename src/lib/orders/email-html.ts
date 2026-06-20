@@ -17,6 +17,8 @@ export interface MailItem {
   unitPriceCents: number;
   currency: string;
   configCode: string;
+  /** R2-2b: customer colour note. Rendered escaped; only when non-empty. */
+  customNote?: string;
 }
 
 export interface RenderedEmail {
@@ -100,6 +102,7 @@ function shell(
 
 /** Order-lines table (shared by customer + admin), prices included. */
 function itemsTable(items: MailItem[], theme: ThemeTokens, locale: "no" | "en") {
+  const noteLabel = COPY[locale].noteLabel;
   const rows = items
     .map(
       (i) => `<tr>
@@ -108,7 +111,13 @@ function itemsTable(items: MailItem[], theme: ThemeTokens, locale: "no" | "en") 
       )};font-size:14px;">${i.quantity}× ${esc(i.productName)}<br>
         <span style="font-family:monospace;font-size:12px;opacity:.6;">${esc(
           i.configCode
-        )}</span></td>
+        )}</span>${
+          i.customNote
+            ? `<br><span style="font-size:12px;opacity:.75;">${esc(
+                noteLabel
+              )}: ${esc(i.customNote)}</span>`
+            : ""
+        }</td>
       <td style="padding:8px 0;border-bottom:1px solid ${esc(
         theme.light
       )};font-size:14px;text-align:right;white-space:nowrap;">${esc(
@@ -132,6 +141,7 @@ const COPY = {
       "Dette er en spesialbestilling — vi tar kontakt for å bekrefte designet før noe skal betales.",
     reopen: "Åpne settet ditt på nytt",
     totalLabel: "Totalt",
+    noteLabel: "Din beskjed til verkstedet", // TODO:nb-review
   },
   en: {
     customerSubject: (c: string) => `Your order ${c} — Min Keramikk`,
@@ -142,6 +152,7 @@ const COPY = {
       "This is a custom order — we'll get in touch to confirm the design before anything is paid.",
     reopen: "Reopen your set",
     totalLabel: "Total",
+    noteLabel: "Your note to the workshop",
   },
 } as const;
 
