@@ -5,6 +5,7 @@ import {
   decodeConfigCode,
   encodeConfigCode,
   normalizeConfigCode,
+  toCodecDesign,
   type CodecCategory,
   type CodecDesign,
 } from "./config-code";
@@ -159,5 +160,46 @@ describe("config-code — tolerant decode (degenerate cases, never crash)", () =
   it("works without the MK prefix", () => {
     const decoded = decodeConfigCode("A-A-A", byCode);
     expect(decoded.designSlug).toBe("blomster-1");
+  });
+});
+
+describe("toCodecDesign defaultOptionId", () => {
+  function detail(opts: { id: string; code: string; isDefault?: boolean }[]) {
+    return {
+      code: "D1",
+      slug: "d1",
+      categories: [{ slug: "color", options: opts }],
+    };
+  }
+
+  it("prefers the option flagged is_default, even when not first", () => {
+    const codec = toCodecDesign(
+      detail([
+        { id: "o1", code: "a" },
+        { id: "o2", code: "b", isDefault: true },
+        { id: "o3", code: "c" },
+      ])
+    );
+    expect(codec?.categories[0]?.defaultOptionId).toBe("o2");
+  });
+
+  it("falls back to the first option when none is flagged (pre-R2-1 behaviour)", () => {
+    const codec = toCodecDesign(
+      detail([
+        { id: "o1", code: "a" },
+        { id: "o2", code: "b" },
+      ])
+    );
+    expect(codec?.categories[0]?.defaultOptionId).toBe("o1");
+  });
+
+  it("keeps the full code→id map regardless of which option is default", () => {
+    const codec = toCodecDesign(
+      detail([
+        { id: "o1", code: "a" },
+        { id: "o2", code: "b", isDefault: true },
+      ])
+    );
+    expect(codec?.categories[0]?.optionCodeToId).toEqual({ a: "o1", b: "o2" });
   });
 });

@@ -15,6 +15,7 @@ export interface CategoryOption {
   hex: string | null;
   /** Compositing asset for the preview (ADR 0010). */
   layerImage: string | null;
+  isDefault: boolean;
 }
 
 export interface DesignCategory {
@@ -68,7 +69,7 @@ async function loadDesignDetail(slug: string): Promise<DesignDetail | null> {
   const { data: categories, error: catErr } = await supabase
     .from("option_categories")
     .select(
-      "id, slug, label_no, label_en, kind, layer_slot, sync_group, sort_order, options(id, code, name, image, hex, layer_image, sort_order, active)"
+      "id, slug, label_no, label_en, kind, layer_slot, sync_group, sort_order, options(id, code, name, image, hex, layer_image, sort_order, active, is_default)"
     )
     .eq("design_id", design.id)
     .order("sort_order", { ascending: true });
@@ -97,6 +98,7 @@ async function loadDesignDetail(slug: string): Promise<DesignDetail | null> {
           image: o.image,
           hex: o.hex,
           layerImage: o.layer_image,
+          isDefault: o.is_default,
         })),
     })),
   };

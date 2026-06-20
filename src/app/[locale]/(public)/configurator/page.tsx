@@ -6,6 +6,7 @@ import { getDesignDetail, type DesignDetail } from "@/lib/catalog/design-options
 import { getSupplierProducts } from "@/lib/catalog/products";
 import { assetUrl } from "@/lib/storage";
 import { buildConfigLinePayload } from "@/lib/configurator/line-payload";
+import { pickDefaultOption } from "@/lib/configurator/default-option";
 import { getFeaturedConfigs } from "@/lib/catalog/featured";
 import { FeaturedStrip } from "./featured-strip";
 import { ConfiguratorClient } from "./configurator-client";
@@ -61,7 +62,9 @@ export default async function ConfiguratorPage({
         const v = params[`opt_${c.slug}`];
         const opt =
           (typeof v === "string" && c.options.find((o) => o.id === v)) ||
-          c.options[0];
+          // R2-1a: untouched category falls back to the cover default
+          // (is_default else first-by-sort_order), matching steps 1-2.
+          pickDefaultOption(c.options);
         if (opt) selById[c.slug] = opt.id;
       }
       const { snapshot, configCode, designLayers } = buildConfigLinePayload(

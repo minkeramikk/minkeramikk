@@ -22,6 +22,7 @@ import {
 import {
   saveOption,
   deleteOption,
+  setDefaultOption,
 } from "@/app/admin/designs/options-actions";
 import { assetUrl } from "@/lib/storage";
 import { Button } from "@/components/ui/button";
@@ -42,6 +43,7 @@ export interface OptionSlot {
   code: string | null;
   sortOrder: number;
   active: boolean;
+  isDefault: boolean;
 }
 
 export interface CategorySlot extends CategoryValues {
@@ -154,6 +156,9 @@ function TreeOptionRow({
 }) {
   const [delState, del, deleting] = useActionState(deleteOption, { error: null });
   const [editState, save, saving] = useActionState(saveOption, { error: null });
+  const [defState, setDefault, settingDefault] = useActionState(setDefaultOption, {
+    error: null,
+  });
   const [confirming, setConfirming] = useState(false);
   const [editing, setEditing] = useState(false);
 
@@ -173,6 +178,27 @@ function TreeOptionRow({
       className="border-b border-border/40 py-2 last:border-0"
     >
       <div className="flex items-center gap-2.5">
+        <form action={setDefault} className="flex shrink-0 items-center">
+          <input type="hidden" name="optionId" value={option.id} />
+          <input type="hidden" name="categoryId" value={categoryId} />
+          <input type="hidden" name="designId" value={designId} />
+          <button
+            type="submit"
+            disabled={settingDefault || option.isDefault}
+            data-testid="tree-option-default"
+            data-default={option.isDefault ? "1" : "0"}
+            aria-pressed={option.isDefault}
+            aria-label={
+              option.isDefault
+                ? `${option.name} is the cover default`
+                : `Set ${option.name} as the cover default`
+            }
+            title="Cover default — shown in the configurator step 1"
+            className="size-4 rounded-full border border-input disabled:cursor-default aria-pressed:border-primary aria-pressed:bg-primary aria-pressed:ring-2 aria-pressed:ring-primary/30"
+          >
+            <span className="sr-only">Default</span>
+          </button>
+        </form>
         <OptionSwatch option={option} />
 
         <span className="truncate text-sm">{option.name}</span>
@@ -248,6 +274,12 @@ function TreeOptionRow({
         {delState.error && (
           <span role="alert" className="text-xs text-destructive">
             {delState.error}
+          </span>
+        )}
+
+        {defState.error && (
+          <span role="alert" className="text-xs text-destructive">
+            {defState.error}
           </span>
         )}
       </div>

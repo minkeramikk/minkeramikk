@@ -25,6 +25,7 @@ import {
   toCodecDesign,
   type CodecDesign,
 } from "@/lib/configurator/config-code";
+import { pickDefaultOption } from "@/lib/configurator/default-option";
 import { ConfigCodeBar } from "./config-code-bar";
 import { cn } from "@/lib/utils";
 import type { DesignDetail } from "@/lib/catalog/design-options";
@@ -49,7 +50,7 @@ function resolveSelections(
   for (const cat of detail.categories) {
     const fromUrl = params.get(`opt_${cat.slug}`);
     const valid = cat.options.find((o) => o.id === fromUrl);
-    out[cat.slug] = valid?.id ?? cat.options[0]?.id ?? "";
+    out[cat.slug] = valid?.id ?? pickDefaultOption(cat.options)?.id ?? "";
   }
   return out;
 }
