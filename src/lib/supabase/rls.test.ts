@@ -196,6 +196,31 @@ describe.skipIf(!hasEnv)("RLS — anon client", () => {
     expect(error ? true : (data ?? []).length === 0).toBe(true);
   });
 
+  // R2-2a / AC1: only authenticated admins may flip accepts_custom_notes; anon
+  // is blocked by RLS. Self-contained: reads a real design id with the service
+  // role, then verifies the anon update affects no rows.
+  // NOTE: false-green until migration 0014 is pushed (the column does not exist
+  // yet → the anon update errors, which the assertion also accepts). It becomes
+  // a real RLS assertion once the column exists remotely.
+  it("cannot set a design's accepts_custom_notes (R2-2a)", async () => {
+    const existing = await admin
+      .from("designs")
+      .select("id")
+      .limit(1)
+      .maybeSingle();
+    if (!existing.data) return; // no designs in this DB — nothing to assert
+    const designId = existing.data.id;
+
+    const { data, error } = await anon
+      .from("designs")
+      .update({ accepts_custom_notes: true })
+      .eq("id", designId)
+      .select("id");
+
+    // RLS blocks the write: either an explicit error or zero rows affected.
+    expect(error ? true : (data ?? []).length === 0).toBe(true);
+  });
+
   it("CAN insert an order (public insert is allowed) but cannot read it back", async () => {
     const code = `RLS-ANON-${Date.now()}`;
     const { error } = await anon.from("orders").insert({
