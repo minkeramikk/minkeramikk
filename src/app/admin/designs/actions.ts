@@ -39,6 +39,7 @@ const designSchema = z.object({
   supplierId: z.string().uuid("Pick a supplier"),
   sortOrder: z.coerce.number().int().min(0).default(0),
   active: z.coerce.boolean(),
+  acceptsCustomNotes: z.coerce.boolean(),
 });
 
 export async function saveDesign(
@@ -53,6 +54,9 @@ export async function saveDesign(
     supplierId: formData.get("supplierId") ?? "",
     sortOrder: formData.get("sortOrder") ?? 0,
     active: formData.get("active") === "on" || formData.get("active") === "true",
+    acceptsCustomNotes:
+      formData.get("acceptsCustomNotes") === "on" ||
+      formData.get("acceptsCustomNotes") === "true",
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
@@ -99,6 +103,7 @@ export async function saveDesign(
     supplier_id: d.supplierId,
     sort_order: d.sortOrder,
     active: d.active,
+    accepts_custom_notes: d.acceptsCustomNotes,
     ...(previewPath ? { preview_image: previewPath } : {}),
   };
 
