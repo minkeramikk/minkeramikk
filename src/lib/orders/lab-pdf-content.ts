@@ -24,6 +24,8 @@ export interface LabPdfItem {
   configCode: string | null;
   quantity: number;
   selections: LabPdfSelection[];
+  /** R2-2b: present ⇒ render the "Customer note" line ("" = studio default). */
+  customNote?: string;
 }
 
 export interface LabPdfDoc {
@@ -46,6 +48,7 @@ function toItem(it: AdminOrderItem): LabPdfItem {
       option: s.option,
       hex: s.hex,
     })),
+    customNote: it.configSnapshot?.customNote,
   };
 }
 
