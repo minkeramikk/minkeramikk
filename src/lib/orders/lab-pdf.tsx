@@ -74,7 +74,7 @@ const s = StyleSheet.create({
   cellOption: { fontSize: 9, fontFamily: "Helvetica-Bold" },
   cellHex: { fontSize: 8, color: THEME.muted },
   code: { fontSize: 9, color: THEME.accent, marginTop: 6, fontFamily: "Helvetica-Bold" },
-  note: { marginTop: 4, fontSize: 9, color: "#333" },
+  note: { marginTop: 4, fontSize: 9, color: THEME.muted },
   foot: {
     position: "absolute",
     bottom: 0,
