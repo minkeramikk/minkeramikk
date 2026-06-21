@@ -31,7 +31,6 @@ import {
   hasDetails,
   attributeLabel,
   formatAttributeValue,
-  teaserAttributes,
   publicAttributes,
   type TypedAttribute,
   type AttributeKey,
@@ -150,9 +149,8 @@ function CeramicOptionCard({
 
 /**
  * R2-3+R2-4 — full-row expanded panel rendered after the selected card's row.
- * Contains qty stepper + Add anchored at top, aria-live confirmation, teaser
- * specs when closed, and a chevron "Product details" toggle for typed spec
- * chips + description.
+ * Contains qty stepper + Add anchored at top, aria-live confirmation, and a
+ * chevron "Product details" toggle for typed spec chips + description.
  */
 function ExpandedProductCard({
   product: p,
@@ -182,7 +180,6 @@ function ExpandedProductCard({
   // Storefront shows only customer-facing attributes (weight is internal).
   const attributes = publicAttributes(p.attributes);
   const details = hasDetails(description, attributes);
-  const teaser = teaserAttributes(attributes);
 
   function handleAdd() {
     if (showAdded) return; // no-op while the "Added ✓" confirmation is showing
@@ -273,25 +270,6 @@ function ExpandedProductCard({
 
       {details && (
         <>
-          {/* teaser: 1–2 key specs as chips (icon + value) while details are
-              closed — same chip language as the open spec list, not run-on text */}
-          {!open && teaser.length > 0 && (
-            <ul data-testid="spec-teaser" className="flex flex-wrap gap-2">
-              {teaser.map((a, i) => {
-                const Icon = ATTR_ICON[a.key];
-                return (
-                  <li
-                    key={i}
-                    className="flex items-center gap-1.5 rounded-sm border border-border bg-card px-2 py-1 text-xs"
-                  >
-                    <Icon className="size-3.5 text-muted-foreground" aria-hidden />
-                    <span className="font-medium">{formatAttributeValue(a, locale)}</span>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-
           <button
             type="button"
             data-testid="details-toggle"
