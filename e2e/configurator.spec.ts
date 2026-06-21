@@ -296,27 +296,27 @@ test.describe("R2-4b product info", () => {
     const product = await firstProductOfDesignSupplier(d!.supplier_id);
     test.skip(!product, "design's supplier has no visible product to annotate");
 
-    // (a) Admin UI: add 2 attributes to the product, save (revalidates catalog).
-    await loginAdmin(page);
-    await page.goto(`/admin/products/${product!.id}`);
-    await page.getByTestId("product-form").waitFor();
-
-    await page.getByTestId("attribute-add").click();
-    let rows = page.getByTestId("attribute-row");
-    await rows.nth(0).getByTestId("attribute-label-no").fill("Vekt");
-    await rows.nth(0).getByTestId("attribute-label-en").fill("Weight");
-    await rows.nth(0).getByTestId("attribute-value").fill("1,2 kg");
-
-    await page.getByTestId("attribute-add").click();
-    rows = page.getByTestId("attribute-row");
-    await rows.nth(1).getByTestId("attribute-label-no").fill("Materiale");
-    await rows.nth(1).getByTestId("attribute-label-en").fill("Material");
-    await rows.nth(1).getByTestId("attribute-value").fill("Stoneware");
-
-    await page.getByTestId("product-save").click();
-    await expect(page).toHaveURL(/\/admin\/products$/);
-
     try {
+      // (a) Admin UI: add 2 attributes to the product, save (revalidates catalog).
+      await loginAdmin(page);
+      await page.goto(`/admin/products/${product!.id}`);
+      await page.getByTestId("product-form").waitFor();
+
+      await page.getByTestId("attribute-add").click();
+      let rows = page.getByTestId("attribute-row");
+      await rows.nth(0).getByTestId("attribute-label-no").fill("Vekt");
+      await rows.nth(0).getByTestId("attribute-label-en").fill("Weight");
+      await rows.nth(0).getByTestId("attribute-value").fill("1,2 kg");
+
+      await page.getByTestId("attribute-add").click();
+      rows = page.getByTestId("attribute-row");
+      await rows.nth(1).getByTestId("attribute-label-no").fill("Materiale");
+      await rows.nth(1).getByTestId("attribute-label-en").fill("Material");
+      await rows.nth(1).getByTestId("attribute-value").fill("Stoneware");
+
+      await page.getByTestId("product-save").click();
+      await expect(page).toHaveURL(/\/admin\/products$/);
+
       // (b) Public step 3 for that design.
       await page.goto(`/no/configurator?design=${design.slug}&step=3`);
       await page.getByTestId("ceramics-step").waitFor();
