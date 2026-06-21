@@ -266,26 +266,16 @@ test("R2-1b: mobile @390 — Next-step CTA is reachable without scrolling", asyn
 });
 
 /**
- * R2-4b: product info — "i" icon + popover at step 3.
+ * R2-3+R2-4: typed attributes + expandable product card.
  *
- * Strategy mirrors R2-2b: drive the admin UI (not a raw DB write) so the
- * `catalog`-tagged cache is revalidated by `saveProduct`. Add 2 attributes to
- * a real product, then assert the public step-3 tile shows the "i", the click
- * opens the popover with the attributes, and the gesture does NOT select the
- * radio. Always restores (removes the attributes) in `finally`.
- *
- * Gate: ADMIN_READY (admin creds + service role).
- *
- * Locale note: on `/no` the popover renders Norwegian labels (`Vekt`,
- * `Materiale`) — NOT the English ones (`Weight`, `Material`). We assert only
- * the Norwegian labels and locale-independent values (`1,2 kg`, `Stoneware`).
+ * Drive the admin UI (revalidates the `catalog` cache), then assert the step-3
+ * card expands in place with inline add + typed specs behind the chevron.
+ * Restores (removes the attributes) in `finally`. Gate: ADMIN_READY.
  */
-test.describe("R2-4b product info", () => {
+test.describe("R2-3+R2-4 expandable card", () => {
   test.skip(!ADMIN_READY, "needs ADMIN_EMAIL + ADMIN_PASSWORD + service role");
 
-  test("step-3 'i' opens a popover with the product attributes, separate from add-to-cart", async ({
-    page,
-  }) => {
+  test("typed admin attrs → step-3 card expands with inline add + spec chips", async ({ page }) => {
     const design = await firstActiveDesignWithId();
     const { data: d, error: dErr } = await adminClient()
       .from("designs")
@@ -294,57 +284,56 @@ test.describe("R2-4b product info", () => {
       .single();
     if (dErr) throw dErr;
     const product = await firstProductOfDesignSupplier(d!.supplier_id);
-    test.skip(!product, "design's supplier has no visible product to annotate");
+    test.skip(!product, "design's supplier has no visible product");
 
     try {
-      // (a) Admin UI: add 2 attributes to the product, save (revalidates catalog).
+      // Admin: add a diameter (numeric) + a custom attribute, then save.
       await loginAdmin(page);
       await page.goto(`/admin/products/${product!.id}`);
       await page.getByTestId("product-form").waitFor();
 
       await page.getByTestId("attribute-add").click();
-      let rows = page.getByTestId("attribute-row");
-      await rows.nth(0).getByTestId("attribute-label-no").fill("Vekt");
-      await rows.nth(0).getByTestId("attribute-label-en").fill("Weight");
-      await rows.nth(0).getByTestId("attribute-value").fill("1,2 kg");
+      let row = page.getByTestId("attribute-row").nth(0);
+      await row.getByTestId("attribute-type").selectOption("diameter");
+      await row.getByTestId("attribute-value-num").fill("220");
 
       await page.getByTestId("attribute-add").click();
-      rows = page.getByTestId("attribute-row");
-      await rows.nth(1).getByTestId("attribute-label-no").fill("Materiale");
-      await rows.nth(1).getByTestId("attribute-label-en").fill("Material");
-      await rows.nth(1).getByTestId("attribute-value").fill("Stoneware");
+      row = page.getByTestId("attribute-row").nth(1);
+      await row.getByTestId("attribute-type").selectOption("custom");
+      await row.getByTestId("attribute-label-no").fill("Farge");
+      await row.getByTestId("attribute-label-en").fill("Colour");
+      await row.getByTestId("attribute-value").fill("Blå");
 
       await page.getByTestId("product-save").click();
       await expect(page).toHaveURL(/\/admin\/products$/);
 
-      // (b) Public step 3 for that design.
+      // Public step 3: select → card expands in place.
       await page.goto(`/no/configurator?design=${design.slug}&step=3`);
       await page.getByTestId("ceramics-step").waitFor();
+      await page.getByTestId(`product-${product!.slug}`).click();
 
-      const tile = page.getByTestId(`product-${product!.slug}`);
-      await expect(tile).toBeVisible();
-      const wasSelected = await tile.getAttribute("aria-checked");
+      const expanded = page.getByTestId("expanded-card");
+      await expect(expanded).toBeVisible();
 
-      // AC4: the "i" exists and opens the popover with the attributes.
-      // On /no the popover shows Norwegian labels (Vekt, Materiale), not English.
-      const info = page.getByTestId(`product-info-${product!.slug}`);
-      await expect(info).toBeVisible();
-      await info.click();
-      const popover = page.getByTestId("product-info-popover");
-      await expect(popover).toBeVisible();
-      await expect(popover).toContainText("Vekt");
-      await expect(popover).toContainText("Materiale");
-      await expect(popover).toContainText("1,2 kg");
-      await expect(popover).toContainText("Stoneware");
+      // Chevron closed by default → open → typed spec chips + values.
+      await expect(page.getByTestId("product-details")).toHaveCount(0);
+      await page.getByTestId("details-toggle").click();
+      const details = page.getByTestId("product-details");
+      await expect(details).toBeVisible();
+      await expect(details).toContainText("Ø 22");
+      await expect(details).toContainText("Farge");
+      await expect(details).toContainText("Blå");
 
-      // AC5: clicking the "i" did NOT toggle the radio selection.
-      expect(await tile.getAttribute("aria-checked")).toBe(wasSelected);
-
-      // AC5: Esc closes.
-      await page.keyboard.press("Escape");
-      await expect(popover).toBeHidden();
+      // Inline add → docked cart gains a line (robust: docked cart, not header badge).
+      // Note: cart-line renders in BOTH the desktop panel and the mobile section
+      // (same cartPanel JSX rendered twice with CSS show/hide). Count before add,
+      // then assert exactly 2 more after (one per panel = one cart line added).
+      const allCartLines = page.getByTestId("cart-line");
+      const linesBefore = await allCartLines.count();
+      await expanded.getByTestId("add-to-cart").click();
+      await expect(allCartLines).toHaveCount(linesBefore + 2);
     } finally {
-      // Restore: remove the attributes via the admin UI (revalidates catalog).
+      // Restore: remove the attributes via the admin UI.
       await page.goto(`/admin/products/${product!.id}`);
       await page.getByTestId("product-form").waitFor();
       const removeButtons = page.getByTestId("attribute-remove");
