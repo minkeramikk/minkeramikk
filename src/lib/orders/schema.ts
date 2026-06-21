@@ -5,6 +5,23 @@
 import { z } from "zod";
 import { CURRENCIES } from "@/lib/money/money";
 
+/** R2-2b AC7: hard cap on the customer's free-text colour note. */
+export const MAX_CUSTOM_NOTE = 250;
+
+/** Strip ASCII/Unicode control chars (except newline) and trim. The XSS escape
+ *  itself happens at each sink (email HTML); here we only normalise the input. */
+export function cleanCustomNote(input: string): string {
+  // Strip ASCII control chars (keep \n = \x0A), DEL and the C1 block.
+  return input.replace(/[\x00-\x09\x0B-\x1F\x7F-\x9F]/g, "").trim();
+}
+
+/** A note value: cleaned, then capped. Over the cap → the payload is rejected
+ *  (a gentle 400 at the route, never a crash). Client caps at 250 too (UX). */
+const customNoteSchema = z
+  .string()
+  .transform(cleanCustomNote)
+  .refine((s) => s.length <= MAX_CUSTOM_NOTE, { message: "custom note too long" });
+
 /** One cart line as it travels to the server (snapshots are rebuilt server-side
  *  from these trusted-by-shape fields; prices stay cents+currency, never float). */
 export const orderItemSchema = z.object({
@@ -16,7 +33,12 @@ export const orderItemSchema = z.object({
   currency: z.enum(CURRENCIES),
   quantity: z.number().int().positive(),
   configCode: z.string().min(1),
-  configSnapshot: z.unknown().nullable(),
+  // The snapshot is trusted-by-shape EXCEPT the free-text note, which is
+  // sanitised + length-checked here (AC7). passthrough keeps the other fields.
+  configSnapshot: z
+    .object({ customNote: customNoteSchema.optional() })
+    .passthrough()
+    .nullable(),
   /** F30: lets the customer email build the CA-3 "reopen your set" link.
    *  Optional + not persisted (no order_items column) — absent rows just drop
    *  out of the set link. */

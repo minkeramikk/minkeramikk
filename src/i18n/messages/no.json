@@ -116,6 +116,14 @@
       "curated": "utvalgt av butikken",
       "prev": "Forrige",
       "next": "Neste"
+    },
+    "customNotes": {
+      "title": "Egne fargeønsker",
+      "optionDefault": "Komplementære farger (valgt av studioet)",
+      "optionCustom": "Jeg velger fargene selv",
+      "placeholder": "f.eks. brun hund med hvite flekker",
+      "helper": "Endrer ikke forhåndsvisningen — følger bestillingen til verkstedet.",
+      "counter": "{count}/250"
     }
   },
   "orderForm": {

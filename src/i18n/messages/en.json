@@ -117,6 +117,14 @@
       "curated": "curated by the shop",
       "prev": "Previous",
       "next": "Next"
+    },
+    "customNotes": {
+      "title": "Your colour notes",
+      "optionDefault": "Complementary colours (chosen by the studio)",
+      "optionCustom": "I'll choose the colours myself",
+      "placeholder": "e.g. brown dog with white spots",
+      "helper": "Doesn't change the preview — it travels to the workshop with your order.",
+      "counter": "{count}/250"
     }
   },
   "orderForm": {

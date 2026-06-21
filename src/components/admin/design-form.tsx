@@ -18,6 +18,7 @@ export interface DesignValues {
   previewImage: string | null;
   sortOrder: number;
   active: boolean;
+  acceptsCustomNotes: boolean;
   code: string | null;
 }
 
@@ -99,6 +100,17 @@ export function DesignForm({
           Active (visible in the configurator)
         </label>
       </div>
+
+      <label className="flex items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          name="acceptsCustomNotes"
+          defaultChecked={design ? design.acceptsCustomNotes : false}
+          className="size-4 accent-[var(--primary)]"
+          data-testid="design-accepts-notes"
+        />
+        Accepts custom colour notes from the customer
+      </label>
 
       {state.error && (
         <p data-testid="design-error" role="alert" className="text-sm text-destructive">

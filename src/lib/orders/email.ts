@@ -72,6 +72,7 @@ const toMailItem = (i: OrderItemInput): MailItem => ({
   unitPriceCents: i.unitPriceCents,
   currency: i.currency,
   configCode: i.configCode,
+  customNote: i.configSnapshot?.customNote || undefined,
 });
 
 /**

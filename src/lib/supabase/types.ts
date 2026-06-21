@@ -41,6 +41,7 @@ export type Database = {
     Tables: {
       designs: {
         Row: {
+          accepts_custom_notes: boolean
           active: boolean
           code: string | null
           description_en: string | null
@@ -53,6 +54,7 @@ export type Database = {
           supplier_id: string
         }
         Insert: {
+          accepts_custom_notes?: boolean
           active?: boolean
           code?: string | null
           description_en?: string | null
@@ -65,6 +67,7 @@ export type Database = {
           supplier_id: string
         }
         Update: {
+          accepts_custom_notes?: boolean
           active?: boolean
           code?: string | null
           description_en?: string | null

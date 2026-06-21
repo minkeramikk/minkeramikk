@@ -67,10 +67,15 @@ export default async function ConfiguratorPage({
           pickDefaultOption(c.options);
         if (opt) selById[c.slug] = opt.id;
       }
+      // R2-2b: the free-text note rides the WORKING url (never the config code
+      // nor the set= link). Honour it only when the design accepts notes.
+      const rawNote = typeof params.note === "string" ? params.note : "";
+      const customNote = detail.acceptsCustomNotes ? rawNote : "";
       const { snapshot, configCode, designLayers } = buildConfigLinePayload(
         detail,
         selected.name,
-        selById
+        selById,
+        customNote
       );
 
       // CA-3: a `set=` param is a shared basket — resolve it server-side

@@ -2,10 +2,13 @@ import { test, expect, type Page } from "@playwright/test";
 import {
   adminClient,
   firstActiveDesign,
+  firstActiveDesignWithId,
+  secondActiveDesignWithId,
   firstSupplier,
   ceramicRadios,
   horizontalOverflow,
   loginAdmin,
+  ADMIN_READY,
 } from "./helpers";
 
 /**
@@ -259,4 +262,88 @@ test("R2-1b: mobile @390 — Next-step CTA is reachable without scrolling", asyn
   await cta.click();
   await expect(page).toHaveURL(/[?&]step=2/);
   await expect(page).toHaveURL(/[?&]design=/);
+});
+
+/**
+ * R2-2b: Custom colour notes — e2e journey.
+ *
+ * Strategy: toggle the flag via the admin UI (not a direct DB write) so that
+ * the Next.js `unstable_cache` tagged "catalog" is revalidated via the server
+ * action `saveDesign` → `revalidateTag("catalog")`. A direct DB write would
+ * leave a stale cache entry and cause the block to not appear on the
+ * production build server → false-fail.
+ *
+ * Gate: ADMIN_READY (admin creds + service role both present), because:
+ *   - we drive the admin UI to set the flag and revalidate cache
+ *   - we use the service role to discover the design id at runtime
+ */
+test.describe("R2-2b custom notes", () => {
+  test.skip(!ADMIN_READY, "needs ADMIN_EMAIL + ADMIN_PASSWORD + service role");
+
+  test("flagged design shows the note block; custom mode reveals a focused textarea; note rides URL", async ({
+    page,
+  }) => {
+    // (a) Discover the first active design (needs id for admin URL, slug for public URL).
+    const design = await firstActiveDesignWithId();
+
+    // (b) Via admin UI: ensure design-accepts-notes is CHECKED, then save.
+    // This triggers revalidateTag("catalog") via saveDesign server action.
+    await loginAdmin(page);
+    await page.goto(`/admin/designs/${design.id}`);
+    const checkbox = page.getByTestId("design-accepts-notes");
+    await expect(checkbox).toBeVisible();
+    const wasChecked = await checkbox.isChecked();
+    if (!wasChecked) {
+      await checkbox.click();
+    }
+    await page.getByTestId("design-save").click();
+    // Wait for the post-save redirect to /admin/designs (confirms catalog revalidated).
+    await expect(page).toHaveURL(/\/admin\/designs$/);
+
+    try {
+      // (c) Public configurator — step 2 with the flagged design.
+      await page.goto(`/no/configurator?design=${design.slug}&step=2`);
+
+      // AC2: custom-notes block is visible when flag is set.
+      const block = page.getByTestId("custom-notes");
+      await expect(block).toBeVisible();
+
+      // AC3 default mode: no textarea rendered.
+      await expect(page.getByTestId("custom-notes-text")).toHaveCount(0);
+
+      // AC3 custom mode: click "I'll choose myself" → textarea appears, focused, helper visible.
+      await page.getByTestId("custom-notes-custom").click();
+      const textarea = page.getByTestId("custom-notes-text");
+      await expect(textarea).toBeFocused();
+      await expect(page.getByTestId("custom-notes-helper")).toBeVisible();
+
+      // Fill the note.
+      await textarea.fill("brun hund med hvite flekker");
+
+      // AC4/AC8: note rides the URL when advancing to step 3.
+      await page.getByTestId("next-step").click();
+      await expect(page).toHaveURL(/note=/);
+
+      // (e) AC2 off-case: a second active design (without the flag) should NOT
+      // show the custom-notes block. If only one design exists, skip gracefully
+      // (covered by the unit test in Task 4).
+      const second = await secondActiveDesignWithId();
+      if (second) {
+        await page.goto(`/no/configurator?design=${second.slug}&step=2`);
+        // The second design has accepts_custom_notes = false → block must be absent.
+        await expect(page.getByTestId("custom-notes")).toHaveCount(0);
+      }
+      // else: only one active design; AC2 off-case is covered by unit tests (Task 4).
+    } finally {
+      // (d) RESTORE: navigate back to admin, UNCHECK the flag, save (revalidates cache).
+      await page.goto(`/admin/designs/${design.id}`);
+      const restoreCheckbox = page.getByTestId("design-accepts-notes");
+      await expect(restoreCheckbox).toBeVisible();
+      if (await restoreCheckbox.isChecked()) {
+        await restoreCheckbox.click();
+      }
+      await page.getByTestId("design-save").click();
+      await expect(page).toHaveURL(/\/admin\/designs$/);
+    }
+  });
 });

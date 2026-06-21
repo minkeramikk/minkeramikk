@@ -74,6 +74,7 @@ const s = StyleSheet.create({
   cellOption: { fontSize: 9, fontFamily: "Helvetica-Bold" },
   cellHex: { fontSize: 8, color: THEME.muted },
   code: { fontSize: 9, color: THEME.accent, marginTop: 6, fontFamily: "Helvetica-Bold" },
+  note: { marginTop: 4, fontSize: 9, color: THEME.muted },
   foot: {
     position: "absolute",
     bottom: 0,
@@ -182,6 +183,11 @@ export function LabPdfDocument({
                 ))}
               </View>
               {item.configCode && <Text style={s.code}>{item.configCode}</Text>}
+              {item.customNote !== undefined && (
+                <Text style={s.note}>
+                  Customer note: {item.customNote || "Complementary colours (studio's choice)"}
+                </Text>
+              )}
             </View>
           </View>
         ))}
