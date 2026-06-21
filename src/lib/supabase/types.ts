@@ -346,29 +346,35 @@ export type Database = {
         Row: {
           created_at: string
           id: string
-          label_en: string
-          label_no: string
+          key: string
+          label_en: string | null
+          label_no: string | null
           product_id: string
           sort_order: number
-          value: string
+          value: string | null
+          value_num: number | null
         }
         Insert: {
           created_at?: string
           id?: string
-          label_en: string
-          label_no: string
+          key?: string
+          label_en?: string | null
+          label_no?: string | null
           product_id: string
           sort_order?: number
-          value: string
+          value?: string | null
+          value_num?: number | null
         }
         Update: {
           created_at?: string
           id?: string
-          label_en?: string
-          label_no?: string
+          key?: string
+          label_en?: string | null
+          label_no?: string | null
           product_id?: string
           sort_order?: number
-          value?: string
+          value?: string | null
+          value_num?: number | null
         }
         Relationships: [
           {
@@ -395,7 +401,6 @@ export type Database = {
           sort_order: number
           supplier_id: string
           visible: boolean
-          weight_g: number | null
         }
         Insert: {
           currency?: string
@@ -411,7 +416,6 @@ export type Database = {
           sort_order?: number
           supplier_id: string
           visible?: boolean
-          weight_g?: number | null
         }
         Update: {
           currency?: string
@@ -427,7 +431,6 @@ export type Database = {
           sort_order?: number
           supplier_id?: string
           visible?: boolean
-          weight_g?: number | null
         }
         Relationships: [
           {
