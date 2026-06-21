@@ -6,6 +6,7 @@ import {
   formatAttributeValue,
   teaserAttributes,
   hasDetails,
+  publicAttributes,
   parseTypedAttributesField,
   buildTypedAttributeRows,
   mapTypedAttributes,
@@ -16,6 +17,19 @@ const weight = (g: number): TypedAttribute => ({ key: "weight", labelNo: null, l
 const diameter = (mm: number): TypedAttribute => ({ key: "diameter", labelNo: null, labelEn: null, valueNum: mm, value: null });
 const dims = (t: string): TypedAttribute => ({ key: "dimensions", labelNo: null, labelEn: null, valueNum: null, value: t });
 const custom = (no: string, en: string, v: string): TypedAttribute => ({ key: "custom", labelNo: no, labelEn: en, valueNum: null, value: v });
+
+describe("publicAttributes", () => {
+  it("marks weight non-public and the others public", () => {
+    expect(ATTRIBUTE_REGISTRY.weight.publicVisible).toBe(false);
+    expect(ATTRIBUTE_REGISTRY.diameter.publicVisible).toBe(true);
+    expect(ATTRIBUTE_REGISTRY.dimensions.publicVisible).toBe(true);
+    expect(ATTRIBUTE_REGISTRY.custom.publicVisible).toBe(true);
+  });
+  it("drops weight but keeps diameter/dimensions/custom, in order", () => {
+    const attrs = [weight(400), diameter(220), dims("x"), custom("A", "A", "y")];
+    expect(publicAttributes(attrs).map((a) => a.key)).toEqual(["diameter", "dimensions", "custom"]);
+  });
+});
 
 describe("registry", () => {
   it("covers all known keys with a kind and an icon", () => {

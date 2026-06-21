@@ -32,6 +32,7 @@ import {
   attributeLabel,
   formatAttributeValue,
   teaserAttributes,
+  publicAttributes,
   type TypedAttribute,
   type AttributeKey,
 } from "@/lib/catalog/product-attributes";
@@ -178,10 +179,13 @@ function ExpandedProductCard({
   const [showAdded, setShowAdded] = useState(false);
   const addedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const description = locale === "no" ? p.descriptionNo : p.descriptionEn;
-  const details = hasDetails(description, p.attributes);
-  const teaser = teaserAttributes(p.attributes);
+  // Storefront shows only customer-facing attributes (weight is internal).
+  const attributes = publicAttributes(p.attributes);
+  const details = hasDetails(description, attributes);
+  const teaser = teaserAttributes(attributes);
 
   function handleAdd() {
+    if (showAdded) return; // no-op while the "Added ✓" confirmation is showing
     onAdd();
     setShowAdded(true);
     if (addedTimer.current) clearTimeout(addedTimer.current);
@@ -233,7 +237,19 @@ function ExpandedProductCard({
             +
           </button>
         </div>
-        <Button className="min-h-11 flex-1" size="lg" data-testid="add-to-cart" onClick={handleAdd}>
+        {/* On a successful add the button flips to an inverted "Added ✓" state
+            (white bg + accent text/border) and goes no-op for ~2s, then reverts.
+            No size change → no layout shift. */}
+        <Button
+          className={cn(
+            "min-h-11 flex-1",
+            showAdded && "pointer-events-none border-primary bg-card text-primary"
+          )}
+          size="lg"
+          data-testid="add-to-cart"
+          aria-disabled={showAdded}
+          onClick={handleAdd}
+        >
           {showAdded ? (
             <span
               data-testid="add-feedback"
@@ -293,9 +309,9 @@ function ExpandedProductCard({
 
           {open && (
             <div id={`details-${p.slug}`} data-testid="product-details" className="flex flex-col gap-2">
-              {p.attributes.length > 0 && (
+              {attributes.length > 0 && (
                 <ul className="flex flex-wrap gap-2">
-                  {p.attributes.map((a, i) => {
+                  {attributes.map((a, i) => {
                     const Icon = ATTR_ICON[a.key];
                     return (
                       <li

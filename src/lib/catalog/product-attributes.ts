@@ -34,15 +34,27 @@ export interface AttrTypeDef {
   inputUnit?: string;
   /** Icon name; the UI maps it to a lucide component. */
   icon: AttributeKey;
+  /** Shown on the storefront card? `false` = internal/admin-only (e.g. weight,
+   *  kept for the future shipping calc, never displayed to the customer). */
+  publicVisible: boolean;
 }
 
 export const ATTRIBUTE_REGISTRY: Record<AttributeKey, AttrTypeDef> = {
-  weight: { labelNo: "Vekt", labelEn: "Weight", kind: "num", inputUnit: "g", icon: "weight" },
-  diameter: { labelNo: "Diameter", labelEn: "Diameter", kind: "num", inputUnit: "mm", icon: "diameter" },
-  dimensions: { labelNo: "Mål", labelEn: "Dimensions", kind: "text", icon: "dimensions" },
+  // weight is INTERNAL (admin-entered, future shipping) — never shown publicly.
+  weight: { labelNo: "Vekt", labelEn: "Weight", kind: "num", inputUnit: "g", icon: "weight", publicVisible: false },
+  diameter: { labelNo: "Diameter", labelEn: "Diameter", kind: "num", inputUnit: "mm", icon: "diameter", publicVisible: true },
+  dimensions: { labelNo: "Mål", labelEn: "Dimensions", kind: "text", icon: "dimensions", publicVisible: true },
   // custom labels come from the product; placeholders here are never shown.
-  custom: { labelNo: "", labelEn: "", kind: "text", icon: "custom" },
+  custom: { labelNo: "", labelEn: "", kind: "text", icon: "custom", publicVisible: true },
 };
+
+/**
+ * Customer-facing attributes only — drops internal types (currently `weight`,
+ * which the admin manages but the storefront never displays). Keeps order.
+ */
+export function publicAttributes(attrs: TypedAttribute[]): TypedAttribute[] {
+  return attrs.filter((a) => ATTRIBUTE_REGISTRY[a.key].publicVisible);
+}
 
 function nf(locale: "no" | "en", maxFrac: number): Intl.NumberFormat {
   return new Intl.NumberFormat(locale === "no" ? "nb-NO" : "en-GB", {
