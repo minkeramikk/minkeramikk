@@ -29,8 +29,10 @@ import { encodeSetParam, SET_LINK_BUDGET } from "@/lib/cart/set-code";
 import { SetBadge } from "@/components/ui-domain/set-badge";
 import { InfoPopover } from "@/components/ui-domain/info-popover";
 import {
-  hasProductInfo,
-  type ProductAttribute,
+  hasDetails,
+  attributeLabel,
+  formatAttributeValue,
+  type TypedAttribute,
 } from "@/lib/catalog/product-attributes";
 import type { ResolvedSharedSet } from "./resolve-shared-set";
 import { cn } from "@/lib/utils";
@@ -47,7 +49,7 @@ export interface CeramicProduct {
   pieces: number;
   descriptionNo: string | null;
   descriptionEn: string | null;
-  attributes: ProductAttribute[];
+  attributes: TypedAttribute[];
 }
 
 export interface DesignRef {
@@ -85,7 +87,7 @@ function CeramicOptionCard({
   const name = locale === "no" ? p.nameNo : p.nameEn;
   const price = formatMoney(money(p.priceCents, p.currency), locale);
   const description = locale === "no" ? p.descriptionNo : p.descriptionEn;
-  const showInfo = hasProductInfo(description, p.attributes);
+  const showInfo = hasDetails(description, p.attributes);
   const tInfo = useTranslations("configurator");
 
   return (
@@ -107,9 +109,11 @@ function CeramicOptionCard({
                   {p.attributes.map((a, i) => (
                     <div key={i} className="flex justify-between gap-3 text-xs">
                       <dt className="text-muted-foreground">
-                        {locale === "no" ? a.labelNo : a.labelEn}
+                        {attributeLabel(a, locale)}
                       </dt>
-                      <dd className="font-medium">{a.value}</dd>
+                      <dd className="font-medium">
+                        {formatAttributeValue(a, locale)}
+                      </dd>
                     </div>
                   ))}
                 </dl>
