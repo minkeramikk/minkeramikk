@@ -342,6 +342,44 @@ export type Database = {
         }
         Relationships: []
       }
+      product_attributes: {
+        Row: {
+          created_at: string
+          id: string
+          label_en: string
+          label_no: string
+          product_id: string
+          sort_order: number
+          value: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          label_en: string
+          label_no: string
+          product_id: string
+          sort_order?: number
+          value: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          label_en?: string
+          label_no?: string
+          product_id?: string
+          sort_order?: number
+          value?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_attributes_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       products: {
         Row: {
           currency: string
@@ -357,6 +395,7 @@ export type Database = {
           sort_order: number
           supplier_id: string
           visible: boolean
+          weight_g: number | null
         }
         Insert: {
           currency?: string
@@ -372,6 +411,7 @@ export type Database = {
           sort_order?: number
           supplier_id: string
           visible?: boolean
+          weight_g?: number | null
         }
         Update: {
           currency?: string
@@ -387,6 +427,7 @@ export type Database = {
           sort_order?: number
           supplier_id?: string
           visible?: boolean
+          weight_g?: number | null
         }
         Relationships: [
           {
