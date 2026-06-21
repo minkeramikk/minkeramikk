@@ -237,9 +237,10 @@ describe.skipIf(!hasEnv)("RLS — anon client", () => {
 
     const { error } = await anon.from("product_attributes").insert({
       product_id: existing.data.id,
-      label_no: "Vekt",
-      label_en: "Weight",
-      value: "1,2 kg",
+      key: "custom",
+      label_no: "Farge",
+      label_en: "Colour",
+      value: "Blå",
     });
 
     // RLS blocks the write: an explicit error is expected (the table also does
