@@ -102,6 +102,9 @@ export default async function ConfiguratorPage({
                 currency: p.price.currency,
                 image: p.image,
                 pieces: p.pieces,
+                descriptionNo: p.descriptionNo,
+                descriptionEn: p.descriptionEn,
+                attributes: p.attributes,
               }))}
               design={{
                 slug: selected.slug,

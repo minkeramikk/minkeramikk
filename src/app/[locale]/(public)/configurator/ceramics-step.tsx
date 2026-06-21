@@ -27,6 +27,11 @@ import {
 } from "@/lib/cart/cart";
 import { encodeSetParam, SET_LINK_BUDGET } from "@/lib/cart/set-code";
 import { SetBadge } from "@/components/ui-domain/set-badge";
+import { InfoPopover } from "@/components/ui-domain/info-popover";
+import {
+  hasProductInfo,
+  type ProductAttribute,
+} from "@/lib/catalog/product-attributes";
 import type { ResolvedSharedSet } from "./resolve-shared-set";
 import { cn } from "@/lib/utils";
 
@@ -40,6 +45,9 @@ export interface CeramicProduct {
   image: string | null;
   /** F29: pieces in the product. 1 = single item; >1 = set. */
   pieces: number;
+  descriptionNo: string | null;
+  descriptionEn: string | null;
+  attributes: ProductAttribute[];
 }
 
 export interface DesignRef {
@@ -76,44 +84,75 @@ function CeramicOptionCard({
   const { show, hide, ...preview } = useHoverPreview(ref, Boolean(p.image));
   const name = locale === "no" ? p.nameNo : p.nameEn;
   const price = formatMoney(money(p.priceCents, p.currency), locale);
+  const description = locale === "no" ? p.descriptionNo : p.descriptionEn;
+  const showInfo = hasProductInfo(description, p.attributes);
+  const tInfo = useTranslations("configurator");
 
   return (
     <>
-      <button
-        ref={ref}
-        type="button"
-        role="radio"
-        aria-checked={selected}
-        data-testid={`product-${p.slug}`}
-        onClick={onSelect}
-        onMouseEnter={show}
-        onMouseLeave={hide}
-        onFocus={show}
-        onBlur={hide}
-        className={[
-          "relative flex min-h-11 flex-col items-center gap-1 rounded-sm border-[1.5px] p-2 text-center transition-colors",
-          "focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring",
-          selected
-            ? "border-primary bg-primary/5"
-            : "border-border bg-card hover:border-ring",
-        ].join(" ")}
-      >
-        {/* F29: set marker on the corner — doesn't cover the photo, readable at 390 */}
-        <SetBadge count={p.pieces} className="absolute right-1 top-1 z-10" />
-        {p.image && (
-          // eslint-disable-next-line @next/next/no-img-element -- catalog art from storage
-          <img
-            src={assetUrl(p.image)}
-            alt=""
-            loading="lazy"
-            decoding="async"
-            data-testid="product-thumb"
-            className="h-16 w-16 object-contain"
-          />
+      <div className="relative">
+        {showInfo && (
+          <div className="absolute left-1 top-1 z-20">
+            <InfoPopover
+              ariaLabel={tInfo("productInfo.trigger", { name })}
+              title={tInfo("productInfo.title")}
+              closeLabel={tInfo("productInfo.close")}
+              triggerTestId={`product-info-${p.slug}`}
+            >
+              {description && (
+                <p className="mb-2 text-sm text-foreground">{description}</p>
+              )}
+              {p.attributes.length > 0 && (
+                <dl className="flex flex-col gap-1">
+                  {p.attributes.map((a, i) => (
+                    <div key={i} className="flex justify-between gap-3 text-xs">
+                      <dt className="text-muted-foreground">
+                        {locale === "no" ? a.labelNo : a.labelEn}
+                      </dt>
+                      <dd className="font-medium">{a.value}</dd>
+                    </div>
+                  ))}
+                </dl>
+              )}
+            </InfoPopover>
+          </div>
         )}
-        <span className="text-xs font-medium">{name}</span>
-        <span className="text-xs text-muted-foreground">{price}</span>
-      </button>
+        <button
+          ref={ref}
+          type="button"
+          role="radio"
+          aria-checked={selected}
+          data-testid={`product-${p.slug}`}
+          onClick={onSelect}
+          onMouseEnter={show}
+          onMouseLeave={hide}
+          onFocus={show}
+          onBlur={hide}
+          className={[
+            "relative flex min-h-11 w-full flex-col items-center gap-1 rounded-sm border-[1.5px] p-2 text-center transition-colors",
+            "focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring",
+            selected
+              ? "border-primary bg-primary/5"
+              : "border-border bg-card hover:border-ring",
+          ].join(" ")}
+        >
+          {/* F29: set marker on the corner */}
+          <SetBadge count={p.pieces} className="absolute right-1 top-1 z-10" />
+          {p.image && (
+            // eslint-disable-next-line @next/next/no-img-element -- catalog art from storage
+            <img
+              src={assetUrl(p.image)}
+              alt=""
+              loading="lazy"
+              decoding="async"
+              data-testid="product-thumb"
+              className="h-16 w-16 object-contain"
+            />
+          )}
+          <span className="text-xs font-medium">{name}</span>
+          <span className="text-xs text-muted-foreground">{price}</span>
+        </button>
+      </div>
 
       {p.image && (
         <HoverPreviewCard
