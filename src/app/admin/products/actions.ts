@@ -9,10 +9,9 @@ import { uniqueSlug } from "@/lib/catalog/slug";
 import { piecesSchema } from "@/lib/catalog/pieces";
 import { uploadVariant } from "@/lib/asset-variant-image";
 import {
-  parseAttributesField,
-  buildAttributeRows,
+  parseTypedAttributesField,
+  buildTypedAttributeRows,
 } from "@/lib/catalog/product-attributes";
-import { parseWeightG } from "@/lib/catalog/weight";
 
 export type ProductFormState = { error: string | null };
 
@@ -56,14 +55,9 @@ export async function saveProduct(
     return { error: "Enter a valid price in kr (e.g. 1500 or 1500,50)." };
   }
 
-  const attrs = parseAttributesField(formData.get("attributes"));
+  const attrs = parseTypedAttributesField(formData.get("attributes"));
   if (attrs === null) {
-    return { error: "Check the product details: labels and values can't be empty." };
-  }
-
-  const weightG = parseWeightG(formData.get("weightG"));
-  if (weightG === undefined) {
-    return { error: "Weight must be a whole number of grams (0 or more), or empty." };
+    return { error: "Check the product details: each row needs a valid value." };
   }
 
   const p = parsed.data;
@@ -112,7 +106,6 @@ export async function saveProduct(
     sort_order: p.sortOrder,
     pieces: p.pieces,
     visible: p.visible,
-    weight_g: weightG,
     ...(imagePath ? { image: imagePath } : {}),
   };
 
@@ -139,7 +132,7 @@ export async function saveProduct(
   if (attrs.length > 0) {
     const ins = await supabase
       .from("product_attributes")
-      .insert(buildAttributeRows(productId, attrs));
+      .insert(buildTypedAttributeRows(productId, attrs));
     if (ins.error) return { error: "Could not save the product details." };
   }
 

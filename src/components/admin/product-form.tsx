@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ProductAttributesEditor } from "@/components/admin/product-attributes-editor";
-import type { ProductAttribute } from "@/lib/catalog/product-attributes";
+import type { TypedAttribute } from "@/lib/catalog/product-attributes";
 
 export interface ProductValues {
   id: string;
@@ -26,8 +26,7 @@ export interface ProductValues {
   visible: boolean;
   sortOrder: number;
   pieces: number;
-  attributes: ProductAttribute[];
-  weightG: number | null;
+  attributes: TypedAttribute[];
 }
 
 const initial: ProductFormState = { error: null };
@@ -140,22 +139,6 @@ export function ProductForm({
               1 = single item; &gt;1 = set, shown as &ldquo;Sett · N deler&rdquo;.
             </p>
           </div>
-        </div>
-
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="weightG">Weight (g)</Label>
-          <Input
-            id="weightG"
-            name="weightG"
-            type="number"
-            min={0}
-            step={1}
-            defaultValue={product?.weightG ?? ""}
-            data-testid="product-weight"
-          />
-          <p className="text-xs text-muted-foreground">
-            Optional. Grams, for a future shipping calculation. Not shown to customers.
-          </p>
         </div>
 
         <label className="flex items-center gap-2 text-sm">
