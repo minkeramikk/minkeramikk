@@ -4,6 +4,7 @@ import {
   firstActiveDesign,
   firstActiveDesignWithId,
   secondActiveDesignWithId,
+  firstProductOfDesignSupplier,
   firstSupplier,
   ceramicRadios,
   horizontalOverflow,
@@ -262,6 +263,98 @@ test("R2-1b: mobile @390 — Next-step CTA is reachable without scrolling", asyn
   await cta.click();
   await expect(page).toHaveURL(/[?&]step=2/);
   await expect(page).toHaveURL(/[?&]design=/);
+});
+
+/**
+ * R2-4b: product info — "i" icon + popover at step 3.
+ *
+ * Strategy mirrors R2-2b: drive the admin UI (not a raw DB write) so the
+ * `catalog`-tagged cache is revalidated by `saveProduct`. Add 2 attributes to
+ * a real product, then assert the public step-3 tile shows the "i", the click
+ * opens the popover with the attributes, and the gesture does NOT select the
+ * radio. Always restores (removes the attributes) in `finally`.
+ *
+ * Gate: ADMIN_READY (admin creds + service role).
+ *
+ * Locale note: on `/no` the popover renders Norwegian labels (`Vekt`,
+ * `Materiale`) — NOT the English ones (`Weight`, `Material`). We assert only
+ * the Norwegian labels and locale-independent values (`1,2 kg`, `Stoneware`).
+ */
+test.describe("R2-4b product info", () => {
+  test.skip(!ADMIN_READY, "needs ADMIN_EMAIL + ADMIN_PASSWORD + service role");
+
+  test("step-3 'i' opens a popover with the product attributes, separate from add-to-cart", async ({
+    page,
+  }) => {
+    const design = await firstActiveDesignWithId();
+    const { data: d, error: dErr } = await adminClient()
+      .from("designs")
+      .select("supplier_id")
+      .eq("id", design.id)
+      .single();
+    if (dErr) throw dErr;
+    const product = await firstProductOfDesignSupplier(d!.supplier_id);
+    test.skip(!product, "design's supplier has no visible product to annotate");
+
+    // (a) Admin UI: add 2 attributes to the product, save (revalidates catalog).
+    await loginAdmin(page);
+    await page.goto(`/admin/products/${product!.id}`);
+    await page.getByTestId("product-form").waitFor();
+
+    await page.getByTestId("attribute-add").click();
+    let rows = page.getByTestId("attribute-row");
+    await rows.nth(0).getByTestId("attribute-label-no").fill("Vekt");
+    await rows.nth(0).getByTestId("attribute-label-en").fill("Weight");
+    await rows.nth(0).getByTestId("attribute-value").fill("1,2 kg");
+
+    await page.getByTestId("attribute-add").click();
+    rows = page.getByTestId("attribute-row");
+    await rows.nth(1).getByTestId("attribute-label-no").fill("Materiale");
+    await rows.nth(1).getByTestId("attribute-label-en").fill("Material");
+    await rows.nth(1).getByTestId("attribute-value").fill("Stoneware");
+
+    await page.getByTestId("product-save").click();
+    await expect(page).toHaveURL(/\/admin\/products$/);
+
+    try {
+      // (b) Public step 3 for that design.
+      await page.goto(`/no/configurator?design=${design.slug}&step=3`);
+      await page.getByTestId("ceramics-step").waitFor();
+
+      const tile = page.getByTestId(`product-${product!.slug}`);
+      await expect(tile).toBeVisible();
+      const wasSelected = await tile.getAttribute("aria-checked");
+
+      // AC4: the "i" exists and opens the popover with the attributes.
+      // On /no the popover shows Norwegian labels (Vekt, Materiale), not English.
+      const info = page.getByTestId(`product-info-${product!.slug}`);
+      await expect(info).toBeVisible();
+      await info.click();
+      const popover = page.getByTestId("product-info-popover");
+      await expect(popover).toBeVisible();
+      await expect(popover).toContainText("Vekt");
+      await expect(popover).toContainText("Materiale");
+      await expect(popover).toContainText("1,2 kg");
+      await expect(popover).toContainText("Stoneware");
+
+      // AC5: clicking the "i" did NOT toggle the radio selection.
+      expect(await tile.getAttribute("aria-checked")).toBe(wasSelected);
+
+      // AC5: Esc closes.
+      await page.keyboard.press("Escape");
+      await expect(popover).toBeHidden();
+    } finally {
+      // Restore: remove the attributes via the admin UI (revalidates catalog).
+      await page.goto(`/admin/products/${product!.id}`);
+      await page.getByTestId("product-form").waitFor();
+      const removeButtons = page.getByTestId("attribute-remove");
+      for (let n = await removeButtons.count(); n > 0; n--) {
+        await page.getByTestId("attribute-remove").first().click();
+      }
+      await page.getByTestId("product-save").click();
+      await expect(page).toHaveURL(/\/admin\/products$/);
+    }
+  });
 });
 
 /**

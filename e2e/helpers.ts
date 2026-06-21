@@ -119,6 +119,27 @@ export async function designWithCode(): Promise<DesignRef> {
   return data as DesignRef;
 }
 
+/**
+ * R2-4b: first visible product of a design's supplier — the product that shows
+ * at step 3 for that design. Returns the id (admin edit URL) + slug (step-3
+ * testid). Null when the supplier has no visible product.
+ */
+export async function firstProductOfDesignSupplier(
+  supplierId: string
+): Promise<{ id: string; slug: string; nameNo: string } | null> {
+  const { data, error } = await adminClient()
+    .from("products")
+    .select("id, slug, name_no, supplier_id, visible, sort_order")
+    .eq("supplier_id", supplierId)
+    .eq("visible", true)
+    .order("sort_order", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+  return { id: data.id, slug: data.slug, nameNo: data.name_no };
+}
+
 /** First supplier (for seeding order items). */
 export async function firstSupplier(): Promise<{ id: string; name: string }> {
   const { data, error } = await adminClient()
