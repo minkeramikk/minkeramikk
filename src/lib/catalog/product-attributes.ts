@@ -1,37 +1,116 @@
 import { z } from "zod";
 
 /**
- * R2-4a — product attributes as DATA (one row per attribute), in one pure
- * place: no React, no DB. Labels are bilingual per product (decision
- * 2026-06-20); `value` is free text (weight stays "1,2 kg" text, not a
- * structured weight_g — out of scope until shipping calc, ADR 0015).
+ * R2-3+R2-4 — TYPED product attributes, in one pure place (no React, no DB).
+ * Known property types live in a code REGISTRY (extensible without a migration);
+ * `custom` keeps a per-product bilingual label. Numeric types carry `valueNum`
+ * (weight in grams, diameter in mm) and format via the registry; text types
+ * carry `value`. The icon is a NAME the UI maps to a lucide component.
  */
 
-/** Cap on a single attribute value (admin form + server share this). */
+export type AttributeKey = "weight" | "diameter" | "dimensions" | "custom";
+
+export const KNOWN_KEYS = ["weight", "diameter", "dimensions", "custom"] as const;
+
+export const ATTR_LABEL_MAX = 40;
 export const ATTR_VALUE_MAX = 120;
 
-export interface ProductAttribute {
-  labelNo: string;
-  labelEn: string;
-  value: string;
+export interface TypedAttribute {
+  key: AttributeKey;
+  /** Only `custom` carries labels; known types take them from the registry. */
+  labelNo: string | null;
+  labelEn: string | null;
+  /** Numeric types: weight=grams, diameter=mm. NULL for text/custom. */
+  valueNum: number | null;
+  /** Text types (dimensions, custom). NULL for numeric. */
+  value: string | null;
 }
 
-const rowSchema = z.object({
-  labelNo: z.string().trim().min(1),
-  labelEn: z.string().trim().min(1),
-  value: z.string().trim().min(1).max(ATTR_VALUE_MAX),
+export interface AttrTypeDef {
+  labelNo: string;
+  labelEn: string;
+  kind: "num" | "text";
+  /** Admin input unit hint for numeric types. */
+  inputUnit?: string;
+  /** Icon name; the UI maps it to a lucide component. */
+  icon: AttributeKey;
+}
+
+export const ATTRIBUTE_REGISTRY: Record<AttributeKey, AttrTypeDef> = {
+  weight: { labelNo: "Vekt", labelEn: "Weight", kind: "num", inputUnit: "g", icon: "weight" },
+  diameter: { labelNo: "Diameter", labelEn: "Diameter", kind: "num", inputUnit: "mm", icon: "diameter" },
+  dimensions: { labelNo: "Mål", labelEn: "Dimensions", kind: "text", icon: "dimensions" },
+  // custom labels come from the product; placeholders here are never shown.
+  custom: { labelNo: "", labelEn: "", kind: "text", icon: "custom" },
+};
+
+function nf(locale: "no" | "en", maxFrac: number): Intl.NumberFormat {
+  return new Intl.NumberFormat(locale === "no" ? "nb-NO" : "en-GB", {
+    maximumFractionDigits: maxFrac,
+  });
+}
+
+/** Display label in the locale (registry for known, per-product for custom). */
+export function attributeLabel(a: TypedAttribute, locale: "no" | "en"): string {
+  if (a.key === "custom") return (locale === "no" ? a.labelNo : a.labelEn) ?? "";
+  const def = ATTRIBUTE_REGISTRY[a.key];
+  return locale === "no" ? def.labelNo : def.labelEn;
+}
+
+/** Display value: weight g→kg, diameter mm→"Ø …cm", text as-is. */
+export function formatAttributeValue(a: TypedAttribute, locale: "no" | "en"): string {
+  switch (a.key) {
+    case "weight":
+      return a.valueNum == null ? "" : `${nf(locale, 2).format(a.valueNum / 1000)} kg`;
+    case "diameter":
+      return a.valueNum == null ? "" : `Ø ${nf(locale, 1).format(a.valueNum / 10)} cm`;
+    default:
+      return a.value ?? "";
+  }
+}
+
+/** Up to `max` teaser specs (diameter, then weight) shown on the closed card. */
+const TEASER_PRIORITY: AttributeKey[] = ["diameter", "weight"];
+export function teaserAttributes(attrs: TypedAttribute[], max = 2): TypedAttribute[] {
+  const out: TypedAttribute[] = [];
+  for (const k of TEASER_PRIORITY) {
+    const f = attrs.find((a) => a.key === k);
+    if (f) out.push(f);
+    if (out.length >= max) break;
+  }
+  return out;
+}
+
+/** Show the details affordance only when there's something to show. */
+export function hasDetails(
+  description: string | null | undefined,
+  attrs: TypedAttribute[]
+): boolean {
+  return Boolean(description?.trim()) || attrs.length > 0;
+}
+
+const rawRowSchema = z.object({
+  key: z.string(),
+  labelNo: z.string().optional(),
+  labelEn: z.string().optional(),
+  value: z.string().optional(),
+  valueNum: z.union([z.number(), z.string()]).optional().nullable(),
 });
 
-export const attributesSchema = z.array(rowSchema);
+function coerceInt(v: unknown): number | null {
+  if (typeof v === "number") return Number.isInteger(v) && v >= 0 ? v : null;
+  if (typeof v === "string" && /^\d+$/.test(v.trim())) return Number(v.trim());
+  return null;
+}
 
 /**
- * Parse the form's single JSON `attributes` field. `[]` for an absent/empty
- * field; `null` when the JSON is malformed or any row is invalid (the caller
- * turns `null` into a user-facing error).
+ * Parse the form's single JSON `attributes` field into validated typed rows.
+ * `[]` for empty/absent; `null` when the JSON is malformed or any row is invalid
+ * (unknown key, missing/invalid numeric value, empty text, custom missing label).
  */
-export function parseAttributesField(
+export function parseTypedAttributesField(
   raw: FormDataEntryValue | null
-): ProductAttribute[] | null {
+): TypedAttribute[] | null {
   if (raw == null || raw === "") return [];
   let json: unknown;
   try {
@@ -39,40 +118,73 @@ export function parseAttributesField(
   } catch {
     return null;
   }
-  const parsed = attributesSchema.safeParse(json);
-  return parsed.success ? parsed.data : null;
+  const arr = z.array(rawRowSchema).safeParse(json);
+  if (!arr.success) return null;
+
+  const out: TypedAttribute[] = [];
+  for (const r of arr.data) {
+    if (!(KNOWN_KEYS as readonly string[]).includes(r.key)) return null;
+    const key = r.key as AttributeKey;
+    const def = ATTRIBUTE_REGISTRY[key];
+
+    if (def.kind === "num") {
+      const n = coerceInt(r.valueNum);
+      if (n === null) return null;
+      out.push({ key, labelNo: null, labelEn: null, valueNum: n, value: null });
+    } else if (key === "custom") {
+      const labelNo = (r.labelNo ?? "").trim();
+      const labelEn = (r.labelEn ?? "").trim();
+      const value = (r.value ?? "").trim();
+      if (!labelNo || !labelEn || !value) return null;
+      if (labelNo.length > ATTR_LABEL_MAX || labelEn.length > ATTR_LABEL_MAX) return null;
+      if (value.length > ATTR_VALUE_MAX) return null;
+      out.push({ key, labelNo, labelEn, valueNum: null, value });
+    } else {
+      // dimensions (known text)
+      const value = (r.value ?? "").trim();
+      if (!value || value.length > ATTR_VALUE_MAX) return null;
+      out.push({ key, labelNo: null, labelEn: null, valueNum: null, value });
+    }
+  }
+  return out;
 }
 
 /** DB rows for an INSERT, sort_order = position (replace semantics). */
-export function buildAttributeRows(
-  productId: string,
-  attrs: ProductAttribute[]
-) {
+export function buildTypedAttributeRows(productId: string, attrs: TypedAttribute[]) {
   return attrs.map((a, i) => ({
     product_id: productId,
+    key: a.key,
     label_no: a.labelNo,
     label_en: a.labelEn,
     value: a.value,
+    value_num: a.valueNum,
     sort_order: i,
   }));
 }
 
-/** Embedded DB rows → ordered camelCase attributes (defensive re-sort). */
-export function mapAttributes(
+/** Embedded DB rows → ordered typed attributes (defensive re-sort). */
+export function mapTypedAttributes(
   rows:
-    | { label_no: string; label_en: string; value: string; sort_order: number }[]
+    | {
+        key: string;
+        label_no: string | null;
+        label_en: string | null;
+        value: string | null;
+        value_num: number | null;
+        sort_order: number;
+      }[]
     | null
-): ProductAttribute[] {
+): TypedAttribute[] {
   return (rows ?? [])
     .slice()
     .sort((a, b) => a.sort_order - b.sort_order)
-    .map((r) => ({ labelNo: r.label_no, labelEn: r.label_en, value: r.value }));
-}
-
-/** Show the "i" icon only when there is something to show (no empty popover). */
-export function hasProductInfo(
-  description: string | null | undefined,
-  attributes: ProductAttribute[]
-): boolean {
-  return Boolean(description?.trim()) || attributes.length > 0;
+    .map((r) => ({
+      key: (KNOWN_KEYS as readonly string[]).includes(r.key)
+        ? (r.key as AttributeKey)
+        : "custom",
+      labelNo: r.label_no,
+      labelEn: r.label_en,
+      valueNum: r.value_num,
+      value: r.value,
+    }));
 }
