@@ -126,10 +126,8 @@
       "helper": "Doesn't change the preview — it travels to the workshop with your order.",
       "counter": "{count}/250"
     },
-    "productInfo": {
-      "trigger": "Info about {name}",
-      "title": "Product details",
-      "close": "Close"
+    "productCard": {
+      "details": "Product details"
     }
   },
   "orderForm": {

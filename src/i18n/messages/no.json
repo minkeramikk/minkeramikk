@@ -125,10 +125,8 @@
       "helper": "Endrer ikke forhåndsvisningen — følger bestillingen til verkstedet.",
       "counter": "{count}/250"
     },
-    "productInfo": {
-      "trigger": "Info om {name}",
-      "title": "Produktdetaljer",
-      "close": "Lukk"
+    "productCard": {
+      "details": "Produktdetaljer"
     }
   },
   "orderForm": {

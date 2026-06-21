@@ -27,13 +27,16 @@ import {
 } from "@/lib/cart/cart";
 import { encodeSetParam, SET_LINK_BUDGET } from "@/lib/cart/set-code";
 import { SetBadge } from "@/components/ui-domain/set-badge";
-import { InfoPopover } from "@/components/ui-domain/info-popover";
 import {
   hasDetails,
   attributeLabel,
   formatAttributeValue,
+  teaserAttributes,
   type TypedAttribute,
+  type AttributeKey,
 } from "@/lib/catalog/product-attributes";
+import { fullRowInsertIndex } from "@/lib/configurator/grid-rows";
+import { Weight, Circle, Ruler, Tag, ChevronDown } from "lucide-react";
 import type { ResolvedSharedSet } from "./resolve-shared-set";
 import { cn } from "@/lib/utils";
 
@@ -64,12 +67,17 @@ function thumbHex(line: CartLine): string | undefined {
   return line.configSnapshot?.selections.find((s) => s.hex)?.hex ?? undefined;
 }
 
+const ATTR_ICON: Record<AttributeKey, typeof Weight> = {
+  weight: Weight,
+  diameter: Circle,
+  dimensions: Ruler,
+  custom: Tag,
+};
+
 /**
- * R1-FB4 — step-3 ceramic card with the shared F13 hover/focus preview:
- * bigger product photo + name + price. Desktop-only (hoverCapable inside the
- * hook); on touch "see it bigger" stays with the cart-row expansion (CA-3).
- * The popup reuses the SAME products@256 variant URL as the thumb (F26):
- * browser-cache hit, masters never leave Storage.
+ * R2-3+R2-4 — compact step-3 ceramic card with the shared F13 hover/focus
+ * preview. Selecting a card opens the `ExpandedProductCard` full-row panel
+ * below the row — no "i" button, no modal.
  */
 function CeramicOptionCard({
   product: p,
@@ -86,95 +94,48 @@ function CeramicOptionCard({
   const { show, hide, ...preview } = useHoverPreview(ref, Boolean(p.image));
   const name = locale === "no" ? p.nameNo : p.nameEn;
   const price = formatMoney(money(p.priceCents, p.currency), locale);
-  const description = locale === "no" ? p.descriptionNo : p.descriptionEn;
-  const showInfo = hasDetails(description, p.attributes);
-  const tInfo = useTranslations("configurator");
 
   return (
     <>
-      <div className="relative">
-        {showInfo && (
-          <div className="absolute left-1 top-1 z-20">
-            <InfoPopover
-              ariaLabel={tInfo("productInfo.trigger", { name })}
-              title={tInfo("productInfo.title")}
-              closeLabel={tInfo("productInfo.close")}
-              triggerTestId={`product-info-${p.slug}`}
-            >
-              {description && (
-                <p className="mb-2 text-sm text-foreground">{description}</p>
-              )}
-              {p.attributes.length > 0 && (
-                <dl className="flex flex-col gap-1">
-                  {p.attributes.map((a, i) => (
-                    <div key={i} className="flex justify-between gap-3 text-xs">
-                      <dt className="text-muted-foreground">
-                        {attributeLabel(a, locale)}
-                      </dt>
-                      <dd className="font-medium">
-                        {formatAttributeValue(a, locale)}
-                      </dd>
-                    </div>
-                  ))}
-                </dl>
-              )}
-            </InfoPopover>
-          </div>
-        )}
-        <button
-          ref={ref}
-          type="button"
-          role="radio"
-          aria-checked={selected}
-          data-testid={`product-${p.slug}`}
-          onClick={onSelect}
-          onMouseEnter={show}
-          onMouseLeave={hide}
-          onFocus={show}
-          onBlur={hide}
-          className={[
-            "relative flex min-h-11 w-full flex-col items-center gap-1 rounded-sm border-[1.5px] p-2 text-center transition-colors",
-            "focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring",
-            selected
-              ? "border-primary bg-primary/5"
-              : "border-border bg-card hover:border-ring",
-          ].join(" ")}
-        >
-          {/* F29: set marker on the corner */}
-          <SetBadge count={p.pieces} className="absolute right-1 top-1 z-10" />
-          {p.image && (
-            // eslint-disable-next-line @next/next/no-img-element -- catalog art from storage
-            <img
-              src={assetUrl(p.image)}
-              alt=""
-              loading="lazy"
-              decoding="async"
-              data-testid="product-thumb"
-              className="h-16 w-16 object-contain"
-            />
-          )}
-          <span className="text-xs font-medium">{name}</span>
-          <span className="text-xs text-muted-foreground">{price}</span>
-        </button>
-      </div>
-
-      {p.image && (
-        <HoverPreviewCard
-          state={{ show, hide, ...preview }}
-          testId="product-preview"
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element -- catalog art from storage */}
+      <button
+        ref={ref}
+        type="button"
+        role="radio"
+        aria-checked={selected}
+        data-testid={`product-${p.slug}`}
+        onClick={onSelect}
+        onMouseEnter={show}
+        onMouseLeave={hide}
+        onFocus={show}
+        onBlur={hide}
+        className={[
+          "relative flex min-h-11 w-full flex-col items-center gap-1 rounded-sm border-[1.5px] p-2 text-center transition-colors",
+          "focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring",
+          selected ? "border-primary bg-primary/5" : "border-border bg-card hover:border-ring",
+        ].join(" ")}
+      >
+        <SetBadge count={p.pieces} className="absolute right-1 top-1 z-10" />
+        {p.image && (
+          // eslint-disable-next-line @next/next/no-img-element -- catalog art from storage
           <img
             src={assetUrl(p.image)}
-            alt={name}
-            className="size-44 object-contain"
+            alt=""
+            loading="lazy"
+            decoding="async"
+            data-testid="product-thumb"
+            className="h-16 w-16 object-contain"
           />
-          <span className="mt-1 block text-center text-xs font-medium">
-            {name}
-          </span>
-          <span className="block text-center text-xs text-muted-foreground">
-            {price}
-          </span>
+        )}
+        <span className="text-xs font-medium">{name}</span>
+        <span className="text-xs text-muted-foreground">{price}</span>
+      </button>
+
+      {p.image && (
+        <HoverPreviewCard state={{ show, hide, ...preview }} testId="product-preview">
+          {/* eslint-disable-next-line @next/next/no-img-element -- catalog art from storage */}
+          <img src={assetUrl(p.image)} alt={name} className="size-44 object-contain" />
+          <span className="mt-1 block text-center text-xs font-medium">{name}</span>
+          <span className="block text-center text-xs text-muted-foreground">{price}</span>
           {p.pieces > 1 && (
             <span className="mt-1 flex justify-center">
               <SetBadge count={p.pieces} />
@@ -183,6 +144,138 @@ function CeramicOptionCard({
         </HoverPreviewCard>
       )}
     </>
+  );
+}
+
+/**
+ * R2-3+R2-4 — full-row expanded panel rendered after the selected card's row.
+ * Contains qty stepper + Add anchored at top, aria-live confirmation, teaser
+ * specs when closed, and a chevron "Product details" toggle for typed spec
+ * chips + description.
+ */
+function ExpandedProductCard({
+  product: p,
+  locale,
+  qty,
+  onQty,
+  onAdd,
+  justAdded,
+  tCart,
+  tCfg,
+}: {
+  product: CeramicProduct;
+  locale: "no" | "en";
+  qty: number;
+  onQty: (next: number) => void;
+  onAdd: () => void;
+  justAdded: boolean;
+  tCart: (k: string) => string;
+  tCfg: (k: string) => string;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [open, setOpen] = useState(false);
+  const description = locale === "no" ? p.descriptionNo : p.descriptionEn;
+  const details = hasDetails(description, p.attributes);
+  const teaser = teaserAttributes(p.attributes);
+
+  // a11y: bring the panel into view on (re)selection, but never yank focus.
+  useEffect(() => {
+    ref.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [p.id]);
+
+  return (
+    <div
+      ref={ref}
+      data-testid="expanded-card"
+      style={{ gridColumn: "1 / -1" }}
+      className="flex flex-col gap-3 rounded-md border border-primary/50 bg-primary/5 p-3"
+    >
+      {/* Add — primary, anchored at the top so opening details never scrolls it away */}
+      <div className="flex items-center gap-3">
+        <div className="flex items-center rounded-sm border border-border bg-card">
+          <button
+            type="button"
+            aria-label="-"
+            data-testid="qty-dec"
+            onClick={() => onQty(Math.max(1, qty - 1))}
+            className="flex size-11 items-center justify-center text-lg"
+          >
+            −
+          </button>
+          <span data-testid="qty-value" className="w-10 text-center text-sm tabular-nums">
+            {qty}
+          </span>
+          <button
+            type="button"
+            aria-label="+"
+            data-testid="qty-inc"
+            onClick={() => onQty(qty + 1)}
+            className="flex size-11 items-center justify-center text-lg"
+          >
+            +
+          </button>
+        </div>
+        <Button className="min-h-11 flex-1" size="lg" data-testid="add-to-cart" onClick={onAdd}>
+          {tCart("add")}
+        </Button>
+      </div>
+
+      <p aria-live="polite" className="min-h-0 text-sm text-muted-foreground">
+        {justAdded ? tCart("added") : ""}
+      </p>
+
+      {details && (
+        <>
+          {/* teaser: 1–2 key specs visible while details are closed */}
+          {!open && teaser.length > 0 && (
+            <p data-testid="spec-teaser" className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+              {teaser.map((a, i) => (
+                <span key={i}>{formatAttributeValue(a, locale)}</span>
+              ))}
+            </p>
+          )}
+
+          <button
+            type="button"
+            data-testid="details-toggle"
+            aria-expanded={open}
+            aria-controls={`details-${p.slug}`}
+            onClick={() => setOpen((o) => !o)}
+            className="flex min-h-11 items-center gap-1 self-start text-sm font-medium text-foreground"
+          >
+            {tCfg("productCard.details")}
+            <ChevronDown
+              className={cn("size-4 transition-transform", open && "rotate-180")}
+              aria-hidden
+            />
+          </button>
+
+          {open && (
+            <div id={`details-${p.slug}`} data-testid="product-details" className="flex flex-col gap-3">
+              {p.attributes.length > 0 && (
+                <ul className="flex flex-wrap gap-2">
+                  {p.attributes.map((a, i) => {
+                    const Icon = ATTR_ICON[a.key];
+                    return (
+                      <li
+                        key={i}
+                        data-testid="spec-chip"
+                        className="flex items-center gap-1.5 rounded-sm border border-border bg-card px-2 py-1 text-xs"
+                      >
+                        <Icon className="size-3.5 text-muted-foreground" aria-hidden />
+                        <span className="text-muted-foreground">{attributeLabel(a, locale)}</span>
+                        <span className="font-medium">{formatAttributeValue(a, locale)}</span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+              {description && <p className="text-sm text-foreground">{description}</p>}
+            </div>
+          )}
+        </>
+      )}
+    </div>
   );
 }
 
@@ -250,6 +343,16 @@ export function CeramicsStep({
     | { kind: "loaded"; designs: number; pieces: number; unavailable: number }
   >(null);
   const setConsumedRef = useRef(false);
+
+  // R2-3: live column count (2 under sm, 3 from sm) → where the full-row panel goes.
+  const [cols, setCols] = useState(2);
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 640px)");
+    const apply = () => setCols(mq.matches ? 3 : 2);
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, []);
 
   const selected = products.find((p) => p.id === selectedId) ?? null;
 
@@ -839,82 +942,39 @@ export function CeramicsStep({
             aria-label={t("title")}
             className="grid grid-cols-2 gap-2.5 sm:grid-cols-3"
           >
-            {products.map((p) => (
-              <CeramicOptionCard
-                key={p.id}
-                product={p}
-                selected={p.id === selectedId}
-                locale={locale}
-                onSelect={() => setSelectedId(p.id)}
-              />
-            ))}
+            {(() => {
+              const selectedIndex = products.findIndex((p) => p.id === selectedId);
+              const insertAfter = fullRowInsertIndex(selectedIndex, cols, products.length);
+              const nodes: React.ReactNode[] = [];
+              products.forEach((p, i) => {
+                nodes.push(
+                  <CeramicOptionCard
+                    key={p.id}
+                    product={p}
+                    selected={p.id === selectedId}
+                    locale={locale}
+                    onSelect={() => setSelectedId(p.id)}
+                  />
+                );
+                if (i === insertAfter && selected) {
+                  nodes.push(
+                    <ExpandedProductCard
+                      key={`exp-${selected.id}`}
+                      product={selected}
+                      locale={locale}
+                      qty={qty}
+                      onQty={setQty}
+                      onAdd={addSelected}
+                      justAdded={justAdded}
+                      tCart={t}
+                      tCfg={tc}
+                    />
+                  );
+                }
+              });
+              return nodes;
+            })()}
           </div>
-
-          {/* quantity + add */}
-          <div className="mt-5 flex items-center gap-3">
-            <div className="flex items-center rounded-sm border">
-              <button
-                type="button"
-                aria-label="-"
-                data-testid="qty-dec"
-                onClick={() => setQty((q) => Math.max(1, q - 1))}
-                className="flex size-11 items-center justify-center text-lg"
-              >
-                −
-              </button>
-              <span
-                data-testid="qty-value"
-                className="w-10 text-center text-sm tabular-nums"
-              >
-                {qty}
-              </span>
-              <button
-                type="button"
-                aria-label="+"
-                data-testid="qty-inc"
-                onClick={() => setQty((q) => q + 1)}
-                className="flex size-11 items-center justify-center text-lg"
-              >
-                +
-              </button>
-            </div>
-            <Button
-              className="min-h-11 flex-1"
-              size="lg"
-              disabled={!selected}
-              data-testid="add-to-cart"
-              onClick={addSelected}
-            >
-              {t("add")}
-            </Button>
-          </div>
-
-          {/* add feedback + "start a new design" CTA (QA-fix #2): returns to
-              step 1 keeping the current design + options in the URL; the cart
-              (with the item just added) is left untouched. */}
-          {justAdded && (
-            <div
-              data-testid="add-feedback-block"
-              className="mt-2 flex flex-col items-start gap-2"
-            >
-              <p
-                data-testid="add-feedback"
-                aria-live="polite"
-                className="text-sm text-muted-foreground"
-              >
-                {t("added")}
-              </p>
-              <Button
-                variant="outline"
-                size="lg"
-                className="min-h-11"
-                data-testid="new-design-cta"
-                onClick={() => goToStep(1)}
-              >
-                {tc("newDesign")} →
-              </Button>
-            </div>
-          )}
 
           {/* Mobile: docked cart section (below selector, above sticky bar) */}
           <div className="mt-6 md:hidden" data-testid="mobile-cart-section">
