@@ -315,9 +315,8 @@ test.describe("R2-3+R2-4 expandable card", () => {
       const expanded = page.getByTestId("expanded-card");
       await expect(expanded).toBeVisible();
 
-      // Chevron closed by default → open → typed spec chips + values.
-      await expect(page.getByTestId("product-details")).toHaveCount(0);
-      await page.getByTestId("details-toggle").click();
+      // R2 fix: details start OPEN on select → typed spec chips + values are
+      // visible immediately, no toggle needed (the chevron can still collapse).
       const details = page.getByTestId("product-details");
       await expect(details).toBeVisible();
       await expect(details).toContainText("Ø 22");
@@ -332,6 +331,12 @@ test.describe("R2-3+R2-4 expandable card", () => {
       const linesBefore = await allCartLines.count();
       await expanded.getByTestId("add-to-cart").click();
       await expect(allCartLines).toHaveCount(linesBefore + 2);
+
+      // R2 fix: the "added" confirmation appears right after the add, then
+      // auto-dismisses (~2.5s) — it must NOT be a permanent default.
+      const feedback = expanded.getByTestId("add-feedback");
+      await expect(feedback).toBeVisible();
+      await expect(feedback).toBeHidden({ timeout: 4000 });
     } finally {
       // Restore: remove the attributes via the admin UI.
       await page.goto(`/admin/products/${product!.id}`);

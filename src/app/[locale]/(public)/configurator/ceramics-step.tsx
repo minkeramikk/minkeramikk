@@ -36,7 +36,7 @@ import {
   type AttributeKey,
 } from "@/lib/catalog/product-attributes";
 import { fullRowInsertIndex } from "@/lib/configurator/grid-rows";
-import { Weight, Circle, Ruler, Tag, ChevronDown } from "lucide-react";
+import { Weight, Circle, Ruler, Tag, ChevronDown, Check } from "lucide-react";
 import type { ResolvedSharedSet } from "./resolve-shared-set";
 import { cn } from "@/lib/utils";
 
@@ -159,7 +159,6 @@ function ExpandedProductCard({
   qty,
   onQty,
   onAdd,
-  justAdded,
   tCart,
   tCfg,
 }: {
@@ -168,15 +167,34 @@ function ExpandedProductCard({
   qty: number;
   onQty: (next: number) => void;
   onAdd: () => void;
-  justAdded: boolean;
   tCart: (k: string) => string;
   tCfg: (k: string) => string;
 }) {
   const ref = useRef<HTMLDivElement>(null);
-  const [open, setOpen] = useState(false);
+  // R2 fix: details start OPEN once a product is selected (chevron can collapse).
+  const [open, setOpen] = useState(true);
+  // R2 fix: the "added" confirmation shows ONLY right after a successful add,
+  // then auto-dismisses (it used to render by default on every card).
+  const [showAdded, setShowAdded] = useState(false);
+  const addedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const description = locale === "no" ? p.descriptionNo : p.descriptionEn;
   const details = hasDetails(description, p.attributes);
   const teaser = teaserAttributes(p.attributes);
+
+  function handleAdd() {
+    onAdd();
+    setShowAdded(true);
+    if (addedTimer.current) clearTimeout(addedTimer.current);
+    addedTimer.current = setTimeout(() => setShowAdded(false), 2500);
+  }
+
+  // Clear the dismiss timer on unmount — and thus on selection change, since
+  // the panel remounts per selected product (key=`exp-<id>`).
+  useEffect(() => {
+    return () => {
+      if (addedTimer.current) clearTimeout(addedTimer.current);
+    };
+  }, []);
 
   // a11y: bring the panel into view on (re)selection, but never yank focus.
   useEffect(() => {
@@ -215,24 +233,45 @@ function ExpandedProductCard({
             +
           </button>
         </div>
-        <Button className="min-h-11 flex-1" size="lg" data-testid="add-to-cart" onClick={onAdd}>
+        <Button className="min-h-11 flex-1" size="lg" data-testid="add-to-cart" onClick={handleAdd}>
           {tCart("add")}
         </Button>
       </div>
 
-      <p aria-live="polite" className="min-h-0 text-sm text-muted-foreground">
-        {justAdded ? tCart("added") : ""}
-      </p>
+      {/* Reserve a constant-height row so the chip appearing/dismissing never
+          shifts the teaser/chevron below. aria-live announces it even though it
+          auto-dismisses; the fade-in respects prefers-reduced-motion. */}
+      <div aria-live="polite" className="flex h-6 items-center">
+        {showAdded && (
+          <span
+            data-testid="add-feedback"
+            className="inline-flex items-center gap-1 rounded-full border border-primary/40 bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary duration-300 animate-in fade-in-0 slide-in-from-bottom-1 motion-reduce:animate-none"
+          >
+            <Check className="size-3.5" aria-hidden />
+            {tCart("added")}
+          </span>
+        )}
+      </div>
 
       {details && (
         <>
-          {/* teaser: 1–2 key specs visible while details are closed */}
+          {/* teaser: 1–2 key specs as chips (icon + value) while details are
+              closed — same chip language as the open spec list, not run-on text */}
           {!open && teaser.length > 0 && (
-            <p data-testid="spec-teaser" className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
-              {teaser.map((a, i) => (
-                <span key={i}>{formatAttributeValue(a, locale)}</span>
-              ))}
-            </p>
+            <ul data-testid="spec-teaser" className="flex flex-wrap gap-2">
+              {teaser.map((a, i) => {
+                const Icon = ATTR_ICON[a.key];
+                return (
+                  <li
+                    key={i}
+                    className="flex items-center gap-1.5 rounded-sm border border-border bg-card px-2 py-1 text-xs"
+                  >
+                    <Icon className="size-3.5 text-muted-foreground" aria-hidden />
+                    <span className="font-medium">{formatAttributeValue(a, locale)}</span>
+                  </li>
+                );
+              })}
+            </ul>
           )}
 
           <button
@@ -323,7 +362,6 @@ export function CeramicsStep({
     products[0]?.id ?? null
   );
   const [qty, setQty] = useState(1);
-  const [justAdded, setJustAdded] = useState(false);
   /** Desktop + mobile inline: expands the order form in the cart panel. */
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -386,7 +424,6 @@ export function CeramicsStep({
       pieces: selected.pieces,
     });
     setQty(1);
-    setJustAdded(true);
   }
 
   // ── CA-3 C: share the basket as a stateless link (?step=3&set=…) ──
@@ -965,7 +1002,6 @@ export function CeramicsStep({
                       qty={qty}
                       onQty={setQty}
                       onAdd={addSelected}
-                      justAdded={justAdded}
                       tCart={t}
                       tCfg={tc}
                     />
