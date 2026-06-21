@@ -185,7 +185,7 @@ function ExpandedProductCard({
     onAdd();
     setShowAdded(true);
     if (addedTimer.current) clearTimeout(addedTimer.current);
-    addedTimer.current = setTimeout(() => setShowAdded(false), 2500);
+    addedTimer.current = setTimeout(() => setShowAdded(false), 2000);
   }
 
   // Clear the dismiss timer on unmount — and thus on selection change, since
@@ -206,7 +206,7 @@ function ExpandedProductCard({
       ref={ref}
       data-testid="expanded-card"
       style={{ gridColumn: "1 / -1" }}
-      className="flex flex-col gap-3 rounded-md border border-primary/50 bg-primary/5 p-3"
+      className="flex flex-col gap-2 rounded-md border border-primary/50 bg-primary/5 p-3"
     >
       {/* Add — primary, anchored at the top so opening details never scrolls it away */}
       <div className="flex items-center gap-3">
@@ -234,24 +234,26 @@ function ExpandedProductCard({
           </button>
         </div>
         <Button className="min-h-11 flex-1" size="lg" data-testid="add-to-cart" onClick={handleAdd}>
-          {tCart("add")}
+          {showAdded ? (
+            <span
+              data-testid="add-feedback"
+              className="inline-flex items-center gap-1.5 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-200"
+            >
+              <Check className="size-4" aria-hidden />
+              {tCart("added")}
+            </span>
+          ) : (
+            tCart("add")
+          )}
         </Button>
       </div>
 
-      {/* Reserve a constant-height row so the chip appearing/dismissing never
-          shifts the teaser/chevron below. aria-live announces it even though it
-          auto-dismisses; the fade-in respects prefers-reduced-motion. */}
-      <div aria-live="polite" className="flex h-6 items-center">
-        {showAdded && (
-          <span
-            data-testid="add-feedback"
-            className="inline-flex items-center gap-1 rounded-full border border-primary/40 bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary duration-300 animate-in fade-in-0 slide-in-from-bottom-1 motion-reduce:animate-none"
-          >
-            <Check className="size-3.5" aria-hidden />
-            {tCart("added")}
-          </span>
-        )}
-      </div>
+      {/* The confirmation lives ON the Add button (no extra space, no layout
+          shift). This sr-only live region gives the screen reader the same
+          polite announcement while occupying zero layout. */}
+      <span className="sr-only" aria-live="polite">
+        {showAdded ? tCart("added") : ""}
+      </span>
 
       {details && (
         <>
@@ -290,7 +292,7 @@ function ExpandedProductCard({
           </button>
 
           {open && (
-            <div id={`details-${p.slug}`} data-testid="product-details" className="flex flex-col gap-3">
+            <div id={`details-${p.slug}`} data-testid="product-details" className="flex flex-col gap-2">
               {p.attributes.length > 0 && (
                 <ul className="flex flex-wrap gap-2">
                   {p.attributes.map((a, i) => {
