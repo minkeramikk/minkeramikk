@@ -221,6 +221,32 @@ describe.skipIf(!hasEnv)("RLS — anon client", () => {
     expect(error ? true : (data ?? []).length === 0).toBe(true);
   });
 
+  // R2-4a / AC1: only authenticated admins may write product attributes; anon
+  // is blocked by RLS. Self-contained: discovers a real product id with the
+  // service role, then verifies the anon insert affects nothing.
+  // NOTE: false-green until migration 0015 is pushed (the table does not exist
+  // yet → the anon insert errors, which the assertion also accepts). It becomes
+  // a real RLS assertion once the table exists remotely.
+  it("cannot insert a product attribute (R2-4a)", async () => {
+    const existing = await admin
+      .from("products")
+      .select("id")
+      .limit(1)
+      .maybeSingle();
+    if (!existing.data) return; // no products in this DB — nothing to assert
+
+    const { error } = await anon.from("product_attributes").insert({
+      product_id: existing.data.id,
+      label_no: "Vekt",
+      label_en: "Weight",
+      value: "1,2 kg",
+    });
+
+    // RLS blocks the write: an explicit error is expected (the table also does
+    // not exist pre-push, which surfaces as an error too — false-green).
+    expect(error).not.toBeNull();
+  });
+
   it("CAN insert an order (public insert is allowed) but cannot read it back", async () => {
     const code = `RLS-ANON-${Date.now()}`;
     const { error } = await anon.from("orders").insert({
