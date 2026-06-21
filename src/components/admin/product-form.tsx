@@ -11,6 +11,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { ProductAttributesEditor } from "@/components/admin/product-attributes-editor";
+import type { ProductAttribute } from "@/lib/catalog/product-attributes";
 
 export interface ProductValues {
   id: string;
@@ -24,6 +26,8 @@ export interface ProductValues {
   visible: boolean;
   sortOrder: number;
   pieces: number;
+  attributes: ProductAttribute[];
+  weightG: number | null;
 }
 
 const initial: ProductFormState = { error: null };
@@ -138,6 +142,22 @@ export function ProductForm({
           </div>
         </div>
 
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="weightG">Weight (g)</Label>
+          <Input
+            id="weightG"
+            name="weightG"
+            type="number"
+            min={0}
+            step={1}
+            defaultValue={product?.weightG ?? ""}
+            data-testid="product-weight"
+          />
+          <p className="text-xs text-muted-foreground">
+            Optional. Grams, for a future shipping calculation. Not shown to customers.
+          </p>
+        </div>
+
         <label className="flex items-center gap-2 text-sm">
           <input
             type="checkbox"
@@ -148,6 +168,10 @@ export function ProductForm({
           />
           Visible in the shop
         </label>
+
+        <div className="border-t border-border pt-4">
+          <ProductAttributesEditor initial={product?.attributes ?? []} />
+        </div>
 
         {state.error && (
           <p data-testid="product-error" role="alert" className="text-sm text-destructive">

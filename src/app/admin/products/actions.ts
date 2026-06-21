@@ -8,6 +8,11 @@ import { parsePriceToCents } from "@/lib/money/parse";
 import { uniqueSlug } from "@/lib/catalog/slug";
 import { piecesSchema } from "@/lib/catalog/pieces";
 import { uploadVariant } from "@/lib/asset-variant-image";
+import {
+  parseAttributesField,
+  buildAttributeRows,
+} from "@/lib/catalog/product-attributes";
+import { parseWeightG } from "@/lib/catalog/weight";
 
 export type ProductFormState = { error: string | null };
 
@@ -49,6 +54,16 @@ export async function saveProduct(
   const priceCents = parsePriceToCents(String(formData.get("price") ?? ""));
   if (priceCents === null) {
     return { error: "Enter a valid price in kr (e.g. 1500 or 1500,50)." };
+  }
+
+  const attrs = parseAttributesField(formData.get("attributes"));
+  if (attrs === null) {
+    return { error: "Check the product details: labels and values can't be empty." };
+  }
+
+  const weightG = parseWeightG(formData.get("weightG"));
+  if (weightG === undefined) {
+    return { error: "Weight must be a whole number of grams (0 or more), or empty." };
   }
 
   const p = parsed.data;
@@ -97,14 +112,36 @@ export async function saveProduct(
     sort_order: p.sortOrder,
     pieces: p.pieces,
     visible: p.visible,
+    weight_g: weightG,
     ...(imagePath ? { image: imagePath } : {}),
   };
 
-  const { error } = p.id
-    ? await supabase.from("products").update(row).eq("id", p.id)
-    : await supabase.from("products").insert({ ...row, slug });
+  let productId = p.id || "";
+  if (p.id) {
+    const { error } = await supabase.from("products").update(row).eq("id", p.id);
+    if (error) return { error: "Could not save the product." };
+  } else {
+    const { data: created, error } = await supabase
+      .from("products")
+      .insert({ ...row, slug })
+      .select("id")
+      .single();
+    if (error || !created) return { error: "Could not save the product." };
+    productId = created.id;
+  }
 
-  if (error) return { error: "Could not save the product." };
+  // R2-4a: replace this product's attributes (delete + insert) — idempotent.
+  const del = await supabase
+    .from("product_attributes")
+    .delete()
+    .eq("product_id", productId);
+  if (del.error) return { error: "Could not save the product details." };
+  if (attrs.length > 0) {
+    const ins = await supabase
+      .from("product_attributes")
+      .insert(buildAttributeRows(productId, attrs));
+    if (ins.error) return { error: "Could not save the product details." };
+  }
 
   revalidateTag("catalog");
   revalidatePath("/admin/products");
