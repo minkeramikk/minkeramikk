@@ -8,9 +8,9 @@ import { z } from "zod";
  * carry `value`. The icon is a NAME the UI maps to a lucide component.
  */
 
-export type AttributeKey = "weight" | "diameter" | "dimensions" | "custom";
+export type AttributeKey = "weight" | "diameter" | "dimensions" | "height" | "volume" | "custom";
 
-export const KNOWN_KEYS = ["weight", "diameter", "dimensions", "custom"] as const;
+export const KNOWN_KEYS = ["weight", "diameter", "dimensions", "height", "volume", "custom"] as const;
 
 export const ATTR_LABEL_MAX = 40;
 export const ATTR_VALUE_MAX = 120;
@@ -44,6 +44,9 @@ export const ATTRIBUTE_REGISTRY: Record<AttributeKey, AttrTypeDef> = {
   weight: { labelNo: "Vekt", labelEn: "Weight", kind: "num", inputUnit: "g", icon: "weight", publicVisible: false },
   diameter: { labelNo: "Diameter", labelEn: "Diameter", kind: "num", inputUnit: "mm", icon: "diameter", publicVisible: true },
   dimensions: { labelNo: "Mål", labelEn: "Dimensions", kind: "text", icon: "dimensions", publicVisible: true },
+  // TODO:nb-review — "Høyde"/"Volum" are the expected Norwegian terms; flag for client review.
+  height: { labelNo: "Høyde", labelEn: "Height", kind: "num", inputUnit: "mm", icon: "height", publicVisible: true },
+  volume: { labelNo: "Volum", labelEn: "Volume", kind: "num", inputUnit: "ml", icon: "volume", publicVisible: true },
   // custom labels come from the product; placeholders here are never shown.
   custom: { labelNo: "", labelEn: "", kind: "text", icon: "custom", publicVisible: true },
 };
@@ -76,6 +79,13 @@ export function formatAttributeValue(a: TypedAttribute, locale: "no" | "en"): st
       return a.valueNum == null ? "" : `${nf(locale, 2).format(a.valueNum / 1000)} kg`;
     case "diameter":
       return a.valueNum == null ? "" : `Ø ${nf(locale, 1).format(a.valueNum / 10)} cm`;
+    case "height":
+      return a.valueNum == null ? "" : `${nf(locale, 1).format(a.valueNum / 10)} cm`;
+    case "volume":
+      if (a.valueNum == null) return "";
+      return a.valueNum >= 1000
+        ? `${nf(locale, 2).format(a.valueNum / 1000)} l`
+        : `${nf(locale, 0).format(a.valueNum)} ml`;
     default:
       return a.value ?? "";
   }

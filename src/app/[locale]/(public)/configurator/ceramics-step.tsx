@@ -37,7 +37,7 @@ import {
   type AttributeKey,
 } from "@/lib/catalog/product-attributes";
 import { fullRowInsertIndex } from "@/lib/configurator/grid-rows";
-import { Weight, Circle, Ruler, Tag, ChevronDown, Check } from "lucide-react";
+import { Weight, Circle, Ruler, Tag, ChevronDown, Check, MoveVertical, Container } from "lucide-react";
 import type { ResolvedSharedSet } from "./resolve-shared-set";
 import { cn } from "@/lib/utils";
 
@@ -72,6 +72,8 @@ const ATTR_ICON: Record<AttributeKey, typeof Weight> = {
   weight: Weight,
   diameter: Circle,
   dimensions: Ruler,
+  height: MoveVertical,
+  volume: Container,
   custom: Tag,
 };
 

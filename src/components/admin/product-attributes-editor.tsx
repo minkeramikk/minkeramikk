@@ -26,6 +26,8 @@ const TYPE_OPTIONS: { key: AttributeKey; label: string }[] = [
   { key: "weight", label: "Weight (g)" },
   { key: "diameter", label: "Diameter (mm)" },
   { key: "dimensions", label: "Dimensions (text)" },
+  { key: "height", label: "Height (mm)" },
+  { key: "volume", label: "Volume (ml)" },
   { key: "custom", label: "Custom" },
 ];
 

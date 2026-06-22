@@ -16,6 +16,8 @@ const weight = (g: number): TypedAttribute => ({ key: "weight", labelNo: null, l
 const diameter = (mm: number): TypedAttribute => ({ key: "diameter", labelNo: null, labelEn: null, valueNum: mm, value: null });
 const dims = (t: string): TypedAttribute => ({ key: "dimensions", labelNo: null, labelEn: null, valueNum: null, value: t });
 const custom = (no: string, en: string, v: string): TypedAttribute => ({ key: "custom", labelNo: no, labelEn: en, valueNum: null, value: v });
+const height = (mm: number): TypedAttribute => ({ key: "height", labelNo: null, labelEn: null, valueNum: mm, value: null });
+const volume = (ml: number): TypedAttribute => ({ key: "volume", labelNo: null, labelEn: null, valueNum: ml, value: null });
 
 describe("publicAttributes", () => {
   it("marks weight non-public and the others public", () => {
@@ -122,6 +124,32 @@ describe("buildAttributeRpcRows", () => {
       { key: "diameter", label_no: null, label_en: null, value: null, value_num: 220, sort_order: 0 },
       { key: "custom", label_no: "Farge", label_en: "Colour", value: "Blå", value_num: null, sort_order: 1 },
     ]);
+  });
+});
+
+describe("formatAttributeValue — height & volume (F)", () => {
+  it("height mm → cm, locale decimal", () => {
+    expect(formatAttributeValue(height(120), "no")).toBe("12 cm");
+    expect(formatAttributeValue(height(125), "no")).toBe("12,5 cm");
+    expect(formatAttributeValue(height(125), "en")).toBe("12.5 cm");
+  });
+  it("volume ml → ml under 1000, l at/over 1000", () => {
+    expect(formatAttributeValue(volume(250), "no")).toBe("250 ml");
+    expect(formatAttributeValue(volume(1200), "no")).toBe("1,2 l");
+    expect(formatAttributeValue(volume(1200), "en")).toBe("1.2 l");
+    expect(formatAttributeValue(volume(1000), "no")).toBe("1 l");
+  });
+  it("null valueNum → empty string", () => {
+    expect(formatAttributeValue(height(0), "no")).toBe("0 cm");
+    expect(formatAttributeValue({ key: "volume", labelNo: null, labelEn: null, valueNum: null, value: null }, "no")).toBe("");
+  });
+  it("registry marks both public num types with a unit", () => {
+    expect(ATTRIBUTE_REGISTRY.height.publicVisible).toBe(true);
+    expect(ATTRIBUTE_REGISTRY.height.kind).toBe("num");
+    expect(ATTRIBUTE_REGISTRY.height.inputUnit).toBe("mm");
+    expect(ATTRIBUTE_REGISTRY.volume.publicVisible).toBe(true);
+    expect(ATTRIBUTE_REGISTRY.volume.kind).toBe("num");
+    expect(ATTRIBUTE_REGISTRY.volume.inputUnit).toBe("ml");
   });
 });
 
