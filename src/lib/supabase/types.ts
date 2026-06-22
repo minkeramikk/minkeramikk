@@ -539,6 +539,10 @@ export type Database = {
         }
         Returns: string
       }
+      replace_product_attributes: {
+        Args: { p_product_id: string; p_rows: Json }
+        Returns: undefined
+      }
     }
     Enums: {
       order_status:
