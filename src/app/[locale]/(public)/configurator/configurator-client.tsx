@@ -725,6 +725,9 @@ export function ConfiguratorClient({
                       data-testid="colour-notes-figure"
                       className="flex shrink-0 flex-col items-center gap-1 rounded-sm border border-border bg-muted/40 p-2 sm:w-28"
                     >
+                      <span className="text-center text-[10px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                        {t("customNotes.selectedFigure")}
+                      </span>
                       {/* eslint-disable-next-line @next/next/no-img-element -- catalog art from storage */}
                       <img
                         src={assetUrl(selectedFigure.art)}
