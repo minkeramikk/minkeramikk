@@ -124,7 +124,8 @@
       "optionCustom": "I'll choose the colours myself",
       "placeholder": "e.g. brown dog with white spots",
       "helper": "Doesn't change the preview — it travels to the workshop with your order.",
-      "counter": "{count}/250"
+      "counter": "{count}/250",
+      "selectedFigure": "Selected figure"
     },
     "productCard": {
       "details": "Product details"

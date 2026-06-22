@@ -133,6 +133,17 @@ export function ConfiguratorClient({
     }));
   }, [detail, selections]);
 
+  // E (R2): the selected figure (kind=image option) shown read-only beside the
+  // colour-notes toggle — pure reference, never a picker. Reactive on selection.
+  const selectedFigure = useMemo(() => {
+    const figureCat = detail.categories.find((c) => c.kind === "image");
+    if (!figureCat) return null;
+    const opt = figureCat.options.find((o) => o.id === selections[figureCat.slug]);
+    if (!opt) return null;
+    const art = opt.image ?? opt.layerImage;
+    return art ? { name: opt.name, art } : null;
+  }, [detail, selections]);
+
   const syncCategories: SyncCategory[] = useMemo(
     () =>
       detail.categories.map((c) => {
@@ -677,35 +688,54 @@ export function ConfiguratorClient({
                 <h3 className="mb-1 text-[11px] font-semibold uppercase tracking-[0.06em]">
                   {t("customNotes.title")}
                 </h3>
-                <div
-                  role="radiogroup"
-                  aria-label={t("customNotes.title")}
-                  onKeyDown={onNoteKeyDown}
-                  data-testid="custom-notes-toggle"
-                  className="mt-2 flex flex-col gap-2"
-                >
-                  {(["default", "custom"] as const).map((mode) => (
-                    <button
-                      key={mode}
-                      type="button"
-                      role="radio"
-                      aria-checked={noteMode === mode}
-                      tabIndex={noteMode === mode ? 0 : -1}
-                      data-testid={`custom-notes-${mode}`}
-                      onClick={() => setNoteMode(mode)}
-                      className={[
-                        "flex min-h-11 items-center gap-2 rounded-sm border-[1.5px] px-3 text-left text-sm transition-colors",
-                        "focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring",
-                        noteMode === mode
-                          ? "border-primary bg-primary/5"
-                          : "border-border bg-card hover:border-ring",
-                      ].join(" ")}
+                <div className="mt-2 flex flex-col-reverse gap-3 sm:flex-row sm:items-start">
+                  <div
+                    role="radiogroup"
+                    aria-label={t("customNotes.title")}
+                    onKeyDown={onNoteKeyDown}
+                    data-testid="custom-notes-toggle"
+                    className="flex flex-1 flex-col gap-2"
+                  >
+                    {(["default", "custom"] as const).map((mode) => (
+                      <button
+                        key={mode}
+                        type="button"
+                        role="radio"
+                        aria-checked={noteMode === mode}
+                        tabIndex={noteMode === mode ? 0 : -1}
+                        data-testid={`custom-notes-${mode}`}
+                        onClick={() => setNoteMode(mode)}
+                        className={[
+                          "flex min-h-11 items-center gap-2 rounded-sm border-[1.5px] px-3 text-left text-sm transition-colors",
+                          "focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring",
+                          noteMode === mode
+                            ? "border-primary bg-primary/5"
+                            : "border-border bg-card hover:border-ring",
+                        ].join(" ")}
+                      >
+                        {mode === "default"
+                          ? t("customNotes.optionDefault")
+                          : t("customNotes.optionCustom")}
+                      </button>
+                    ))}
+                  </div>
+
+                  {selectedFigure && (
+                    <div
+                      data-testid="colour-notes-figure"
+                      className="flex shrink-0 flex-col items-center gap-1 rounded-sm border border-border bg-muted/40 p-2 sm:w-28"
                     >
-                      {mode === "default"
-                        ? t("customNotes.optionDefault")
-                        : t("customNotes.optionCustom")}
-                    </button>
-                  ))}
+                      {/* eslint-disable-next-line @next/next/no-img-element -- catalog art from storage */}
+                      <img
+                        src={assetUrl(selectedFigure.art)}
+                        alt={selectedFigure.name}
+                        className="size-16 object-contain"
+                      />
+                      <span className="text-center text-xs text-muted-foreground">
+                        {selectedFigure.name}
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 {noteMode === "custom" && (

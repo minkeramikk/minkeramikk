@@ -123,7 +123,8 @@
       "optionCustom": "Jeg velger fargene selv",
       "placeholder": "f.eks. brun hund med hvite flekker",
       "helper": "Endrer ikke forhåndsvisningen — følger bestillingen til verkstedet.",
-      "counter": "{count}/250"
+      "counter": "{count}/250",
+      "selectedFigure": "Valgt figur"
     },
     "productCard": {
       "details": "Produktdetaljer"

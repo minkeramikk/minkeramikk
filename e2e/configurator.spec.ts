@@ -395,6 +395,18 @@ test.describe("R2-2b custom notes", () => {
       const block = page.getByTestId("custom-notes");
       await expect(block).toBeVisible();
 
+      // E (R2): if this design has a figure category, the colour-notes block
+      // shows the selected figure read-only beside the toggle. Resilient: a
+      // colour-only design has no figure tile — skip the assertion then.
+      const figure = page.getByTestId("colour-notes-figure");
+      if ((await figure.count()) > 0) {
+        await expect(figure.first()).toBeVisible();
+        // read-only: not a button, no tabindex
+        await expect(figure.first()).toHaveAttribute("data-testid", "colour-notes-figure");
+        const tag = await figure.first().evaluate((el) => el.tagName.toLowerCase());
+        expect(tag).toBe("div");
+      }
+
       // AC3 default mode: no textarea rendered.
       await expect(page.getByTestId("custom-notes-text")).toHaveCount(0);
 
