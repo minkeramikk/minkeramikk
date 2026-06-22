@@ -7,7 +7,7 @@ import {
   hasDetails,
   publicAttributes,
   parseTypedAttributesField,
-  buildTypedAttributeRows,
+  buildAttributeRpcRows,
   mapTypedAttributes,
   type TypedAttribute,
 } from "./product-attributes";
@@ -116,11 +116,11 @@ describe("parseTypedAttributesField", () => {
   });
 });
 
-describe("buildTypedAttributeRows", () => {
-  it("assigns sort_order by index and maps to snake_case columns", () => {
-    expect(buildTypedAttributeRows("p1", [diameter(220), custom("Farge", "Colour", "Blå")])).toEqual([
-      { product_id: "p1", key: "diameter", label_no: null, label_en: null, value: null, value_num: 220, sort_order: 0 },
-      { product_id: "p1", key: "custom", label_no: "Farge", label_en: "Colour", value: "Blå", value_num: null, sort_order: 1 },
+describe("buildAttributeRpcRows", () => {
+  it("maps to snake_case rows WITHOUT product_id, sort_order = index", () => {
+    expect(buildAttributeRpcRows([diameter(220), custom("Farge", "Colour", "Blå")])).toEqual([
+      { key: "diameter", label_no: null, label_en: null, value: null, value_num: 220, sort_order: 0 },
+      { key: "custom", label_no: "Farge", label_en: "Colour", value: "Blå", value_num: null, sort_order: 1 },
     ]);
   });
 });

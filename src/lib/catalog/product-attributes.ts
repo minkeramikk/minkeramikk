@@ -149,10 +149,12 @@ export function parseTypedAttributesField(
   return out;
 }
 
-/** DB rows for an INSERT, sort_order = position (replace semantics). */
-export function buildTypedAttributeRows(productId: string, attrs: TypedAttribute[]) {
+/**
+ * Rows for the `replace_product_attributes` RPC — WITHOUT `product_id` (the
+ * function sets it from its argument). sort_order = position (replace order).
+ */
+export function buildAttributeRpcRows(attrs: TypedAttribute[]) {
   return attrs.map((a, i) => ({
-    product_id: productId,
     key: a.key,
     label_no: a.labelNo,
     label_en: a.labelEn,

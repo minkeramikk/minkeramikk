@@ -10,7 +10,7 @@ import { piecesSchema } from "@/lib/catalog/pieces";
 import { uploadVariant } from "@/lib/asset-variant-image";
 import {
   parseTypedAttributesField,
-  buildTypedAttributeRows,
+  buildAttributeRpcRows,
 } from "@/lib/catalog/product-attributes";
 
 export type ProductFormState = { error: string | null };
@@ -123,18 +123,13 @@ export async function saveProduct(
     productId = created.id;
   }
 
-  // R2-4a: replace this product's attributes (delete + insert) — idempotent.
-  const del = await supabase
-    .from("product_attributes")
-    .delete()
-    .eq("product_id", productId);
-  if (del.error) return { error: "Could not save the product details." };
-  if (attrs.length > 0) {
-    const ins = await supabase
-      .from("product_attributes")
-      .insert(buildTypedAttributeRows(productId, attrs));
-    if (ins.error) return { error: "Could not save the product details." };
-  }
+  // R2 A1: atomic replace via RPC (delete + insert in one transaction) — a
+  // failed insert no longer leaves the product with no attributes.
+  const { error: attrErr } = await supabase.rpc("replace_product_attributes", {
+    p_product_id: productId,
+    p_rows: buildAttributeRpcRows(attrs),
+  });
+  if (attrErr) return { error: "Could not save the product details." };
 
   revalidateTag("catalog");
   revalidatePath("/admin/products");
