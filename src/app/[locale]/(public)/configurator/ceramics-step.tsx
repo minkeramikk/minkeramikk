@@ -523,6 +523,41 @@ export function CeramicsStep({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot apply on arrival
   }, [sharedSet, hydrated]);
 
+  const gridNodes = useMemo(() => {
+    const selectedIndex = products.findIndex((p) => p.id === selectedId);
+    const insertAfter = fullRowInsertIndex(selectedIndex, cols, products.length);
+    const nodes: React.ReactNode[] = [];
+    products.forEach((p, i) => {
+      nodes.push(
+        <CeramicOptionCard
+          key={p.id}
+          product={p}
+          selected={p.id === selectedId}
+          locale={locale}
+          onSelect={() => setSelectedId(p.id)}
+        />
+      );
+      if (i === insertAfter && selected) {
+        nodes.push(
+          <ExpandedProductCard
+            key={`exp-${selected.id}`}
+            product={selected}
+            locale={locale}
+            qty={qty}
+            onQty={setQty}
+            onAdd={addSelected}
+            tCart={t}
+            tCfg={tc}
+          />
+        );
+      }
+    });
+    return nodes;
+    // addSelected/setQty/setSelectedId/t/tc are stable for the render; qty &
+    // selection drive the rebuild.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [products, selectedId, selected, cols, qty, locale]);
+
   // F18/F21: clickable stepper — jump to any step keeping design + opt_* in URL.
   function goToStep(target: 1 | 2 | 3) {
     const params = new URLSearchParams(searchParams.toString());
@@ -890,37 +925,7 @@ export function CeramicsStep({
             aria-label={t("title")}
             className="grid grid-cols-2 gap-2.5 sm:grid-cols-3"
           >
-            {(() => {
-              const selectedIndex = products.findIndex((p) => p.id === selectedId);
-              const insertAfter = fullRowInsertIndex(selectedIndex, cols, products.length);
-              const nodes: React.ReactNode[] = [];
-              products.forEach((p, i) => {
-                nodes.push(
-                  <CeramicOptionCard
-                    key={p.id}
-                    product={p}
-                    selected={p.id === selectedId}
-                    locale={locale}
-                    onSelect={() => setSelectedId(p.id)}
-                  />
-                );
-                if (i === insertAfter && selected) {
-                  nodes.push(
-                    <ExpandedProductCard
-                      key={`exp-${selected.id}`}
-                      product={selected}
-                      locale={locale}
-                      qty={qty}
-                      onQty={setQty}
-                      onAdd={addSelected}
-                      tCart={t}
-                      tCfg={tc}
-                    />
-                  );
-                }
-              });
-              return nodes;
-            })()}
+            {gridNodes}
           </div>
 
           {/* Mobile: docked cart section (below selector, above sticky bar) */}
