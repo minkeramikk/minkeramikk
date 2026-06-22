@@ -27,6 +27,7 @@ import {
 } from "@/lib/cart/cart";
 import { encodeSetParam, SET_LINK_BUDGET } from "@/lib/cart/set-code";
 import { SetBadge } from "@/components/ui-domain/set-badge";
+import { CartLineRecap } from "@/components/ui-domain/cart-line-recap";
 import {
   hasDetails,
   attributeLabel,
@@ -360,7 +361,6 @@ export function CeramicsStep({
   const [qty, setQty] = useState(1);
   /** Desktop + mobile inline: expands the order form in the cart panel. */
   const [checkoutOpen, setCheckoutOpen] = useState(false);
-  const [copiedId, setCopiedId] = useState<string | null>(null);
   /** CA-3 E: id of the one expanded cart row (one at a time), or null. */
   const [expandedId, setExpandedId] = useState<string | null>(null);
   /** CA-3 C: share feedback under the panel header (aria-live). */
@@ -523,16 +523,6 @@ export function CeramicsStep({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot apply on arrival
   }, [sharedSet, hydrated]);
 
-  async function copyCode(id: string, code: string) {
-    try {
-      await navigator.clipboard.writeText(code);
-      setCopiedId(id);
-      setTimeout(() => setCopiedId((c) => (c === id ? null : c)), 1500);
-    } catch {
-      /* clipboard blocked — no-op */
-    }
-  }
-
   // F18/F21: clickable stepper — jump to any step keeping design + opt_* in URL.
   function goToStep(target: 1 | 2 | 3) {
     const params = new URLSearchParams(searchParams.toString());
@@ -645,85 +635,10 @@ export function CeramicsStep({
                     line's stored F19 layers (zero fetch), readable selections
                     from the snapshot (R1-FB1 extended to the cart), edit+remove. */}
                 {expandedId === line.id && (
-                  <div
-                    data-testid="cart-line-detail"
-                    className="mt-3 flex flex-col gap-3 rounded-sm border border-primary/40 bg-card/55 p-3"
-                  >
-                    <span
-                      aria-hidden
-                      className="relative mx-auto block size-52 overflow-hidden rounded-md border border-border bg-card sm:size-56"
-                      style={
-                        !(line.layers && line.layers.length > 0) && thumbHex(line)
-                          ? { backgroundColor: thumbHex(line) }
-                          : undefined
-                      }
-                    >
-                      {(line.layers ?? []).map((l, i) => (
-                        // eslint-disable-next-line @next/next/no-img-element -- composited catalog art from storage
-                        <img
-                          key={`${l.src}-${i}`}
-                          src={l.src}
-                          alt=""
-                          className="absolute inset-0 size-full object-contain"
-                          style={l.recolor ? { mixBlendMode: "multiply" } : undefined}
-                        />
-                      ))}
-                    </span>
-                    {line.configSnapshot && (
-                      <dl className="flex flex-col gap-1">
-                        {line.configSnapshot.selections.map((s) => (
-                          <div
-                            key={s.label}
-                            className="flex items-center gap-2 text-xs"
-                          >
-                            {s.hex && (
-                              <span
-                                aria-hidden
-                                className="size-3.5 shrink-0 rounded-full border border-border"
-                                style={{ background: s.hex }}
-                              />
-                            )}
-                            <dt className="text-muted-foreground">
-                              {locale === "no" ? s.label : (s.labelEn ?? s.label)}
-                            </dt>
-                            <dd className="font-medium">{s.option}</dd>
-                          </div>
-                        ))}
-                        <div className="flex items-center gap-2 text-xs">
-                          <dt className="text-muted-foreground">
-                            {t("line.ceramic")}
-                          </dt>
-                          <dd className="flex items-center gap-1.5 font-medium">
-                            {locale === "no"
-                              ? line.productNameNo
-                              : line.productNameEn}
-                            <SetBadge count={line.pieces ?? 1} />
-                          </dd>
-                        </div>
-                      </dl>
-                    )}
-                    {/* bottom action row: config code + copy on the left
-                        (moved here from the compact row for a cleaner closed
-                        line — design decision 2026-06-16), Edit design on the
-                        right. No second Remove — the row above already has one */}
-                    <div className="flex items-center justify-between gap-2 border-t border-border/50 pt-2.5">
-                      {line.configCode ? (
-                        <div className="flex min-w-0 items-center gap-2">
-                          <code className="min-w-0 truncate font-mono text-[10px] text-muted-foreground">
-                            {line.configCode}
-                          </code>
-                          <button
-                            type="button"
-                            data-testid="cart-copy-code"
-                            onClick={() => copyCode(line.id, line.configCode)}
-                            className="shrink-0 text-[10px] text-muted-foreground underline underline-offset-2 hover:text-foreground"
-                          >
-                            {copiedId === line.id ? t("copied") : t("copyCode")}
-                          </button>
-                        </div>
-                      ) : (
-                        <span />
-                      )}
+                  <CartLineRecap
+                    line={line}
+                    locale={locale}
+                    editSlot={
                       <button
                         type="button"
                         data-testid="cart-edit-design"
@@ -736,8 +651,8 @@ export function CeramicsStep({
                       >
                         ✎ {t("line.edit")}
                       </button>
-                    </div>
-                  </div>
+                    }
+                  />
                 )}
               </div>
             ))}
