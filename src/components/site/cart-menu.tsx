@@ -48,18 +48,7 @@ export function CartMenu() {
     useCartContext();
   // drawer has two phases: the cart list and the checkout form
   const [view, setView] = useState<"cart" | "checkout">("cart");
-  const [copiedId, setCopiedId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
-
-  async function copyCode(id: string, code: string) {
-    try {
-      await navigator.clipboard.writeText(code);
-      setCopiedId(id);
-      setTimeout(() => setCopiedId((c) => (c === id ? null : c)), 1500);
-    } catch {
-      /* clipboard blocked — no-op */
-    }
-  }
 
   const count = itemCount(cart);
   // gate count on hydration to avoid SSR/client mismatch (cart starts empty)
@@ -142,30 +131,6 @@ export function CartMenu() {
                         <p className="truncate text-xs text-muted-foreground">
                           {line.configSnapshot?.designName ?? "—"}
                         </p>
-                        {line.configCode && (
-                          <div className="mt-1 flex items-center gap-2">
-                            <code className="min-w-0 truncate font-mono text-[10px] text-muted-foreground">
-                              {line.configCode}
-                            </code>
-                            <button
-                              type="button"
-                              data-testid="cart-copy-code"
-                              onClick={() => copyCode(line.id, line.configCode)}
-                              className="shrink-0 text-[10px] text-muted-foreground underline underline-offset-2 hover:text-foreground"
-                            >
-                              {copiedId === line.id ? t("copied") : t("copyCode")}
-                            </button>
-                            <SheetClose asChild>
-                              <Link
-                                href={`/configurator?code=${encodeURIComponent(line.configCode)}&step=2`}
-                                data-testid="cart-reopen"
-                                className="shrink-0 text-[10px] text-primary underline-offset-2 hover:underline"
-                              >
-                                {t("reopen")}
-                              </Link>
-                            </SheetClose>
-                          </div>
-                        )}
                         <div className="mt-1.5 flex items-center gap-2">
                           <div className="flex items-center rounded-sm border border-border">
                             <button
@@ -207,7 +172,7 @@ export function CartMenu() {
                       </span>
                     </div>
 
-                    <div className="mt-2 flex flex-col items-start">
+                    <div className="mt-2">
                       <button
                         type="button"
                         data-testid="cart-expand"
