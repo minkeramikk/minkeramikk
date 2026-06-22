@@ -81,18 +81,6 @@ export function formatAttributeValue(a: TypedAttribute, locale: "no" | "en"): st
   }
 }
 
-/** Up to `max` teaser specs (diameter, then weight) shown on the closed card. */
-const TEASER_PRIORITY: AttributeKey[] = ["diameter", "weight"];
-export function teaserAttributes(attrs: TypedAttribute[], max = 2): TypedAttribute[] {
-  const out: TypedAttribute[] = [];
-  for (const k of TEASER_PRIORITY) {
-    const f = attrs.find((a) => a.key === k);
-    if (f) out.push(f);
-    if (out.length >= max) break;
-  }
-  return out;
-}
-
 /** Show the details affordance only when there's something to show. */
 export function hasDetails(
   description: string | null | undefined,

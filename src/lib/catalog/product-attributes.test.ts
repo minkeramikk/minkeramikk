@@ -4,7 +4,6 @@ import {
   KNOWN_KEYS,
   attributeLabel,
   formatAttributeValue,
-  teaserAttributes,
   hasDetails,
   publicAttributes,
   parseTypedAttributesField,
@@ -69,17 +68,6 @@ describe("formatAttributeValue", () => {
   it("dimensions / custom return the text as-is", () => {
     expect(formatAttributeValue(dims("20 × 20 cm"), "no")).toBe("20 × 20 cm");
     expect(formatAttributeValue(custom("Farge", "Colour", "Blå"), "en")).toBe("Blå");
-  });
-});
-
-describe("teaserAttributes", () => {
-  it("prefers diameter then weight, capped at 2", () => {
-    const attrs = [custom("A", "A", "x"), weight(400), diameter(220)];
-    const t = teaserAttributes(attrs);
-    expect(t.map((a) => a.key)).toEqual(["diameter", "weight"]);
-  });
-  it("returns [] when no priority specs present", () => {
-    expect(teaserAttributes([dims("x"), custom("A", "A", "y")])).toEqual([]);
   });
 });
 
