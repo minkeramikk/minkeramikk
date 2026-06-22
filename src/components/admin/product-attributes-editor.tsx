@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { ChevronUp, ChevronDown, X } from "lucide-react";
 import {
   ATTRIBUTE_REGISTRY,
   ATTR_LABEL_MAX,
@@ -182,10 +183,22 @@ export function ProductAttributesEditor({
                 </div>
               )}
 
+              {r.key === "weight" && (
+                <p className="basis-full text-xs text-muted-foreground">
+                  Internal — not shown to customers.
+                </p>
+              )}
+
               <div className="flex items-end gap-1">
-                <Button type="button" variant="outline" size="icon-sm" aria-label="Move up" data-testid="attribute-up" onClick={() => move(i, -1)}>↑</Button>
-                <Button type="button" variant="outline" size="icon-sm" aria-label="Move down" data-testid="attribute-down" onClick={() => move(i, 1)}>↓</Button>
-                <Button type="button" variant="outline" size="icon-sm" aria-label="Remove" data-testid="attribute-remove" className="border-destructive/40 text-destructive hover:bg-destructive/5" onClick={() => remove(i)}>✕</Button>
+                <Button type="button" variant="outline" size="icon-sm" aria-label="Move up" data-testid="attribute-up" onClick={() => move(i, -1)}>
+                  <ChevronUp className="size-4" aria-hidden />
+                </Button>
+                <Button type="button" variant="outline" size="icon-sm" aria-label="Move down" data-testid="attribute-down" onClick={() => move(i, 1)}>
+                  <ChevronDown className="size-4" aria-hidden />
+                </Button>
+                <Button type="button" variant="outline" size="icon-sm" aria-label="Remove" data-testid="attribute-remove" className="border-destructive/40 text-destructive hover:bg-destructive/5" onClick={() => remove(i)}>
+                  <X className="size-4" aria-hidden />
+                </Button>
               </div>
             </div>
           </div>
