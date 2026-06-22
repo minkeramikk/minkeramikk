@@ -16,6 +16,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { OrderForm } from "@/components/ui-domain/order-form";
 import { CartLineThumb } from "@/components/ui-domain/cart-line-thumb";
+import { CartLineRecap } from "@/components/ui-domain/cart-line-recap";
 import { useCartContext } from "@/lib/cart/cart-context";
 import {
   cartTotal,
@@ -48,6 +49,7 @@ export function CartMenu() {
   // drawer has two phases: the cart list and the checkout form
   const [view, setView] = useState<"cart" | "checkout">("cart");
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   async function copyCode(id: string, code: string) {
     try {
@@ -125,83 +127,118 @@ export function CartMenu() {
                   <div
                     key={line.id}
                     data-testid="cart-line"
-                    className="flex gap-3 border-b border-border/60 py-3 last:border-0"
+                    className="border-b border-border/60 py-3 last:border-0"
                   >
-                    <CartLineThumb
-                      layers={line.layers}
-                      hex={thumbHex(line)}
-                      plateImage={line.plateImage}
-                    />
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium">
-                        {locale === "no" ? line.productNameNo : line.productNameEn}
-                      </p>
-                      <p className="truncate text-xs text-muted-foreground">
-                        {line.configSnapshot?.designName ?? "—"}
-                      </p>
-                      {line.configCode && (
-                        <div className="mt-1 flex items-center gap-2">
-                          <code className="min-w-0 truncate font-mono text-[10px] text-muted-foreground">
-                            {line.configCode}
-                          </code>
-                          <button
-                            type="button"
-                            data-testid="cart-copy-code"
-                            onClick={() => copyCode(line.id, line.configCode)}
-                            className="shrink-0 text-[10px] text-muted-foreground underline underline-offset-2 hover:text-foreground"
-                          >
-                            {copiedId === line.id ? t("copied") : t("copyCode")}
-                          </button>
-                          <SheetClose asChild>
-                            <Link
-                              href={`/configurator?code=${encodeURIComponent(line.configCode)}&step=2`}
-                              data-testid="cart-reopen"
-                              className="shrink-0 text-[10px] text-primary underline-offset-2 hover:underline"
+                    <div className="flex gap-3">
+                      <CartLineThumb
+                        layers={line.layers}
+                        hex={thumbHex(line)}
+                        plateImage={line.plateImage}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium">
+                          {locale === "no" ? line.productNameNo : line.productNameEn}
+                        </p>
+                        <p className="truncate text-xs text-muted-foreground">
+                          {line.configSnapshot?.designName ?? "—"}
+                        </p>
+                        {line.configCode && (
+                          <div className="mt-1 flex items-center gap-2">
+                            <code className="min-w-0 truncate font-mono text-[10px] text-muted-foreground">
+                              {line.configCode}
+                            </code>
+                            <button
+                              type="button"
+                              data-testid="cart-copy-code"
+                              onClick={() => copyCode(line.id, line.configCode)}
+                              className="shrink-0 text-[10px] text-muted-foreground underline underline-offset-2 hover:text-foreground"
                             >
-                              {t("reopen")}
-                            </Link>
-                          </SheetClose>
-                        </div>
-                      )}
-                      <div className="mt-1.5 flex items-center gap-2">
-                        <div className="flex items-center rounded-sm border border-border">
+                              {copiedId === line.id ? t("copied") : t("copyCode")}
+                            </button>
+                            <SheetClose asChild>
+                              <Link
+                                href={`/configurator?code=${encodeURIComponent(line.configCode)}&step=2`}
+                                data-testid="cart-reopen"
+                                className="shrink-0 text-[10px] text-primary underline-offset-2 hover:underline"
+                              >
+                                {t("reopen")}
+                              </Link>
+                            </SheetClose>
+                          </div>
+                        )}
+                        <div className="mt-1.5 flex items-center gap-2">
+                          <div className="flex items-center rounded-sm border border-border">
+                            <button
+                              type="button"
+                              aria-label="-"
+                              onClick={() =>
+                                setQuantity(line.id, line.quantity - 1)
+                              }
+                              className="flex size-11 items-center justify-center sm:size-9"
+                            >
+                              −
+                            </button>
+                            <span className="w-7 text-center text-sm tabular-nums">
+                              {line.quantity}
+                            </span>
+                            <button
+                              type="button"
+                              aria-label="+"
+                              onClick={() =>
+                                setQuantity(line.id, line.quantity + 1)
+                              }
+                              className="flex size-11 items-center justify-center sm:size-9"
+                            >
+                              +
+                            </button>
+                          </div>
                           <button
                             type="button"
-                            aria-label="-"
-                            onClick={() =>
-                              setQuantity(line.id, line.quantity - 1)
-                            }
-                            className="flex size-11 items-center justify-center sm:size-9"
+                            data-testid="cart-remove"
+                            onClick={() => remove(line.id)}
+                            className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
                           >
-                            −
-                          </button>
-                          <span className="w-7 text-center text-sm tabular-nums">
-                            {line.quantity}
-                          </span>
-                          <button
-                            type="button"
-                            aria-label="+"
-                            onClick={() =>
-                              setQuantity(line.id, line.quantity + 1)
-                            }
-                            className="flex size-11 items-center justify-center sm:size-9"
-                          >
-                            +
+                            {t("remove")}
                           </button>
                         </div>
-                        <button
-                          type="button"
-                          data-testid="cart-remove"
-                          onClick={() => remove(line.id)}
-                          className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
-                        >
-                          {t("remove")}
-                        </button>
                       </div>
+                      <span className="shrink-0 text-right text-sm font-medium tabular-nums">
+                        {formatMoney(lineSubtotal(line), locale)}
+                      </span>
                     </div>
-                    <span className="shrink-0 text-right text-sm font-medium tabular-nums">
-                      {formatMoney(lineSubtotal(line), locale)}
-                    </span>
+
+                    <div className="mt-2 flex flex-col items-start">
+                      <button
+                        type="button"
+                        data-testid="cart-expand"
+                        aria-expanded={expandedId === line.id}
+                        onClick={() =>
+                          setExpandedId((id) => (id === line.id ? null : line.id))
+                        }
+                        className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+                      >
+                        {expandedId === line.id
+                          ? `${t("line.collapse")} ▴`
+                          : `${t("line.expand")} ▾`}
+                      </button>
+                      {expandedId === line.id && (
+                        <CartLineRecap
+                          line={line}
+                          locale={locale}
+                          editSlot={
+                            <SheetClose asChild>
+                              <Link
+                                href={`/configurator?code=${encodeURIComponent(line.configCode)}&step=2`}
+                                data-testid="cart-edit-design"
+                                className="shrink-0 text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+                              >
+                                ✎ {t("line.edit")}
+                              </Link>
+                            </SheetClose>
+                          }
+                        />
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>

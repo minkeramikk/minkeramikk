@@ -128,3 +128,24 @@ test("AC mobile: cart button ≥44px and no horizontal overflow", async ({
   expect(box!.height).toBeGreaterThanOrEqual(44);
   expect(await horizontalOverflow(page)).toBeLessThanOrEqual(0);
 });
+
+test("AC R2-D: drawer row reveals the shared recap (selections + ceramic + code)", async ({ page }) => {
+  const design = await firstActiveDesign();
+  await page.goto(`/no/configurator?design=${design.slug}&step=3`);
+  await page.getByTestId("ceramics-step").waitFor();
+  await addFirstCeramic(page);
+
+  // open the side drawer from the header
+  await page.getByTestId("cart-button").click();
+  const drawerEl = page.getByTestId("cart-drawer");
+  await expect(drawerEl).toBeVisible();
+
+  // each row has a "Show details" toggle → reveals the identical recap
+  const row = drawerEl.getByTestId("cart-line").first();
+  await row.getByTestId("cart-expand").click();
+  const recap = drawerEl.getByTestId("cart-line-detail");
+  await expect(recap).toBeVisible();
+  // recap carries the ceramic label + the MK code copy affordance
+  await expect(recap).toContainText("Keramikk"); // cart.line.ceramic (NO)
+  await expect(recap.getByTestId("cart-copy-code")).toBeVisible();
+});
