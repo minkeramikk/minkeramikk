@@ -19,8 +19,8 @@ const productSchema = z.object({
   id: z.string().uuid().optional().or(z.literal("")),
   nameNo: z.string().trim().min(1, "Norwegian name is required"),
   nameEn: z.string().trim().min(1, "English name is required"),
-  descriptionNo: z.string().trim().optional().or(z.literal("")),
-  descriptionEn: z.string().trim().optional().or(z.literal("")),
+  descriptionNo: z.string().trim().max(2000, "Description (NO) is too long (max 2000 characters).").optional().or(z.literal("")),
+  descriptionEn: z.string().trim().max(2000, "Description (EN) is too long (max 2000 characters).").optional().or(z.literal("")),
   supplierId: z.string().uuid("Pick a supplier"),
   sortOrder: z.coerce.number().int().min(0).default(0),
   // F29: 1 = single item; >1 = set ("Sett · N deler"). Does not affect price.

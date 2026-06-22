@@ -66,11 +66,11 @@ export function ProductForm({
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="descriptionNo">Description (NO)</Label>
-            <Textarea id="descriptionNo" name="descriptionNo" rows={2} defaultValue={product?.descriptionNo ?? ""} />
+            <Textarea id="descriptionNo" name="descriptionNo" rows={2} maxLength={2000} defaultValue={product?.descriptionNo ?? ""} />
           </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="descriptionEn">Description (EN)</Label>
-            <Textarea id="descriptionEn" name="descriptionEn" rows={2} defaultValue={product?.descriptionEn ?? ""} />
+            <Textarea id="descriptionEn" name="descriptionEn" rows={2} maxLength={2000} defaultValue={product?.descriptionEn ?? ""} />
           </div>
         </div>
 
