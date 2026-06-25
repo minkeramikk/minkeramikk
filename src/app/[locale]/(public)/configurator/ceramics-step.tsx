@@ -29,7 +29,6 @@ import { encodeSetParam, SET_LINK_BUDGET } from "@/lib/cart/set-code";
 import { SetBadge } from "@/components/ui-domain/set-badge";
 import { CartLineRecap } from "@/components/ui-domain/cart-line-recap";
 import {
-  hasDetails,
   attributeLabel,
   formatAttributeValue,
   publicAttributes,
@@ -37,7 +36,7 @@ import {
   type AttributeKey,
 } from "@/lib/catalog/product-attributes";
 import { fullRowInsertIndex } from "@/lib/configurator/grid-rows";
-import { Weight, Circle, Ruler, Tag, ChevronDown, Check, MoveVertical, Container } from "lucide-react";
+import { Weight, Circle, Ruler, Tag, Check, MoveVertical, Container } from "lucide-react";
 import type { ResolvedSharedSet } from "./resolve-shared-set";
 import { cn } from "@/lib/utils";
 
@@ -173,8 +172,6 @@ function ExpandedProductCard({
   tCfg: (k: string) => string;
 }) {
   const ref = useRef<HTMLDivElement>(null);
-  // R2 fix: details start OPEN once a product is selected (chevron can collapse).
-  const [open, setOpen] = useState(true);
   // R2 fix: the "added" confirmation shows ONLY right after a successful add,
   // then auto-dismisses (it used to render by default on every card).
   const [showAdded, setShowAdded] = useState(false);
@@ -182,7 +179,6 @@ function ExpandedProductCard({
   const description = locale === "no" ? p.descriptionNo : p.descriptionEn;
   // Storefront shows only customer-facing attributes (weight is internal).
   const attributes = publicAttributes(p.attributes);
-  const details = hasDetails(description, attributes);
 
   function handleAdd() {
     if (showAdded) return; // no-op while the "Added ✓" confirmation is showing
@@ -271,47 +267,34 @@ function ExpandedProductCard({
         {showAdded ? tCart("added") : ""}
       </span>
 
-      {details && (
-        <>
-          <button
-            type="button"
-            data-testid="details-toggle"
-            aria-expanded={open}
-            aria-controls={`details-${p.slug}`}
-            onClick={() => setOpen((o) => !o)}
-            className="flex min-h-11 items-center gap-1 self-start text-sm font-medium text-foreground"
-          >
-            {tCfg("productCard.details")}
-            <ChevronDown
-              className={cn("size-4 transition-transform", open && "rotate-180")}
-              aria-hidden
-            />
-          </button>
+      {/* R2-6 F: typed metadata is ALWAYS visible (no chevron, no teaser) and
+          sits above the description — revises R2-3-4 AC7. Weight stays internal
+          (publicAttributes filters it). Each section self-gates: no attributes
+          → no chip row; no description → no "Product details" block. */}
+      {attributes.length > 0 && (
+        <ul data-testid="spec-chips" className="flex flex-wrap gap-2">
+          {attributes.map((a, i) => {
+            const Icon = ATTR_ICON[a.key];
+            return (
+              <li
+                key={i}
+                data-testid="spec-chip"
+                className="flex items-center gap-1.5 rounded-sm border border-border bg-card px-2 py-1 text-xs"
+              >
+                <Icon className="size-3.5 text-muted-foreground" aria-hidden />
+                <span className="text-muted-foreground">{attributeLabel(a, locale)}</span>
+                <span className="font-medium">{formatAttributeValue(a, locale)}</span>
+              </li>
+            );
+          })}
+        </ul>
+      )}
 
-          {open && (
-            <div id={`details-${p.slug}`} data-testid="product-details" className="flex flex-col gap-2">
-              {attributes.length > 0 && (
-                <ul className="flex flex-wrap gap-2">
-                  {attributes.map((a, i) => {
-                    const Icon = ATTR_ICON[a.key];
-                    return (
-                      <li
-                        key={i}
-                        data-testid="spec-chip"
-                        className="flex items-center gap-1.5 rounded-sm border border-border bg-card px-2 py-1 text-xs"
-                      >
-                        <Icon className="size-3.5 text-muted-foreground" aria-hidden />
-                        <span className="text-muted-foreground">{attributeLabel(a, locale)}</span>
-                        <span className="font-medium">{formatAttributeValue(a, locale)}</span>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-              {description && <p className="text-sm text-foreground">{description}</p>}
-            </div>
-          )}
-        </>
+      {description && (
+        <div data-testid="product-details" className="flex flex-col gap-1">
+          <p className="text-sm font-medium text-foreground">{tCfg("productCard.details")}</p>
+          <p className="text-sm text-foreground">{description}</p>
+        </div>
       )}
     </div>
   );
