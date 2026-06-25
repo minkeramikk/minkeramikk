@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  buildReplicaSet,
   computeKpis,
   configuratorPathFromCode,
   filterOrders,
@@ -12,6 +13,7 @@ import {
   type AdminOrderItem,
   type RawOrderRow,
 } from "./admin-orders";
+import { decodeSetParam } from "@/lib/cart/set-code";
 import type { CodecDesign } from "@/lib/configurator/config-code";
 
 function item(p: Partial<AdminOrderItem> = {}): AdminOrderItem {
@@ -26,6 +28,7 @@ function item(p: Partial<AdminOrderItem> = {}): AdminOrderItem {
     configCode: p.configCode ?? null,
     configSnapshot: p.configSnapshot ?? null,
     productImage: p.productImage ?? null,
+    productSlug: p.productSlug ?? null,
   };
 }
 
@@ -57,7 +60,7 @@ describe("mapOrderRow", () => {
           product_name_snapshot: "Flat", price_cents_snapshot: 50000,
           currency_snapshot: "NOK", quantity: 2, config_code: "MK-A-K3",
           config_snapshot: { designName: "Blomster 1", selections: [] },
-          product_id: "p1", products: { image: "products/flat.png" } },
+          product_id: "p1", products: { image: "products/flat.png", slug: "flat" } },
       ],
     };
     const o = mapOrderRow(raw);
@@ -77,7 +80,7 @@ describe("mapOrderRow", () => {
           product_name_snapshot: "Flat", price_cents_snapshot: 50000,
           currency_snapshot: "NOK", quantity: 1, config_code: null,
           config_snapshot: null,
-          product_id: "p1", products: { image: "products/flat.png" } },
+          product_id: "p1", products: { image: "products/flat.png", slug: "flat" } },
         // product deleted/reimported (product_id NULL) → degrade, no photo
         { id: "i2", supplier_id: "s1", supplier_name_snapshot: "Vietri",
           product_name_snapshot: "Bowl", price_cents_snapshot: 30000,
@@ -89,7 +92,7 @@ describe("mapOrderRow", () => {
           product_name_snapshot: "Mug", price_cents_snapshot: 20000,
           currency_snapshot: "NOK", quantity: 1, config_code: null,
           config_snapshot: null,
-          product_id: "p3", products: { image: null } },
+          product_id: "p3", products: { image: null, slug: "mug" } },
       ],
     };
     const o = mapOrderRow(raw);
@@ -186,5 +189,47 @@ describe("configuratorPathFromCode", () => {
   it("returns null for a null code or unknown design", () => {
     expect(configuratorPathFromCode(null, codec)).toBeNull();
     expect(configuratorPathFromCode("MK-Z-K3", codec)).toBeNull();
+  });
+});
+
+describe("buildReplicaSet", () => {
+  it("round-trips order lines through the set codec (config + slug + qty)", () => {
+    const o = order({
+      items: [item({ configCode: "MK-A-K2-M1", productSlug: "flat-plate", quantity: 2 })],
+    });
+    const { param, included, skipped } = buildReplicaSet(o);
+    expect(included).toBe(1);
+    expect(skipped).toBe(0);
+    expect(decodeSetParam(param).entries).toEqual([
+      { configCode: "MK-A-K2-M1", productSlug: "flat-plate", qty: 2 },
+    ]);
+  });
+
+  it("skips lines without a config code or slug, keeps the rest", () => {
+    const o = order({
+      items: [
+        item({ configCode: "MK-A-K2-M1", productSlug: "flat-plate" }),
+        item({ configCode: null, productSlug: "mug" }), // legacy: no code
+        item({ configCode: "MK-C-B1", productSlug: null }), // vanished product
+      ],
+    });
+    const { included, skipped } = buildReplicaSet(o);
+    expect(included).toBe(1);
+    expect(skipped).toBe(2);
+  });
+
+  it("clamps qty via the codec (inherited 1–99 bound)", () => {
+    const o = order({
+      items: [item({ configCode: "MK-A-K2-M1", productSlug: "flat-plate", quantity: 999 })],
+    });
+    expect(decodeSetParam(buildReplicaSet(o).param).entries[0].qty).toBe(99);
+  });
+
+  it("returns an empty param with all lines skipped when nothing is replicable", () => {
+    const o = order({ items: [item({ configCode: null, productSlug: null })] });
+    const r = buildReplicaSet(o);
+    expect(r.param).toBe("");
+    expect(r.included).toBe(0);
+    expect(r.skipped).toBe(1);
   });
 });

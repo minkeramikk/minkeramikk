@@ -77,10 +77,29 @@ describe("adminEmail / supplierEmail", () => {
       customerEmail: "kari@example.com",
       items,
       theme,
+      replicaUrl: null,
     });
     expect(m.subject).toContain("MK-1042");
     expect(m.html).toContain("kari@example.com");
     expect(m.html).toContain("#7d4f9c");
+  });
+
+  it("admin email includes the Replica-set link when present, omits it otherwise (R2-6 D)", () => {
+    const url = "https://minkeramikk.no/no/configurator?step=3&set=MK-A-K2.vietri-flat.2";
+    const withLink = adminEmail({
+      code: "MK-1042", customerName: "Kari", customerEmail: "kari@example.com",
+      items, theme, replicaUrl: url,
+    });
+    // the href is HTML-escaped (& → &amp;); assert on the set payload + the raw url in text
+    expect(withLink.html).toContain("set=MK-A-K2.vietri-flat.2");
+    expect(withLink.html).toContain("Replica set");
+    expect(withLink.text).toContain(url);
+
+    const without = adminEmail({
+      code: "MK-1042", customerName: "Kari", customerEmail: "kari@example.com",
+      items, theme, replicaUrl: null,
+    });
+    expect(without.html).not.toContain("configurator?step=3");
   });
 
   it("supplier email is branded and references the order", () => {

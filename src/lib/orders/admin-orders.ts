@@ -9,6 +9,7 @@ import {
   normalizeConfigCode,
   type CodecDesign,
 } from "@/lib/configurator/config-code";
+import { encodeSetParam, SET_ROW_SEP } from "@/lib/cart/set-code";
 import {
   isOpenStatus,
   isOrderStatus,
@@ -39,6 +40,10 @@ export interface AdminOrderItem {
    *  (product deleted/reimported → ON DELETE SET NULL) or the product has no
    *  image → degrade: no photo, the rest of the PDF is unaffected. */
   productImage: string | null;
+  /** R2-6 D: product slug (left-joined from `products`) — the `set=` codec needs
+   *  it to rebuild a replica basket. Null when `product_id` is NULL (vanished
+   *  product) → that line is dropped from the replica set, not the whole order. */
+  productSlug: string | null;
 }
 
 export interface AdminOrder {
@@ -80,7 +85,7 @@ export interface RawOrderRow {
     config_code: string | null;
     config_snapshot: unknown;
     product_id: string | null;
-    products: { image: string | null } | null;
+    products: { image: string | null; slug: string | null } | null;
   }[];
 }
 
@@ -108,6 +113,7 @@ export function mapOrderRow(row: RawOrderRow): AdminOrder {
       configCode: it.config_code,
       configSnapshot: (it.config_snapshot as OrderConfigSnapshot | null) ?? null,
       productImage: it.products?.image ?? null,
+      productSlug: it.products?.slug ?? null,
     })),
   };
 }
@@ -209,6 +215,34 @@ export function filterOrders(
     if (q && q.trim() && !orderMatchesQuery(o, q)) return false;
     return true;
   });
+}
+
+/** Result of rebuilding a replica `set=` link from an order. */
+export interface ReplicaSet {
+  /** `set=` param value (encodeSetParam output); "" when nothing is replicable. */
+  param: string;
+  /** Lines that made it into the param. */
+  included: number;
+  /** Lines dropped: missing/invalid config code or product slug (legacy/vanished). */
+  skipped: number;
+}
+
+/** R2-6 D — rebuild a CA-3 `set=` param from an order's lines, so the admin can
+ *  reopen the whole basket in the configurator (step 3, live prices). Pure: it
+ *  reuses the share-set encoder, which shape-validates the config code + slug
+ *  and clamps qty to 1–99. Lines without a usable code or slug (legacy orders,
+ *  vanished products) are dropped and counted in `skipped` — degrade, never
+ *  fail, exactly like the public share-set. */
+export function buildReplicaSet(order: AdminOrder): ReplicaSet {
+  const param = encodeSetParam(
+    order.items.map((i) => ({
+      configCode: i.configCode ?? "",
+      productSlug: i.productSlug ?? undefined,
+      quantity: i.quantity,
+    }))
+  );
+  const included = param ? param.split(SET_ROW_SEP).length : 0;
+  return { param, included, skipped: order.items.length - included };
 }
 
 /** Decode a line's config code into a configurator deep-link (F04 → URL), so
