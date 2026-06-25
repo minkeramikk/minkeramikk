@@ -64,7 +64,11 @@
     "back": "Tilbake",
     "previewNote": "Konfigurator viser designet ditt i et rundt mønster, husk at du kan også bestille serveringsfat, kopper, ildfastformer osv. i samme design, sluttresultatet bare ikke vises i konfigurator.",
     "step1": {
-      "title": "Velg design"
+      "title": "Velg design",
+      "hero": {
+        "title": "Lag din egen keramikk",
+        "subtitle": "Velg et design, velg fargene dine, så lager vi hver del for hånd."
+      }
     },
     "step2": {
       "titleDetails": "Velg detaljer",
@@ -195,6 +199,10 @@
       "collapse": "Skjul detaljer",
       "edit": "Rediger design",
       "ceramic": "Keramikk"
+    },
+    "colourBadge": {
+      "custom": "Egendefinerte farger",
+      "studio": "Studioets farger"
     }
   },
   "order": {

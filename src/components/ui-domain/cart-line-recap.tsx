@@ -24,6 +24,12 @@ export function CartLineRecap({
   const t = useTranslations("cart");
   const [copied, setCopied] = useState(false);
   const hex = line.configSnapshot?.selections.find((s) => s.hex)?.hex ?? undefined;
+  // R2-6 G — colour-source badge (R2-2 rule): `customNote` is present (possibly
+  // "") ONLY when the design accepts notes; absent otherwise. Non-empty ⇒ the
+  // customer picked custom colours; "" ⇒ studio's complementary colours; absent
+  // ⇒ design doesn't take notes → no badge.
+  const note = line.configSnapshot?.customNote;
+  const colourVariant = note === undefined ? null : note.trim() ? "custom" : "studio";
 
   async function copy() {
     if (!line.configCode) return;
@@ -41,6 +47,16 @@ export function CartLineRecap({
       data-testid="cart-line-detail"
       className="mt-3 flex flex-col gap-3 rounded-sm border border-primary/40 bg-card/55 p-3"
     >
+      {colourVariant && (
+        <span
+          data-testid="colour-badge"
+          data-variant={colourVariant}
+          className="self-start rounded-full border border-border bg-muted/40 px-2 py-0.5 text-[10px] font-medium text-muted-foreground"
+        >
+          {colourVariant === "custom" ? t("colourBadge.custom") : t("colourBadge.studio")}
+        </span>
+      )}
+
       <span
         aria-hidden
         className="relative mx-auto block size-52 overflow-hidden rounded-md border border-border bg-card sm:size-56"

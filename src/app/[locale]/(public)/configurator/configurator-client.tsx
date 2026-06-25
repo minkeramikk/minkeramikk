@@ -451,6 +451,20 @@ export function ConfiguratorClient({
       {/* F28: featured strip between stepper and grid (wireframe v2), home only */}
       {step === 1 && featuredSlot}
 
+      {/* R2-6 A: editorial hero — the public root redirects here, so step 1 IS
+          the homepage. Sits between the featured strip and the design grid,
+          step-1 only. Copy is hardcoded i18n (no schema, no admin editing). */}
+      {step === 1 && (
+        <div data-testid="step1-hero" className="mb-6 max-md:pt-1">
+          <h2 className="text-2xl font-semibold tracking-tight md:text-3xl">
+            {t("step1.hero.title")}
+          </h2>
+          <p className="mt-2 max-w-prose text-sm text-muted-foreground md:text-base">
+            {t("step1.hero.subtitle")}
+          </p>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 items-start gap-7 md:grid-cols-2">
         {/* LEFT: the persistent preview — never remounts across steps (AC2).
             F15: sticky so it stays visible while the option list scrolls; on
