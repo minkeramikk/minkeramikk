@@ -25,7 +25,8 @@ import {
   type CartLine,
 } from "@/lib/cart/cart";
 import { formatMoney } from "@/lib/money/money";
-import { useState } from "react";
+import { cn } from "@/lib/utils";
+import { useEffect, useRef, useState } from "react";
 
 /** First selection colour of a line → a small identity chip for the row.
  *  The only place a raw DB hex reaches the UI (catalog data, not theme). */
@@ -54,6 +55,25 @@ export function CartMenu() {
   // gate count on hydration to avoid SSR/client mismatch (cart starts empty)
   const liveCount = hydrated ? count : 0;
 
+  // R2-6 C: pop the badge when the count GROWS (an item was added) — a mobile
+  // cue pointing at the cart. Decorative only; the count is already announced
+  // via the aria-live region below, so no new announcement.
+  const [pulse, setPulse] = useState(false);
+  const prevCount = useRef(0);
+  useEffect(() => {
+    if (!hydrated) {
+      prevCount.current = count;
+      return;
+    }
+    if (count > prevCount.current) {
+      setPulse(true);
+      const id = setTimeout(() => setPulse(false), 450);
+      prevCount.current = count;
+      return () => clearTimeout(id);
+    }
+    prevCount.current = count;
+  }, [count, hydrated]);
+
   function handleOpenChange(next: boolean) {
     setOpen(next);
     if (!next) setView("cart"); // reset phase when closing
@@ -74,7 +94,10 @@ export function CartMenu() {
             {hydrated && count > 0 && (
               <span
                 data-testid="cart-badge"
-                className="absolute top-1.5 right-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] leading-none font-semibold text-primary-foreground tabular-nums"
+                className={cn(
+                  "absolute top-1.5 right-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] leading-none font-semibold text-primary-foreground tabular-nums",
+                  pulse && "motion-safe:max-md:[animation:cart-pop_0.4s_ease]"
+                )}
               >
                 {count}
               </span>
