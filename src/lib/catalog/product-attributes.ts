@@ -56,7 +56,10 @@ export const ATTRIBUTE_REGISTRY: Record<AttributeKey, AttrTypeDef> = {
  * which the admin manages but the storefront never displays). Keeps order.
  */
 export function publicAttributes(attrs: TypedAttribute[]): TypedAttribute[] {
-  return attrs.filter((a) => ATTRIBUTE_REGISTRY[a.key].publicVisible);
+  // Degrade, never crash: a product payload serialized before this field existed
+  // (e.g. a stale unstable_cache entry) can arrive without `attributes` — show
+  // no chips rather than 500 the whole step-3 page.
+  return (attrs ?? []).filter((a) => ATTRIBUTE_REGISTRY[a.key].publicVisible);
 }
 
 function nf(locale: "no" | "en", maxFrac: number): Intl.NumberFormat {

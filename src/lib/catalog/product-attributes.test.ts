@@ -30,6 +30,12 @@ describe("publicAttributes", () => {
     const attrs = [weight(400), diameter(220), dims("x"), custom("A", "A", "y")];
     expect(publicAttributes(attrs).map((a) => a.key)).toEqual(["diameter", "dimensions", "custom"]);
   });
+  it("degrades to [] when handed nullish attributes (stale cache / shape drift)", () => {
+    // A product payload serialized before the attributes field existed reaches
+    // here as undefined; the storefront must show no chips, never crash.
+    expect(publicAttributes(undefined as unknown as Parameters<typeof publicAttributes>[0])).toEqual([]);
+    expect(publicAttributes(null as unknown as Parameters<typeof publicAttributes>[0])).toEqual([]);
+  });
 });
 
 describe("registry", () => {
