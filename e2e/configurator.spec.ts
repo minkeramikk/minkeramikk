@@ -511,9 +511,16 @@ test.describe("R2-7 bilingual design name", () => {
         await expect(
           page.getByTestId("cart-line").filter({ hasText: enName }).first()
         ).toBeVisible();
+      } else {
+        // No visible product for this supplier → the EN cart-line assertion is
+        // not assertable here (per-locale correctness still covered by the
+        // designLabel unit test, Task 4). Surface the skip in the Playwright
+        // report so a missing EN regression gate never passes silently.
+        const skipMsg =
+          "R2-7: no ceramic products for this supplier — EN cart-line assertion skipped";
+        console.warn(skipMsg);
+        test.info().annotations.push({ type: "warning", description: skipMsg });
       }
-      // else: no visible product for this supplier → EN assertion not assertable here;
-      // per-locale correctness is verified by the designLabel unit test (Task 4).
     } finally {
       await page.goto(`/admin/designs/${design.id}`);
       await page.getByTestId("design-name-no").fill(originalNo);
