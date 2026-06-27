@@ -49,3 +49,8 @@ scripts/.variants-failed.log
 
 # e2e evidence screenshots (PM material lives outside the repo)
 docs/evidence/
+
+# agent worktrees / local state (machine-specific, not source)
+.claude/
+# planning scratch (superpowers)
+docs/superpowers/
