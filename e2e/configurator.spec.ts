@@ -315,13 +315,19 @@ test.describe("R2-3+R2-4 expandable card", () => {
       const expanded = page.getByTestId("expanded-card");
       await expect(expanded).toBeVisible();
 
-      // R2 fix: details start OPEN on select → typed spec chips + values are
-      // visible immediately, no toggle needed (the chevron can still collapse).
-      const details = page.getByTestId("product-details");
-      await expect(details).toBeVisible();
-      await expect(details).toContainText("Ø 22");
-      await expect(details).toContainText("Farge");
-      await expect(details).toContainText("Blå");
+      // R2-6 F (rev 2): typed spec chips are ALWAYS visible above "Product
+      // details"; the chips carry the attributes. "Product details" is an
+      // expandable toggle, CLOSED by default, that reveals only the description.
+      const chips = page.getByTestId("spec-chips");
+      await expect(chips).toBeVisible();
+      await expect(chips).toContainText("Ø 22");
+      await expect(chips).toContainText("Farge");
+      await expect(chips).toContainText("Blå");
+
+      // Description is collapsed by default → hidden until the toggle is opened.
+      await expect(page.getByTestId("product-details")).toBeHidden();
+      await expanded.getByTestId("details-toggle").click();
+      await expect(page.getByTestId("product-details")).toBeVisible();
 
       // Inline add → docked cart gains a line (robust: docked cart, not header badge).
       // Note: cart-line renders in BOTH the desktop panel and the mobile section
