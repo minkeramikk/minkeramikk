@@ -20,6 +20,8 @@ import {
 export interface OrderConfigSnapshot {
   designSlug?: string;
   designName?: string;
+  designNameNo?: string;
+  designNameEn?: string;
   selections?: { label: string; option: string; hex: string | null }[];
   /** R2-2b: customer colour note (present ⇒ design accepts notes; "" = default). */
   customNote?: string;

@@ -10,6 +10,7 @@ import {
   orderTotal,
   type AdminOrderItem,
 } from "@/lib/orders/admin-orders";
+import { designLabel } from "@/lib/cart/cart";
 import {
   STATUS_LABEL,
   STATUS_PIPELINE,
@@ -146,7 +147,7 @@ export default async function OrderDetailPage({
                               </td>
                               <td className="px-3 py-2.5">
                                 <div className="text-xs">
-                                  {it.configSnapshot?.designName ?? "—"}
+                                  {designLabel(it.configSnapshot, replicaLocale) ?? "—"}
                                 </div>
                                 {it.configCode &&
                                   (href ? (

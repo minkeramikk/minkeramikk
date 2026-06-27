@@ -30,22 +30,25 @@ function design(acceptsCustomNotes: boolean): DesignDetail {
 
 describe("buildConfigLinePayload — customNote", () => {
   it("sets the trimmed note on a feature design", () => {
-    const { snapshot } = buildConfigLinePayload(design(true), "Amalfi Dyr", { farge: "o1" }, "  brown dog  ");
+    const { snapshot } = buildConfigLinePayload(design(true), { farge: "o1" }, "  brown dog  ");
     expect(snapshot.customNote).toBe("brown dog");
+    expect(snapshot.designNameNo).toBe("Amalfi Dyr");
+    expect(snapshot.designNameEn).toBe("Amalfi Animals");
+    expect(snapshot.designName).toBe("Amalfi Dyr");
   });
 
   it("sets an empty note (default mode) on a feature design", () => {
-    const { snapshot } = buildConfigLinePayload(design(true), "Amalfi Dyr", { farge: "o1" }, "");
+    const { snapshot } = buildConfigLinePayload(design(true), { farge: "o1" }, "");
     expect(snapshot.customNote).toBe("");
   });
 
   it("sets an empty note when no note arg is given on a feature design", () => {
-    const { snapshot } = buildConfigLinePayload(design(true), "Amalfi Dyr", { farge: "o1" });
+    const { snapshot } = buildConfigLinePayload(design(true), { farge: "o1" });
     expect(snapshot.customNote).toBe("");
   });
 
   it("omits customNote entirely on a non-feature design even if a note is passed", () => {
-    const { snapshot } = buildConfigLinePayload(design(false), "Amalfi Dyr", { farge: "o1" }, "ignored");
+    const { snapshot } = buildConfigLinePayload(design(false), { farge: "o1" }, "ignored");
     expect("customNote" in snapshot).toBe(false);
   });
 });

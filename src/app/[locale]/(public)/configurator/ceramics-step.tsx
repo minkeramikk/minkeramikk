@@ -19,6 +19,7 @@ import type { Currency } from "@/lib/money/money";
 import { useCartContext } from "@/lib/cart/cart-context";
 import {
   cartTotal,
+  designLabel,
   itemCount,
   lineSubtotal,
   type CartLine,
@@ -617,7 +618,7 @@ export function CeramicsStep({
                     <SetBadge count={line.pieces ?? 1} className="shrink-0" />
                   </p>
                   <p className="truncate text-xs text-muted-foreground">
-                    {line.configSnapshot?.designName ?? "—"}
+                    {designLabel(line.configSnapshot, locale) ?? "—"}
                   </p>
                   <div className="mt-1.5 flex items-center gap-2">
                     <div className="flex items-center rounded-sm border border-border">

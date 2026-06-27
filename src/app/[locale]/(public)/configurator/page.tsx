@@ -73,7 +73,6 @@ export default async function ConfiguratorPage({
       const customNote = detail.acceptsCustomNotes ? rawNote : "";
       const { snapshot, configCode, designLayers } = buildConfigLinePayload(
         detail,
-        selected.name,
         selById,
         customNote
       );

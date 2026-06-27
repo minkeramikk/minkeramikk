@@ -34,7 +34,6 @@ export interface ConfigLinePayload {
  */
 export function buildConfigLinePayload(
   detail: DesignDetail,
-  designName: string,
   selById: Record<string, string>,
   customNote?: string
 ): ConfigLinePayload {
@@ -43,7 +42,9 @@ export function buildConfigLinePayload(
 
   const snapshot: ConfigSnapshot = {
     designSlug: detail.slug,
-    designName,
+    designName: detail.name,
+    designNameNo: detail.nameNo,
+    designNameEn: detail.nameEn,
     selections: detail.categories.map((c) => {
       const opt = pick(c);
       return {

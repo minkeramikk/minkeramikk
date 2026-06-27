@@ -69,7 +69,7 @@ export async function resolveSetPreviews(
       );
       const detail = detailBySlug.get(designSlug);
       if (detail) {
-        designName = detail.name;
+        designName = (locale === "no" ? detail.nameNo : detail.nameEn) ?? detail.name;
         const cats: SelectedCategory[] = detail.categories.map((c) => {
           const opt = c.options.find((o) => o.id === selections[c.slug]);
           return { layerSlot: c.layerSlot, layerImage: opt?.layerImage ?? null };

@@ -87,7 +87,6 @@ export async function resolveSharedSet(raw: string): Promise<ResolvedSharedSet> 
       }
       const { snapshot, configCode, designLayers } = buildConfigLinePayload(
         detail,
-        design.name,
         decoded.selections
       );
       lines.push({

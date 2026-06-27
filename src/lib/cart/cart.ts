@@ -14,6 +14,14 @@ export interface ConfigSnapshot {
   designSlug: string;
   designName: string;
   /**
+   * R2-7 — design name frozen per-locale at add-time, mirroring
+   * productNameNo/En on the line. Optional/back-compatible: snapshots saved
+   * before R2-7 (and historic orders) lack them → display falls back to the
+   * legacy `designName` via designLabel().
+   */
+  designNameNo?: string;
+  designNameEn?: string;
+  /**
    * One entry per category: what the customer picked. `label` is the
    * Norwegian category label (the canonical one — orders/F08 lab PDF read
    * it); `labelEn` is optional/back-compatible (CA-3: the expanded cart row
@@ -132,4 +140,23 @@ export function cartTotal(cart: Cart): Money {
 
 export function itemCount(cart: Cart): number {
   return cart.reduce((n, l) => n + l.quantity, 0);
+}
+
+/**
+ * R2-7 — resolve a snapshot's design name for the given locale, falling back to
+ * the legacy single `designName` so historic orders (saved before the bilingual
+ * split) stay readable. Returns null when no name is present at all; callers
+ * render "—" in that case. Structural input so both ConfigSnapshot and the
+ * admin OrderConfigSnapshot can use it.
+ */
+export function designLabel(
+  snapshot:
+    | { designName?: string; designNameNo?: string; designNameEn?: string }
+    | null
+    | undefined,
+  locale: "no" | "en"
+): string | null {
+  if (!snapshot) return null;
+  const localized = locale === "no" ? snapshot.designNameNo : snapshot.designNameEn;
+  return localized ?? snapshot.designName ?? null;
 }
