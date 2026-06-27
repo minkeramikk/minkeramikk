@@ -48,6 +48,8 @@ export type Database = {
           description_no: string | null
           id: string
           name: string
+          name_en: string
+          name_no: string
           preview_image: string | null
           slug: string
           sort_order: number
@@ -61,6 +63,8 @@ export type Database = {
           description_no?: string | null
           id?: string
           name: string
+          name_en?: string
+          name_no?: string
           preview_image?: string | null
           slug: string
           sort_order?: number
@@ -74,6 +78,8 @@ export type Database = {
           description_no?: string | null
           id?: string
           name?: string
+          name_en?: string
+          name_no?: string
           preview_image?: string | null
           slug?: string
           sort_order?: number
