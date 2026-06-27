@@ -187,6 +187,7 @@ export default async function ConfiguratorPage({
                 labelNo: f.labelNo,
                 labelEn: f.labelEn,
                 designName: f.designName ?? "",
+                designNameEn: f.designNameEn ?? "",
                 setCount: f.setCount,
               }))}
             />

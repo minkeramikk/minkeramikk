@@ -34,6 +34,8 @@ export interface ValidatedFeatured extends FeaturedRow {
   reason: string | null;
   /** resolved design name(s) — fallback label & card subtitle */
   designName: string | null;
+  /** EN resolved design name (the existing `designName` is the NO one). */
+  designNameEn: string | null;
   /** sets only: total pieces (badge "Sett · N deler") */
   setCount: number | null;
 }
@@ -42,6 +44,7 @@ export type PayloadValidation =
   | {
       ok: true;
       designName: string;
+      designNameEn: string;
       setCount: number | null;
       /** the code whose composition represents the entry (set: first row) */
       firstCode: string;
@@ -84,7 +87,13 @@ export async function validateFeaturedPayload(
     const r = resolveDesign(payload);
     return r.reason !== undefined
       ? { ok: false, reason: r.reason }
-      : { ok: true, designName: r.design.name, setCount: null, firstCode: payload };
+      : {
+          ok: true,
+          designName: r.design.nameNo,
+          designNameEn: r.design.nameEn,
+          setCount: null,
+          firstCode: payload,
+        };
   }
 
   // kind=set: every row must still resolve (design active + ceramic visible)
@@ -92,11 +101,13 @@ export async function validateFeaturedPayload(
   if (entries.length === 0 || dropped > 0) {
     return { ok: false, reason: "set payload no longer parses" };
   }
-  const names: string[] = [];
+  const namesNo: string[] = [];
+  const namesEn: string[] = [];
   for (const entry of entries) {
     const r = resolveDesign(entry.configCode);
     if (r.reason !== undefined) return { ok: false, reason: r.reason };
-    if (!names.includes(r.design.name)) names.push(r.design.name);
+    if (!namesNo.includes(r.design.nameNo)) namesNo.push(r.design.nameNo);
+    if (!namesEn.includes(r.design.nameEn)) namesEn.push(r.design.nameEn);
     const products = await getSupplierProducts(r.design.supplierId);
     if (!products.some((p) => p.slug === entry.productSlug)) {
       return { ok: false, reason: `product "${entry.productSlug}" is hidden or gone` };
@@ -104,7 +115,8 @@ export async function validateFeaturedPayload(
   }
   return {
     ok: true,
-    designName: names.join(" + "),
+    designName: namesNo.join(" + "),
+    designNameEn: namesEn.join(" + "),
     setCount: entries.reduce((n, e) => n + e.qty, 0),
     firstCode: entries[0].configCode,
   };
@@ -137,9 +149,10 @@ async function loadValidatedFeatured(): Promise<ValidatedFeatured[]> {
             valid: true,
             reason: null,
             designName: v.designName,
+            designNameEn: v.designNameEn,
             setCount: v.setCount,
           }
-        : { ...row, valid: false, reason: v.reason, designName: null, setCount: null };
+        : { ...row, valid: false, reason: v.reason, designName: null, designNameEn: null, setCount: null };
     })
   );
 }

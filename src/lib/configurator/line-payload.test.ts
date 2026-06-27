@@ -8,6 +8,8 @@ function design(acceptsCustomNotes: boolean): DesignDetail {
     slug: "amalfi-dyr",
     code: "D",
     name: "Amalfi Dyr",
+    nameNo: "Amalfi Dyr",
+    nameEn: "Amalfi Animals",
     acceptsCustomNotes,
     categories: [
       {
