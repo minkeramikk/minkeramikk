@@ -12,7 +12,16 @@ const compat = new FlatCompat({
 const eslintConfig = [
   ...compat.extends("next/core-web-vitals", "next/typescript"),
   {
-    ignores: [".next/**", "out/**", "build/**", "next-env.d.ts"],
+    ignores: [
+      ".next/**",
+      "out/**",
+      "build/**",
+      "next-env.d.ts",
+      // git worktrees (superpowers) live here and carry their own .next build
+      // output → never lint them, even after a stale worktree lingers.
+      ".claude/**",
+      "**/.next/**",
+    ],
   },
 ];
 

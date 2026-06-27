@@ -15,6 +15,11 @@
     "siteName": "minkeramikk.no",
     "email": "bestilling@minkeramikk.no"
   },
+  "actions": {
+    "copyCode": "Copy code",
+    "copied": "Copied",
+    "newDesign": "Build a new design"
+  },
   "nav": {
     "configurator": "Build your design",
     "contact": "Get in touch",
@@ -61,11 +66,14 @@
     "stepIndicator": "Step {step} of 3",
     "nextStepDetails": "Next step: Details",
     "nextStepCeramic": "Next step: Ceramics",
-    "newDesign": "Create a new design",
     "back": "Back",
     "previewNote": "The configurator shows your design in a round pattern. Remember you can also order serving dishes, cups, oven dishes etc. in the same design – the final result is just not shown in the configurator.",
     "step1": {
-      "title": "Choose design"
+      "title": "Choose design",
+      "hero": {
+        "title": "Design your own ceramics in three steps",
+        "subtitle": "Choose a ready-made design, or make your own in three steps – pick a design, choose your colours and choose your pieces. We make each piece by hand."
+      }
     },
     "step2": {
       "titleDetails": "Choose details",
@@ -74,16 +82,9 @@
     "step3": {
       "title": "Choose ceramics",
       "quantity": "Quantity",
-      "addToBasket": "Add to basket",
       "total": "Total price",
       "send": "Send your order to us",
       "disclaimer": "Since this is a custom order, we go through the design together before the order is considered confirmed. By sending the order via this form you are not committed to completing the purchase and no payment is required now. All prices include customs and VAT – no unexpected fees on delivery! Shipping is included in the price, but for smaller orders a small surcharge may apply."
-    },
-    "configCode": {
-      "title": "Your configured design",
-      "copy": "Copy code",
-      "load": "Load configuration code",
-      "help": "Copy this code to save your configuration. Load a code to restore a configuration you designed earlier."
     },
     "steps": {
       "design": "Design",
@@ -97,9 +98,7 @@
     "selectedLabel": "Selected:",
     "code": {
       "title": "Your design code",
-      "copyCode": "Copy code",
       "copyLink": "Copy link",
-      "copied": "Copied!",
       "pasteLabel": "Paste a code",
       "pasteApply": "Load",
       "pasteError": "Unknown or invalid code",
@@ -117,6 +116,18 @@
       "curated": "curated by the shop",
       "prev": "Previous",
       "next": "Next"
+    },
+    "customNotes": {
+      "title": "Your colour notes",
+      "optionDefault": "Complementary colours (chosen by the studio)",
+      "optionCustom": "I'll choose the colours myself",
+      "placeholder": "e.g. brown dog with white spots",
+      "helper": "Doesn't change the preview — it travels to the workshop with your order.",
+      "counter": "{count}/250",
+      "selectedFigure": "Selected figure"
+    },
+    "productCard": {
+      "details": "Product details"
     }
   },
   "orderForm": {
@@ -152,20 +163,17 @@
     "subtotal": "Subtotal",
     "total": "Total price",
     "design": "Design",
-    "backToDesign": "Back",
     "button": "{count, plural, =0 {Cart, empty} one {Cart, # item} other {Cart, # items}}",
     "description": "Review your items and send your order.",
     "viewBasket": "View basket",
     "backToCart": "Back to basket",
-    "copyCode": "Copy code",
-    "copied": "Copied",
     "reopen": "Reopen",
     "shipping": "Shipping",
     "shippingIncluded": "Included",
     "itemCount": "{count, plural, =0 {Empty} one {# item} other {# items}}",
     "share": {
       "button": "Share this set",
-      "copied": "Link copied — anyone who opens it finds this set",
+      "copied": "Link copied",
       "manual": "Copy this link — anyone who opens it finds this set",
       "tooBig": "This set is too big for a link",
       "notShareable": "{count, plural, one {# item can't be shared} other {# items can't be shared}}"
@@ -184,6 +192,10 @@
       "collapse": "Hide details",
       "edit": "Edit design",
       "ceramic": "Ceramic"
+    },
+    "colourBadge": {
+      "custom": "Custom colours",
+      "studio": "Studio colours"
     }
   },
   "order": {
@@ -193,7 +205,6 @@
     "success": "Order sent!",
     "confirmTitle": "Thank you for your order!",
     "confirmBody": "Your order code is {code}. We'll be in touch shortly to confirm the design.",
-    "confirmCta": "Build a new design",
     "emptyTitle": "No order",
     "emptyBody": "You don't have an active order.",
     "saveInvite": "Save your code — you can reopen your set anytime.",

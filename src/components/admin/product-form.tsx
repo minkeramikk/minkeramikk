@@ -11,6 +11,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { ProductAttributesEditor } from "@/components/admin/product-attributes-editor";
+import type { TypedAttribute } from "@/lib/catalog/product-attributes";
 
 export interface ProductValues {
   id: string;
@@ -24,6 +26,7 @@ export interface ProductValues {
   visible: boolean;
   sortOrder: number;
   pieces: number;
+  attributes: TypedAttribute[];
 }
 
 const initial: ProductFormState = { error: null };
@@ -63,11 +66,11 @@ export function ProductForm({
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="descriptionNo">Description (NO)</Label>
-            <Textarea id="descriptionNo" name="descriptionNo" rows={2} defaultValue={product?.descriptionNo ?? ""} />
+            <Textarea id="descriptionNo" name="descriptionNo" rows={2} maxLength={2000} defaultValue={product?.descriptionNo ?? ""} />
           </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="descriptionEn">Description (EN)</Label>
-            <Textarea id="descriptionEn" name="descriptionEn" rows={2} defaultValue={product?.descriptionEn ?? ""} />
+            <Textarea id="descriptionEn" name="descriptionEn" rows={2} maxLength={2000} defaultValue={product?.descriptionEn ?? ""} />
           </div>
         </div>
 
@@ -148,6 +151,10 @@ export function ProductForm({
           />
           Visible in the shop
         </label>
+
+        <div className="border-t border-border pt-4">
+          <ProductAttributesEditor initial={product?.attributes ?? []} />
+        </div>
 
         {state.error && (
           <p data-testid="product-error" role="alert" className="text-sm text-destructive">

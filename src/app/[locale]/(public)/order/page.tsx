@@ -31,6 +31,7 @@ export default async function OrderConfirmationPage({
   const { locale } = await params;
   const { code, set } = await searchParams;
   const t = await getTranslations("order");
+  const ta = await getTranslations("actions");
 
   if (!code) {
     return (
@@ -38,7 +39,7 @@ export default async function OrderConfirmationPage({
         <h1 className="text-2xl font-semibold">{t("emptyTitle")}</h1>
         <p className="mt-3 text-muted-foreground">{t("emptyBody")}</p>
         <Button asChild className="mt-6 rounded-mk px-8">
-          <Link href="/configurator">{t("confirmCta")}</Link>
+          <Link href="/configurator">{ta("newDesign")}</Link>
         </Button>
       </section>
     );
@@ -103,7 +104,7 @@ export default async function OrderConfirmationPage({
       <div className="mt-10 flex flex-wrap justify-center gap-3">
         {shareUrl && <OrderShareButton url={shareUrl} />}
         <Button asChild variant="outline" className="rounded-mk px-8">
-          <Link href="/configurator">{t("confirmCta")}</Link>
+          <Link href="/configurator">{ta("newDesign")}</Link>
         </Button>
       </div>
     </section>

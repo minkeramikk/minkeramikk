@@ -15,6 +15,7 @@ export interface FeaturedStripItem {
   labelNo: string | null;
   labelEn: string | null;
   designName: string;
+  designNameEn: string;
   setCount: number | null;
 }
 
@@ -32,6 +33,8 @@ export function FeaturedStrip({ items }: { items: FeaturedStripItem[] }) {
   const t = useTranslations("configurator.featured");
   const tc = useTranslations("configurator");
   const locale = useLocale();
+  const designName = (f: FeaturedStripItem) =>
+    locale === "no" ? f.designName : f.designNameEn;
   const [viewportRef, embla] = useEmblaCarousel({
     align: "start",
     containScroll: "trimSnaps",
@@ -45,7 +48,7 @@ export function FeaturedStrip({ items }: { items: FeaturedStripItem[] }) {
     if (custom) return custom;
     return f.kind === "set" && f.setCount != null
       ? tc("setBadge", { count: f.setCount })
-      : f.designName;
+      : designName(f);
   };
 
   // design → step 2 with the config loaded (same ?code=&step=2 semantics as
@@ -102,7 +105,7 @@ export function FeaturedStrip({ items }: { items: FeaturedStripItem[] }) {
               key={f.id}
               href={href(f)}
               data-testid={`featured-card-${f.kind}`}
-              aria-label={`${label(f)} — ${f.designName}`}
+              aria-label={`${label(f)} — ${designName(f)}`}
               className="relative w-28 shrink-0 snap-start rounded-lg border border-border bg-card p-2.5 text-center transition-colors hover:border-ring focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring sm:w-32"
             >
               {f.kind === "set" && f.setCount != null && (
@@ -124,7 +127,7 @@ export function FeaturedStrip({ items }: { items: FeaturedStripItem[] }) {
                 {label(f)}
               </span>
               <span className="block truncate text-[10.5px] text-muted-foreground">
-                {f.designName}
+                {designName(f)}
               </span>
             </Link>
           ))}

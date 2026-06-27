@@ -27,7 +27,7 @@ export default async function EditDesignPage({
     supabase
       .from("designs")
       .select(
-        "id, name, description_no, description_en, supplier_id, preview_image, sort_order, active, code, option_categories(id, label_no, label_en, kind, layer_slot, sync_group, sort_order)"
+        "id, name, name_no, name_en, description_no, description_en, supplier_id, preview_image, sort_order, active, accepts_custom_notes, code, option_categories(id, label_no, label_en, kind, layer_slot, sync_group, sort_order)"
       )
       .eq("id", id)
       .maybeSingle(),
@@ -47,20 +47,24 @@ export default async function EditDesignPage({
       ? ((
           await supabase
             .from("options")
-            .select("id, category_id, name, hex, image, layer_image, code, sort_order, active")
+            .select("id, category_id, name, hex, image, layer_image, code, sort_order, active, is_default")
             .in("category_id", catIds)
             .order("sort_order", { ascending: true })
         ).data ?? [])
       : [];
 
-  // ── preview: first option per category (unchanged from before) ──────────────
-  const firstByCat = new Map<string, string | null>();
+  // R2-1a: preview the DEFAULT option's layer per category (matches the live
+  // step-1 cover). allOptionsRows is ordered by sort_order, so the first row we
+  // see per category is the sort_order fallback; an is_default row overrides it.
+  const coverByCat = new Map<string, string | null>();
   for (const o of allOptionsRows) {
-    if (!firstByCat.has(o.category_id)) firstByCat.set(o.category_id, o.layer_image);
+    if (!o.active) continue;
+    if (!coverByCat.has(o.category_id)) coverByCat.set(o.category_id, o.layer_image);
+    if (o.is_default) coverByCat.set(o.category_id, o.layer_image);
   }
   const selected: SelectedCategory[] = cats.map((c) => ({
     layerSlot: (c.layer_slot ?? "base") as LayerSlot,
-    layerImage: firstByCat.get(c.id) ?? null,
+    layerImage: coverByCat.get(c.id) ?? null,
   }));
   const previewLayers = getPreviewLayers(null, selected).map((l) => ({
     src: assetUrl(l.src),
@@ -79,6 +83,7 @@ export default async function EditDesignPage({
       code: o.code,
       sortOrder: o.sort_order ?? 0,
       active: o.active,
+      isDefault: o.is_default,
     };
     if (!optionsByCat.has(o.category_id)) optionsByCat.set(o.category_id, []);
     optionsByCat.get(o.category_id)!.push(slot);
@@ -121,13 +126,15 @@ export default async function EditDesignPage({
               suppliers={suppliers ?? []}
               design={{
                 id: design.id,
-                name: design.name,
+                nameNo: design.name_no,
+                nameEn: design.name_en,
                 descriptionNo: design.description_no,
                 descriptionEn: design.description_en,
                 supplierId: design.supplier_id,
                 previewImage: design.preview_image,
                 sortOrder: design.sort_order,
                 active: design.active,
+                acceptsCustomNotes: design.accepts_custom_notes,
                 code: design.code,
               }}
             />
@@ -168,7 +175,7 @@ export default async function EditDesignPage({
             }
           />
           <p className="mt-3 text-xs text-muted-foreground">
-            Composed from each category&rsquo;s first option (multiply). Review
+            Composed from each category&rsquo;s cover-default option (multiply). Review
             it, then tick <em>Active</em> above and save to publish.
           </p>
         </aside>

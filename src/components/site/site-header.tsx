@@ -9,7 +9,11 @@ export function SiteHeader() {
   const t = useTranslations();
 
   return (
-    <header className="bg-ink text-ink-foreground">
+    // R2-6 C (enabler): sticky on mobile so the cart badge — and its "added"
+    // pulse — stays in view while scrolling the long step-3 product list. z-40
+    // sits above page content but below Radix overlays (z-50), so the cart
+    // drawer still layers correctly. Desktop chrome unchanged.
+    <header className="bg-ink text-ink-foreground max-md:sticky max-md:top-0 z-40">
       <div className="mx-auto flex h-14 max-w-[1060px] items-center justify-between px-5">
         <Link
           href="/"

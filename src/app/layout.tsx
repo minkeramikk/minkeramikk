@@ -4,6 +4,7 @@ import { Poppins } from "next/font/google";
 import { getLocale } from "next-intl/server";
 import { getThemeTokens } from "@/lib/theme.server";
 import { AssetVariantFallback } from "@/components/asset-variant-fallback";
+import { siteUrl } from "@/lib/site";
 import "./globals.css";
 
 const poppins = Poppins({
@@ -13,11 +14,30 @@ const poppins = Poppins({
 });
 
 export const metadata: Metadata = {
+  // Makes the file-based opengraph-image/twitter-image URLs absolute (required
+  // for social crawlers). Origin from siteUrl() (NEXT_PUBLIC_SITE_URL override).
+  metadataBase: new URL(siteUrl()),
   title: {
     default: "Min Keramikk",
     template: "%s · Min Keramikk",
   },
   description: "Håndlaget keramikk – bygg din egen design.",
+  // Social share card. The image comes from src/app/opengraph-image.jpg +
+  // twitter-image.jpg (Next file convention → auto og:image/twitter:image with
+  // dimensions). nb_NO default; per-locale refinement can come later.
+  openGraph: {
+    type: "website",
+    siteName: "Min Keramikk",
+    title: "Min Keramikk",
+    description: "Håndlaget keramikk – bygg din egen design.",
+    locale: "nb_NO",
+    alternateLocale: ["en"],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Min Keramikk",
+    description: "Håndlaget keramikk – bygg din egen design.",
+  },
 };
 
 export default async function RootLayout({

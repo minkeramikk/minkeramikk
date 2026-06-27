@@ -14,6 +14,11 @@
     "siteName": "minkeramikk.no",
     "email": "bestilling@minkeramikk.no"
   },
+  "actions": {
+    "copyCode": "Kopier kode",
+    "copied": "Kopiert",
+    "newDesign": "Bygg et nytt design"
+  },
   "nav": {
     "configurator": "Bygg din design",
     "contact": "Ta kontakt",
@@ -60,11 +65,14 @@
     "stepIndicator": "Steg {step} av 3",
     "nextStepDetails": "Neste steg: Detaljer",
     "nextStepCeramic": "Neste steg: Keramikk",
-    "newDesign": "Lag et nytt design",
     "back": "Tilbake",
     "previewNote": "Konfigurator viser designet ditt i et rundt mønster, husk at du kan også bestille serveringsfat, kopper, ildfastformer osv. i samme design, sluttresultatet bare ikke vises i konfigurator.",
     "step1": {
-      "title": "Velg design"
+      "title": "Velg design",
+      "hero": {
+        "title": "Lag din egen keramikk i tre steg",
+        "subtitle": "Velg et ferdig design, eller lag ditt eget i tre steg – velg design, velg farger og velg deler. Vi lager hver del for hånd."
+      }
     },
     "step2": {
       "titleDetails": "Velg detaljer",
@@ -73,16 +81,9 @@
     "step3": {
       "title": "Velg keramikk",
       "quantity": "Antall",
-      "addToBasket": "Legg i handlekurv",
       "total": "Totalpris",
       "send": "Send din ordre til oss",
       "disclaimer": "Siden dette er en spesialbestilling, går vi gjennom designet sammen før ordren kan anses som bekreftet. Ved å sende ordren til oss via dette skjemaet er du ikke forpliktet til å fullføre kjøpet og ingen betaling kreves nå. Alle prisene inkluderer alt av toll og MVA – ingen uventede gebyrer ved levering! Frakt er inkludert i prisen, men ved mindre bestillinger et lite tillegg kan forekomme."
-    },
-    "configCode": {
-      "title": "Din konfigurerte design",
-      "copy": "Kopier kode",
-      "load": "Last inn konfigurasjonskode",
-      "help": "Kopier denne koden for å lagre din konfigurasjon. Last inn kode for å hente inn samme konfigurasjon du har tidligere designet."
     },
     "steps": {
       "design": "Design",
@@ -96,9 +97,7 @@
     "selectedLabel": "Valgt:",
     "code": {
       "title": "Din design-kode",
-      "copyCode": "Kopier kode",
       "copyLink": "Kopier lenke",
-      "copied": "Kopiert!",
       "pasteLabel": "Lim inn en kode",
       "pasteApply": "Hent",
       "pasteError": "Ukjent eller ugyldig kode",
@@ -116,6 +115,18 @@
       "curated": "utvalgt av butikken",
       "prev": "Forrige",
       "next": "Neste"
+    },
+    "customNotes": {
+      "title": "Egne fargeønsker",
+      "optionDefault": "Komplementære farger (valgt av studioet)",
+      "optionCustom": "Jeg velger fargene selv",
+      "placeholder": "f.eks. brun hund med hvite flekker",
+      "helper": "Endrer ikke forhåndsvisningen — følger bestillingen til verkstedet.",
+      "counter": "{count}/250",
+      "selectedFigure": "Valgt figur"
+    },
+    "productCard": {
+      "details": "Produktdetaljer"
     }
   },
   "orderForm": {
@@ -151,20 +162,17 @@
     "subtotal": "Delsum",
     "total": "Totalpris",
     "design": "Design",
-    "backToDesign": "Tilbake",
     "button": "{count, plural, =0 {Handlekurv, tom} one {Handlekurv, # vare} other {Handlekurv, # varer}}",
     "description": "Se over varene og send bestillingen.",
     "viewBasket": "Vis handlekurv",
     "backToCart": "Tilbake til handlekurven",
-    "copyCode": "Kopier kode",
-    "copied": "Kopiert",
     "reopen": "Åpne igjen",
     "shipping": "Frakt",
     "shippingIncluded": "Inkludert",
     "itemCount": "{count, plural, =0 {Tom} one {# vare} other {# varer}}",
     "share": {
       "button": "Del settet",
-      "copied": "Lenke kopiert — den som åpner den finner dette settet",
+      "copied": "Lenke kopiert",
       "manual": "Kopier denne lenken — den som åpner den finner dette settet",
       "tooBig": "Settet er for stort for en lenke",
       "notShareable": "{count, plural, one {# vare kan ikke deles} other {# varer kan ikke deles}}"
@@ -183,6 +191,10 @@
       "collapse": "Skjul detaljer",
       "edit": "Rediger design",
       "ceramic": "Keramikk"
+    },
+    "colourBadge": {
+      "custom": "Egendefinerte farger",
+      "studio": "Studioets farger"
     }
   },
   "order": {
@@ -192,7 +204,6 @@
     "success": "Bestilling sendt!",
     "confirmTitle": "Takk for bestillingen!",
     "confirmBody": "Bestillingskoden din er {code}. Vi tar kontakt med deg om kort tid for å bekrefte designet.",
-    "confirmCta": "Bygg en ny design",
     "emptyTitle": "Ingen bestilling",
     "emptyBody": "Du har ingen aktiv bestilling.",
     "saveInvite": "Lagre koden din — du kan hente settet ditt igjen når som helst.",

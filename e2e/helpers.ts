@@ -49,6 +49,10 @@ export interface DesignRef {
   name: string;
 }
 
+export interface DesignRefWithId extends DesignRef {
+  id: string;
+}
+
 /** The first active design in catalog order — the one the configurator preselects. */
 export async function firstActiveDesign(): Promise<DesignRef> {
   const { data, error } = await adminClient()
@@ -60,6 +64,41 @@ export async function firstActiveDesign(): Promise<DesignRef> {
     .single();
   if (error) throw error;
   return data as DesignRef;
+}
+
+/**
+ * R2-2b: first active design with its id (needed for admin edit URL).
+ * The id is used to navigate to /admin/designs/<id> for the flag toggle.
+ */
+export async function firstActiveDesignWithId(): Promise<DesignRefWithId> {
+  const { data, error } = await adminClient()
+    .from("designs")
+    .select("id, slug, code, name")
+    .eq("active", true)
+    .order("sort_order")
+    .limit(1)
+    .single();
+  if (error) throw error;
+  return data as DesignRefWithId;
+}
+
+/**
+ * R2-2b: second active design (different from the first) — used to check
+ * that designs WITHOUT the flag don't show the custom-notes block.
+ * Returns null if there is only one active design.
+ */
+export async function secondActiveDesignWithId(): Promise<DesignRefWithId | null> {
+  const first = await firstActiveDesignWithId();
+  const { data, error } = await adminClient()
+    .from("designs")
+    .select("id, slug, code, name")
+    .eq("active", true)
+    .neq("id", first.id)
+    .order("sort_order")
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  return data as DesignRefWithId | null;
 }
 
 /**
@@ -78,6 +117,27 @@ export async function designWithCode(): Promise<DesignRef> {
     .single();
   if (error) throw error;
   return data as DesignRef;
+}
+
+/**
+ * R2-4b: first visible product of a design's supplier — the product that shows
+ * at step 3 for that design. Returns the id (admin edit URL) + slug (step-3
+ * testid). Null when the supplier has no visible product.
+ */
+export async function firstProductOfDesignSupplier(
+  supplierId: string
+): Promise<{ id: string; slug: string; nameNo: string } | null> {
+  const { data, error } = await adminClient()
+    .from("products")
+    .select("id, slug, name_no, supplier_id, visible, sort_order")
+    .eq("supplier_id", supplierId)
+    .eq("visible", true)
+    .order("sort_order", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+  return { id: data.id, slug: data.slug, nameNo: data.name_no };
 }
 
 /** First supplier (for seeding order items). */

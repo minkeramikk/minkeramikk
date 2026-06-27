@@ -6,6 +6,7 @@ import { getDesignDetail, type DesignDetail } from "@/lib/catalog/design-options
 import { getSupplierProducts } from "@/lib/catalog/products";
 import { assetUrl } from "@/lib/storage";
 import { buildConfigLinePayload } from "@/lib/configurator/line-payload";
+import { pickDefaultOption } from "@/lib/configurator/default-option";
 import { getFeaturedConfigs } from "@/lib/catalog/featured";
 import { FeaturedStrip } from "./featured-strip";
 import { ConfiguratorClient } from "./configurator-client";
@@ -61,13 +62,19 @@ export default async function ConfiguratorPage({
         const v = params[`opt_${c.slug}`];
         const opt =
           (typeof v === "string" && c.options.find((o) => o.id === v)) ||
-          c.options[0];
+          // R2-1a: untouched category falls back to the cover default
+          // (is_default else first-by-sort_order), matching steps 1-2.
+          pickDefaultOption(c.options);
         if (opt) selById[c.slug] = opt.id;
       }
+      // R2-2b: the free-text note rides the WORKING url (never the config code
+      // nor the set= link). Honour it only when the design accepts notes.
+      const rawNote = typeof params.note === "string" ? params.note : "";
+      const customNote = detail.acceptsCustomNotes ? rawNote : "";
       const { snapshot, configCode, designLayers } = buildConfigLinePayload(
         detail,
-        selected.name,
-        selById
+        selById,
+        customNote
       );
 
       // CA-3: a `set=` param is a shared basket — resolve it server-side
@@ -94,6 +101,9 @@ export default async function ConfiguratorPage({
                 currency: p.price.currency,
                 image: p.image,
                 pieces: p.pieces,
+                descriptionNo: p.descriptionNo,
+                descriptionEn: p.descriptionEn,
+                attributes: p.attributes,
               }))}
               design={{
                 slug: selected.slug,
@@ -176,6 +186,7 @@ export default async function ConfiguratorPage({
                 labelNo: f.labelNo,
                 labelEn: f.labelEn,
                 designName: f.designName ?? "",
+                designNameEn: f.designNameEn ?? "",
                 setCount: f.setCount,
               }))}
             />

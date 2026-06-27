@@ -4,6 +4,7 @@ import { unstable_cache } from "next/cache";
 import { createPublicClient } from "@/lib/supabase/public";
 import { money, type Money } from "@/lib/money/money";
 import type { Currency } from "@/lib/money/money";
+import { mapTypedAttributes, type TypedAttribute } from "@/lib/catalog/product-attributes";
 
 /** A ceramic the customer can pick at step 3 (ADR 0007: scoped to a supplier). */
 export interface SupplierProduct {
@@ -16,6 +17,11 @@ export interface SupplierProduct {
   image: string | null;
   /** F29: pieces in the product. 1 = single item; >1 = set. */
   pieces: number;
+  /** R2-2: bilingual free-text description (nullable). */
+  descriptionNo: string | null;
+  descriptionEn: string | null;
+  /** R2-3+R2-4: ordered typed attributes (weight/diameter/dimensions/custom); [] when none. */
+  attributes: TypedAttribute[];
 }
 
 /**
@@ -43,7 +49,9 @@ async function loadSupplierProducts(
 
   const { data, error } = await supabase
     .from("products")
-    .select("id, slug, name_no, name_en, price_cents, currency, image, pieces")
+    .select(
+      "id, slug, name_no, name_en, description_no, description_en, price_cents, currency, image, pieces, product_attributes(key, label_no, label_en, value, value_num, sort_order)"
+    )
     .eq("supplier_id", supplierId)
     .eq("visible", true)
     .order("sort_order", { ascending: true });
@@ -57,6 +65,9 @@ async function loadSupplierProducts(
     price: money(p.price_cents, p.currency as Currency),
     image: p.image,
     pieces: p.pieces,
+    descriptionNo: p.description_no,
+    descriptionEn: p.description_en,
+    attributes: mapTypedAttributes(p.product_attributes),
   }));
 }
 

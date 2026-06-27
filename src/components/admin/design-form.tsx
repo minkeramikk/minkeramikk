@@ -11,13 +11,15 @@ import { Textarea } from "@/components/ui/textarea";
 
 export interface DesignValues {
   id: string;
-  name: string;
+  nameNo: string;
+  nameEn: string;
   descriptionNo: string | null;
   descriptionEn: string | null;
   supplierId: string;
   previewImage: string | null;
   sortOrder: number;
   active: boolean;
+  acceptsCustomNotes: boolean;
   code: string | null;
 }
 
@@ -36,15 +38,21 @@ export function DesignForm({
     <form action={formAction} className="flex max-w-lg flex-col gap-4" data-testid="design-form">
       {design && <input type="hidden" name="id" value={design.id} />}
 
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor="name">Name</Label>
-        <Input id="name" name="name" required defaultValue={design?.name ?? ""} data-testid="design-name" />
-        {design?.code && (
-          <p className="text-xs text-muted-foreground">
-            Code <span className="font-mono">{design.code}</span> (assigned once, never changes).
-          </p>
-        )}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="nameNo">Name (NO)</Label>
+          <Input id="nameNo" name="nameNo" required defaultValue={design?.nameNo ?? ""} data-testid="design-name-no" />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="nameEn">Name (EN)</Label>
+          <Input id="nameEn" name="nameEn" required defaultValue={design?.nameEn ?? ""} data-testid="design-name-en" />
+        </div>
       </div>
+      {design?.code && (
+        <p className="-mt-2 text-xs text-muted-foreground">
+          Code <span className="font-mono">{design.code}</span> (assigned once, never changes).
+        </p>
+      )}
 
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="supplierId">Supplier</Label>
@@ -99,6 +107,17 @@ export function DesignForm({
           Active (visible in the configurator)
         </label>
       </div>
+
+      <label className="flex items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          name="acceptsCustomNotes"
+          defaultChecked={design ? design.acceptsCustomNotes : false}
+          className="size-4 accent-[var(--primary)]"
+          data-testid="design-accepts-notes"
+        />
+        Accepts custom colour notes from the customer
+      </label>
 
       {state.error && (
         <p data-testid="design-error" role="alert" className="text-sm text-destructive">

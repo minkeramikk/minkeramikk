@@ -72,6 +72,7 @@ const toMailItem = (i: OrderItemInput): MailItem => ({
   unitPriceCents: i.unitPriceCents,
   currency: i.currency,
   configCode: i.configCode,
+  customNote: i.configSnapshot?.customNote || undefined,
 });
 
 /**
@@ -94,6 +95,23 @@ function reopenSetUrl(
   );
   if (!param) return null;
   return `${siteUrl()}/${locale}/order?code=${encodeURIComponent(code)}&set=${param}`;
+}
+
+/**
+ * Admin-only "Replica set" link (R2-6 D) → reopens the whole order as a basket
+ * at configurator step 3, ready to re-price/re-order. Codes/slugs/qty only (no
+ * prices, like CA-3). Null when no line is replicable.
+ */
+function replicaSetUrl(items: OrderItemInput[], locale: "no" | "en"): string | null {
+  const param = encodeSetParam(
+    items.map((i) => ({
+      configCode: i.configCode,
+      productSlug: i.productSlug,
+      quantity: i.quantity,
+    }))
+  );
+  if (!param) return null;
+  return `${siteUrl()}/${locale}/configurator?step=3&set=${param}`;
 }
 
 export async function sendOrderEmails(
@@ -130,6 +148,7 @@ export async function sendOrderEmails(
     customerEmail: params.customerEmail,
     items,
     theme,
+    replicaUrl: replicaSetUrl(params.items, params.locale),
   });
   const adminTo = process.env.ORDER_NOTIFY_EMAIL || "dangeli88.daniele@gmail.com";
   await transport.send({

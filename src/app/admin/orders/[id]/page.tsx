@@ -5,10 +5,12 @@ import { LabPdfActions } from "@/components/admin/lab-pdf-actions";
 import { OrderStatusBadge } from "@/components/ui-domain/order-status-badge";
 import { getOrder, getCodecDesigns } from "@/lib/orders/admin-orders.server";
 import {
+  buildReplicaSet,
   configuratorPathFromCode,
   orderTotal,
   type AdminOrderItem,
 } from "@/lib/orders/admin-orders";
+import { designLabel } from "@/lib/cart/cart";
 import {
   STATUS_LABEL,
   STATUS_PIPELINE,
@@ -55,6 +57,10 @@ export default async function OrderDetailPage({
   const groups = groupBySupplier(order.items);
   const currentIndex = STATUS_PIPELINE.indexOf(order.status);
   const modified = order.updatedAt !== order.createdAt;
+  // R2-6 D: rebuild this order as a CA-3 shared set → reopen the basket at
+  // step 3 (live prices, 3-way banner if the visitor's cart isn't empty).
+  const replica = buildReplicaSet(order);
+  const replicaLocale = order.locale === "en" ? "en" : "no";
 
   return (
     <AdminShell
@@ -141,7 +147,7 @@ export default async function OrderDetailPage({
                               </td>
                               <td className="px-3 py-2.5">
                                 <div className="text-xs">
-                                  {it.configSnapshot?.designName ?? "—"}
+                                  {designLabel(it.configSnapshot, replicaLocale) ?? "—"}
                                 </div>
                                 {it.configCode &&
                                   (href ? (
@@ -242,6 +248,27 @@ export default async function OrderDetailPage({
               >
                 Email the customer
               </a>
+              {/* R2-6 D: reopen this order as a basket (set codec is URL-safe →
+                  raw param). Disabled when no line carries a config code/slug. */}
+              {replica.param ? (
+                <a
+                  href={`/${replicaLocale}/configurator?step=3&set=${replica.param}`}
+                  data-testid="replica-set"
+                  className="mt-2 block rounded-lg border border-border px-3 py-2 text-center text-sm"
+                >
+                  Replica set →
+                </a>
+              ) : (
+                <p data-testid="replica-set-empty" className="mt-2 text-xs text-muted-foreground">
+                  No replicable lines in this order.
+                </p>
+              )}
+              {replica.param && replica.skipped > 0 && (
+                <p data-testid="replica-set-warning" className="mt-1 text-xs text-muted-foreground">
+                  {replica.skipped} line{replica.skipped > 1 ? "s" : ""} without a config
+                  code were skipped.
+                </p>
+              )}
               <p className="mt-3 text-xs text-muted-foreground">
                 Received: {fmtDateTime(order.createdAt)}
                 <br />

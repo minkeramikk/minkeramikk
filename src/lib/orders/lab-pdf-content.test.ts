@@ -24,8 +24,10 @@ const ORDER: AdminOrder = {
       currency: "NOK",
       quantity: 4,
       configCode: "MK-D-A-Q",
+      productImage: null,
       configSnapshot: {
         designName: "Krabbe",
+        customNote: "brown dog with white spots",
         selections: [
           { label: "Farger", option: "Blå", hex: "#123456" },
           { label: "Kanter", option: "Gull", hex: "#ddaa33" },
@@ -41,6 +43,7 @@ const ORDER: AdminOrder = {
       currency: "NOK",
       quantity: 2,
       configCode: "MK-C-B",
+      productImage: null,
       configSnapshot: { designName: "Amalfi Dyr", selections: [] },
     },
   ],
@@ -60,6 +63,7 @@ describe("buildLabPdfDoc", () => {
           designName: "Krabbe",
           configCode: "MK-D-A-Q",
           quantity: 4,
+          customNote: "brown dog with white spots",
           selections: [
             { label: "Farger", option: "Blå", hex: "#123456" },
             { label: "Kanter", option: "Gull", hex: "#ddaa33" },
@@ -90,5 +94,15 @@ describe("buildLabPdfDoc", () => {
     ]) {
       expect(blob).not.toContain(pii);
     }
+  });
+
+  it("carries the customer note onto the lab item (R2-2b AC5)", () => {
+    const doc = buildLabPdfDoc(ORDER, "sup-vietri")!;
+    expect(doc.items[0].customNote).toBe("brown dog with white spots");
+  });
+
+  it("leaves customNote undefined when the snapshot has none", () => {
+    const doc = buildLabPdfDoc(ORDER, "sup-other")!;
+    expect(doc.items[0].customNote).toBeUndefined();
   });
 });

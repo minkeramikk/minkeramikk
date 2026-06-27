@@ -13,6 +13,7 @@
 import type { DesignDetail } from "@/lib/catalog/design-options";
 import type { CartLayer, ConfigSnapshot } from "@/lib/cart/cart";
 import { encodeConfigCode, toCodecDesign } from "./config-code";
+import { pickDefaultOption } from "./default-option";
 import { getPreviewLayers } from "./preview";
 import { assetUrl } from "@/lib/storage";
 
@@ -25,19 +26,25 @@ export interface ConfigLinePayload {
 
 /**
  * @param selById categorySlug → optionId; missing/unknown falls back to the
- *   category's first option (same tolerance as the step-3 page always had).
+ *   category's cover default (is_default else first-by-sort_order) (same
+ *   tolerance as the step-3 page always had).
+ * @param customNote R2-2b — the customer's free-text colour note. Only stored
+ *   on designs where `detail.acceptsCustomNotes` is true; trimmed automatically.
+ *   Omit (or pass `""`) for default/studio-choice mode.
  */
 export function buildConfigLinePayload(
   detail: DesignDetail,
-  designName: string,
-  selById: Record<string, string>
+  selById: Record<string, string>,
+  customNote?: string
 ): ConfigLinePayload {
   const pick = (c: DesignDetail["categories"][number]) =>
-    c.options.find((o) => o.id === selById[c.slug]) ?? c.options[0];
+    c.options.find((o) => o.id === selById[c.slug]) ?? pickDefaultOption(c.options);
 
   const snapshot: ConfigSnapshot = {
     designSlug: detail.slug,
-    designName,
+    designName: detail.name,
+    designNameNo: detail.nameNo,
+    designNameEn: detail.nameEn,
     selections: detail.categories.map((c) => {
       const opt = pick(c);
       return {
@@ -47,6 +54,9 @@ export function buildConfigLinePayload(
         hex: opt?.hex ?? null,
       };
     }),
+    // R2-2b: present (possibly "") only on designs that accept notes; the
+    // server re-sanitises at order submit (zod). Off-feature designs omit it.
+    ...(detail.acceptsCustomNotes ? { customNote: (customNote ?? "").trim() } : {}),
   };
 
   const normalized: Record<string, string> = {};

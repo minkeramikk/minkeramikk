@@ -41,36 +41,45 @@ export type Database = {
     Tables: {
       designs: {
         Row: {
+          accepts_custom_notes: boolean
           active: boolean
           code: string | null
           description_en: string | null
           description_no: string | null
           id: string
           name: string
+          name_en: string
+          name_no: string
           preview_image: string | null
           slug: string
           sort_order: number
           supplier_id: string
         }
         Insert: {
+          accepts_custom_notes?: boolean
           active?: boolean
           code?: string | null
           description_en?: string | null
           description_no?: string | null
           id?: string
           name: string
+          name_en?: string
+          name_no?: string
           preview_image?: string | null
           slug: string
           sort_order?: number
           supplier_id: string
         }
         Update: {
+          accepts_custom_notes?: boolean
           active?: boolean
           code?: string | null
           description_en?: string | null
           description_no?: string | null
           id?: string
           name?: string
+          name_en?: string
+          name_no?: string
           preview_image?: string | null
           slug?: string
           sort_order?: number
@@ -178,6 +187,7 @@ export type Database = {
           hex: string | null
           id: string
           image: string | null
+          is_default: boolean
           layer_image: string | null
           name: string
           sort_order: number
@@ -189,6 +199,7 @@ export type Database = {
           hex?: string | null
           id?: string
           image?: string | null
+          is_default?: boolean
           layer_image?: string | null
           name: string
           sort_order?: number
@@ -200,6 +211,7 @@ export type Database = {
           hex?: string | null
           id?: string
           image?: string | null
+          is_default?: boolean
           layer_image?: string | null
           name?: string
           sort_order?: number
@@ -335,6 +347,50 @@ export type Database = {
           zipcode?: string | null
         }
         Relationships: []
+      }
+      product_attributes: {
+        Row: {
+          created_at: string
+          id: string
+          key: string
+          label_en: string | null
+          label_no: string | null
+          product_id: string
+          sort_order: number
+          value: string | null
+          value_num: number | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          key?: string
+          label_en?: string | null
+          label_no?: string | null
+          product_id: string
+          sort_order?: number
+          value?: string | null
+          value_num?: number | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          key?: string
+          label_en?: string | null
+          label_no?: string | null
+          product_id?: string
+          sort_order?: number
+          value?: string | null
+          value_num?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_attributes_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       products: {
         Row: {
@@ -488,6 +544,10 @@ export type Database = {
           p_zipcode?: string
         }
         Returns: string
+      }
+      replace_product_attributes: {
+        Args: { p_product_id: string; p_rows: Json }
+        Returns: undefined
       }
     }
     Enums: {

@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { AdminShell } from "@/components/shell/admin-shell";
 import { ProductForm } from "@/components/admin/product-form";
 import { createClient } from "@/lib/supabase/server";
+import { mapTypedAttributes } from "@/lib/catalog/product-attributes";
 
 export const dynamic = "force-dynamic";
 
@@ -17,7 +18,7 @@ export default async function EditProductPage({
     supabase
       .from("products")
       .select(
-        "id, name_no, name_en, description_no, description_en, price_cents, supplier_id, image, visible, sort_order, pieces"
+        "id, name_no, name_en, description_no, description_en, price_cents, supplier_id, image, visible, sort_order, pieces, product_attributes(key, label_no, label_en, value, value_num, sort_order)"
       )
       .eq("id", id)
       .maybeSingle(),
@@ -50,6 +51,7 @@ export default async function EditProductPage({
           visible: product.visible,
           sortOrder: product.sort_order,
           pieces: product.pieces,
+          attributes: mapTypedAttributes(product.product_attributes),
         }}
       />
     </AdminShell>

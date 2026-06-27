@@ -51,6 +51,15 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/* R2-6 C: one-shot pop on the cart badge when an item is added — a mobile cue
+ * for "where the piece went". Transform-only (no layout shift); gated to
+ * motion-safe + mobile at the call site. */
+@keyframes cart-pop {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.35); }
+  100% { transform: scale(1); }
+}
+
 /*
  * minkeramikk theme (ADR 0008, docs/theme/DESIGN-SYSTEM.md).
  *

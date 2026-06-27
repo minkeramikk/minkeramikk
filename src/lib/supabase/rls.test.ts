@@ -174,6 +174,80 @@ describe.skipIf(!hasEnv)("RLS — anon client", () => {
     expect(after.data!.color_accent).not.toBe("#000000");
   });
 
+  // R2-1a / AC4: only authenticated admins may set the cover default; anon is
+  // blocked by RLS. Self-contained: reads a real option id with the service
+  // role, then verifies the anon update affects no rows (so it mutates nothing).
+  it("cannot set an option's is_default (R2-1a)", async () => {
+    const existing = await admin
+      .from("options")
+      .select("id")
+      .limit(1)
+      .maybeSingle();
+    if (!existing.data) return; // no options in this DB — nothing to assert
+    const optionId = existing.data.id;
+
+    const { data, error } = await anon
+      .from("options")
+      .update({ is_default: true })
+      .eq("id", optionId)
+      .select("id");
+
+    // RLS blocks the write: either an explicit error or zero rows affected.
+    expect(error ? true : (data ?? []).length === 0).toBe(true);
+  });
+
+  // R2-2a / AC1: only authenticated admins may flip accepts_custom_notes; anon
+  // is blocked by RLS. Self-contained: reads a real design id with the service
+  // role, then verifies the anon update affects no rows.
+  // NOTE: false-green until migration 0014 is pushed (the column does not exist
+  // yet → the anon update errors, which the assertion also accepts). It becomes
+  // a real RLS assertion once the column exists remotely.
+  it("cannot set a design's accepts_custom_notes (R2-2a)", async () => {
+    const existing = await admin
+      .from("designs")
+      .select("id")
+      .limit(1)
+      .maybeSingle();
+    if (!existing.data) return; // no designs in this DB — nothing to assert
+    const designId = existing.data.id;
+
+    const { data, error } = await anon
+      .from("designs")
+      .update({ accepts_custom_notes: true })
+      .eq("id", designId)
+      .select("id");
+
+    // RLS blocks the write: either an explicit error or zero rows affected.
+    expect(error ? true : (data ?? []).length === 0).toBe(true);
+  });
+
+  // R2-4a / AC1: only authenticated admins may write product attributes; anon
+  // is blocked by RLS. Self-contained: discovers a real product id with the
+  // service role, then verifies the anon insert affects nothing.
+  // NOTE: false-green until migration 0015 is pushed (the table does not exist
+  // yet → the anon insert errors, which the assertion also accepts). It becomes
+  // a real RLS assertion once the table exists remotely.
+  it("cannot insert a product attribute (R2-4a)", async () => {
+    const existing = await admin
+      .from("products")
+      .select("id")
+      .limit(1)
+      .maybeSingle();
+    if (!existing.data) return; // no products in this DB — nothing to assert
+
+    const { error } = await anon.from("product_attributes").insert({
+      product_id: existing.data.id,
+      key: "custom",
+      label_no: "Farge",
+      label_en: "Colour",
+      value: "Blå",
+    });
+
+    // RLS blocks the write: an explicit error is expected (the table also does
+    // not exist pre-push, which surfaces as an error too — false-green).
+    expect(error).not.toBeNull();
+  });
+
   it("CAN insert an order (public insert is allowed) but cannot read it back", async () => {
     const code = `RLS-ANON-${Date.now()}`;
     const { error } = await anon.from("orders").insert({

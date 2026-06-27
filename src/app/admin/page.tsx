@@ -16,9 +16,18 @@ import {
   type OrderStatus,
 } from "@/lib/orders/order-status";
 import { formatMoney } from "@/lib/money/money";
+import { cn } from "@/lib/utils";
 
 // Live operational data: render per request so a status change is reflected.
 export const dynamic = "force-dynamic";
+
+// R2-6 E: a cancelled order must be unmistakable in the list (avoid working an
+// annulled order). Diagonal red stripes (destructive token, color-mix — no hex)
+// + strikethrough/dim on the identity text; the "Open" link stays untouched.
+const CANCELLED_STRIPES: React.CSSProperties = {
+  backgroundImage:
+    "repeating-linear-gradient(45deg, color-mix(in oklab, var(--destructive) 10%, transparent) 0 6px, transparent 6px 14px)",
+};
 
 const first = (v: string | string[] | undefined): string =>
   (Array.isArray(v) ? v[0] : v) ?? "";
@@ -170,7 +179,9 @@ export default async function AdminOrdersPage({
                   </tr>
                 </thead>
                 <tbody>
-                  {rows.map((o) => (
+                  {rows.map((o) => {
+                    const cancelled = o.status === "cancelled";
+                    return (
                     /* F07b: entire row is clickable via a stretched-link
                        pseudo-element. The "Open" Link carries after:absolute
                        after:inset-0 after:content-[''] so its ::after covers the
@@ -181,13 +192,15 @@ export default async function AdminOrdersPage({
                       key={o.id}
                       data-testid="order-row"
                       data-code={o.code}
+                      data-cancelled={cancelled ? "1" : undefined}
                       className="relative cursor-pointer border-b border-border/50 last:border-0 hover:bg-muted/50"
+                      style={cancelled ? CANCELLED_STRIPES : undefined}
                     >
                       <td className="px-4 py-3">
-                        <span className="font-mono text-xs font-medium">{o.code}</span>
+                        <span className={cn("font-mono text-xs font-medium", cancelled && "text-muted-foreground line-through")}>{o.code}</span>
                       </td>
                       <td className="px-4 py-3">
-                        <div className="font-medium">{o.customerName}</div>
+                        <div className={cn("font-medium", cancelled && "text-muted-foreground line-through")}>{o.customerName}</div>
                         <div className="text-xs text-muted-foreground">{o.email}</div>
                       </td>
                       <td className="max-w-[260px] px-4 py-3 text-muted-foreground">
@@ -215,26 +228,31 @@ export default async function AdminOrdersPage({
                         </Link>
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
 
             {/* mobile: stacked cards (§3.5) */}
             <div className="flex flex-col gap-3 md:hidden">
-              {rows.map((o) => (
+              {rows.map((o) => {
+                const cancelled = o.status === "cancelled";
+                return (
                 <Link
                   key={o.id}
                   href={`/admin/orders/${o.id}`}
                   data-testid="order-card"
                   data-code={o.code}
+                  data-cancelled={cancelled ? "1" : undefined}
                   className="block rounded-lg border border-border bg-card p-4"
+                  style={cancelled ? CANCELLED_STRIPES : undefined}
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <span className="font-mono text-xs font-medium">{o.code}</span>
+                    <span className={cn("font-mono text-xs font-medium", cancelled && "text-muted-foreground line-through")}>{o.code}</span>
                     <OrderStatusBadge status={o.status as OrderStatus} />
                   </div>
-                  <div className="mt-1.5 font-medium">{o.customerName}</div>
+                  <div className={cn("mt-1.5 font-medium", cancelled && "text-muted-foreground line-through")}>{o.customerName}</div>
                   <div className="text-xs text-muted-foreground">{o.email}</div>
                   <div className="mt-2 text-xs text-muted-foreground">
                     {summarizeItems(o.items)}
@@ -246,7 +264,8 @@ export default async function AdminOrdersPage({
                     </span>
                   </div>
                 </Link>
-              ))}
+                );
+              })}
             </div>
           </>
         )}

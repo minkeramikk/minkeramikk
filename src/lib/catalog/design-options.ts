@@ -15,6 +15,7 @@ export interface CategoryOption {
   hex: string | null;
   /** Compositing asset for the preview (ADR 0010). */
   layerImage: string | null;
+  isDefault: boolean;
 }
 
 export interface DesignCategory {
@@ -34,6 +35,10 @@ export interface DesignDetail {
   /** Stable design code, the <D> segment of the config code (ADR 0011). */
   code: string | null;
   name: string;
+  nameNo: string;
+  nameEn: string;
+  /** R2-2a: shop opted this design into custom colour notes (step-2 block). */
+  acceptsCustomNotes: boolean;
   categories: DesignCategory[];
 }
 
@@ -59,7 +64,7 @@ async function loadDesignDetail(slug: string): Promise<DesignDetail | null> {
 
   const { data: design, error: designErr } = await supabase
     .from("designs")
-    .select("id, slug, code, name")
+    .select("id, slug, code, name, name_no, name_en, accepts_custom_notes")
     .eq("slug", slug)
     .maybeSingle();
   if (designErr) throw designErr;
@@ -68,7 +73,7 @@ async function loadDesignDetail(slug: string): Promise<DesignDetail | null> {
   const { data: categories, error: catErr } = await supabase
     .from("option_categories")
     .select(
-      "id, slug, label_no, label_en, kind, layer_slot, sync_group, sort_order, options(id, code, name, image, hex, layer_image, sort_order, active)"
+      "id, slug, label_no, label_en, kind, layer_slot, sync_group, sort_order, options(id, code, name, image, hex, layer_image, sort_order, active, is_default)"
     )
     .eq("design_id", design.id)
     .order("sort_order", { ascending: true });
@@ -79,6 +84,9 @@ async function loadDesignDetail(slug: string): Promise<DesignDetail | null> {
     slug: design.slug,
     code: design.code,
     name: design.name,
+    nameNo: design.name_no,
+    nameEn: design.name_en,
+    acceptsCustomNotes: design.accepts_custom_notes ?? false,
     categories: (categories ?? []).map((c) => ({
       id: c.id,
       slug: c.slug,
@@ -97,6 +105,7 @@ async function loadDesignDetail(slug: string): Promise<DesignDetail | null> {
           image: o.image,
           hex: o.hex,
           layerImage: o.layer_image,
+          isDefault: o.is_default,
         })),
     })),
   };

@@ -19,6 +19,7 @@ import type { Currency } from "@/lib/money/money";
 import { useCartContext } from "@/lib/cart/cart-context";
 import {
   cartTotal,
+  designLabel,
   itemCount,
   lineSubtotal,
   type CartLine,
@@ -27,6 +28,16 @@ import {
 } from "@/lib/cart/cart";
 import { encodeSetParam, SET_LINK_BUDGET } from "@/lib/cart/set-code";
 import { SetBadge } from "@/components/ui-domain/set-badge";
+import { CartLineRecap } from "@/components/ui-domain/cart-line-recap";
+import {
+  attributeLabel,
+  formatAttributeValue,
+  publicAttributes,
+  type TypedAttribute,
+  type AttributeKey,
+} from "@/lib/catalog/product-attributes";
+import { fullRowInsertIndex } from "@/lib/configurator/grid-rows";
+import { Weight, Circle, Ruler, Tag, Check, ChevronDown, MoveVertical, Container } from "lucide-react";
 import type { ResolvedSharedSet } from "./resolve-shared-set";
 import { cn } from "@/lib/utils";
 
@@ -40,6 +51,9 @@ export interface CeramicProduct {
   image: string | null;
   /** F29: pieces in the product. 1 = single item; >1 = set. */
   pieces: number;
+  descriptionNo: string | null;
+  descriptionEn: string | null;
+  attributes: TypedAttribute[];
 }
 
 export interface DesignRef {
@@ -54,12 +68,19 @@ function thumbHex(line: CartLine): string | undefined {
   return line.configSnapshot?.selections.find((s) => s.hex)?.hex ?? undefined;
 }
 
+const ATTR_ICON: Record<AttributeKey, typeof Weight> = {
+  weight: Weight,
+  diameter: Circle,
+  dimensions: Ruler,
+  height: MoveVertical,
+  volume: Container,
+  custom: Tag,
+};
+
 /**
- * R1-FB4 — step-3 ceramic card with the shared F13 hover/focus preview:
- * bigger product photo + name + price. Desktop-only (hoverCapable inside the
- * hook); on touch "see it bigger" stays with the cart-row expansion (CA-3).
- * The popup reuses the SAME products@256 variant URL as the thumb (F26):
- * browser-cache hit, masters never leave Storage.
+ * R2-3+R2-4 — compact step-3 ceramic card with the shared F13 hover/focus
+ * preview. Selecting a card opens the `ExpandedProductCard` full-row panel
+ * below the row — no "i" button, no modal.
  */
 function CeramicOptionCard({
   product: p,
@@ -91,14 +112,11 @@ function CeramicOptionCard({
         onFocus={show}
         onBlur={hide}
         className={[
-          "relative flex min-h-11 flex-col items-center gap-1 rounded-sm border-[1.5px] p-2 text-center transition-colors",
+          "relative flex min-h-11 w-full flex-col items-center gap-1 rounded-sm border-[1.5px] p-2 text-center transition-colors",
           "focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring",
-          selected
-            ? "border-primary bg-primary/5"
-            : "border-border bg-card hover:border-ring",
+          selected ? "border-primary bg-primary/5" : "border-border bg-card hover:border-ring",
         ].join(" ")}
       >
-        {/* F29: set marker on the corner — doesn't cover the photo, readable at 390 */}
         <SetBadge count={p.pieces} className="absolute right-1 top-1 z-10" />
         {p.image && (
           // eslint-disable-next-line @next/next/no-img-element -- catalog art from storage
@@ -116,22 +134,11 @@ function CeramicOptionCard({
       </button>
 
       {p.image && (
-        <HoverPreviewCard
-          state={{ show, hide, ...preview }}
-          testId="product-preview"
-        >
+        <HoverPreviewCard state={{ show, hide, ...preview }} testId="product-preview">
           {/* eslint-disable-next-line @next/next/no-img-element -- catalog art from storage */}
-          <img
-            src={assetUrl(p.image)}
-            alt={name}
-            className="size-44 object-contain"
-          />
-          <span className="mt-1 block text-center text-xs font-medium">
-            {name}
-          </span>
-          <span className="block text-center text-xs text-muted-foreground">
-            {price}
-          </span>
+          <img src={assetUrl(p.image)} alt={name} className="size-44 object-contain" />
+          <span className="mt-1 block text-center text-xs font-medium">{name}</span>
+          <span className="block text-center text-xs text-muted-foreground">{price}</span>
           {p.pieces > 1 && (
             <span className="mt-1 flex justify-center">
               <SetBadge count={p.pieces} />
@@ -140,6 +147,183 @@ function CeramicOptionCard({
         </HoverPreviewCard>
       )}
     </>
+  );
+}
+
+/**
+ * R2-3+R2-4 — full-row expanded panel rendered after the selected card's row.
+ * Contains qty stepper + Add anchored at top, aria-live confirmation, the typed
+ * spec chips ALWAYS visible, and a chevron "Product details" toggle (CLOSED by
+ * default) that reveals the product description (R2-6 F, rev 2).
+ */
+function ExpandedProductCard({
+  product: p,
+  locale,
+  qty,
+  onQty,
+  onAdd,
+  tCart,
+  tCfg,
+}: {
+  product: CeramicProduct;
+  locale: "no" | "en";
+  qty: number;
+  onQty: (next: number) => void;
+  onAdd: () => void;
+  tCart: (k: string) => string;
+  tCfg: (k: string) => string;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  // R2 fix: the "added" confirmation shows ONLY right after a successful add,
+  // then auto-dismisses (it used to render by default on every card).
+  const [showAdded, setShowAdded] = useState(false);
+  // R2-6 F (rev 2): "Product details" (the description) is expandable, CLOSED by
+  // default. The typed spec chips above stay always-visible, outside this toggle.
+  const [open, setOpen] = useState(false);
+  const addedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const description = locale === "no" ? p.descriptionNo : p.descriptionEn;
+  // Storefront shows only customer-facing attributes (weight is internal).
+  const attributes = publicAttributes(p.attributes);
+
+  function handleAdd() {
+    if (showAdded) return; // no-op while the "Added ✓" confirmation is showing
+    onAdd();
+    setShowAdded(true);
+    if (addedTimer.current) clearTimeout(addedTimer.current);
+    addedTimer.current = setTimeout(() => setShowAdded(false), 2000);
+  }
+
+  // Clear the dismiss timer on unmount — and thus on selection change, since
+  // the panel remounts per selected product (key=`exp-<id>`).
+  useEffect(() => {
+    return () => {
+      if (addedTimer.current) clearTimeout(addedTimer.current);
+    };
+  }, []);
+
+  // a11y: bring the panel into view on (re)selection, but never yank focus.
+  useEffect(() => {
+    ref.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [p.id]);
+
+  return (
+    <div
+      ref={ref}
+      data-testid="expanded-card"
+      style={{ gridColumn: "1 / -1" }}
+      className="flex flex-col gap-2 rounded-md border border-primary/50 bg-primary/5 p-3"
+    >
+      {/* Add — primary, anchored at the top so opening details never scrolls it away */}
+      <div className="flex items-center gap-3">
+        <div className="flex items-center rounded-sm border border-border bg-card">
+          <button
+            type="button"
+            aria-label="-"
+            data-testid="qty-dec"
+            onClick={() => onQty(Math.max(1, qty - 1))}
+            className="flex size-11 items-center justify-center text-lg"
+          >
+            −
+          </button>
+          <span data-testid="qty-value" className="w-10 text-center text-sm tabular-nums">
+            {qty}
+          </span>
+          <button
+            type="button"
+            aria-label="+"
+            data-testid="qty-inc"
+            onClick={() => onQty(qty + 1)}
+            className="flex size-11 items-center justify-center text-lg"
+          >
+            +
+          </button>
+        </div>
+        {/* On a successful add the button flips to an inverted "Added ✓" state
+            (white bg + accent text/border) and goes no-op for ~2s, then reverts.
+            No size change → no layout shift. */}
+        <Button
+          className={cn(
+            "min-h-11 flex-1",
+            showAdded && "pointer-events-none border-primary bg-card text-primary"
+          )}
+          size="lg"
+          data-testid="add-to-cart"
+          aria-disabled={showAdded}
+          onClick={handleAdd}
+        >
+          {showAdded ? (
+            <span
+              data-testid="add-feedback"
+              className="inline-flex items-center gap-1.5 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-200"
+            >
+              <Check className="size-4" aria-hidden />
+              {tCart("added")}
+            </span>
+          ) : (
+            tCart("add")
+          )}
+        </Button>
+      </div>
+
+      {/* The confirmation lives ON the Add button (no extra space, no layout
+          shift). This sr-only live region gives the screen reader the same
+          polite announcement while occupying zero layout. */}
+      <span className="sr-only" aria-live="polite">
+        {showAdded ? tCart("added") : ""}
+      </span>
+
+      {/* R2-6 F (rev 2): typed metadata is ALWAYS visible (no chevron) and sits
+          above "Product details". The description lives behind an expandable
+          "Product details" toggle, CLOSED by default. Weight stays internal
+          (publicAttributes filters it). Each section self-gates: no attributes
+          → no chip row; no description → no toggle. */}
+      {attributes.length > 0 && (
+        <ul data-testid="spec-chips" className="flex flex-wrap gap-2">
+          {attributes.map((a, i) => {
+            const Icon = ATTR_ICON[a.key];
+            return (
+              <li
+                key={i}
+                data-testid="spec-chip"
+                className="flex items-center gap-1.5 rounded-sm border border-border bg-card px-2 py-1 text-xs"
+              >
+                <Icon className="size-3.5 text-muted-foreground" aria-hidden />
+                <span className="text-muted-foreground">{attributeLabel(a, locale)}</span>
+                <span className="font-medium">{formatAttributeValue(a, locale)}</span>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
+      {description && (
+        <div className="flex flex-col gap-1">
+          <button
+            type="button"
+            data-testid="details-toggle"
+            aria-expanded={open}
+            aria-controls={`details-${p.slug}`}
+            onClick={() => setOpen((o) => !o)}
+            className="flex min-h-11 items-center gap-1 self-start text-sm font-medium text-foreground"
+          >
+            {tCfg("productCard.details")}
+            <ChevronDown
+              className={cn("size-4 transition-transform", open && "rotate-180")}
+              aria-hidden
+            />
+          </button>
+          {open && (
+            <p
+              id={`details-${p.slug}`}
+              data-testid="product-details"
+              className="text-sm text-foreground"
+            >
+              {description}
+            </p>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -176,6 +360,7 @@ export function CeramicsStep({
   const t = useTranslations("cart");
   const tc = useTranslations("configurator");
   const to = useTranslations("order");
+  const ta = useTranslations("actions");
   const locale = useLocale() as "no" | "en";
   const router = useRouter();
   const pathname = usePathname();
@@ -187,10 +372,8 @@ export function CeramicsStep({
     products[0]?.id ?? null
   );
   const [qty, setQty] = useState(1);
-  const [justAdded, setJustAdded] = useState(false);
   /** Desktop + mobile inline: expands the order form in the cart panel. */
   const [checkoutOpen, setCheckoutOpen] = useState(false);
-  const [copiedId, setCopiedId] = useState<string | null>(null);
   /** CA-3 E: id of the one expanded cart row (one at a time), or null. */
   const [expandedId, setExpandedId] = useState<string | null>(null);
   /** CA-3 C: share feedback under the panel header (aria-live). */
@@ -207,6 +390,16 @@ export function CeramicsStep({
     | { kind: "loaded"; designs: number; pieces: number; unavailable: number }
   >(null);
   const setConsumedRef = useRef(false);
+
+  // R2-3: live column count (2 under sm, 3 from sm) → where the full-row panel goes.
+  const [cols, setCols] = useState(2);
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 640px)");
+    const apply = () => setCols(mq.matches ? 3 : 2);
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, []);
 
   const selected = products.find((p) => p.id === selectedId) ?? null;
 
@@ -240,7 +433,6 @@ export function CeramicsStep({
       pieces: selected.pieces,
     });
     setQty(1);
-    setJustAdded(true);
   }
 
   // ── CA-3 C: share the basket as a stateless link (?step=3&set=…) ──
@@ -344,15 +536,40 @@ export function CeramicsStep({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot apply on arrival
   }, [sharedSet, hydrated]);
 
-  async function copyCode(id: string, code: string) {
-    try {
-      await navigator.clipboard.writeText(code);
-      setCopiedId(id);
-      setTimeout(() => setCopiedId((c) => (c === id ? null : c)), 1500);
-    } catch {
-      /* clipboard blocked — no-op */
-    }
-  }
+  const gridNodes = useMemo(() => {
+    const selectedIndex = products.findIndex((p) => p.id === selectedId);
+    const insertAfter = fullRowInsertIndex(selectedIndex, cols, products.length);
+    const nodes: React.ReactNode[] = [];
+    products.forEach((p, i) => {
+      nodes.push(
+        <CeramicOptionCard
+          key={p.id}
+          product={p}
+          selected={p.id === selectedId}
+          locale={locale}
+          onSelect={() => setSelectedId(p.id)}
+        />
+      );
+      if (i === insertAfter && selected) {
+        nodes.push(
+          <ExpandedProductCard
+            key={`exp-${selected.id}`}
+            product={selected}
+            locale={locale}
+            qty={qty}
+            onQty={setQty}
+            onAdd={addSelected}
+            tCart={t}
+            tCfg={tc}
+          />
+        );
+      }
+    });
+    return nodes;
+    // addSelected/setQty/setSelectedId/t/tc are stable for the render; qty &
+    // selection drive the rebuild.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [products, selectedId, selected, cols, qty, locale]);
 
   // F18/F21: clickable stepper — jump to any step keeping design + opt_* in URL.
   function goToStep(target: 1 | 2 | 3) {
@@ -402,7 +619,7 @@ export function CeramicsStep({
                     <SetBadge count={line.pieces ?? 1} className="shrink-0" />
                   </p>
                   <p className="truncate text-xs text-muted-foreground">
-                    {line.configSnapshot?.designName ?? "—"}
+                    {designLabel(line.configSnapshot, locale) ?? "—"}
                   </p>
                   <div className="mt-1.5 flex items-center gap-2">
                     <div className="flex items-center rounded-sm border border-border">
@@ -466,85 +683,10 @@ export function CeramicsStep({
                     line's stored F19 layers (zero fetch), readable selections
                     from the snapshot (R1-FB1 extended to the cart), edit+remove. */}
                 {expandedId === line.id && (
-                  <div
-                    data-testid="cart-line-detail"
-                    className="mt-3 flex flex-col gap-3 rounded-sm border border-primary/40 bg-card/55 p-3"
-                  >
-                    <span
-                      aria-hidden
-                      className="relative mx-auto block size-52 overflow-hidden rounded-md border border-border bg-card sm:size-56"
-                      style={
-                        !(line.layers && line.layers.length > 0) && thumbHex(line)
-                          ? { backgroundColor: thumbHex(line) }
-                          : undefined
-                      }
-                    >
-                      {(line.layers ?? []).map((l, i) => (
-                        // eslint-disable-next-line @next/next/no-img-element -- composited catalog art from storage
-                        <img
-                          key={`${l.src}-${i}`}
-                          src={l.src}
-                          alt=""
-                          className="absolute inset-0 size-full object-contain"
-                          style={l.recolor ? { mixBlendMode: "multiply" } : undefined}
-                        />
-                      ))}
-                    </span>
-                    {line.configSnapshot && (
-                      <dl className="flex flex-col gap-1">
-                        {line.configSnapshot.selections.map((s) => (
-                          <div
-                            key={s.label}
-                            className="flex items-center gap-2 text-xs"
-                          >
-                            {s.hex && (
-                              <span
-                                aria-hidden
-                                className="size-3.5 shrink-0 rounded-full border border-border"
-                                style={{ background: s.hex }}
-                              />
-                            )}
-                            <dt className="text-muted-foreground">
-                              {locale === "no" ? s.label : (s.labelEn ?? s.label)}
-                            </dt>
-                            <dd className="font-medium">{s.option}</dd>
-                          </div>
-                        ))}
-                        <div className="flex items-center gap-2 text-xs">
-                          <dt className="text-muted-foreground">
-                            {t("line.ceramic")}
-                          </dt>
-                          <dd className="flex items-center gap-1.5 font-medium">
-                            {locale === "no"
-                              ? line.productNameNo
-                              : line.productNameEn}
-                            <SetBadge count={line.pieces ?? 1} />
-                          </dd>
-                        </div>
-                      </dl>
-                    )}
-                    {/* bottom action row: config code + copy on the left
-                        (moved here from the compact row for a cleaner closed
-                        line — design decision 2026-06-16), Edit design on the
-                        right. No second Remove — the row above already has one */}
-                    <div className="flex items-center justify-between gap-2 border-t border-border/50 pt-2.5">
-                      {line.configCode ? (
-                        <div className="flex min-w-0 items-center gap-2">
-                          <code className="min-w-0 truncate font-mono text-[10px] text-muted-foreground">
-                            {line.configCode}
-                          </code>
-                          <button
-                            type="button"
-                            data-testid="cart-copy-code"
-                            onClick={() => copyCode(line.id, line.configCode)}
-                            className="shrink-0 text-[10px] text-muted-foreground underline underline-offset-2 hover:text-foreground"
-                          >
-                            {copiedId === line.id ? t("copied") : t("copyCode")}
-                          </button>
-                        </div>
-                      ) : (
-                        <span />
-                      )}
+                  <CartLineRecap
+                    line={line}
+                    locale={locale}
+                    editSlot={
                       <button
                         type="button"
                         data-testid="cart-edit-design"
@@ -557,8 +699,8 @@ export function CeramicsStep({
                       >
                         ✎ {t("line.edit")}
                       </button>
-                    </div>
-                  </div>
+                    }
+                  />
                 )}
               </div>
             ))}
@@ -634,17 +776,14 @@ export function CeramicsStep({
                               ? t("share.copied")
                               : t("share.manual")}
                           </p>
-                          <code
-                            className={cn(
-                              "mt-1 block select-all font-mono text-[10px] text-muted-foreground",
-                              // manual copy needs the WHOLE link visible
-                              shareState.kind === "manual"
-                                ? "break-all"
-                                : "truncate"
-                            )}
-                          >
-                            {shareState.url}
-                          </code>
+                          {/* Only show the raw URL when the clipboard failed
+                              (manual copy needs the whole link visible). On
+                              success the bare link looked ugly → hide it. */}
+                          {shareState.kind === "manual" && (
+                            <code className="mt-1 block select-all font-mono text-[10px] break-all text-muted-foreground">
+                              {shareState.url}
+                            </code>
+                          )}
                         </>
                       )}
                       {notShareable > 0 && (
@@ -698,7 +837,7 @@ export function CeramicsStep({
           className="min-h-11 shrink-0 max-md:hidden"
           onClick={() => goToStep(1)}
         >
-          + {tc("newDesign")}
+          + {ta("newDesign")}
         </Button>
       </div>
 
@@ -796,82 +935,8 @@ export function CeramicsStep({
             aria-label={t("title")}
             className="grid grid-cols-2 gap-2.5 sm:grid-cols-3"
           >
-            {products.map((p) => (
-              <CeramicOptionCard
-                key={p.id}
-                product={p}
-                selected={p.id === selectedId}
-                locale={locale}
-                onSelect={() => setSelectedId(p.id)}
-              />
-            ))}
+            {gridNodes}
           </div>
-
-          {/* quantity + add */}
-          <div className="mt-5 flex items-center gap-3">
-            <div className="flex items-center rounded-sm border">
-              <button
-                type="button"
-                aria-label="-"
-                data-testid="qty-dec"
-                onClick={() => setQty((q) => Math.max(1, q - 1))}
-                className="flex size-11 items-center justify-center text-lg"
-              >
-                −
-              </button>
-              <span
-                data-testid="qty-value"
-                className="w-10 text-center text-sm tabular-nums"
-              >
-                {qty}
-              </span>
-              <button
-                type="button"
-                aria-label="+"
-                data-testid="qty-inc"
-                onClick={() => setQty((q) => q + 1)}
-                className="flex size-11 items-center justify-center text-lg"
-              >
-                +
-              </button>
-            </div>
-            <Button
-              className="min-h-11 flex-1"
-              size="lg"
-              disabled={!selected}
-              data-testid="add-to-cart"
-              onClick={addSelected}
-            >
-              {t("add")}
-            </Button>
-          </div>
-
-          {/* add feedback + "start a new design" CTA (QA-fix #2): returns to
-              step 1 keeping the current design + options in the URL; the cart
-              (with the item just added) is left untouched. */}
-          {justAdded && (
-            <div
-              data-testid="add-feedback-block"
-              className="mt-2 flex flex-col items-start gap-2"
-            >
-              <p
-                data-testid="add-feedback"
-                aria-live="polite"
-                className="text-sm text-muted-foreground"
-              >
-                {t("added")}
-              </p>
-              <Button
-                variant="outline"
-                size="lg"
-                className="min-h-11"
-                data-testid="new-design-cta"
-                onClick={() => goToStep(1)}
-              >
-                {tc("newDesign")} →
-              </Button>
-            </div>
-          )}
 
           {/* Mobile: docked cart section (below selector, above sticky bar) */}
           <div className="mt-6 md:hidden" data-testid="mobile-cart-section">

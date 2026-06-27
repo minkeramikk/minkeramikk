@@ -8,6 +8,10 @@ import { parsePriceToCents } from "@/lib/money/parse";
 import { uniqueSlug } from "@/lib/catalog/slug";
 import { piecesSchema } from "@/lib/catalog/pieces";
 import { uploadVariant } from "@/lib/asset-variant-image";
+import {
+  parseTypedAttributesField,
+  buildAttributeRpcRows,
+} from "@/lib/catalog/product-attributes";
 
 export type ProductFormState = { error: string | null };
 
@@ -15,8 +19,8 @@ const productSchema = z.object({
   id: z.string().uuid().optional().or(z.literal("")),
   nameNo: z.string().trim().min(1, "Norwegian name is required"),
   nameEn: z.string().trim().min(1, "English name is required"),
-  descriptionNo: z.string().trim().optional().or(z.literal("")),
-  descriptionEn: z.string().trim().optional().or(z.literal("")),
+  descriptionNo: z.string().trim().max(2000, "Description (NO) is too long (max 2000 characters).").optional().or(z.literal("")),
+  descriptionEn: z.string().trim().max(2000, "Description (EN) is too long (max 2000 characters).").optional().or(z.literal("")),
   supplierId: z.string().uuid("Pick a supplier"),
   sortOrder: z.coerce.number().int().min(0).default(0),
   // F29: 1 = single item; >1 = set ("Sett · N deler"). Does not affect price.
@@ -49,6 +53,11 @@ export async function saveProduct(
   const priceCents = parsePriceToCents(String(formData.get("price") ?? ""));
   if (priceCents === null) {
     return { error: "Enter a valid price in kr (e.g. 1500 or 1500,50)." };
+  }
+
+  const attrs = parseTypedAttributesField(formData.get("attributes"));
+  if (attrs === null) {
+    return { error: "Check the product details: each row needs a valid value." };
   }
 
   const p = parsed.data;
@@ -100,11 +109,27 @@ export async function saveProduct(
     ...(imagePath ? { image: imagePath } : {}),
   };
 
-  const { error } = p.id
-    ? await supabase.from("products").update(row).eq("id", p.id)
-    : await supabase.from("products").insert({ ...row, slug });
+  let productId = p.id || "";
+  if (p.id) {
+    const { error } = await supabase.from("products").update(row).eq("id", p.id);
+    if (error) return { error: "Could not save the product." };
+  } else {
+    const { data: created, error } = await supabase
+      .from("products")
+      .insert({ ...row, slug })
+      .select("id")
+      .single();
+    if (error || !created) return { error: "Could not save the product." };
+    productId = created.id;
+  }
 
-  if (error) return { error: "Could not save the product." };
+  // R2 A1: atomic replace via RPC (delete + insert in one transaction) — a
+  // failed insert no longer leaves the product with no attributes.
+  const { error: attrErr } = await supabase.rpc("replace_product_attributes", {
+    p_product_id: productId,
+    p_rows: buildAttributeRpcRows(attrs),
+  });
+  if (attrErr) return { error: "Could not save the product details." };
 
   revalidateTag("catalog");
   revalidatePath("/admin/products");
