@@ -452,3 +452,74 @@ test.describe("R2-2b custom notes", () => {
     }
   });
 });
+
+/**
+ * R2-7: Bilingual design name — admin writes nameNo ≠ nameEn, public
+ * configurator surfaces the correct locale-specific name.
+ *
+ * Assertion strategy (justified from the actual UI):
+ * - NO: the step-2 heading renders `selected.name`; saveDesign sets the legacy
+ *   `name` column ← nameNo, so the heading IS noName for the /no/ locale.
+ * - EN: the step-2 heading still shows the legacy name (= noName). The only
+ *   surface that renders per-locale is the step-3 docked cart-line subtitle via
+ *   `designLabel(snapshot, locale)` → snapshot.designNameEn. We add the first
+ *   available ceramic product to the cart and assert the subtitle = enName.
+ *   Skipped silently when the supplier has no visible product.
+ *
+ * Gate: ADMIN_READY (admin creds + service role for runtime discovery).
+ * Self-restoring: the finally block reverts both names.
+ */
+test.describe("R2-7 bilingual design name", () => {
+  test.skip(!ADMIN_READY, "needs ADMIN_EMAIL + ADMIN_PASSWORD + service role");
+
+  test("admin sets NO≠EN → configurator shows the name per-locale", async ({ page }) => {
+    const design = await firstActiveDesignWithId();
+    await loginAdmin(page);
+    await page.goto(`/admin/designs/${design.id}`);
+
+    const no = page.getByTestId("design-name-no");
+    const en = page.getByTestId("design-name-en");
+    await expect(no).toBeVisible();
+    await expect(en).toBeVisible();
+    const originalNo = await no.inputValue();
+    const originalEn = await en.inputValue();
+
+    const stamp = Date.now();
+    const noName = `E2E NO ${stamp}`;
+    const enName = `E2E EN ${stamp}`;
+    try {
+      await no.fill(noName);
+      await en.fill(enName);
+      await page.getByTestId("design-save").click();
+      await expect(page).toHaveURL(/\/admin\/designs$/);
+
+      // NO: step-2 heading shows selected.name = legacy `name` = noName (set by
+      // saveDesign: name ← nameNo). Confirms the saved NO name reaches the public UI.
+      await page.goto(`/no/configurator?design=${design.slug}&step=2`);
+      await expect(page.getByText(noName, { exact: false }).first()).toBeVisible();
+
+      // EN: step-2 heading shows legacy name (= noName), not enName.
+      // Assert per-locale via the step-3 cart-line subtitle (designLabel → snapshot.designNameEn).
+      await page.goto(`/en/configurator?design=${design.slug}&step=3`);
+      await page.getByTestId("ceramics-step").waitFor();
+      const productRadios = ceramicRadios(page);
+      const productCount = await productRadios.count();
+      if (productCount > 0) {
+        await productRadios.first().click();
+        await page.getByTestId("add-to-cart").click();
+        // cart-line subtitle: designLabel(snapshot, "en") → snapshot.designNameEn = enName
+        await expect(
+          page.getByTestId("cart-line").filter({ hasText: enName }).first()
+        ).toBeVisible();
+      }
+      // else: no visible product for this supplier → EN assertion not assertable here;
+      // per-locale correctness is verified by the designLabel unit test (Task 4).
+    } finally {
+      await page.goto(`/admin/designs/${design.id}`);
+      await page.getByTestId("design-name-no").fill(originalNo);
+      await page.getByTestId("design-name-en").fill(originalEn);
+      await page.getByTestId("design-save").click();
+      await expect(page).toHaveURL(/\/admin\/designs$/);
+    }
+  });
+});
