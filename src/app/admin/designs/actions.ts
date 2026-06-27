@@ -33,7 +33,8 @@ const IMAGE_TYPES = ["image/png", "image/jpeg", "image/webp"];
 
 const designSchema = z.object({
   id: z.string().uuid().optional().or(z.literal("")),
-  name: z.string().trim().min(1, "Name is required"),
+  nameNo: z.string().trim().min(1, "Norwegian name is required"),
+  nameEn: z.string().trim().min(1, "English name is required"),
   descriptionNo: z.string().trim().optional().or(z.literal("")),
   descriptionEn: z.string().trim().optional().or(z.literal("")),
   supplierId: z.string().uuid("Pick a supplier"),
@@ -48,7 +49,8 @@ export async function saveDesign(
 ): Promise<DesignFormState> {
   const parsed = designSchema.safeParse({
     id: formData.get("id") ?? "",
-    name: formData.get("name") ?? "",
+    nameNo: formData.get("nameNo") ?? "",
+    nameEn: formData.get("nameEn") ?? "",
     descriptionNo: formData.get("descriptionNo") ?? "",
     descriptionEn: formData.get("descriptionEn") ?? "",
     supplierId: formData.get("supplierId") ?? "",
@@ -76,7 +78,7 @@ export async function saveDesign(
     slug = cur.slug;
   } else {
     const { data: existing } = await supabase.from("designs").select("slug");
-    slug = uniqueSlug(d.name, (existing ?? []).map((r) => r.slug));
+    slug = uniqueSlug(d.nameNo, (existing ?? []).map((r) => r.slug));
   }
 
   // optional preview image
@@ -97,7 +99,9 @@ export async function saveDesign(
   }
 
   const row = {
-    name: d.name,
+    name: d.nameNo,
+    name_no: d.nameNo,
+    name_en: d.nameEn,
     description_no: d.descriptionNo || null,
     description_en: d.descriptionEn || null,
     supplier_id: d.supplierId,
@@ -176,6 +180,8 @@ export async function createDesignFromTemplate(
     .from("designs")
     .insert({
       name,
+      name_no: name,
+      name_en: name,
       slug,
       supplier_id: supplierId,
       active: false,
@@ -271,7 +277,7 @@ export async function duplicateDesign(
   const { data: srcRaw } = await supabase
     .from("designs")
     .select(
-      "name, slug, supplier_id, description_no, description_en, preview_image, " +
+      "name, name_no, name_en, slug, supplier_id, description_no, description_en, preview_image, " +
         "option_categories(slug, label_no, label_en, kind, layer_slot, sync_group, sort_order, " +
         "options(name, hex, image, layer_image, sort_order, active))"
     )
@@ -280,6 +286,8 @@ export async function duplicateDesign(
   // deep nested selects defeat supabase's type inference → cast to the shape.
   const src = srcRaw as unknown as {
     name: string;
+    name_no: string;
+    name_en: string;
     slug: string;
     supplier_id: string;
     description_no: string | null;
@@ -336,6 +344,8 @@ export async function duplicateDesign(
     .from("designs")
     .insert({
       name,
+      name_no: `${src.name_no} (copy)`,
+      name_en: `${src.name_en} (copy)`,
       slug: toSlug,
       supplier_id: src.supplier_id,
       description_no: src.description_no,
