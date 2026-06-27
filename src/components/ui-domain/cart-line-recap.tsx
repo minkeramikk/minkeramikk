@@ -22,6 +22,7 @@ export function CartLineRecap({
   editSlot?: React.ReactNode;
 }) {
   const t = useTranslations("cart");
+  const ta = useTranslations("actions");
   const [copied, setCopied] = useState(false);
   const hex = line.configSnapshot?.selections.find((s) => s.hex)?.hex ?? undefined;
   // R2-6 G — colour-source badge (R2-2 rule): `customNote` is present (possibly
@@ -117,7 +118,7 @@ export function CartLineRecap({
               onClick={copy}
               className="shrink-0 text-[10px] text-muted-foreground underline underline-offset-2 hover:text-foreground"
             >
-              {copied ? t("copied") : t("copyCode")}
+              {copied ? ta("copied") : ta("copyCode")}
             </button>
           </div>
         ) : (

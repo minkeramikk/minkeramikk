@@ -507,9 +507,12 @@ test.describe("R2-7 bilingual design name", () => {
       if (productCount > 0) {
         await productRadios.first().click();
         await page.getByTestId("add-to-cart").click();
-        // cart-line subtitle: designLabel(snapshot, "en") → snapshot.designNameEn = enName
+        // cart-line subtitle: designLabel(snapshot, "en") → snapshot.designNameEn = enName.
+        // The cart-line renders twice (desktop panel + mobile section, one hidden via
+        // CSS per breakpoint), so scope to the VISIBLE copy — `.first()` alone can land
+        // on the hidden one (desktop picks the hidden mobile copy → false negative).
         await expect(
-          page.getByTestId("cart-line").filter({ hasText: enName }).first()
+          page.getByTestId("cart-line").filter({ hasText: enName }).filter({ visible: true }).first()
         ).toBeVisible();
       } else {
         // No visible product for this supplier → the EN cart-line assertion is

@@ -539,7 +539,11 @@ export function ConfiguratorClient({
             {/* CA-2: advance CTA closes the options column — natural end of
                 the flow, single instance for every viewport. No Back here:
                 step 1 is the first step. */}
-            <div data-testid="step-nav-flow">
+            {/* Desktop only: on mobile the sticky CTA below is the single
+                Next-step (R2-1b, kept for visibility). Removing the in-flow one
+                on mobile fixes the duplicate-CTA / double-copy issue; the
+                "Velg fargene dine" teaser stays above it. */}
+            <div data-testid="step-nav-flow" className="max-md:hidden">
               <Button
                 size="lg"
                 data-testid="next-step"

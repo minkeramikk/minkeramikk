@@ -360,6 +360,7 @@ export function CeramicsStep({
   const t = useTranslations("cart");
   const tc = useTranslations("configurator");
   const to = useTranslations("order");
+  const ta = useTranslations("actions");
   const locale = useLocale() as "no" | "en";
   const router = useRouter();
   const pathname = usePathname();
@@ -775,17 +776,14 @@ export function CeramicsStep({
                               ? t("share.copied")
                               : t("share.manual")}
                           </p>
-                          <code
-                            className={cn(
-                              "mt-1 block select-all font-mono text-[10px] text-muted-foreground",
-                              // manual copy needs the WHOLE link visible
-                              shareState.kind === "manual"
-                                ? "break-all"
-                                : "truncate"
-                            )}
-                          >
-                            {shareState.url}
-                          </code>
+                          {/* Only show the raw URL when the clipboard failed
+                              (manual copy needs the whole link visible). On
+                              success the bare link looked ugly → hide it. */}
+                          {shareState.kind === "manual" && (
+                            <code className="mt-1 block select-all font-mono text-[10px] break-all text-muted-foreground">
+                              {shareState.url}
+                            </code>
+                          )}
                         </>
                       )}
                       {notShareable > 0 && (
@@ -839,7 +837,7 @@ export function CeramicsStep({
           className="min-h-11 shrink-0 max-md:hidden"
           onClick={() => goToStep(1)}
         >
-          + {tc("newDesign")}
+          + {ta("newDesign")}
         </Button>
       </div>
 

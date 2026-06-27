@@ -22,6 +22,7 @@ export function ConfigCodeBar({
   onApply?: (raw: string) => boolean;
 }) {
   const t = useTranslations("configurator.code");
+  const ta = useTranslations("actions");
   const [copied, setCopied] = useState<"code" | "link" | null>(null);
   const [paste, setPaste] = useState("");
   const [error, setError] = useState(false);
@@ -66,7 +67,7 @@ export function ConfigCodeBar({
           data-testid="copy-code"
           onClick={() => copy(code, "code")}
         >
-          {copied === "code" ? t("copied") : t("copyCode")}
+          {copied === "code" ? ta("copied") : ta("copyCode")}
         </Button>
         <Button
           type="button"
@@ -75,7 +76,7 @@ export function ConfigCodeBar({
           data-testid="copy-link"
           onClick={() => copy(shareUrl, "link")}
         >
-          {copied === "link" ? t("copied") : t("copyLink")}
+          {copied === "link" ? ta("copied") : t("copyLink")}
         </Button>
       </div>
 
