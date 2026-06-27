@@ -448,22 +448,23 @@ export function ConfiguratorClient({
         />
       </div>
 
-      {/* F28: featured strip between stepper and grid (wireframe v2), home only */}
-      {step === 1 && featuredSlot}
-
-      {/* R2-6 A: editorial hero — the public root redirects here, so step 1 IS
-          the homepage. Sits between the featured strip and the design grid,
-          step-1 only. Copy is hardcoded i18n (no schema, no admin editing). */}
+      {/* R2-6 A: how-it-works intro — the public root redirects here, so step 1
+          IS the homepage. Sits directly under the stepper, ABOVE the featured
+          strip. One–two simple sentences explaining the flow (the 3 steps), not
+          a marketing headline. Copy is hardcoded i18n (no schema, no admin). */}
       {step === 1 && (
-        <div data-testid="step1-hero" className="mb-6 max-md:pt-1">
-          <h2 className="text-2xl font-semibold tracking-tight md:text-3xl">
+        <div data-testid="step1-hero" className="mb-5 max-md:pt-1">
+          <h2 className="text-xl font-semibold tracking-tight md:text-2xl">
             {t("step1.hero.title")}
           </h2>
-          <p className="mt-2 max-w-prose text-sm text-muted-foreground md:text-base">
+          <p className="mt-1.5 max-w-prose text-sm text-muted-foreground">
             {t("step1.hero.subtitle")}
           </p>
         </div>
       )}
+
+      {/* F28: featured strip between the intro and the design grid, home only */}
+      {step === 1 && featuredSlot}
 
       <div className="grid grid-cols-1 items-start gap-7 md:grid-cols-2">
         {/* LEFT: the persistent preview — never remounts across steps (AC2).
