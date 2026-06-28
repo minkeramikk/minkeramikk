@@ -12,14 +12,16 @@ import { designWithCode, addFirstCeramic } from "./helpers";
 
 test("AC5: a ?code= deep link reconstructs the configuration on step 2", async ({
   page,
-}) => {
+}, testInfo) => {
   const design = await designWithCode();
 
   // Build a cart line so a real config code is rendered in the recap.
   await page.goto(`/no/configurator?design=${design.slug}&step=3`);
   await addFirstCeramic(page);
 
-  const line = page.getByTestId("docked-cart-panel").getByTestId("cart-line").first();
+  const panelId =
+    testInfo.project.name === "mobile" ? "mobile-cart-section" : "docked-cart-panel";
+  const line = page.getByTestId(panelId).getByTestId("cart-line").first();
   await line.getByTestId("cart-expand").click();
   const code = (await line.locator("code").first().innerText()).trim();
   expect(code).toMatch(/^MK-/);
