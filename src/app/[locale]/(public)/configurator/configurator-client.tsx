@@ -24,6 +24,7 @@ import {
   type CodecDesign,
 } from "@/lib/configurator/config-code";
 import { pickDefaultOption } from "@/lib/configurator/default-option";
+import { useVisualViewportBottom } from "@/lib/configurator/use-visual-viewport-bottom";
 import { cn } from "@/lib/utils";
 import type { DesignDetail } from "@/lib/catalog/design-options";
 import type { PreviewLayer } from "@/lib/configurator/preview";
@@ -78,6 +79,8 @@ export function ConfiguratorClient({
   const searchParams = useSearchParams();
   /** F31: the big preview's container — observed by the mobile floating bubble */
   const previewRef = useRef<HTMLDivElement>(null);
+  // R3-B: lift the fixed mobile bar above the on-screen keyboard (iOS).
+  const vvBottom = useVisualViewportBottom();
 
   const step = searchParams.get("step") === "2" ? 2 : 1;
   const urlSlug = searchParams.get("design");
@@ -530,7 +533,10 @@ export function ConfiguratorClient({
             <div
               data-testid="next-step-mobile-bar"
               className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 p-3 backdrop-blur supports-[backdrop-filter]:bg-background/80 md:hidden"
-              style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom))" }}
+              style={{
+                bottom: vvBottom,
+                paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom))",
+              }}
             >
               <Button
                 size="lg"
