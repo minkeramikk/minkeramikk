@@ -40,6 +40,7 @@ import { fullRowInsertIndex } from "@/lib/configurator/grid-rows";
 import { Weight, Circle, Ruler, Tag, Check, ChevronDown, MoveVertical, Container } from "lucide-react";
 import type { ResolvedSharedSet } from "./resolve-shared-set";
 import { cn } from "@/lib/utils";
+import { NewDesignButton } from "./new-design-button";
 
 export interface CeramicProduct {
   id: string;
@@ -360,7 +361,6 @@ export function CeramicsStep({
   const t = useTranslations("cart");
   const tc = useTranslations("configurator");
   const to = useTranslations("order");
-  const ta = useTranslations("actions");
   const locale = useLocale() as "no" | "en";
   const router = useRouter();
   const pathname = usePathname();
@@ -802,6 +802,11 @@ export function CeramicsStep({
           </div>
         </>
       )}
+
+      {/* R3-C: start another design from the cart recap (keeps the basket — F03/
+          F16 persistence → accumulate multiple designs). Same shared component
+          and handler as the selector instance. */}
+      <NewDesignButton onClick={() => goToStep(1)} className="mt-4 w-full" />
     </div>
   );
 
@@ -826,19 +831,6 @@ export function CeramicsStep({
           onStepSelect={(i) => goToStep((i + 1) as 1 | 2 | 3)}
           className="mb-0 mt-0 flex-1"
         />
-        {/* Last step has no "next" — the real submit is "Send" in the cart
-            panel (a disabled nav button there was dead UI). A discreet
-            secondary starts a new design, keeping the current selection +
-            options in the URL (QA-fix #2). */}
-        <Button
-          variant="outline"
-          size="lg"
-          data-testid="new-design-nav"
-          className="min-h-11 shrink-0 max-md:hidden"
-          onClick={() => goToStep(1)}
-        >
-          + {ta("newDesign")}
-        </Button>
       </div>
 
       {/* CA-3 D: shared-set landing banner (frames 3–4). The 3-way choice
@@ -937,6 +929,10 @@ export function CeramicsStep({
           >
             {gridNodes}
           </div>
+
+          {/* R3-C: start another design from the add-to-basket flow — visible
+              on every viewport, same handler as the cart-recap instance. */}
+          <NewDesignButton onClick={() => goToStep(1)} className="mt-5 w-full" />
 
           {/* Mobile: docked cart section (below selector, above sticky bar) */}
           <div className="mt-6 md:hidden" data-testid="mobile-cart-section">
