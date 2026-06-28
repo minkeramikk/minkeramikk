@@ -115,8 +115,13 @@ export function ConfiguratorClient({
   }, [selected.slug]);
 
   // Focus the textarea when "I'll choose" is selected (AC3, also for SR users).
+  // R3-A: preventScroll — the textarea is at the page bottom; the default
+  // scroll-into-view shifts the IntersectionObserver ratio behind the step-2
+  // FloatingPreview, which makes the mini-plate flip (cross-browser, Android +
+  // iOS). Focus still lands for SR/keyboard; the keyboard still opens on mobile.
   useEffect(() => {
-    if (noteMode === "custom") noteTextareaRef.current?.focus();
+    if (noteMode === "custom")
+      noteTextareaRef.current?.focus({ preventScroll: true });
   }, [noteMode]);
 
   // compose preview layers from the current selections (defaults at first paint)
@@ -771,7 +776,7 @@ export function ConfiguratorClient({
                       onChange={(e) => setNoteText(e.target.value)}
                       placeholder={t("customNotes.placeholder")}
                       aria-describedby="custom-notes-helper"
-                      className="w-full rounded-sm border border-input bg-card p-2 text-sm focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
+                      className="w-full rounded-sm border border-input bg-card p-2 text-base focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring md:text-sm"
                     />
                     <div className="mt-1 flex items-start justify-between gap-3">
                       <p
