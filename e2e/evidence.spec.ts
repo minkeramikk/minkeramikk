@@ -214,39 +214,6 @@ test("F05: order form + confirmation at 390/1280", async ({ page }) => {
   await page.screenshot({ path: `${OUT05}/f05-confirmation.png`, fullPage: true });
 });
 
-const OUT04 = "docs/evidence/f04";
-
-test("F04: code bar (copy + paste) at 390/1280 + a code per design", async ({
-  page,
-}) => {
-  mkdirSync(OUT04, { recursive: true });
-  // one example code per design (text file for the PR)
-  const slugs = [
-    "blomster-1",
-    "blomster-2",
-    "amalfi-dyr",
-    "krabbe",
-    "striper",
-    "juletre",
-  ];
-  const lines: string[] = [];
-  for (const slug of slugs) {
-    await page.setViewportSize({ width: 1280, height: 1000 });
-    await page.goto(`/no/configurator?design=${slug}&step=2`);
-    await page.getByTestId("config-code").waitFor({ state: "visible" });
-    lines.push(`${slug}: ${await page.getByTestId("config-code").innerText()}`);
-  }
-  writeFileSync(`${OUT04}/codes.txt`, lines.join("\n") + "\n");
-
-  for (const width of [390, 1280]) {
-    await page.setViewportSize({ width, height: 1200 });
-    await page.goto("/no/configurator?design=krabbe&step=2");
-    await page.getByTestId("config-code-bar").scrollIntoViewIfNeeded();
-    await page.waitForTimeout(300);
-    await page.screenshot({ path: `${OUT04}/f04-codebar-${width}.png`, fullPage: true });
-  }
-});
-
 const OUT13 = "docs/evidence/f13";
 
 test("F13: textured swatches, monochrome icons, hover preview", async ({

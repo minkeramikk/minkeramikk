@@ -19,14 +19,11 @@ import {
   type SyncCategory,
 } from "@/lib/configurator/state";
 import {
-  ConfigCodeError,
   decodeConfigCode,
-  encodeConfigCode,
   toCodecDesign,
   type CodecDesign,
 } from "@/lib/configurator/config-code";
 import { pickDefaultOption } from "@/lib/configurator/default-option";
-import { ConfigCodeBar } from "./config-code-bar";
 import { cn } from "@/lib/utils";
 import type { DesignDetail } from "@/lib/catalog/design-options";
 import type { PreviewLayer } from "@/lib/configurator/preview";
@@ -215,38 +212,6 @@ export function ConfiguratorClient({
         .filter((d): d is CodecDesign => d !== null),
     [detailsBySlug]
   );
-  const currentCode = useMemo(() => {
-    const cd = toCodecDesign(detail);
-    return cd ? encodeConfigCode(cd, selections) : "";
-  }, [detail, selections]);
-  const shareUrl =
-    typeof window !== "undefined"
-      ? (() => {
-          const p = new URLSearchParams(searchParams.toString());
-          p.delete("note"); // R2-2b: the note lives in the order, not the link
-          return `${window.location.origin}${window.location.pathname}?${p.toString()}`;
-        })()
-      : "";
-
-  function applyCode(raw: string): boolean {
-    try {
-      const { designSlug, selections: sel } = decodeConfigCode(raw, (code) =>
-        codecDesigns.find((d) => d.code === code.toUpperCase()) ?? null
-      );
-      const params = new URLSearchParams(searchParams.toString());
-      params.set("design", designSlug);
-      for (const key of [...params.keys()])
-        if (key.startsWith("opt_")) params.delete(key);
-      for (const [catSlug, optId] of Object.entries(sel))
-        params.set(`opt_${catSlug}`, optId);
-      router.push(`${pathname}?${params.toString()}`, { scroll: false });
-      return true;
-    } catch (e) {
-      if (e instanceof ConfigCodeError) return false;
-      throw e;
-    }
-  }
-
   // F19: a ?code= deep-link (cart-row "reopen" or a shared link) is decoded once
   // on arrival into the canonical opt_* params, then dropped from the URL.
   useEffect(() => {
@@ -557,17 +522,6 @@ export function ConfiguratorClient({
                 {t("nextStepDetails")} ›
               </Button>
             </div>
-            {/* F19 save/share — moved from under the preview to the action
-                column, below the CTA (CA-6 follow-up, 2026-06-12) */}
-            {currentCode && (
-              <div className="mt-3">
-                <ConfigCodeBar
-                  code={currentCode}
-                  shareUrl={shareUrl}
-                  onApply={applyCode}
-                />
-              </div>
-            )}
             {/* R2-1b: mobile-only sticky CTA — after choosing a design the
                 "Next step" is reachable without scrolling to the bottom of the
                 grid. Desktop keeps the in-column CTA above (unchanged). Step 1
@@ -817,14 +771,6 @@ export function ConfiguratorClient({
                 {t("nextStepCeramic")} ›
               </Button>
             </div>
-            {/* F19 save/share — action column, below the CTA (see step 1) */}
-            {currentCode && (
-              <ConfigCodeBar
-                code={currentCode}
-                shareUrl={shareUrl}
-                onApply={applyCode}
-              />
-            )}
           </div>
         )}
       </div>
