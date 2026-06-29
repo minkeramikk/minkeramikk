@@ -7,6 +7,7 @@ import {
   FLOAT_INITIAL,
   FLOAT_DEFAULTS,
 } from "@/lib/configurator/float-visibility";
+import { useVisualViewportBottom } from "@/lib/configurator/use-visual-viewport-bottom";
 import { cn } from "@/lib/utils";
 
 /**
@@ -35,6 +36,8 @@ export function FloatingPreview({
 }) {
   const t = useTranslations("configurator");
   const [visible, setVisible] = useState(false);
+  // R3-B: lift the FAB above the on-screen keyboard (iOS), same hook as the bar.
+  const vvBottom = useVisualViewportBottom();
   const stateRef = useRef(FLOAT_INITIAL);
   const ratioRef = useRef(1);
   const timerRef = useRef<number | null>(null);
@@ -105,7 +108,9 @@ export function FloatingPreview({
       // above the iOS safe-area AND lifted clear of the one-handed thumb
       // rest zone (the very bottom-right corner is where the thumb sits);
       // z-40 = above content, below Radix overlays (z-50)
-      style={{ bottom: "calc(2.5rem + env(safe-area-inset-bottom))" }}
+      style={{
+        bottom: `calc(2.5rem + env(safe-area-inset-bottom) + ${vvBottom}px)`,
+      }}
       className={cn(
         // R2-6 B2: ~2× the previous bubble (was size-24/96px) → size-40/160px,
         // hitting Alessio's "circa il doppio" / 150–160px target. Border/shadow

@@ -19,14 +19,12 @@ import {
   type SyncCategory,
 } from "@/lib/configurator/state";
 import {
-  ConfigCodeError,
   decodeConfigCode,
-  encodeConfigCode,
   toCodecDesign,
   type CodecDesign,
 } from "@/lib/configurator/config-code";
 import { pickDefaultOption } from "@/lib/configurator/default-option";
-import { ConfigCodeBar } from "./config-code-bar";
+import { useVisualViewportBottom } from "@/lib/configurator/use-visual-viewport-bottom";
 import { cn } from "@/lib/utils";
 import type { DesignDetail } from "@/lib/catalog/design-options";
 import type { PreviewLayer } from "@/lib/configurator/preview";
@@ -81,6 +79,8 @@ export function ConfiguratorClient({
   const searchParams = useSearchParams();
   /** F31: the big preview's container — observed by the mobile floating bubble */
   const previewRef = useRef<HTMLDivElement>(null);
+  // R3-B: lift the fixed mobile bar above the on-screen keyboard (iOS).
+  const vvBottom = useVisualViewportBottom();
 
   const step = searchParams.get("step") === "2" ? 2 : 1;
   const urlSlug = searchParams.get("design");
@@ -115,8 +115,13 @@ export function ConfiguratorClient({
   }, [selected.slug]);
 
   // Focus the textarea when "I'll choose" is selected (AC3, also for SR users).
+  // R3-A: preventScroll — the textarea is at the page bottom; the default
+  // scroll-into-view shifts the IntersectionObserver ratio behind the step-2
+  // FloatingPreview, which makes the mini-plate flip (cross-browser, Android +
+  // iOS). Focus still lands for SR/keyboard; the keyboard still opens on mobile.
   useEffect(() => {
-    if (noteMode === "custom") noteTextareaRef.current?.focus();
+    if (noteMode === "custom")
+      noteTextareaRef.current?.focus({ preventScroll: true });
   }, [noteMode]);
 
   // compose preview layers from the current selections (defaults at first paint)
@@ -210,38 +215,6 @@ export function ConfiguratorClient({
         .filter((d): d is CodecDesign => d !== null),
     [detailsBySlug]
   );
-  const currentCode = useMemo(() => {
-    const cd = toCodecDesign(detail);
-    return cd ? encodeConfigCode(cd, selections) : "";
-  }, [detail, selections]);
-  const shareUrl =
-    typeof window !== "undefined"
-      ? (() => {
-          const p = new URLSearchParams(searchParams.toString());
-          p.delete("note"); // R2-2b: the note lives in the order, not the link
-          return `${window.location.origin}${window.location.pathname}?${p.toString()}`;
-        })()
-      : "";
-
-  function applyCode(raw: string): boolean {
-    try {
-      const { designSlug, selections: sel } = decodeConfigCode(raw, (code) =>
-        codecDesigns.find((d) => d.code === code.toUpperCase()) ?? null
-      );
-      const params = new URLSearchParams(searchParams.toString());
-      params.set("design", designSlug);
-      for (const key of [...params.keys()])
-        if (key.startsWith("opt_")) params.delete(key);
-      for (const [catSlug, optId] of Object.entries(sel))
-        params.set(`opt_${catSlug}`, optId);
-      router.push(`${pathname}?${params.toString()}`, { scroll: false });
-      return true;
-    } catch (e) {
-      if (e instanceof ConfigCodeError) return false;
-      throw e;
-    }
-  }
-
   // F19: a ?code= deep-link (cart-row "reopen" or a shared link) is decoded once
   // on arrival into the canonical opt_* params, then dropped from the URL.
   useEffect(() => {
@@ -518,7 +491,6 @@ export function ConfiguratorClient({
                 <OptionCard
                   key={d.id}
                   label={d.name}
-                  supplierName={d.supplierName ?? undefined}
                   // CA-7: design-as-a-button — composited plate from the same
                   // default layers the preview uses (zero new assets).
                   layers={d.defaultLayers.map((l) => ({
@@ -553,17 +525,6 @@ export function ConfiguratorClient({
                 {t("nextStepDetails")} ›
               </Button>
             </div>
-            {/* F19 save/share — moved from under the preview to the action
-                column, below the CTA (CA-6 follow-up, 2026-06-12) */}
-            {currentCode && (
-              <div className="mt-3">
-                <ConfigCodeBar
-                  code={currentCode}
-                  shareUrl={shareUrl}
-                  onApply={applyCode}
-                />
-              </div>
-            )}
             {/* R2-1b: mobile-only sticky CTA — after choosing a design the
                 "Next step" is reachable without scrolling to the bottom of the
                 grid. Desktop keeps the in-column CTA above (unchanged). Step 1
@@ -572,7 +533,10 @@ export function ConfiguratorClient({
             <div
               data-testid="next-step-mobile-bar"
               className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 p-3 backdrop-blur supports-[backdrop-filter]:bg-background/80 md:hidden"
-              style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom))" }}
+              style={{
+                bottom: vvBottom,
+                paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom))",
+              }}
             >
               <Button
                 size="lg"
@@ -771,7 +735,7 @@ export function ConfiguratorClient({
                       onChange={(e) => setNoteText(e.target.value)}
                       placeholder={t("customNotes.placeholder")}
                       aria-describedby="custom-notes-helper"
-                      className="w-full rounded-sm border border-input bg-card p-2 text-sm focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
+                      className="w-full rounded-sm border border-input bg-card p-2 text-base focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring md:text-sm"
                     />
                     <div className="mt-1 flex items-start justify-between gap-3">
                       <p
@@ -813,14 +777,6 @@ export function ConfiguratorClient({
                 {t("nextStepCeramic")} ›
               </Button>
             </div>
-            {/* F19 save/share — action column, below the CTA (see step 1) */}
-            {currentCode && (
-              <ConfigCodeBar
-                code={currentCode}
-                shareUrl={shareUrl}
-                onApply={applyCode}
-              />
-            )}
           </div>
         )}
       </div>

@@ -81,11 +81,12 @@ test("AC1/AC2/AC5: share 2 rows → clean context lands at step 3 → expand →
   );
   expect(await detail.locator("img").count()).toBeGreaterThan(0);
 
-  // the code lives in the expanded detail; edit-design must round-trip to it
-  const code = (await detail.locator("code").first().innerText()).trim();
   await detail.getByTestId("cart-edit-design").click();
   await page.getByTestId("details-step").waitFor();
-  await expect(page.getByTestId("config-code")).toHaveText(code);
+  // R3-D: the code bar is gone — the round-trip is verified via the URL the
+  // ?code= decode rebuilds (design slug + opt_ params), not a rendered code.
+  await expect(page).toHaveURL(/[?&]design=/);
+  await expect(page).toHaveURL(/opt_/);
   await ctx.close();
 });
 
