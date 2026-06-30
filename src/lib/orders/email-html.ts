@@ -60,9 +60,22 @@ function totals(items: MailItem[], locale: "no" | "en") {
  */
 function shell(
   theme: ThemeTokens,
-  opts: { preheader: string; heading: string; bodyHtml: string }
+  opts: {
+    preheader: string;
+    heading: string;
+    bodyHtml: string;
+    /** Absolute URL of the white logo; falls back to the text wordmark. */
+    logoUrl?: string;
+    /** Extra HTML appended in the footer (e.g. the legal/policy line). */
+    footerExtraHtml?: string;
+  }
 ): string {
   const { light, dark, accent } = theme;
+  const header = opts.logoUrl
+    ? `<img src="${esc(
+        opts.logoUrl
+      )}" width="170" alt="Min Keramikk" style="display:block;border:0;outline:none;height:auto;width:170px;max-width:170px;">`
+    : "Min&nbsp;Keramikk";
   return `<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
@@ -79,7 +92,7 @@ function shell(
     )};">
       <tr><td style="background:${esc(
         accent
-      )};padding:18px 28px;font-family:Helvetica,Arial,sans-serif;font-size:15px;font-weight:bold;letter-spacing:.04em;color:#ffffff;">Min&nbsp;Keramikk</td></tr>
+      )};padding:18px 28px;font-family:Helvetica,Arial,sans-serif;font-size:15px;font-weight:bold;letter-spacing:.04em;color:#ffffff;">${header}</td></tr>
       <tr><td style="padding:28px;font-family:Helvetica,Arial,sans-serif;color:${esc(
         dark
       )};font-size:15px;line-height:1.55;">
@@ -92,7 +105,10 @@ function shell(
         light
       )};font-family:Helvetica,Arial,sans-serif;font-size:12px;color:${esc(
         dark
-      )};opacity:.65;">Min Keramikk · minkeramikk.no</td></tr>
+      )};">
+        <div style="opacity:.65;">Min Keramikk · minkeramikk.no</div>
+        ${opts.footerExtraHtml ?? ""}
+      </td></tr>
     </table>
   </td></tr>
 </table>
@@ -142,6 +158,11 @@ const COPY = {
     reopen: "Åpne settet ditt på nytt",
     totalLabel: "Totalt",
     noteLabel: "Din beskjed til verkstedet", // TODO:nb-review
+    legalIntro:
+      "For mer om salgsvilkår og personvern — inkludert hvordan vi behandler personopplysninger — se våre",
+    legalTerms: "salgsvilkår",
+    legalPrivacy: "personvernerklæring",
+    legalAnd: "og",
   },
   en: {
     customerSubject: (c: string) => `Your order ${c} — Min Keramikk`,
@@ -153,6 +174,11 @@ const COPY = {
     reopen: "Reopen your set",
     totalLabel: "Total",
     noteLabel: "Your note to the workshop",
+    legalIntro:
+      "For more on our sales terms and privacy — including how we handle your personal data — see our",
+    legalTerms: "Terms of Sale",
+    legalPrivacy: "Privacy Policy",
+    legalAnd: "and",
   },
 } as const;
 
@@ -164,8 +190,23 @@ export function customerEmail(params: {
   items: MailItem[];
   setUrl: string | null;
   theme: ThemeTokens;
+  /** Absolute site origin (siteUrl()): enables the logo + policy links. */
+  baseUrl?: string;
 }): RenderedEmail {
   const c = COPY[params.locale];
+  const legalHtml = params.baseUrl
+    ? `<div style="margin-top:10px;opacity:.7;line-height:1.5;">${esc(
+        c.legalIntro
+      )} <a href="${esc(
+        `${params.baseUrl}/${params.locale}/terms`
+      )}" style="color:${esc(params.theme.accent)};">${esc(
+        c.legalTerms
+      )}</a> ${esc(c.legalAnd)} <a href="${esc(
+        `${params.baseUrl}/${params.locale}/privacy`
+      )}" style="color:${esc(params.theme.accent)};">${esc(
+        c.legalPrivacy
+      )}</a>.</div>`
+    : undefined;
   const { lines, total } = totals(params.items, params.locale);
   const text =
     `${c.greeting(params.name)}\n\n${c.thanks} ${c.codeLabel}: ${params.code}.\n\n` +
@@ -215,6 +256,8 @@ export function customerEmail(params: {
       preheader: `${c.thanks} ${c.codeLabel}: ${params.code}`,
       heading: c.thanks,
       bodyHtml,
+      logoUrl: params.baseUrl ? `${params.baseUrl}/logo-white.png` : undefined,
+      footerExtraHtml: legalHtml,
     }),
   };
 }
@@ -229,6 +272,8 @@ export function adminEmail(params: {
   /** R2-6 D: "Replica set" deep-link (configurator step 3) the owner can open
    *  straight from the inbox. Null when no line is replicable. */
   replicaUrl: string | null;
+  /** Absolute site origin (siteUrl()): enables the header logo. */
+  baseUrl?: string;
 }): RenderedEmail {
   const { lines, total } = totals(params.items, "en");
   const text =
@@ -257,6 +302,7 @@ export function adminEmail(params: {
       preheader: `New order ${params.code}`,
       heading: `New order ${params.code}`,
       bodyHtml,
+      logoUrl: params.baseUrl ? `${params.baseUrl}/logo-white.png` : undefined,
     }),
   };
 }

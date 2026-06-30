@@ -134,6 +134,7 @@ export async function sendOrderEmails(
     items,
     setUrl: reopenSetUrl(params.items, params.locale, params.code),
     theme,
+    baseUrl: siteUrl(),
   });
   await transport.send({
     to: params.customerEmail,
@@ -149,6 +150,7 @@ export async function sendOrderEmails(
     items,
     theme,
     replicaUrl: replicaSetUrl(params.items, params.locale),
+    baseUrl: siteUrl(),
   });
   const adminTo = process.env.ORDER_NOTIFY_EMAIL || "dangeli88.daniele@gmail.com";
   await transport.send({

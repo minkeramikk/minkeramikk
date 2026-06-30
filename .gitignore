@@ -54,3 +54,13 @@ docs/evidence/
 .claude/
 # planning scratch (superpowers)
 docs/superpowers/
+
+# Supabase migration (segreti locali, mai committare)
+.env.migration
+Makefile.migration
+catalog-data.sql
+scripts/migrate-config.json
+scripts/migrate-supabase.py
+vercel-preview
+
+scripts/__pycache__/

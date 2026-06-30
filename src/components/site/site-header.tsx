@@ -15,11 +15,17 @@ export function SiteHeader() {
     // drawer still layers correctly. Desktop chrome unchanged.
     <header className="bg-ink text-ink-foreground max-md:sticky max-md:top-0 z-40">
       <div className="mx-auto flex h-14 max-w-[1060px] items-center justify-between px-5">
-        <Link
-          href="/"
-          className="font-heading text-[19px] font-semibold tracking-[0.02em] text-white"
-        >
-          {t("common.siteName")}
+        <Link href="/" aria-label={t("common.siteName")} className="flex items-center">
+          {/* white logo on the ink header — SVG scales crisply; height tuned to
+              the 56px bar. Falls back to alt text if the asset is missing. */}
+          {/* eslint-disable-next-line @next/next/no-img-element -- static brand asset in /public */}
+          <img
+            src="/logo.svg"
+            alt={t("common.siteName")}
+            width={137}
+            height={36}
+            className="h-9 w-auto"
+          />
         </Link>
         <nav className="flex items-center gap-3 text-sm sm:gap-5">
           <PublicMobileNav />
