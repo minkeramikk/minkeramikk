@@ -163,7 +163,6 @@ function ExpandedProductCard({
   qty,
   onQty,
   onAdd,
-  onNewDesign,
   tCart,
   tCfg,
 }: {
@@ -172,7 +171,6 @@ function ExpandedProductCard({
   qty: number;
   onQty: (next: number) => void;
   onAdd: () => void;
-  onNewDesign: () => void;
   tCart: (k: string) => string;
   tCfg: (k: string) => string;
 }) {
@@ -299,19 +297,15 @@ function ExpandedProductCard({
         </ul>
       )}
 
-      {/* Card footer (design critique, option A): the "Product details" toggle
-          (left, when there's a description) shares one row with the low-emphasis
-          "new design" CTA (right). Same row → no vertical push above the details.
-          The expanded description drops full-width below. */}
-      <div className="flex items-center justify-between gap-2">
-        {description ? (
+      {description && (
+        <div className="flex flex-col gap-1">
           <button
             type="button"
             data-testid="details-toggle"
             aria-expanded={open}
             aria-controls={`details-${p.slug}`}
             onClick={() => setOpen((o) => !o)}
-            className="flex min-h-11 items-center gap-1 text-sm font-medium text-foreground"
+            className="flex min-h-11 items-center gap-1 self-start text-sm font-medium text-foreground"
           >
             {tCfg("productCard.details")}
             <ChevronDown
@@ -319,19 +313,16 @@ function ExpandedProductCard({
               aria-hidden
             />
           </button>
-        ) : (
-          <span />
-        )}
-        <NewDesignButton onClick={onNewDesign} />
-      </div>
-      {description && open && (
-        <p
-          id={`details-${p.slug}`}
-          data-testid="product-details"
-          className="text-sm text-foreground"
-        >
-          {description}
-        </p>
+          {open && (
+            <p
+              id={`details-${p.slug}`}
+              data-testid="product-details"
+              className="text-sm text-foreground"
+            >
+              {description}
+            </p>
+          )}
+        </div>
       )}
     </div>
   );
@@ -568,7 +559,6 @@ export function CeramicsStep({
             qty={qty}
             onQty={setQty}
             onAdd={addSelected}
-            onNewDesign={() => goToStep(1)}
             tCart={t}
             tCfg={tc}
           />
@@ -751,6 +741,11 @@ export function CeramicsStep({
               </div>
             ) : (
               <>
+                {/* R3-C (final, Alessio 2026-06-28): the ONLY "Build a new
+                    design" — a full-size secondary CTA directly above Send
+                    order, same outline language as "Share this set". Keeps the
+                    basket (F03/F16) via goToStep(1). */}
+                <NewDesignButton onClick={() => goToStep(1)} />
                 <Button
                   size="lg"
                   className="min-h-11 w-full"
@@ -813,10 +808,6 @@ export function CeramicsStep({
         </>
       )}
 
-      {/* R3-C: start another design from the cart recap (keeps the basket — F03/
-          F16 persistence → accumulate multiple designs). Same shared component
-          and handler as the in-card instance — compact, low-emphasis. */}
-      <NewDesignButton onClick={() => goToStep(1)} className="mt-3 self-start" />
     </div>
   );
 
