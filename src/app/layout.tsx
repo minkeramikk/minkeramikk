@@ -3,6 +3,7 @@ import ReactDOM from "react-dom";
 import { Poppins } from "next/font/google";
 import { getLocale } from "next-intl/server";
 import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import { getThemeTokens } from "@/lib/theme.server";
 import { AssetVariantFallback } from "@/components/asset-variant-fallback";
 import { siteUrl } from "@/lib/site";
@@ -70,6 +71,7 @@ export default async function RootLayout({
         <AssetVariantFallback />
         {children}
         <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );
