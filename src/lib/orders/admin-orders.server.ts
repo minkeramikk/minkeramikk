@@ -12,7 +12,7 @@ import { mapOrderRow, type AdminOrder, type RawOrderRow } from "./admin-orders";
  * reads orders (RLS 0002). The service-role key is never used here.
  */
 const ORDER_SELECT =
-  "id, code, customer_name, email, phone, message, locale, status, internal_notes, created_at, updated_at, " +
+  "id, code, customer_name, email, phone, address, zipcode, country, message, locale, status, internal_notes, created_at, updated_at, " +
   "order_items ( id, supplier_id, supplier_name_snapshot, product_name_snapshot, price_cents_snapshot, currency_snapshot, quantity, config_code, config_snapshot, product_id, products ( image, slug ) )";
 
 export async function listOrders(): Promise<AdminOrder[]> {

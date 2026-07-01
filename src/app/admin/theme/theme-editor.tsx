@@ -7,8 +7,9 @@ import { checkThemeContrast } from "@/lib/theme-contrast";
 import { updateTheme, type ThemeState } from "./actions";
 
 /**
- * Theme editor (F11a): 3 colour pickers + a live site preview + a blocking WCAG
- * AA check on the key derived pairs. Setting --mk-* on the preview container
+ * Theme editor (F11a): 3 colour pickers + a live site preview + a NON-blocking
+ * WCAG AA contrast warning on the key derived pairs (informational only — Save
+ * is always allowed). Setting --mk-* on the preview container
  * re-derives every token via color-mix (ADR 0008), so the preview shows exactly
  * what the public site will look like. Save persists to `settings`; the public
  * re-themes on refresh.
@@ -64,7 +65,7 @@ export function ThemeEditor({ initial }: { initial: ThemeTokens }) {
           data-ok={check.ok}
           className="rounded-lg border border-border p-3 text-sm"
         >
-          <p className="mb-2 font-medium">Contrast (WCAG AA · 4.5:1)</p>
+          <p className="mb-2 font-medium">Contrast (WCAG AA · 4.5:1) — advisory</p>
           <ul className="flex flex-col gap-1">
             {check.pairs.map((p) => (
               <li
@@ -84,7 +85,7 @@ export function ThemeEditor({ initial }: { initial: ThemeTokens }) {
           </ul>
           {!check.ok && (
             <p data-testid="aa-hint" className="mt-2 text-xs text-destructive">
-              {check.failures.map((f) => f.hint).join(" ")}
+              Heads up (not blocking): {check.failures.map((f) => f.hint).join(" ")}
             </p>
           )}
         </div>
@@ -104,7 +105,7 @@ export function ThemeEditor({ initial }: { initial: ThemeTokens }) {
           <Button
             type="submit"
             data-testid="theme-save"
-            disabled={!check.ok || pending}
+            disabled={pending}
           >
             {pending ? "Saving…" : "Save theme"}
           </Button>

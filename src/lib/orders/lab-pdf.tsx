@@ -90,6 +90,16 @@ const s = StyleSheet.create({
     fontSize: 9,
   },
   total: { fontFamily: "Helvetica-Bold", color: THEME.ink },
+  ship: {
+    paddingHorizontal: 32,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: THEME.border,
+    backgroundColor: "#faf6f9",
+  },
+  shipName: { fontSize: 12, fontFamily: "Helvetica-Bold", marginTop: 3 },
+  shipLine: { fontSize: 10, color: THEME.ink, marginTop: 1 },
+  shipMuted: { fontSize: 9, color: THEME.muted, marginTop: 3 },
 });
 
 export interface LabPdfRenderItem {
@@ -136,6 +146,28 @@ export function LabPdfDocument({
             <Text style={s.metaLabel}>Reference</Text>
             <Text style={s.metaValue}>{doc.orderCode}</Text>
           </View>
+        </View>
+
+        {/* Ship-to: the workshop ships the finished pieces to this customer. */}
+        <View style={s.ship}>
+          <Text style={s.metaLabel}>Ship to · customer</Text>
+          <Text style={s.shipName}>{doc.shipTo.name}</Text>
+          {doc.shipTo.address ? (
+            <Text style={s.shipLine}>{doc.shipTo.address}</Text>
+          ) : null}
+          {doc.shipTo.zipcode || doc.shipTo.country ? (
+            <Text style={s.shipLine}>
+              {[doc.shipTo.zipcode, doc.shipTo.country].filter(Boolean).join(" · ")}
+            </Text>
+          ) : null}
+          {doc.shipTo.phone ? (
+            <Text style={s.shipMuted}>Tel: {doc.shipTo.phone}</Text>
+          ) : null}
+          {!doc.shipTo.address && !doc.shipTo.zipcode && !doc.shipTo.country ? (
+            <Text style={s.shipMuted}>
+              No address on file — confirm with the customer before shipping.
+            </Text>
+          ) : null}
         </View>
 
         {items.map(({ item, plateDataUri, productPhotoDataUri }, i) => (

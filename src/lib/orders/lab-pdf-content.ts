@@ -1,10 +1,12 @@
 /**
  * Pure content model for the per-supplier production-order PDF (F08).
  *
- * A production order is for the WORKSHOP: it carries the order reference + the
- * exact specification (product, design, each category's chosen option + hex,
- * config code, quantity) — and deliberately NO customer PII (no name, email,
- * phone or message). One document per supplier (split rows, ADR 0007).
+ * A production order is for the WORKSHOP, which ships the finished pieces
+ * DIRECTLY to the customer — so it carries the order reference, the exact
+ * specification (product, design, each category's chosen option + hex, config
+ * code, quantity) AND the customer's ship-to block (name, address, phone).
+ * Email and internal notes/message stay out. One document per supplier
+ * (split rows, ADR 0007).
  *
  * Pure + serializable so the textual content is snapshot-testable without
  * rendering a PDF or hitting a DB.
@@ -28,11 +30,21 @@ export interface LabPdfItem {
   customNote?: string;
 }
 
+/** Customer ship-to block — the workshop ships the finished pieces here. */
+export interface LabPdfShipTo {
+  name: string;
+  address: string | null;
+  zipcode: string | null;
+  country: string | null;
+  phone: string | null;
+}
+
 export interface LabPdfDoc {
   orderCode: string;
   /** ISO date (YYYY-MM-DD), locale-independent for deterministic output. */
   date: string;
   supplierName: string;
+  shipTo: LabPdfShipTo;
   items: LabPdfItem[];
   totalPieces: number;
 }
@@ -53,7 +65,8 @@ function toItem(it: AdminOrderItem): LabPdfItem {
 }
 
 /** Build the production-order document for ONE supplier, or null if that
- *  supplier has no items in the order. No customer PII is included. */
+ *  supplier has no items in the order. Includes the customer ship-to block
+ *  (the workshop ships to the customer); email/message are intentionally left out. */
 export function buildLabPdfDoc(
   order: AdminOrder,
   supplierId: string
@@ -66,6 +79,13 @@ export function buildLabPdfDoc(
     orderCode: order.code,
     date: new Date(order.createdAt).toISOString().slice(0, 10),
     supplierName: items[0].supplierName,
+    shipTo: {
+      name: order.customerName,
+      address: order.address,
+      zipcode: order.zipcode,
+      country: order.country,
+      phone: order.phone,
+    },
     items: items.map(toItem),
     totalPieces: items.reduce((n, it) => n + it.quantity, 0),
   };
