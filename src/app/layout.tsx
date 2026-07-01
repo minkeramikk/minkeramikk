@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import ReactDOM from "react-dom";
 import { Poppins } from "next/font/google";
 import { getLocale } from "next-intl/server";
+import { Analytics } from "@vercel/analytics/next";
 import { getThemeTokens } from "@/lib/theme.server";
 import { AssetVariantFallback } from "@/components/asset-variant-fallback";
 import { siteUrl } from "@/lib/site";
@@ -68,6 +69,7 @@ export default async function RootLayout({
       <body className="min-h-full flex flex-col">
         <AssetVariantFallback />
         {children}
+        <Analytics />
       </body>
     </html>
   );
