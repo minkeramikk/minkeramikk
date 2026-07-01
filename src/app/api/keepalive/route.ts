@@ -38,12 +38,17 @@ export async function GET(request: Request) {
   }
 
   // Usage health-check (best-effort): never fail the keep-alive over metrics.
-  await checkUsage();
+  const usage = await checkUsage();
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, usage });
 }
 
-async function checkUsage(): Promise<void> {
+type Usage = {
+  db: { bytes: number; limitBytes: number; pct: number };
+  storage: { bytes: number; limitBytes: number; pct: number };
+};
+
+async function checkUsage(): Promise<Usage | null> {
   try {
     const admin = createServiceRoleClient();
     const [dbRes, storageRes] = await Promise.all([
@@ -68,8 +73,7 @@ async function checkUsage(): Promise<void> {
       breaches.push(`Storage: ${mb(storageBytes)} of 1 GB (${pct(storagePct)})`);
 
     if (breaches.length > 0) {
-      const to =
-        process.env.ORDER_NOTIFY_EMAIL || "dangeli88.daniele@gmail.com";
+      const to = process.env.ORDER_NOTIFY_EMAIL || "tech@minkeramikk.no";
       await defaultTransport().send({
         to,
         subject: "[minkeramikk] Supabase Free usage at 80% or more",
@@ -79,10 +83,24 @@ async function checkUsage(): Promise<void> {
           `Archive data/assets or upgrade to Pro before the cap is hit.`,
       });
     }
+
+    return {
+      db: {
+        bytes: dbBytes,
+        limitBytes: DB_LIMIT_BYTES,
+        pct: Math.round(dbPct * 100),
+      },
+      storage: {
+        bytes: storageBytes,
+        limitBytes: STORAGE_LIMIT_BYTES,
+        pct: Math.round(storagePct * 100),
+      },
+    };
   } catch (err) {
     // A metrics failure (missing functions, API hiccup) must not break the
     // keep-alive — log and move on.
     console.error("[keepalive:usage] check failed", err);
+    return null;
   }
 }
 
