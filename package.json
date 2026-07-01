@@ -13,7 +13,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "db:types": "supabase gen types typescript --linked > src/lib/supabase/types.ts",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "keepalive:prod": "bash scripts/keepalive.sh"
   },
   "dependencies": {
     "@react-pdf/renderer": "^4.5.1",
