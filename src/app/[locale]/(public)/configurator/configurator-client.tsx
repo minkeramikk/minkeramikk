@@ -343,7 +343,7 @@ export function ConfiguratorClient({
   }
 
   // CA-6 / CA-6b: informative teaser of the NEXT step — not clickable (no
-  // role, no handler; decision 2026-06-12). Rendered twice: desktop under the
+  // role, no handler). Rendered twice: desktop under the
   // sticky preview (F15), mobile at the END of the options column (CA-6b) so
   // it never lengthens the scroll to the options (the CA-2 pain point).
   // Images: existing F26 variants only, lazy.
@@ -503,7 +503,7 @@ export function ConfiguratorClient({
               ))}
             </div>
             {/* CA-6b: mobile teaser sits right BEFORE the CTA — "what's next"
-                read before tapping Next (card decision 2026-06-12; also keeps
+                read before tapping Next; also keeps
                 the f18 invariant: nav block closed only by the code bar).
                 mb-6 = the step-2 column's gap-6, so the teaser→CTA breathing
                 room matches across steps (this column has no flex gap). */}

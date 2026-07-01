@@ -32,7 +32,7 @@ export const FLOAT_DEFAULTS: FloatVisibilityOptions = {
   // 0.2, not 0.1: the observed block is canvas + caption — with the canvas
   // fully scrolled out and only the caption sliver left, the ratio sits at
   // ~0.13-0.15. The bubble must be there the moment the PLATE is gone
-  // (Daniele's device test caught exactly this gap). Dead zone stays 0.3.
+  // (device testing caught exactly this gap). Dead zone stays 0.3.
   showBelow: 0.2,
   hideAbove: 0.5,
   showDelayMs: 150,
