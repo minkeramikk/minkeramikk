@@ -123,7 +123,7 @@ if (ONLY_FAILED) {
   masters = masters.filter((p) => failed.has(p));
   console.log(`--only-failed: retrying ${masters.length} path(s) from ${FAILED_FILE}`);
 }
-// heaviest class first (matches the rollout order in the card)
+// heaviest class first (matches the planned rollout order)
 const ORDER = { products: 0, designs: 1, animal: 2, swatches: 3 };
 masters.sort((a, b) => ORDER[assetClass(a)] - ORDER[assetClass(b)] || a.localeCompare(b));
 

@@ -16,7 +16,7 @@ import { cn } from "@/lib/utils";
  * the SAME memoized layers (F19 pattern, same @512 URLs already in the
  * browser cache → zero new fetches). Tap → scroll back to the preview.
  *
- * Non-negotiable (lesson QA-fix #3): this lives in a fixed OVERLAY and is
+ * Non-negotiable (QA-fix #3): this lives in a fixed OVERLAY and is
  * ALWAYS mounted — visibility is opacity/scale only, so appearing or
  * disappearing cannot move the layout by a single pixel. The show/hide
  * decision is the pure hysteresis in float-visibility.ts (two asymmetric
@@ -76,7 +76,7 @@ export function FloatingPreview({
         // R2-6 B1: a negative bottom margin shrinks the root's lower edge, so the
         // canvas reads as "leaving" while the plate is only starting to scroll
         // off — the bubble appears earlier. The asymmetric thresholds + stability
-        // window (the anti-flip-flop hysteresis, lesson QA-fix #3) are UNCHANGED.
+        // window (the anti-flip-flop hysteresis, QA-fix #3) are UNCHANGED.
         rootMargin: "0px 0px -20% 0px",
         threshold: [0, FLOAT_DEFAULTS.showBelow, FLOAT_DEFAULTS.hideAbove, 1],
       }
@@ -113,7 +113,7 @@ export function FloatingPreview({
       }}
       className={cn(
         // R2-6 B2: ~2× the previous bubble (was size-24/96px) → size-40/160px,
-        // hitting Alessio's "circa il doppio" / 150–160px target. Border/shadow
+        // hitting the requested ~2x (150–160px) target. Border/shadow
         // from tokens; safe-area offset (bottom) keeps it clear of the CTA bar.
         "fixed right-4 z-40 size-40 overflow-hidden rounded-full border border-border bg-card shadow-(--shadow-card) md:hidden",
         "transition-[opacity,transform] duration-200",

@@ -15,11 +15,6 @@ import { resolve } from "node:path";
 import { createClient } from "@supabase/supabase-js";
 import { assignMissingCodes } from "../src/lib/configurator/assign-codes";
 
-// Re-exported so the import job (`import-squarespace.ts`) keeps importing it
-// from here, while the implementation lives in the shared lib module (also used
-// by the F10 back-office create flows).
-export { assignMissingCodes };
-
 function loadEnv() {
   try {
     const raw = readFileSync(resolve(__dirname, "../.env.local"), "utf8");

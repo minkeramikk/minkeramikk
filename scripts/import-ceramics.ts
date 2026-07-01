@@ -16,7 +16,7 @@
  * Single supplier for now: Vietri.
  *
  * DRY-RUN by default (prints the plan, writes nothing). Execute with --yes.
- * Run by Daniele with the service-role key (reads web/.env.local).
+ * Run with the service-role key (reads web/.env.local).
  *
  *   npm run import:ceramics -- --dir=../docs/new_ceramiche/png          # plan
  *   npm run import:ceramics -- --dir=../docs/new_ceramiche/png --yes    # apply

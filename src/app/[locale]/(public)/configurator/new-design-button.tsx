@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 /**
- * R3-C (final, Alessio 2026-06-28) — the single "Build a new design" CTA. It
+ * R3-C (final) — the single "Build a new design" CTA. It
  * lives in ONE place: a prominent secondary button right above "Send order" in
  * the cart panel. Same outline language as "Share this set" but full-size
  * (lg + full-width) so it reads as a real next step, not a footnote. Starts a

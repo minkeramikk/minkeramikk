@@ -13,7 +13,6 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "db:types": "supabase gen types typescript --linked > src/lib/supabase/types.ts",
-    "import:squarespace": "tsx scripts/import-squarespace.ts",
     "test:e2e": "playwright test",
     "backfill:codes": "tsx scripts/backfill-codes.ts",
     "backfill:swatches": "tsx scripts/backfill-swatch-images.ts",

@@ -741,7 +741,7 @@ export function CeramicsStep({
               </div>
             ) : (
               <>
-                {/* R3-C (final, Alessio 2026-06-28): the ONLY "Build a new
+                {/* R3-C (final): the ONLY "Build a new
                     design" — a full-size secondary CTA directly above Send
                     order, same outline language as "Share this set". Keeps the
                     basket (F03/F16) via goToStep(1). */}
@@ -754,7 +754,7 @@ export function CeramicsStep({
                 >
                   {to("title")}
                 </Button>
-                {/* CA-3: share under Send order (Alessio) — light gesture,
+                {/* CA-3: share under Send order — light gesture,
                     ConfigCodeBar pattern */}
                 <Button
                   type="button"
@@ -909,7 +909,7 @@ export function CeramicsStep({
         </div>
       )}
 
-      {/* No fixed mobile action bar on step 3 (client, 2026-06-12): the
+      {/* No fixed mobile action bar on step 3 (per client UX feedback): the
           inline cart panel below already carries the total + Send + share,
           and the stepper above handles navigation. The old sticky summary
           bar read as a stray "action footer" on mobile. */}
