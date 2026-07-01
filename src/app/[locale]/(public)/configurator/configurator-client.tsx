@@ -32,7 +32,10 @@ import type { PreviewLayer } from "@/lib/configurator/preview";
 export interface DesignChoice {
   id: string;
   slug: string;
+  /** Legacy single-language name (kept for the config codec / fallback). */
   name: string;
+  nameNo: string;
+  nameEn: string;
   supplierId: string;
   supplierName: string | null;
   previewImage: string | null;
@@ -74,6 +77,9 @@ export function ConfiguratorClient({
 }) {
   const t = useTranslations("configurator");
   const locale = useLocale();
+  /** Design name in the active locale (falls back to NO, then legacy name). */
+  const designName = (d: DesignChoice) =>
+    (locale === "no" ? d.nameNo : d.nameEn) || d.nameNo || d.name;
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -465,7 +471,7 @@ export function ConfiguratorClient({
             className="max-md:mx-auto max-md:w-full"
           >
             <PreviewCanvas
-              alt={selected.name}
+              alt={designName(selected)}
               caption={t("previewNote")}
               layers={previewLayers}
             />
@@ -490,7 +496,7 @@ export function ConfiguratorClient({
               {designs.map((d) => (
                 <OptionCard
                   key={d.id}
-                  label={d.name}
+                  label={designName(d)}
                   // CA-7: design-as-a-button — composited plate from the same
                   // default layers the preview uses (zero new assets).
                   layers={d.defaultLayers.map((l) => ({
@@ -558,7 +564,7 @@ export function ConfiguratorClient({
               <p className="text-[11px] uppercase tracking-[0.06em] text-muted-foreground">
                 {t("stepIndicator", { step: 2 })}
               </p>
-              <h2 className="mt-1 text-xl font-semibold">{selected.name}</h2>
+              <h2 className="mt-1 text-xl font-semibold">{designName(selected)}</h2>
             </div>
 
             {hasSyncGroup && (
