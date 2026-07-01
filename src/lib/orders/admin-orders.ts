@@ -54,6 +54,9 @@ export interface AdminOrder {
   customerName: string;
   email: string;
   phone: string | null;
+  address: string | null;
+  zipcode: string | null;
+  country: string | null;
   message: string | null;
   locale: string;
   status: OrderStatus;
@@ -70,6 +73,9 @@ export interface RawOrderRow {
   customer_name: string;
   email: string;
   phone: string | null;
+  address: string | null;
+  zipcode: string | null;
+  country: string | null;
   message: string | null;
   locale: string;
   status: string;
@@ -98,6 +104,9 @@ export function mapOrderRow(row: RawOrderRow): AdminOrder {
     customerName: row.customer_name,
     email: row.email,
     phone: row.phone,
+    address: row.address,
+    zipcode: row.zipcode,
+    country: row.country,
     message: row.message,
     locale: row.locale,
     status: isOrderStatus(row.status) ? row.status : "new",

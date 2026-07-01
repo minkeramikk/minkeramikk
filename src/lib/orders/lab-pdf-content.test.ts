@@ -8,6 +8,9 @@ const ORDER: AdminOrder = {
   customerName: "Kari Nordmann",
   email: "kari@example.no",
   phone: "+47 400 00 000",
+  address: "Storgata 1",
+  zipcode: "0155",
+  country: "Norway",
   message: "please call before delivery",
   locale: "no",
   status: "new",
@@ -25,6 +28,7 @@ const ORDER: AdminOrder = {
       quantity: 4,
       configCode: "MK-D-A-Q",
       productImage: null,
+      productSlug: null,
       configSnapshot: {
         designName: "Krabbe",
         customNote: "brown dog with white spots",
@@ -44,6 +48,7 @@ const ORDER: AdminOrder = {
       quantity: 2,
       configCode: "MK-C-B",
       productImage: null,
+      productSlug: null,
       configSnapshot: { designName: "Amalfi Dyr", selections: [] },
     },
   ],
@@ -56,6 +61,13 @@ describe("buildLabPdfDoc", () => {
       orderCode: "MK-1042",
       date: "2026-06-08",
       supplierName: "Vietri",
+      shipTo: {
+        name: "Kari Nordmann",
+        address: "Storgata 1",
+        zipcode: "0155",
+        country: "Norway",
+        phone: "+47 400 00 000",
+      },
       totalPieces: 4,
       items: [
         {
@@ -83,16 +95,25 @@ describe("buildLabPdfDoc", () => {
     expect(docs.reduce((n, d) => n + d.totalPieces, 0)).toBe(6);
   });
 
-  it("contains NO customer PII", () => {
+  it("includes the customer ship-to but not email or internal notes", () => {
     const blob = JSON.stringify(buildLabPdfDocs(ORDER));
-    for (const pii of [
+    // ship-to: the workshop ships to the customer, so these must be present
+    for (const shown of [
       "Kari Nordmann",
-      "kari@example.no",
+      "Storgata 1",
+      "0155",
+      "Norway",
       "+47 400 00 000",
+    ]) {
+      expect(blob).toContain(shown);
+    }
+    // email, customer message and internal notes stay out of the workshop doc
+    for (const hidden of [
+      "kari@example.no",
       "please call before delivery",
       "ring back",
     ]) {
-      expect(blob).not.toContain(pii);
+      expect(blob).not.toContain(hidden);
     }
   });
 
