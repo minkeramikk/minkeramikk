@@ -29,6 +29,7 @@ function item(p: Partial<AdminOrderItem> = {}): AdminOrderItem {
     configSnapshot: p.configSnapshot ?? null,
     productImage: p.productImage ?? null,
     productSlug: p.productSlug ?? null,
+    productWeightGrams: p.productWeightGrams ?? null,
   };
 }
 
@@ -64,13 +65,14 @@ describe("mapOrderRow", () => {
           product_name_snapshot: "Flat", price_cents_snapshot: 50000,
           currency_snapshot: "NOK", quantity: 2, config_code: "MK-A-K3",
           config_snapshot: { designName: "Blomster 1", selections: [] },
-          product_id: "p1", products: { image: "products/flat.png", slug: "flat" } },
+          product_id: "p1", products: { image: "products/flat.png", slug: "flat", product_attributes: [{ key: "weight", value_num: 800 }] } },
       ],
     };
     const o = mapOrderRow(raw);
     expect(o.status).toBe("new"); // unknown → safe default
     expect(o.items[0].quantity).toBe(2);
     expect(o.items[0].configSnapshot?.designName).toBe("Blomster 1");
+    expect(o.items[0].productWeightGrams).toBe(800); // from product_attributes
   });
 
   it("resolves productImage from the joined product (F32 visual recap)", () => {
@@ -85,7 +87,7 @@ describe("mapOrderRow", () => {
           product_name_snapshot: "Flat", price_cents_snapshot: 50000,
           currency_snapshot: "NOK", quantity: 1, config_code: null,
           config_snapshot: null,
-          product_id: "p1", products: { image: "products/flat.png", slug: "flat" } },
+          product_id: "p1", products: { image: "products/flat.png", slug: "flat", product_attributes: [{ key: "weight", value_num: 800 }] } },
         // product deleted/reimported (product_id NULL) → degrade, no photo
         { id: "i2", supplier_id: "s1", supplier_name_snapshot: "Vietri",
           product_name_snapshot: "Bowl", price_cents_snapshot: 30000,
@@ -97,7 +99,7 @@ describe("mapOrderRow", () => {
           product_name_snapshot: "Mug", price_cents_snapshot: 20000,
           currency_snapshot: "NOK", quantity: 1, config_code: null,
           config_snapshot: null,
-          product_id: "p3", products: { image: null, slug: "mug" } },
+          product_id: "p3", products: { image: null, slug: "mug", product_attributes: null } },
       ],
     };
     const o = mapOrderRow(raw);

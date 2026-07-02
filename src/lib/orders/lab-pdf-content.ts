@@ -33,6 +33,7 @@ export interface LabPdfItem {
 /** Customer ship-to block — the workshop ships the finished pieces here. */
 export interface LabPdfShipTo {
   name: string;
+  email: string | null;
   address: string | null;
   zipcode: string | null;
   country: string | null;
@@ -47,6 +48,11 @@ export interface LabPdfDoc {
   shipTo: LabPdfShipTo;
   items: LabPdfItem[];
   totalPieces: number;
+  /** Σ(quantity × unit weight) in grams over lines that HAVE a weight; null when
+   *  no line in this doc has a weight on file. */
+  totalWeightGrams: number | null;
+  /** How many lines were skipped because they had no unit weight (partial total). */
+  weightMissingLines: number;
 }
 
 function toItem(it: AdminOrderItem): LabPdfItem {
@@ -75,12 +81,20 @@ export function buildLabPdfDoc(
   const items = bySupplier.get(supplierId);
   if (!items || items.length === 0) return null;
 
+  // Total shipping weight: Σ(quantity × unit weight) over lines that have a
+  // weight on file. Lines without one are skipped and counted (partial total).
+  const withWeight = items.filter((it) => it.productWeightGrams != null);
+  const totalWeightGrams = withWeight.length
+    ? withWeight.reduce((g, it) => g + it.quantity * (it.productWeightGrams ?? 0), 0)
+    : null;
+
   return {
     orderCode: order.code,
     date: new Date(order.createdAt).toISOString().slice(0, 10),
     supplierName: items[0].supplierName,
     shipTo: {
       name: order.customerName,
+      email: order.email,
       address: order.address,
       zipcode: order.zipcode,
       country: order.country,
@@ -88,6 +102,8 @@ export function buildLabPdfDoc(
     },
     items: items.map(toItem),
     totalPieces: items.reduce((n, it) => n + it.quantity, 0),
+    totalWeightGrams,
+    weightMissingLines: items.length - withWeight.length,
   };
 }
 
