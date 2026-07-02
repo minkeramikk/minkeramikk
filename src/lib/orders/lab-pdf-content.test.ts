@@ -29,6 +29,7 @@ const ORDER: AdminOrder = {
       configCode: "MK-D-A-Q",
       productImage: null,
       productSlug: null,
+      productWeightGrams: 800,
       configSnapshot: {
         designName: "Krabbe",
         customNote: "brown dog with white spots",
@@ -49,6 +50,7 @@ const ORDER: AdminOrder = {
       configCode: "MK-C-B",
       productImage: null,
       productSlug: null,
+      productWeightGrams: null,
       configSnapshot: { designName: "Amalfi Dyr", selections: [] },
     },
   ],
@@ -63,12 +65,15 @@ describe("buildLabPdfDoc", () => {
       supplierName: "Vietri",
       shipTo: {
         name: "Kari Nordmann",
+        email: "kari@example.no",
         address: "Storgata 1",
         zipcode: "0155",
         country: "Norway",
         phone: "+47 400 00 000",
       },
       totalPieces: 4,
+      totalWeightGrams: 3200,
+      weightMissingLines: 0,
       items: [
         {
           productName: "Vietri Flat",
@@ -95,11 +100,12 @@ describe("buildLabPdfDoc", () => {
     expect(docs.reduce((n, d) => n + d.totalPieces, 0)).toBe(6);
   });
 
-  it("includes the customer ship-to but not email or internal notes", () => {
+  it("includes the customer ship-to (with email) but not internal notes", () => {
     const blob = JSON.stringify(buildLabPdfDocs(ORDER));
-    // ship-to: the workshop ships to the customer, so these must be present
+    // ship-to: the workshop ships to (and can contact) the customer
     for (const shown of [
       "Kari Nordmann",
+      "kari@example.no",
       "Storgata 1",
       "0155",
       "Norway",
@@ -107,14 +113,20 @@ describe("buildLabPdfDoc", () => {
     ]) {
       expect(blob).toContain(shown);
     }
-    // email, customer message and internal notes stay out of the workshop doc
-    for (const hidden of [
-      "kari@example.no",
-      "please call before delivery",
-      "ring back",
-    ]) {
+    // customer message and internal notes stay out of the workshop doc
+    for (const hidden of ["please call before delivery", "ring back"]) {
       expect(blob).not.toContain(hidden);
     }
+  });
+
+  it("totals shipping weight = Σ(qty × unit weight), skipping lines without one", () => {
+    const vietri = buildLabPdfDoc(ORDER, "sup-vietri")!;
+    expect(vietri.totalWeightGrams).toBe(3200); // 4 × 800 g
+    expect(vietri.weightMissingLines).toBe(0);
+
+    const other = buildLabPdfDoc(ORDER, "sup-other")!;
+    expect(other.totalWeightGrams).toBeNull(); // that line has no weight
+    expect(other.weightMissingLines).toBe(1);
   });
 
   it("carries the customer note onto the lab item (R2-2b AC5)", () => {

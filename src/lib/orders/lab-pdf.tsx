@@ -163,6 +163,9 @@ export function LabPdfDocument({
           {doc.shipTo.phone ? (
             <Text style={s.shipMuted}>Tel: {doc.shipTo.phone}</Text>
           ) : null}
+          {doc.shipTo.email ? (
+            <Text style={s.shipMuted}>Email: {doc.shipTo.email}</Text>
+          ) : null}
           {!doc.shipTo.address && !doc.shipTo.zipcode && !doc.shipTo.country ? (
             <Text style={s.shipMuted}>
               No address on file — confirm with the customer before shipping.
@@ -226,7 +229,14 @@ export function LabPdfDocument({
 
         <View style={s.foot} fixed>
           <Text>minkeramikk.no — handmade ceramics</Text>
-          <Text style={s.total}>Total: {doc.totalPieces} pieces</Text>
+          <Text style={s.total}>
+            Total: {doc.totalPieces} pieces
+            {doc.totalWeightGrams != null
+              ? ` · ${(doc.totalWeightGrams / 1000).toFixed(2)} kg${
+                  doc.weightMissingLines > 0 ? " (partial)" : ""
+                }`
+              : ""}
+          </Text>
         </View>
       </Page>
     </Document>
