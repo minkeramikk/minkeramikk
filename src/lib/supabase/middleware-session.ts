@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { adminGuardRedirect } from "@/lib/auth/guard";
+import { isAllowedAdmin } from "@/lib/auth/admin-allowlist";
 import type { Database } from "./types";
 
 /**
@@ -45,7 +46,9 @@ export async function updateAdminSession(
     data: { user },
   } = await supabase.auth.getUser();
 
-  const target = adminGuardRedirect(request.nextUrl.pathname, !!user);
+  // Defense-in-depth: only allowlisted users count as admin (see admin-allowlist).
+  const isAdmin = !!user && isAllowedAdmin(user.email);
+  const target = adminGuardRedirect(request.nextUrl.pathname, isAdmin);
   if (target) {
     const url = request.nextUrl.clone();
     url.pathname = target;
