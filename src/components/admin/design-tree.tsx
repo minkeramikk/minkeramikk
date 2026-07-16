@@ -28,6 +28,7 @@ import { assetUrl } from "@/lib/storage";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { FileThumbInput } from "@/components/admin/file-thumb-input";
+import { BulkLayerUpload } from "@/components/admin/bulk-layer-upload";
 import type { CategoryValues } from "./category-editor";
 
 // ── types ────────────────────────────────────────────────────────────────────
@@ -693,6 +694,7 @@ function CategoryItem({
   const [showEdit, setShowEdit] = useState(false);
   const [confirmDel, setConfirmDel] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
+  const [showBulk, setShowBulk] = useState(false);
 
   // colours already used by options in this category (dup-prevention in the picker)
   const usedColourIds = cat.options
@@ -744,12 +746,20 @@ function CategoryItem({
           </span>
         )}
 
-        {/* Edit button */}
+        {/* Edit button. R3-VARIE micro-fix: on a COLLAPSED category the click must
+            expand the accordion AND open the form (the form lives in the body);
+            otherwise preventDefault alone opened a form nobody could see. */}
         <button
           type="button"
           onClick={(e) => {
+            const details = e.currentTarget.closest("details");
             e.preventDefault();
-            setShowEdit((v) => !v);
+            if (details && !details.open) {
+              details.open = true;
+              setShowEdit(true);
+            } else {
+              setShowEdit((v) => !v);
+            }
           }}
           data-testid="category-edit-toggle"
           aria-label="Edit category"
@@ -926,14 +936,30 @@ function CategoryItem({
             onClose={() => setShowAdd(false)}
           />
         ) : (
-          <button
-            type="button"
-            onClick={() => setShowAdd(true)}
-            data-testid="tree-add-option"
-            className="mt-2 text-sm font-medium text-primary underline-offset-2 hover:underline"
-          >
-            + Add option
-          </button>
+          <div className="mt-2 flex items-center gap-4">
+            <button
+              type="button"
+              onClick={() => setShowAdd(true)}
+              data-testid="tree-add-option"
+              className="text-sm font-medium text-primary underline-offset-2 hover:underline"
+            >
+              + Add option
+            </button>
+            {cat.kind === "color" && (
+              <button
+                type="button"
+                onClick={() => setShowBulk((v) => !v)}
+                data-testid="tree-bulk-layers"
+                className="text-sm font-medium text-primary underline-offset-2 hover:underline"
+              >
+                ⬆ Bulk upload layers
+              </button>
+            )}
+          </div>
+        )}
+
+        {cat.kind === "color" && showBulk && (
+          <BulkLayerUpload categoryId={cat.id} designId={designId} palette={palette} />
         )}
 
         {delState.error && (
