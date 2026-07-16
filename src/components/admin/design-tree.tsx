@@ -34,9 +34,12 @@ import type { CategoryValues } from "./category-editor";
 
 export interface OptionSlot {
   id: string;
+  /** For colour options this is resolved from the palette (ADR 0018). */
   name: string;
   hex: string | null;
   image: string | null;
+  /** F35: palette colour a kind=color option points at (null for kind=image). */
+  supplierColorId: string | null;
   /** Compositing layer (the pre-coloured pattern PNG). Without it this option
    *  contributes nothing to the preview — F22-fix surfaces & lets you set it. */
   layerImage: string | null;
@@ -50,12 +53,172 @@ export interface CategorySlot extends CategoryValues {
   options: OptionSlot[];
 }
 
+/** F35: a supplier glaze colour offered in the colour-option picker. */
+export interface PaletteColour {
+  id: string;
+  hex: string;
+  name: string;
+  /** Resolved swatch photo URL (assetUrl), or null → the grid falls back to hex. */
+  swatchUrl: string | null;
+}
+
 // ── helpers ──────────────────────────────────────────────────────────────────
 
 const LAYER_SLOTS = ["base", "mid", "detail", "extra", "top", "animal"] as const;
 
 const selectCls =
   "h-9 rounded-sm border border-input bg-card px-2 text-sm focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring";
+
+/** Admin field label (matches the 11px muted labels used across the admin forms). */
+const fieldLabel = "text-[11px] font-medium text-muted-foreground";
+
+/** A single glaze swatch: the real photo when present, else the flat hex. */
+function Swatch({ colour, className }: { colour: PaletteColour; className?: string }) {
+  if (colour.swatchUrl) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element -- storage art
+      <img src={colour.swatchUrl} alt="" className={`rounded-full border border-border object-cover ${className ?? ""}`} />
+    );
+  }
+  return (
+    <span
+      aria-hidden
+      className={`rounded-full border border-border ${className ?? ""}`}
+      style={{ backgroundColor: colour.hex }}
+    />
+  );
+}
+
+/** F35 (mockup ②): colour options pick a glaze from a VISUAL grid, not a native
+ *  select. The button shows the current choice; the popover is a grid of swatches
+ *  (photo or hex) with names. Colours already used by other options in the same
+ *  category are disabled (the DB unique index is the net). Selection lands in a
+ *  hidden input `supplierColorId` — no action/data change. Empty palette → a link
+ *  to the supplier page. */
+function PalettePicker({
+  palette,
+  supplierId,
+  defaultValue,
+  usedColourIds,
+}: {
+  palette: PaletteColour[];
+  supplierId: string;
+  defaultValue?: string | null;
+  usedColourIds: string[];
+}) {
+  const [selected, setSelected] = useState<string | null>(defaultValue ?? null);
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const popRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    // focus the first enabled option so the grid is keyboard-reachable
+    popRef.current?.querySelector<HTMLButtonElement>("button:not([disabled])")?.focus();
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        setOpen(false);
+        buttonRef.current?.focus();
+      }
+    }
+    function onDown(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("keydown", onKey);
+    document.addEventListener("mousedown", onDown);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.removeEventListener("mousedown", onDown);
+    };
+  }, [open]);
+
+  if (palette.length === 0) {
+    return (
+      <p className="text-xs text-muted-foreground" data-testid="option-palette-empty">
+        This supplier has no glaze colours yet.{" "}
+        <a href={`/admin/suppliers/${supplierId}`} className="font-medium text-primary underline-offset-2 hover:underline">
+          Add glaze colours →
+        </a>
+      </p>
+    );
+  }
+
+  const used = new Set(usedColourIds);
+  const current = palette.find((c) => c.id === selected) ?? null;
+
+  return (
+    <div ref={containerRef}>
+      <input type="hidden" name="supplierColorId" value={selected ?? ""} />
+      <div className="mb-1 flex items-center justify-between gap-2">
+        <span className={fieldLabel}>Glaze colour</span>
+        <a href={`/admin/suppliers/${supplierId}`} className="text-[11px] font-medium text-primary underline-offset-2 hover:underline">
+          Manage glaze colours →
+        </a>
+      </div>
+      <div className="relative">
+        <button
+          type="button"
+          ref={buttonRef}
+          data-testid="gc-picker"
+          aria-haspopup="listbox"
+          aria-expanded={open}
+          onClick={() => setOpen((v) => !v)}
+          className="flex w-full items-center gap-2 rounded-sm border border-input bg-card px-2 py-1.5 text-left text-sm hover:border-ring/60"
+        >
+          {current ? (
+            <>
+              <Swatch colour={current} className="size-6 shrink-0" />
+              <span className="min-w-0 flex-1 truncate">{current.name}</span>
+              <span className="shrink-0 font-mono text-[11px] text-muted-foreground">{current.hex}</span>
+            </>
+          ) : (
+            <span className="flex-1 text-muted-foreground">Pick a glaze colour…</span>
+          )}
+          <span className="shrink-0 text-xs text-muted-foreground">▼</span>
+        </button>
+
+        {open && (
+          <div
+            ref={popRef}
+            role="listbox"
+            aria-label="Glaze colours"
+            className="absolute left-0 top-[calc(100%+4px)] z-30 grid w-full max-w-md grid-cols-4 gap-2 rounded-lg border border-border bg-popover p-3 shadow-lg sm:grid-cols-6"
+          >
+            {palette.map((c) => {
+              const disabled = used.has(c.id) && c.id !== selected;
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  role="option"
+                  aria-selected={c.id === selected}
+                  disabled={disabled}
+                  data-testid="gc-picker-option"
+                  title={disabled ? `${c.name} — already used in this category` : `${c.name} · ${c.hex}`}
+                  onClick={() => {
+                    setSelected(c.id);
+                    setOpen(false);
+                    buttonRef.current?.focus();
+                  }}
+                  className="flex flex-col items-center gap-1 rounded-md p-1 hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40 aria-selected:bg-muted"
+                >
+                  <Swatch
+                    colour={c}
+                    className={`size-9 ${c.id === selected ? "ring-2 ring-primary ring-offset-1" : ""}`}
+                  />
+                  <span className="line-clamp-2 text-center text-[9px] leading-tight">{c.name}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 // ── info banner ──────────────────────────────────────────────────────────────
 
@@ -143,15 +306,91 @@ function OptionSwatch({ option }: { option: OptionSlot }) {
   return <span className="size-8 shrink-0 rounded-full border bg-muted" aria-hidden />;
 }
 
+/** F35: the colour-option field block, IDENTICAL for the edit and add forms so
+ *  the eye learns it once. Row 1: picker (flex-1) · Sort (narrow) · Active,
+ *  bottom-aligned. Row 2: layer image with the hint below the input. The form's
+ *  action row (Save/Add + Cancel) is rendered by each caller. No logic change. */
+function ColourOptionFields({
+  palette,
+  supplierId,
+  usedColourIds,
+  defaultSupplierColorId,
+  defaultSortOrder,
+  defaultActive,
+  layerExistingSrc,
+  layerTestid,
+}: {
+  palette: PaletteColour[];
+  supplierId: string;
+  usedColourIds: string[];
+  defaultSupplierColorId?: string | null;
+  defaultSortOrder: number;
+  defaultActive: boolean;
+  layerExistingSrc: string | null;
+  layerTestid: string;
+}) {
+  return (
+    <div className="flex flex-col gap-3">
+      {/* Row 1 — glaze picker · sort · active */}
+      <div className="flex items-end gap-3">
+        <div className="flex-1">
+          <PalettePicker
+            palette={palette}
+            supplierId={supplierId}
+            defaultValue={defaultSupplierColorId}
+            usedColourIds={usedColourIds}
+          />
+        </div>
+        <label className="flex flex-col gap-1">
+          <span className={fieldLabel}>Sort</span>
+          <Input
+            name="sortOrder"
+            type="number"
+            min={0}
+            defaultValue={defaultSortOrder}
+            aria-label="Sort order"
+            className="w-16"
+          />
+        </label>
+        <label className="flex items-center gap-1.5 pb-1.5 text-sm">
+          <input
+            type="checkbox"
+            name="active"
+            defaultChecked={defaultActive}
+            className="size-4 accent-[var(--primary)]"
+          />
+          Active
+        </label>
+      </div>
+
+      {/* Row 2 — compositing layer */}
+      <div>
+        <span className={fieldLabel}>Layer image (compositing)</span>
+        <FileThumbInput name="layerImage" existingSrc={layerExistingSrc} testid={layerTestid} />
+        <p className="mt-1 text-[11px] text-muted-foreground">Needed for the preview.</p>
+      </div>
+    </div>
+  );
+}
+
 // ── compact option row ────────────────────────────────────────────────────────
 
 function TreeOptionRow({
   designId,
   categoryId,
+  kind,
+  palette,
+  supplierId,
+  usedColourIds,
   option,
 }: {
   designId: string;
   categoryId: string;
+  kind: "color" | "image";
+  palette: PaletteColour[];
+  supplierId: string;
+  /** colours used by OTHER options in this category (this option's own excluded) */
+  usedColourIds: string[];
   option: OptionSlot;
 }) {
   const [delState, del, deleting] = useActionState(deleteOption, { error: null });
@@ -294,58 +533,49 @@ function TreeOptionRow({
           <input type="hidden" name="id" value={option.id} />
           <input type="hidden" name="categoryId" value={categoryId} />
           <input type="hidden" name="designId" value={designId} />
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-            <Input name="name" defaultValue={option.name} required aria-label="Option name" />
-            <Input name="hex" defaultValue={option.hex ?? ""} placeholder="#rrggbb" aria-label="Hex colour" />
-            <Input
-              name="sortOrder"
-              type="number"
-              min={0}
-              defaultValue={option.sortOrder}
-              aria-label="Sort order"
+          <input type="hidden" name="kind" value={kind} />
+          {kind === "color" ? (
+            <ColourOptionFields
+              palette={palette}
+              supplierId={supplierId}
+              usedColourIds={usedColourIds}
+              defaultSupplierColorId={option.supplierColorId}
+              defaultSortOrder={option.sortOrder}
+              defaultActive={option.active}
+              layerExistingSrc={option.layerImage ? assetUrl(option.layerImage) : null}
+              layerTestid="tree-option-edit-layer"
             />
-            <label className="flex items-center gap-1.5 text-sm">
-              <input
-                type="checkbox"
-                name="active"
-                defaultChecked={option.active}
-                className="size-4 accent-[var(--primary)]"
-              />
-              Active
-            </label>
-            <label className="col-span-2 text-xs text-muted-foreground">
-              Swatch image {option.image && <span className="text-foreground">✓ set</span>}
-              <FileThumbInput
-                name="image"
-                existingSrc={option.image ? assetUrl(option.image) : null}
-                testid="tree-option-edit-swatch"
-              />
-            </label>
-            <label className="col-span-2 text-xs text-muted-foreground">
-              Layer image (compositing){" "}
-              {option.layerImage ? (
-                <span className="text-foreground">✓ set</span>
-              ) : (
-                <span className="text-amber-700">— missing</span>
-              )}
-              <FileThumbInput
-                name="layerImage"
-                existingSrc={option.layerImage ? assetUrl(option.layerImage) : null}
-                testid="tree-option-edit-layer"
-              />
-            </label>
-          </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              <Input name="name" defaultValue={option.name} required aria-label="Option name" />
+              <Input name="hex" defaultValue={option.hex ?? ""} placeholder="#rrggbb" aria-label="Hex colour" />
+              <Input name="sortOrder" type="number" min={0} defaultValue={option.sortOrder} aria-label="Sort order" />
+              <label className="flex items-center gap-1.5 text-sm">
+                <input type="checkbox" name="active" defaultChecked={option.active} className="size-4 accent-[var(--primary)]" />
+                Active
+              </label>
+              <label className="col-span-2 text-xs text-muted-foreground">
+                Swatch image {option.image && <span className="text-foreground">✓ set</span>}
+                <FileThumbInput name="image" existingSrc={option.image ? assetUrl(option.image) : null} testid="tree-option-edit-swatch" />
+              </label>
+              <label className="col-span-2 text-xs text-muted-foreground">
+                Layer image (compositing){" "}
+                {option.layerImage ? (
+                  <span className="text-foreground">✓ set</span>
+                ) : (
+                  <span className="text-amber-700">— missing</span>
+                )}
+                <FileThumbInput name="layerImage" existingSrc={option.layerImage ? assetUrl(option.layerImage) : null} testid="tree-option-edit-layer" />
+              </label>
+            </div>
+          )}
           <div className="flex items-center gap-2">
-            <Button type="submit" size="sm" variant="outline" disabled={saving} data-testid="tree-option-edit-save">
+            <Button type="submit" size="sm" disabled={saving} data-testid="tree-option-edit-save">
               {saving ? "Saving…" : "Save option"}
             </Button>
-            <button
-              type="button"
-              onClick={() => setEditing(false)}
-              className="text-sm text-muted-foreground hover:text-foreground"
-            >
+            <Button type="button" variant="ghost" size="sm" onClick={() => setEditing(false)}>
               Cancel
-            </button>
+            </Button>
             <span className="ml-auto text-[11px] text-muted-foreground">
               Leave a file empty to keep the current one.
             </span>
@@ -366,11 +596,20 @@ function TreeOptionRow({
 function InlineAddOptionForm({
   designId,
   categoryId,
+  kind,
+  palette,
+  supplierId,
+  usedColourIds,
   defaultSortOrder,
   onClose,
 }: {
   designId: string;
   categoryId: string;
+  kind: "color" | "image";
+  palette: PaletteColour[];
+  supplierId: string;
+  /** colours already used by options in this category */
+  usedColourIds: string[];
   defaultSortOrder: number;
   onClose: () => void;
 }) {
@@ -384,59 +623,44 @@ function InlineAddOptionForm({
     >
       <input type="hidden" name="categoryId" value={categoryId} />
       <input type="hidden" name="designId" value={designId} />
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-        <Input
-          name="name"
-          placeholder="Name"
-          required
-          aria-label="Option name"
+      <input type="hidden" name="kind" value={kind} />
+      {kind === "color" ? (
+        <ColourOptionFields
+          palette={palette}
+          supplierId={supplierId}
+          usedColourIds={usedColourIds}
+          defaultSortOrder={defaultSortOrder}
+          defaultActive
+          layerExistingSrc={null}
+          layerTestid="inline-add-option-layer"
         />
-        <Input
-          name="hex"
-          placeholder="#rrggbb"
-          aria-label="Hex colour"
-        />
-        <Input
-          name="sortOrder"
-          type="number"
-          min={0}
-          defaultValue={defaultSortOrder}
-          aria-label="Sort order"
-        />
-        <label className="flex items-center gap-1.5 text-sm">
-          <input
-            type="checkbox"
-            name="active"
-            defaultChecked
-            className="size-4 accent-[var(--primary)]"
-          />
-          Active
-        </label>
-        <label className="col-span-2 text-xs text-muted-foreground">
-          Swatch image
-          <FileThumbInput name="image" testid="inline-add-option-swatch" />
-        </label>
-        <label className="col-span-2 text-xs text-muted-foreground">
-          Layer image (compositing) — needed for the preview
-          <FileThumbInput name="layerImage" testid="inline-add-option-layer" />
-        </label>
-      </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <Input name="name" placeholder="Name" required aria-label="Option name" />
+          <Input name="hex" placeholder="#rrggbb" aria-label="Hex colour" />
+          <Input name="sortOrder" type="number" min={0} defaultValue={defaultSortOrder} aria-label="Sort order" />
+          <label className="flex items-center gap-1.5 text-sm">
+            <input type="checkbox" name="active" defaultChecked className="size-4 accent-[var(--primary)]" />
+            Active
+          </label>
+          <label className="col-span-2 text-xs text-muted-foreground">
+            Swatch image
+            <FileThumbInput name="image" testid="inline-add-option-swatch" />
+          </label>
+          <label className="col-span-2 text-xs text-muted-foreground">
+            Layer image (compositing)
+            <FileThumbInput name="layerImage" testid="inline-add-option-layer" />
+            <span className="mt-1 block text-[11px] text-muted-foreground">Needed for the preview.</span>
+          </label>
+        </div>
+      )}
       <div className="flex items-center gap-2">
-        <Button
-          type="submit"
-          size="sm"
-          disabled={adding}
-          data-testid="inline-add-option-submit"
-        >
+        <Button type="submit" size="sm" disabled={adding} data-testid="inline-add-option-submit">
           {adding ? "Adding…" : "Add option"}
         </Button>
-        <button
-          type="button"
-          onClick={onClose}
-          className="text-sm text-muted-foreground hover:text-foreground"
-        >
+        <Button type="button" variant="ghost" size="sm" onClick={onClose}>
           Cancel
-        </button>
+        </Button>
         {state.error && (
           <span role="alert" className="text-xs text-destructive">
             {state.error}
@@ -452,9 +676,13 @@ function InlineAddOptionForm({
 function CategoryItem({
   designId,
   cat,
+  palette,
+  supplierId,
 }: {
   designId: string;
   cat: CategorySlot;
+  palette: PaletteColour[];
+  supplierId: string;
 }) {
   const [editState, saveEdit, saving] = useActionState(saveCategory, {
     error: null,
@@ -465,6 +693,11 @@ function CategoryItem({
   const [showEdit, setShowEdit] = useState(false);
   const [confirmDel, setConfirmDel] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
+
+  // colours already used by options in this category (dup-prevention in the picker)
+  const usedColourIds = cat.options
+    .map((o) => o.supplierColorId)
+    .filter((x): x is string => Boolean(x));
 
   return (
     <details
@@ -668,6 +901,10 @@ function CategoryItem({
                 key={opt.id}
                 designId={designId}
                 categoryId={cat.id}
+                kind={cat.kind}
+                palette={palette}
+                supplierId={supplierId}
+                usedColourIds={usedColourIds.filter((id) => id !== opt.supplierColorId)}
                 option={opt}
               />
             ))}
@@ -681,6 +918,10 @@ function CategoryItem({
           <InlineAddOptionForm
             designId={designId}
             categoryId={cat.id}
+            kind={cat.kind}
+            palette={palette}
+            supplierId={supplierId}
+            usedColourIds={usedColourIds}
             defaultSortOrder={cat.options.length}
             onClose={() => setShowAdd(false)}
           />
@@ -799,16 +1040,26 @@ function AddCategoryForm({ designId }: { designId: string }) {
 export function DesignTree({
   designId,
   categories,
+  palette,
+  supplierId,
 }: {
   designId: string;
   categories: CategorySlot[];
+  palette: PaletteColour[];
+  supplierId: string;
 }) {
   return (
     <div data-testid="design-tree">
       <InfoBanner />
       <div className="flex flex-col gap-2">
         {categories.map((cat) => (
-          <CategoryItem key={cat.id} designId={designId} cat={cat} />
+          <CategoryItem
+            key={cat.id}
+            designId={designId}
+            cat={cat}
+            palette={palette}
+            supplierId={supplierId}
+          />
         ))}
       </div>
       <AddCategoryForm designId={designId} />

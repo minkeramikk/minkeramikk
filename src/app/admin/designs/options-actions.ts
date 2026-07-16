@@ -7,37 +7,29 @@ import { slugify } from "@/lib/catalog/slug";
 import { assignMissingCodes } from "@/lib/configurator/assign-codes";
 import {
   parseHex,
-  optionAssetError,
+  optionShapeError,
   duplicateOptionMessage,
 } from "@/lib/catalog/option-rules";
-import { uploadVariant } from "@/lib/asset-variant-image";
+import { uploadAsset } from "@/lib/catalog/upload-asset";
+import type { TablesInsert } from "@/lib/supabase/types";
 
 export type OptionFormState = { error: string | null };
-
-const IMAGE_TYPES = ["image/png", "image/jpeg", "image/webp"];
 
 const optionSchema = z.object({
   id: z.string().uuid().optional().or(z.literal("")),
   categoryId: z.string().uuid(),
-  name: z.string().trim().min(1, "Name is required"),
   sortOrder: z.coerce.number().int().min(0).default(0),
   active: z.coerce.boolean(),
 });
 
-async function uploadIf(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  file: FormDataEntryValue | null,
-  path: string
-): Promise<{ path?: string; error?: string }> {
-  if (!(file instanceof File) || file.size === 0) return {};
-  if (!IMAGE_TYPES.includes(file.type)) return { error: "Images must be PNG, JPG or WebP." };
-  const buf = Buffer.from(await file.arrayBuffer());
-  const up = await supabase.storage
-    .from("assets")
-    .upload(path, buf, { contentType: file.type, upsert: true });
-  if (up.error) return { error: "Could not upload the image." };
-  await uploadVariant(supabase, path, buf); // F26 resize-at-source (best-effort)
-  return { path };
+/** Map a Postgres write error from the options table to a friendly message.
+ *  P0001 = the options_kind_shape trigger (ADR 0018); we pre-check with
+ *  optionShapeError, so this is only hit on a UI bypass or cross-supplier race. */
+function mapOptionWriteError(error: { code?: string; message: string }): string {
+  if (error.code === "23505") return duplicateOptionMessage(error.message);
+  if (error.code === "P0001" || error.code === "23514")
+    return "This option doesn't match its category (a colour needs a palette colour, an image needs an image).";
+  return "Could not save the option.";
 }
 
 export async function saveOption(
@@ -47,72 +39,109 @@ export async function saveOption(
   const parsed = optionSchema.safeParse({
     id: formData.get("id") ?? "",
     categoryId: formData.get("categoryId") ?? "",
-    name: formData.get("name") ?? "",
     sortOrder: formData.get("sortOrder") ?? 0,
     active: formData.get("active") === "on" || formData.get("active") === "true",
   });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
   const o = parsed.data;
 
-  const hexParsed = parseHex(String(formData.get("hex") ?? ""));
-  if (!hexParsed.ok) return { error: "Enter a valid hex colour, e.g. #1a2b3c." };
-
   const supabase = await createClient();
 
-  // path convention needs the design + category slugs
+  // category kind + slugs + the design's supplier (kind drives the two-way form)
   const { data: cat } = await supabase
     .from("option_categories")
-    .select("slug, designs(slug)")
+    .select("slug, kind, designs(slug, supplier_id)")
     .eq("id", o.categoryId)
     .maybeSingle();
   if (!cat) return { error: "Category not found." };
-  const designSlug = (cat.designs as { slug: string } | null)?.slug ?? "design";
-  const base = `designs/${designSlug}/${cat.slug}/${slugify(o.name) || "opt"}`;
+  const kind = cat.kind as "color" | "image";
+  const design = cat.designs as { slug: string; supplier_id: string } | null;
+  const designSlug = design?.slug ?? "design";
 
-  // current image (edit) so the image-or-hex rule sees an existing asset
-  let existingImage: string | null = null;
-  if (o.id) {
-    const { data: cur } = await supabase
-      .from("options")
-      .select("image")
-      .eq("id", o.id)
+  let row: TablesInsert<"options">;
+
+  if (kind === "color") {
+    // Colour option: reference a palette colour; no local name/hex/image.
+    const parsedColour = z.string().uuid().safeParse(formData.get("supplierColorId"));
+    const supplierColorId = parsedColour.success ? parsedColour.data : null;
+    if (!supplierColorId)
+      return { error: optionShapeError("color", { supplierColorId: null, hasImage: false }) };
+
+    // same-supplier guard (the trigger is the DB-level net) + hex for the layer path
+    const { data: colour } = await supabase
+      .from("supplier_colors")
+      .select("hex, supplier_id")
+      .eq("id", supplierColorId)
       .maybeSingle();
-    existingImage = cur?.image ?? null;
+    if (!colour) return { error: "That glaze colour no longer exists." };
+    if (design && colour.supplier_id !== design.supplier_id)
+      return { error: "That colour belongs to a different supplier." };
+
+    const layer = await uploadAsset(
+      supabase,
+      formData.get("layerImage"),
+      `designs/${designSlug}/${cat.slug}/${colour.hex.slice(1)}-layer.png`
+    );
+    if (layer.error) return { error: layer.error };
+
+    row = {
+      category_id: o.categoryId,
+      supplier_color_id: supplierColorId,
+      name: null,
+      hex: null,
+      image: null,
+      sort_order: o.sortOrder,
+      active: o.active,
+      ...(layer.path ? { layer_image: layer.path } : {}),
+    };
+  } else {
+    // Image option: keep its own name + image (+ optional hex), no palette link.
+    const nameParsed = z.string().trim().min(1, "Name is required").safeParse(formData.get("name"));
+    if (!nameParsed.success)
+      return { error: nameParsed.error.issues[0]?.message ?? "Name is required" };
+    const name = nameParsed.data;
+
+    const hexParsed = parseHex(String(formData.get("hex") ?? ""));
+    if (!hexParsed.ok) return { error: "Enter a valid hex colour, e.g. #1a2b3c." };
+
+    const base = `designs/${designSlug}/${cat.slug}/${slugify(name) || "opt"}`;
+
+    // current image (edit) so the image rule sees an existing asset
+    let existingImage: string | null = null;
+    if (o.id) {
+      const { data: cur } = await supabase
+        .from("options")
+        .select("image")
+        .eq("id", o.id)
+        .maybeSingle();
+      existingImage = cur?.image ?? null;
+    }
+
+    const img = await uploadAsset(supabase, formData.get("image"), `${base}.png`);
+    if (img.error) return { error: img.error };
+    const layer = await uploadAsset(supabase, formData.get("layerImage"), `${base}-layer.png`);
+    if (layer.error) return { error: layer.error };
+
+    const hasImage = Boolean(img.path || existingImage);
+    const shapeErr = optionShapeError("image", { supplierColorId: null, hasImage });
+    if (shapeErr) return { error: shapeErr };
+
+    row = {
+      category_id: o.categoryId,
+      supplier_color_id: null,
+      name,
+      hex: hexParsed.hex,
+      sort_order: o.sortOrder,
+      active: o.active,
+      ...(img.path ? { image: img.path } : {}),
+      ...(layer.path ? { layer_image: layer.path } : {}),
+    };
   }
-
-  const img = await uploadIf(supabase, formData.get("image"), `${base}.png`);
-  if (img.error) return { error: img.error };
-  const layer = await uploadIf(supabase, formData.get("layerImage"), `${base}-layer.png`);
-  if (layer.error) return { error: layer.error };
-
-  const hasImage = Boolean(img.path || existingImage);
-  const assetErr = optionAssetError(hexParsed.hex, hasImage);
-  if (assetErr) return { error: assetErr };
-
-  const row = {
-    category_id: o.categoryId,
-    name: o.name,
-    hex: hexParsed.hex,
-    sort_order: o.sortOrder,
-    active: o.active,
-    ...(img.path ? { image: img.path } : {}),
-    ...(layer.path ? { layer_image: layer.path } : {}),
-  };
 
   const res = o.id
     ? await supabase.from("options").update(row).eq("id", o.id)
     : await supabase.from("options").insert(row);
-
-  if (res.error) {
-    if (res.error.code === "23505") {
-      return { error: duplicateOptionMessage(res.error.message) };
-    }
-    if (res.error.code === "23514") {
-      // image-or-hex CHECK (defense in depth; we check above too)
-      return { error: "Provide a hex colour or a swatch image (ADR 0012)." };
-    }
-    return { error: "Could not save the option." };
-  }
+  if (res.error) return { error: mapOptionWriteError(res.error) };
 
   if (!o.id) await assignMissingCodes(supabase); // ADR 0011 stable code
 

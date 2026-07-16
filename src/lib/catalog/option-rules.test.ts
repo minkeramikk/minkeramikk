@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseHex, optionAssetError, duplicateOptionMessage } from "./option-rules";
+import { parseHex, optionShapeError, duplicateOptionMessage } from "./option-rules";
 
 describe("parseHex", () => {
   it("accepts empty as null", () => {
@@ -18,23 +18,25 @@ describe("parseHex", () => {
   });
 });
 
-describe("optionAssetError (ADR 0012 image-or-hex)", () => {
-  it("requires at least a hex or an image", () => {
-    expect(optionAssetError(null, false)).toMatch(/hex colour or a swatch/i);
+describe("optionShapeError (ADR 0018 two-way form)", () => {
+  it("colour option requires a palette colour", () => {
+    expect(optionShapeError("color", { supplierColorId: null, hasImage: false })).toMatch(/glaze colour/i);
+    expect(optionShapeError("color", { supplierColorId: null, hasImage: true })).toMatch(/glaze colour/i);
   });
-  it("passes with a hex only", () => {
-    expect(optionAssetError("#a3759f", false)).toBeNull();
+  it("colour option passes with a palette colour", () => {
+    expect(optionShapeError("color", { supplierColorId: "id", hasImage: false })).toBeNull();
   });
-  it("passes with an image only", () => {
-    expect(optionAssetError(null, true)).toBeNull();
+  it("image option requires an image", () => {
+    expect(optionShapeError("image", { supplierColorId: null, hasImage: false })).toMatch(/image/i);
   });
-  it("passes with both", () => {
-    expect(optionAssetError("#a3759f", true)).toBeNull();
+  it("image option passes with an image", () => {
+    expect(optionShapeError("image", { supplierColorId: null, hasImage: true })).toBeNull();
   });
 });
 
 describe("duplicateOptionMessage", () => {
-  it("distinguishes hex vs name unique violations", () => {
+  it("distinguishes supplier-colour vs hex vs name unique violations", () => {
+    expect(duplicateOptionMessage('… "options_category_supplier_color_uniq"')).toMatch(/glaze colour/i);
     expect(duplicateOptionMessage('… constraint "options_category_hex_uniq"')).toMatch(/hex/i);
     expect(duplicateOptionMessage('… constraint "options_category_name_uniq"')).toMatch(/name/i);
     expect(duplicateOptionMessage("something else")).toMatch(/duplicate/i);
