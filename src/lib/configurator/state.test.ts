@@ -5,6 +5,7 @@ import {
   type ConfiguratorAction,
   type SyncCategory,
 } from "./state";
+import { mapOptionRow } from "@/lib/catalog/design-options";
 
 const select = (slug: string, supplierId: string): ConfiguratorAction => ({
   type: "selectDesign",
@@ -121,6 +122,54 @@ describe("configuratorReducer — step 2 (options + color lock)", () => {
     });
     expect(s.selections.colors).toBe("c-x");
     expect(s.selections.borders).toBeUndefined();
+  });
+
+  // F35 (ADR 0018): after normalisation the DTO's hex comes from the palette
+  // join (mapOptionRow), not from options.hex. The color lock keys on that hex,
+  // so it must still sync — i.e. state.ts needs NO change. Build the SyncCategory
+  // hexes straight from mapOptionRow output to pin that invariant.
+  it("lock ON: palette-derived hex (mapOptionRow) still drives the color lock", () => {
+    const pal = (name: string, hex: string) => ({ name, hex, swatch_image: null });
+    const colorsOpt = mapOptionRow({
+      id: "c-blu", code: null, name: null, image: null, hex: null,
+      layer_image: null, sort_order: 0, active: true, is_default: false,
+      supplier_colors: pal("Blu Antico", "#0160b2"),
+    });
+    const bordersOpt = mapOptionRow({
+      id: "b-blu", code: null, name: null, image: null, hex: null,
+      layer_image: null, sort_order: 0, active: true, is_default: false,
+      supplier_colors: pal("Blu Antico", "#0160b2"),
+    });
+    // both resolved their hex from the palette
+    expect(colorsOpt.hex).toBe("#0160b2");
+
+    const categories: SyncCategory[] = [
+      {
+        slug: "colors",
+        syncGroup: "vietri",
+        optionHex: { [colorsOpt.id]: colorsOpt.hex },
+        hexToOption: { [colorsOpt.hex!]: colorsOpt.id },
+      },
+      {
+        slug: "borders",
+        syncGroup: "vietri",
+        optionHex: { [bordersOpt.id]: bordersOpt.hex },
+        hexToOption: { [bordersOpt.hex!]: bordersOpt.id },
+      },
+    ];
+
+    let s = configuratorReducer(initialConfiguratorState, {
+      type: "setColorLock",
+      locked: true,
+    });
+    s = configuratorReducer(s, {
+      type: "selectOption",
+      categorySlug: "colors",
+      optionId: "c-blu",
+      categories,
+    });
+    expect(s.selections.colors).toBe("c-blu");
+    expect(s.selections.borders).toBe("b-blu"); // synced by the palette hex #0160b2
   });
 
   it("lock ON: categories in a different (or null) sync_group are not synced", () => {
