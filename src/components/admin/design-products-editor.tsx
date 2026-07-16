@@ -33,6 +33,8 @@ export function DesignProductsEditor({
   );
   const [selected, setSelected] = useState<Set<string>>(new Set(initialSelectedIds));
   const [q, setQ] = useState("");
+  // hides the "Saved" badge as soon as the selection is touched again
+  const [edited, setEdited] = useState(false);
 
   const filtered = useMemo(() => {
     const v = q.trim().toLowerCase();
@@ -47,6 +49,7 @@ export function DesignProductsEditor({
   const empty = mode === "some" && nSel === 0;
 
   function toggle(id: string) {
+    setEdited(true);
     setSelected((s) => {
       const n = new Set(s);
       if (n.has(id)) n.delete(id);
@@ -55,6 +58,7 @@ export function DesignProductsEditor({
     });
   }
   function selectAllFiltered() {
+    setEdited(true);
     setSelected((s) => {
       const n = new Set(s);
       filtered.forEach((p) => n.add(p.id));
@@ -63,7 +67,12 @@ export function DesignProductsEditor({
   }
 
   return (
-    <form action={formAction} data-testid="design-products-form" className="flex max-w-lg flex-col gap-3">
+    <form
+      action={formAction}
+      onSubmit={() => setEdited(false)}
+      data-testid="design-products-form"
+      className="flex max-w-lg flex-col gap-3"
+    >
       <input type="hidden" name="designId" value={designId} />
       <input type="hidden" name="mode" value={mode} />
       <input
@@ -80,11 +89,14 @@ export function DesignProductsEditor({
       {/* radios */}
       <label className="flex cursor-pointer items-start gap-2 rounded-sm border border-border p-3 has-[:checked]:border-[var(--primary)]">
         <input
+          // same controlled-input desync guard as the checkboxes below: remount
+          // on flip so the DOM radio matches state after a useActionState submit.
+          key={mode === "all" ? "on" : "off"}
           type="radio"
           name="mode-ui"
           className="mt-0.5 accent-[var(--primary)]"
           checked={mode === "all"}
-          onChange={() => setMode("all")}
+          onChange={() => { setMode("all"); setEdited(true); }}
           data-testid="dp-mode-all"
         />
         <span>
@@ -96,11 +108,12 @@ export function DesignProductsEditor({
       </label>
       <label className="flex cursor-pointer items-start gap-2 rounded-sm border border-border p-3 has-[:checked]:border-[var(--primary)]">
         <input
+          key={mode === "some" ? "on" : "off"}
           type="radio"
           name="mode-ui"
           className="mt-0.5 accent-[var(--primary)]"
           checked={mode === "some"}
-          onChange={() => setMode("some")}
+          onChange={() => { setMode("some"); setEdited(true); }}
           data-testid="dp-mode-some"
         />
         <span>
@@ -128,7 +141,7 @@ export function DesignProductsEditor({
             <Button type="button" variant="outline" size="sm" onClick={selectAllFiltered} data-testid="dp-select-all">
               Select all
             </Button>
-            <Button type="button" variant="outline" size="sm" onClick={() => setSelected(new Set())} data-testid="dp-clear">
+            <Button type="button" variant="outline" size="sm" onClick={() => { setEdited(true); setSelected(new Set()); }} data-testid="dp-clear">
               Clear
             </Button>
           </div>
@@ -145,6 +158,12 @@ export function DesignProductsEditor({
                 data-testid="dp-row"
               >
                 <input
+                  // key includes checked state: after a useActionState submit,
+                  // React can skip writing .checked to a controlled checkbox
+                  // (DOM stays unticked while React thinks it's ticked → the
+                  // "must refresh to see it" bug). Keying on the value forces a
+                  // fresh DOM node whenever it flips, so DOM always matches state.
+                  key={selected.has(p.id) ? "on" : "off"}
                   type="checkbox"
                   className="size-4 accent-[var(--primary)]"
                   checked={selected.has(p.id)}
@@ -186,10 +205,15 @@ export function DesignProductsEditor({
         </p>
       )}
 
-      <div>
+      <div className="flex items-center gap-3">
         <Button type="submit" size="lg" className="min-h-11" disabled={pending || empty} data-testid="dp-save">
           {pending ? "Saving…" : "Save available ceramics"}
         </Button>
+        {state.ok && !edited && !pending && (
+          <span className="text-sm font-medium text-[var(--primary)]" data-testid="dp-saved" role="status">
+            Saved ✓
+          </span>
+        )}
       </div>
       <p className="text-xs text-muted-foreground">
         Hidden ceramics (visible = off) never appear in the configurator, even if ticked here.

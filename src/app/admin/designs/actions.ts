@@ -28,7 +28,7 @@ async function nextSortOrder(
   return (data?.sort_order ?? -1) + 1;
 }
 
-export type DesignFormState = { error: string | null };
+export type DesignFormState = { error: string | null; ok?: boolean };
 
 const IMAGE_TYPES = ["image/png", "image/jpeg", "image/webp"];
 
@@ -531,9 +531,12 @@ export async function saveDesignProducts(
   });
   if (error) return { error: "Could not save the available ceramics." };
 
-  revalidateTag("catalog");
-  revalidatePath(`/admin/designs/${designId.data}`);
-  return { error: null };
+  // NB: no revalidatePath on this admin page — it's force-dynamic (never cached),
+  // so a reload re-queries anyway, and the RSC refresh a revalidate triggers
+  // desyncs the controlled checkboxes (React keeps checked=true while the DOM
+  // resets to false) since this action stays on the page instead of redirecting.
+  revalidateTag("catalog"); // public configurator catalog cache only
+  return { error: null, ok: true };
 }
 
 // ── nested categories ──
