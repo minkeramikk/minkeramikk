@@ -47,6 +47,8 @@ export function assetClass(path: string): AssetClass | null {
   if (/^https?:\/\//i.test(path)) return null;
   if (isVariantPath(path)) return null;
   if (path.startsWith("swatches/")) return "swatches";
+  // F35: per-supplier glaze swatches — same 96px class as the shared swatches lib.
+  if (/^suppliers\/[^/]+\/colors\//.test(path)) return "swatches";
   if (path.startsWith("products/")) return "products";
   if (/^designs\/[^/]+\/(animal|dyr)\//.test(path)) {
     return ANIMAL_LAYER_RE.test(path) ? "designs" : "animal";

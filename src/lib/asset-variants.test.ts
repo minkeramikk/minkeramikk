@@ -29,6 +29,11 @@ describe("assetClass", () => {
     expect(variantWidth("designs/amalfi/animal/elg-shape.png")).toBe(512);
   });
 
+  it("classifies per-supplier glaze swatches as swatches (F35)", () => {
+    expect(assetClass("suppliers/s1/colors/0160b2-ab12.png")).toBe("swatches");
+    expect(variantWidth("suppliers/s1/colors/0160b2-ab12.png")).toBe(96);
+  });
+
   it("returns null for external URLs, existing variants and unknown prefixes", () => {
     expect(assetClass("https://cdn.example.com/x.png")).toBeNull();
     expect(assetClass("swatches/a3759f@96.webp")).toBeNull();
