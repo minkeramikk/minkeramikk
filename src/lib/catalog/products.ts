@@ -5,6 +5,7 @@ import { createPublicClient } from "@/lib/supabase/public";
 import { money, type Money } from "@/lib/money/money";
 import type { Currency } from "@/lib/money/money";
 import { mapTypedAttributes, type TypedAttribute } from "@/lib/catalog/product-attributes";
+import { effectiveProducts } from "@/lib/catalog/design-products";
 
 /** A ceramic the customer can pick at step 3 (ADR 0007: scoped to a supplier). */
 export interface SupplierProduct {
@@ -69,6 +70,41 @@ async function loadSupplierProducts(
     descriptionEn: p.description_en,
     attributes: mapTypedAttributes(p.product_attributes),
   }));
+}
+
+/**
+ * F34 — products a customer can pick at step 3 for a specific DESIGN.
+ * Optional whitelist (`design_products`, ADR 0017): none → every visible
+ * supplier product (identical to getSupplierProducts); some → only those,
+ * intersected with the supplier's visible set (a whitelisted-but-hidden ceramic
+ * stays hidden). Cached PER-DESIGN under the `catalog` tag: two designs of the
+ * same supplier can have different whitelists, so the key is the design.
+ */
+export async function getDesignProducts(
+  designId: string,
+  supplierId: string
+): Promise<SupplierProduct[]> {
+  return unstable_cache(
+    () => loadDesignProducts(designId, supplierId),
+    ["design-products", designId],
+    { tags: ["catalog"] }
+  )();
+}
+
+async function loadDesignProducts(
+  designId: string,
+  supplierId: string
+): Promise<SupplierProduct[]> {
+  const supabase = createPublicClient();
+  const { data, error } = await supabase
+    .from("design_products")
+    .select("product_id")
+    .eq("design_id", designId);
+  if (error) throw error;
+
+  const whitelist = (data ?? []).map((r) => r.product_id);
+  const all = await loadSupplierProducts(supplierId);
+  return effectiveProducts(whitelist, all);
 }
 
 /** Minimal visible-product fields, keyed by slug (F30: resolve a shared set). */
