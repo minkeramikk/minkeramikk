@@ -30,7 +30,9 @@ export default async function CategoryOptionsPage({
   const designName = (category.designs as { name: string } | null)?.name ?? "Design";
   const values: OptionValues[] = (options ?? []).map((o) => ({
     id: o.id,
-    name: o.name,
+    // F35: options.name is now nullable (colour options resolve it from the
+    // palette join); this legacy editor still wants a string. ponytail: coerce.
+    name: o.name ?? "",
     hex: o.hex,
     image: o.image,
     layerImage: o.layer_image,

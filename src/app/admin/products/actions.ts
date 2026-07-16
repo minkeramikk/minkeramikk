@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import { parsePriceToCents } from "@/lib/money/parse";
 import { uniqueSlug } from "@/lib/catalog/slug";
 import { piecesSchema } from "@/lib/catalog/pieces";
-import { uploadVariant } from "@/lib/asset-variant-image";
+import { uploadAsset } from "@/lib/catalog/upload-asset";
 import {
   parseTypedAttributesField,
   buildAttributeRpcRows,
@@ -28,7 +28,6 @@ const productSchema = z.object({
   visible: z.coerce.boolean(),
 });
 
-const IMAGE_TYPES = ["image/png", "image/jpeg", "image/webp"];
 
 export async function saveProduct(
   _prev: ProductFormState,
@@ -79,22 +78,11 @@ export async function saveProduct(
     slug = uniqueSlug(p.nameNo, (existing ?? []).map((r) => r.slug));
   }
 
-  // optional image upload (the simple 1-image case; configurator assets = F10)
-  let imagePath: string | undefined;
-  const file = formData.get("image");
-  if (file instanceof File && file.size > 0) {
-    if (!IMAGE_TYPES.includes(file.type)) {
-      return { error: "Image must be PNG, JPG or WebP." };
-    }
-    const path = `products/${slug}.png`;
-    const buf = Buffer.from(await file.arrayBuffer());
-    const up = await supabase.storage
-      .from("assets")
-      .upload(path, buf, { contentType: file.type, upsert: true });
-    if (up.error) return { error: "Could not upload the image." };
-    await uploadVariant(supabase, path, buf); // F26 resize-at-source (best-effort)
-    imagePath = path;
-  }
+  // optional image upload (the simple 1-image case; configurator assets = F10).
+  // uploadAsset gives a token'd path (cache fix, Bug 1) + the F26 variant.
+  const img = await uploadAsset(supabase, formData.get("image"), `products/${slug}.png`);
+  if (img.error) return { error: img.error };
+  const imagePath = img.path;
 
   const row = {
     name_no: p.nameNo,

@@ -69,7 +69,9 @@ export default async function EditDesignPage({
       ? ((
           await supabase
             .from("options")
-            .select("id, category_id, name, hex, image, layer_image, code, sort_order, active, is_default")
+            .select(
+              "id, category_id, name, hex, image, layer_image, code, sort_order, active, is_default, supplier_color_id, supplier_colors(name, hex, swatch_image)"
+            )
             .in("category_id", catIds)
             .order("sort_order", { ascending: true })
         ).data ?? [])
@@ -94,13 +96,18 @@ export default async function EditDesignPage({
   }));
 
   // ── build CategorySlot[] for DesignTree ──────────────────────────────────────
+  // F35 (ADR 0018): colour options resolve name/hex/image from the palette join;
+  // image options keep their own — same palette-first rule as the public read-path.
   const optionsByCat = new Map<string, OptionSlot[]>();
   for (const o of allOptionsRows) {
+    const pal = (o as { supplier_colors: { name: string; hex: string; swatch_image: string | null } | null })
+      .supplier_colors;
     const slot: OptionSlot = {
       id: o.id,
-      name: o.name,
-      hex: o.hex,
-      image: o.image,
+      name: pal ? pal.name : (o.name ?? ""),
+      hex: pal ? pal.hex : o.hex,
+      image: pal ? pal.swatch_image : o.image,
+      supplierColorId: o.supplier_color_id,
       layerImage: o.layer_image,
       code: o.code,
       sortOrder: o.sort_order ?? 0,
@@ -110,6 +117,20 @@ export default async function EditDesignPage({
     if (!optionsByCat.has(o.category_id)) optionsByCat.set(o.category_id, []);
     optionsByCat.get(o.category_id)!.push(slot);
   }
+
+  // F35: the design's supplier palette (active colours) for the colour-option picker
+  const { data: paletteRows } = await supabase
+    .from("supplier_colors")
+    .select("id, hex, name, swatch_image")
+    .eq("supplier_id", design.supplier_id)
+    .eq("active", true)
+    .order("sort_order", { ascending: true });
+  const palette = (paletteRows ?? []).map((c) => ({
+    id: c.id,
+    hex: c.hex,
+    name: c.name,
+    swatchUrl: c.swatch_image ? assetUrl(c.swatch_image) : null,
+  }));
 
   const categorySlots: CategorySlot[] = cats.map((c) => ({
     id: c.id,
@@ -175,7 +196,12 @@ export default async function EditDesignPage({
               — options without one are tagged &ldquo;no layer&rdquo;; open{" "}
               <em>Edit</em> on an option to upload it.
             </p>
-            <DesignTree designId={design.id} categories={categorySlots} />
+            <DesignTree
+              designId={design.id}
+              categories={categorySlots}
+              palette={palette}
+              supplierId={design.supplier_id}
+            />
           </section>
 
           {/* F34: Available ceramics */}

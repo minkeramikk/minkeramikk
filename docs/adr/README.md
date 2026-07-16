@@ -30,5 +30,6 @@ aggiornamento delle regole in `../../AGENTS.md`.
 | [0015](0015-prezzi-multi-zona-e-spedizione.md) | Prezzi multi-zona e spedizione a soglia (change-order F20) | Proposed · parcheggiato (solo NOK, 2026-06-16) |
 | [0016](0016-featured-configs-curation.md) | Featured configs: curation by config code, thumb pre-composta | Accepted |
 | [0017](0017-design-product-whitelist.md) | Supporti per design: whitelist design→prodotti (estende 0007) | Accepted |
+| [0018](0018-supplier-colour-palette.md) | Palette glasse per fornitore: opzioni colore normalizzate su `supplier_colors` (revisiona in parte 0012) | Accepted |
 
 Diagramma del modello dati e indici: [schema-er.md](schema-er.md) (deriva da ADR 0004–0008).

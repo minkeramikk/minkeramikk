@@ -13,18 +13,21 @@ export function parseHex(raw: string): { ok: boolean; hex: string | null } {
   return /^#[0-9a-f]{6}$/.test(v) ? { ok: true, hex: v } : { ok: false, hex: null };
 }
 
-/** ADR 0012: an option must carry at least a hex OR an image. */
-export function optionAssetError(
-  hex: string | null,
-  hasImage: boolean
+/** ADR 0018 two-way form: a colour option must reference a palette colour; an
+ *  image option must carry an image. (Replaces the old image-or-hex rule.) */
+export function optionShapeError(
+  kind: "color" | "image",
+  opts: { supplierColorId: string | null; hasImage: boolean }
 ): string | null {
-  return !hex && !hasImage
-    ? "Provide a hex colour or a swatch image (ADR 0012)."
-    : null;
+  if (kind === "color")
+    return opts.supplierColorId ? null : "Pick a glaze colour for this option.";
+  return opts.hasImage ? null : "Provide a swatch/layer image for this option.";
 }
 
-/** Map a Postgres unique-violation (0009 indexes) to a human message. */
+/** Map a Postgres unique-violation (0009 + 0022 indexes) to a human message. */
 export function duplicateOptionMessage(constraintText: string): string {
+  if (constraintText.includes("supplier_color"))
+    return "This glaze colour is already used in this category.";
   if (constraintText.includes("hex"))
     return "A colour with this hex already exists in this category.";
   if (constraintText.includes("name"))

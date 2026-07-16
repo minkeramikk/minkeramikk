@@ -18,6 +18,42 @@ export interface CategoryOption {
   isDefault: boolean;
 }
 
+/**
+ * One `options` row as read for step 2, with the palette join. Typed explicitly:
+ * Supabase's inference struggles with the nested embed (same reason duplicateDesign
+ * casts), so we shape it here and cast the query result to RawOptionRow[].
+ */
+export interface RawOptionRow {
+  id: string;
+  code: string | null;
+  name: string | null;
+  image: string | null;
+  hex: string | null;
+  layer_image: string | null;
+  sort_order: number;
+  active: boolean;
+  is_default: boolean;
+  supplier_colors: { name: string; hex: string; swatch_image: string | null } | null;
+}
+
+/**
+ * F35 (ADR 0018): colour options resolve name/hex/image from the supplier_colors
+ * join (palette-first); image options keep their own name/image. The output is the
+ * UNCHANGED CategoryOption DTO, so the configurator is pixel-identical.
+ */
+export function mapOptionRow(o: RawOptionRow): CategoryOption {
+  const pal = o.supplier_colors;
+  return {
+    id: o.id,
+    code: o.code,
+    name: pal ? pal.name : (o.name ?? ""),
+    hex: pal ? pal.hex : o.hex,
+    image: pal ? pal.swatch_image : o.image,
+    layerImage: o.layer_image,
+    isDefault: o.is_default,
+  };
+}
+
 export interface DesignCategory {
   id: string;
   slug: string;
@@ -73,7 +109,7 @@ async function loadDesignDetail(slug: string): Promise<DesignDetail | null> {
   const { data: categories, error: catErr } = await supabase
     .from("option_categories")
     .select(
-      "id, slug, label_no, label_en, kind, layer_slot, sync_group, sort_order, options(id, code, name, image, hex, layer_image, sort_order, active, is_default)"
+      "id, slug, label_no, label_en, kind, layer_slot, sync_group, sort_order, options(id, code, name, image, hex, layer_image, sort_order, active, is_default, supplier_colors(name, hex, swatch_image))"
     )
     .eq("design_id", design.id)
     .order("sort_order", { ascending: true });
@@ -95,18 +131,10 @@ async function loadDesignDetail(slug: string): Promise<DesignDetail | null> {
       kind: c.kind as "image" | "color",
       layerSlot: (c.layer_slot ?? "detail") as LayerSlot,
       syncGroup: c.sync_group,
-      options: (c.options ?? [])
+      options: ((c.options ?? []) as unknown as RawOptionRow[])
         .filter((o) => o.active)
         .sort((a, b) => a.sort_order - b.sort_order)
-        .map((o) => ({
-          id: o.id,
-          code: o.code,
-          name: o.name,
-          image: o.image,
-          hex: o.hex,
-          layerImage: o.layer_image,
-          isDefault: o.is_default,
-        })),
+        .map(mapOptionRow),
     })),
   };
 }

@@ -9,7 +9,7 @@ import { assignMissingCodes } from "@/lib/configurator/assign-codes";
 import { PALETTE_COLORS, LOGO_ASSETS } from "@/lib/catalog/design-templates";
 import { planAssetCopy, ownedAssetsToDelete } from "@/lib/catalog/design-assets";
 import { productsWithForeignSupplier } from "@/lib/catalog/design-products";
-import { uploadVariant } from "@/lib/asset-variant-image";
+import { uploadAsset } from "@/lib/catalog/upload-asset";
 import { variantPath, variantWidth } from "@/lib/asset-variants";
 
 const ASSET_BUCKET = "assets";
@@ -30,7 +30,6 @@ async function nextSortOrder(
 
 export type DesignFormState = { error: string | null; ok?: boolean };
 
-const IMAGE_TYPES = ["image/png", "image/jpeg", "image/webp"];
 
 const designSchema = z.object({
   id: z.string().uuid().optional().or(z.literal("")),
@@ -82,22 +81,14 @@ export async function saveDesign(
     slug = uniqueSlug(d.nameNo, (existing ?? []).map((r) => r.slug));
   }
 
-  // optional preview image
-  let previewPath: string | undefined;
-  const file = formData.get("previewImage");
-  if (file instanceof File && file.size > 0) {
-    if (!IMAGE_TYPES.includes(file.type)) {
-      return { error: "Preview must be PNG, JPG or WebP." };
-    }
-    const path = `designs/${slug}/preview.png`;
-    const buf = Buffer.from(await file.arrayBuffer());
-    const up = await supabase.storage
-      .from("assets")
-      .upload(path, buf, { contentType: file.type, upsert: true });
-    if (up.error) return { error: "Could not upload the preview image." };
-    await uploadVariant(supabase, path, buf); // F26 resize-at-source (best-effort)
-    previewPath = path;
-  }
+  // optional preview image — token'd path (cache fix, Bug 1) + F26 variant
+  const preview = await uploadAsset(
+    supabase,
+    formData.get("previewImage"),
+    `designs/${slug}/preview.png`
+  );
+  if (preview.error) return { error: preview.error };
+  const previewPath = preview.path;
 
   const row = {
     name: d.nameNo,
