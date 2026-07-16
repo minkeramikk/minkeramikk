@@ -4,6 +4,8 @@ import { AdminShell } from "@/components/shell/admin-shell";
 import { DesignForm } from "@/components/admin/design-form";
 import { DesignTree, type CategorySlot, type OptionSlot } from "@/components/admin/design-tree";
 import { DeleteDesignButton } from "@/components/admin/delete-design-button";
+import { DesignProductsEditor, type EditorProduct } from "@/components/admin/design-products-editor";
+import { formatMoney, money, type Currency } from "@/lib/money/money";
 import { PreviewCanvas } from "@/components/ui-domain/preview-canvas";
 import { createClient } from "@/lib/supabase/server";
 import { assetUrl } from "@/lib/storage";
@@ -35,6 +37,26 @@ export default async function EditDesignPage({
   ]);
 
   if (!design) notFound();
+
+  // F34: supplier ceramics (incl. hidden — badged) + this design's whitelist
+  const [{ data: supplierProductRows }, { data: whitelistRows }] = await Promise.all([
+    supabase
+      .from("products")
+      .select("id, name_no, name_en, price_cents, currency, image, visible, sort_order")
+      .eq("supplier_id", design.supplier_id)
+      .order("sort_order", { ascending: true }),
+    supabase.from("design_products").select("product_id").eq("design_id", id),
+  ]);
+
+  const availableCeramics: EditorProduct[] = (supplierProductRows ?? []).map((p) => ({
+    id: p.id,
+    nameNo: p.name_no,
+    nameEn: p.name_en,
+    price: formatMoney(money(p.price_cents, p.currency as Currency), "en"),
+    image: p.image ? assetUrl(p.image) : null,
+    visible: p.visible,
+  }));
+  const selectedProductIds = (whitelistRows ?? []).map((r) => r.product_id);
 
   const cats = (design.option_categories ?? []).slice().sort(
     (a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)
@@ -154,6 +176,16 @@ export default async function EditDesignPage({
               <em>Edit</em> on an option to upload it.
             </p>
             <DesignTree designId={design.id} categories={categorySlots} />
+          </section>
+
+          {/* F34: Available ceramics */}
+          <section>
+            <h2 className="mb-3 text-base font-semibold">Available ceramics</h2>
+            <DesignProductsEditor
+              designId={design.id}
+              products={availableCeramics}
+              initialSelectedIds={selectedProductIds}
+            />
           </section>
 
           {/* Danger zone */}
