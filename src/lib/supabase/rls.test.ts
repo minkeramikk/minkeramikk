@@ -38,6 +38,9 @@ describe.skipIf(!hasEnv)("RLS — anon client", () => {
   let orderId: string;
   let visibleProductId: string;
   let hiddenProductId: string;
+  let dpDesignId: string;
+  let dpForeignSupplierId: string;
+  let dpForeignProductId: string;
 
   beforeAll(async () => {
     anon = createClient(url!, anonKey!);
@@ -107,9 +110,54 @@ describe.skipIf(!hasEnv)("RLS — anon client", () => {
       .single();
     if (hidden.error) throw hidden.error;
     hiddenProductId = hidden.data.id;
+
+    // F34 fixtures: a design in `supplierId`, and a product in a DIFFERENT supplier
+    const design = await admin
+      .from("designs")
+      .insert({
+        name: "RLS DP Design",
+        name_no: "RLS DP",
+        name_en: "RLS DP",
+        slug: `rls-dp-${ts}`,
+        supplier_id: supplierId,
+      })
+      .select("id")
+      .single();
+    if (design.error) throw design.error;
+    dpDesignId = design.data.id;
+
+    const otherSupplier = await admin
+      .from("suppliers")
+      .insert({ name: "RLS Other Supplier" })
+      .select("id")
+      .single();
+    if (otherSupplier.error) throw otherSupplier.error;
+    dpForeignSupplierId = otherSupplier.data.id;
+
+    const foreignProduct = await admin
+      .from("products")
+      .insert({
+        slug: `rls-foreign-${ts}`,
+        supplier_id: dpForeignSupplierId,
+        name_no: "Foreign",
+        name_en: "Foreign",
+        price_cents: 10_000,
+        currency: "NOK",
+        visible: true,
+      })
+      .select("id")
+      .single();
+    if (foreignProduct.error) throw foreignProduct.error;
+    dpForeignProductId = foreignProduct.data.id;
   });
 
   afterAll(async () => {
+    // CASCADE clears design_products when the design/foreign supplier go
+    if (dpDesignId) await admin.from("designs").delete().eq("id", dpDesignId);
+    if (dpForeignProductId)
+      await admin.from("products").delete().eq("id", dpForeignProductId);
+    if (dpForeignSupplierId)
+      await admin.from("suppliers").delete().eq("id", dpForeignSupplierId);
     if (orderId) await admin.from("orders").delete().eq("id", orderId);
     if (visibleProductId)
       await admin.from("products").delete().eq("id", visibleProductId);
@@ -151,6 +199,31 @@ describe.skipIf(!hasEnv)("RLS — anon client", () => {
     });
     expect(error).not.toBeNull();
     expect(error!.code).toBe("42501"); // insufficient_privilege
+  });
+
+  it("anon may SELECT design_products (catalog is public, AC8)", async () => {
+    const { error } = await anon
+      .from("design_products")
+      .select("design_id")
+      .limit(1);
+    expect(error).toBeNull();
+  });
+
+  it("anon may NOT INSERT design_products (AC8)", async () => {
+    const { error } = await anon
+      .from("design_products")
+      .insert({ design_id: dpDesignId, product_id: visibleProductId });
+    expect(error).not.toBeNull();
+    expect(error!.code).toBe("42501"); // insufficient_privilege
+  });
+
+  it("same-supplier trigger rejects a cross-supplier row (AC6, app-bypass)", async () => {
+    // service role bypasses RLS but NOT the trigger
+    const { error } = await admin
+      .from("design_products")
+      .insert({ design_id: dpDesignId, product_id: dpForeignProductId });
+    expect(error).not.toBeNull();
+    expect(error?.message ?? "").toMatch(/different suppliers/i);
   });
 
   it("cannot update settings", async () => {
@@ -248,7 +321,10 @@ describe.skipIf(!hasEnv)("RLS — anon client", () => {
     expect(error).not.toBeNull();
   });
 
-  it("CAN insert an order (public insert is allowed) but cannot read it back", async () => {
+  // Since migration 0020 anon has NO write path to orders: inserts are created
+  // only via the create_order() RPC (SECURITY DEFINER, service_role). A direct
+  // anon INSERT must be blocked by RLS, and SELECT is still denied too.
+  it("cannot insert an order (public insert dropped in 0020) nor read it back", async () => {
     const code = `RLS-ANON-${Date.now()}`;
     const { error } = await anon.from("orders").insert({
       code,
@@ -256,12 +332,10 @@ describe.skipIf(!hasEnv)("RLS — anon client", () => {
       email: "anon@example.com",
       locale: "en",
     });
-    expect(error).toBeNull();
+    expect(error).not.toBeNull();
 
     const { data } = await anon.from("orders").select("id").eq("code", code);
     expect(data).toHaveLength(0);
-
-    await admin.from("orders").delete().eq("code", code);
   });
 
   // ── F03: anon sees only visible products of the supplier ──

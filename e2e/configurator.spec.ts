@@ -283,7 +283,7 @@ test.describe("R2-3+R2-4 expandable card", () => {
       .eq("id", design.id)
       .single();
     if (dErr) throw dErr;
-    const product = await firstProductOfDesignSupplier(d!.supplier_id);
+    const product = await firstProductOfDesignSupplier(design.id, d!.supplier_id);
     test.skip(!product, "design's supplier has no visible product");
 
     try {

@@ -34,6 +34,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      design_products: {
+        Row: {
+          design_id: string
+          product_id: string
+        }
+        Insert: {
+          design_id: string
+          product_id: string
+        }
+        Update: {
+          design_id?: string
+          product_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "design_products_design_id_fkey"
+            columns: ["design_id"]
+            isOneToOne: false
+            referencedRelation: "designs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "design_products_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       designs: {
         Row: {
           accepts_custom_notes: boolean
@@ -541,6 +571,10 @@ export type Database = {
         Returns: string
       }
       db_size_bytes: { Args: never; Returns: number }
+      replace_design_products: {
+        Args: { p_design_id: string; p_product_ids: string[] }
+        Returns: undefined
+      }
       replace_product_attributes: {
         Args: { p_product_id: string; p_rows: Json }
         Returns: undefined

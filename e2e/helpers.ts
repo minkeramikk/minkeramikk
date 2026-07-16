@@ -120,24 +120,45 @@ export async function designWithCode(): Promise<DesignRef> {
 }
 
 /**
- * R2-4b: first visible product of a design's supplier — the product that shows
- * at step 3 for that design. Returns the id (admin edit URL) + slug (step-3
- * testid). Null when the supplier has no visible product.
+ * R2-4b / F34 (ADR 0017): the first product a customer actually SEES at step 3
+ * for a design — the supplier's visible products (sort_order) narrowed by the
+ * design→product whitelist. Mirrors `effectiveProducts`: no whitelist rows →
+ * first visible supplier product; some rows → first visible supplier product
+ * that is whitelisted. Returns the id (admin edit URL) + slug (step-3 testid),
+ * or null when the effective step-3 set is empty.
+ *
+ * Whitelist-aware since F34: before the whitelist, step 3 showed every visible
+ * supplier product, so "first visible supplier product" was enough. Now a
+ * whitelisted design hides the rest, and picking a non-whitelisted product left
+ * the test waiting for a `product-<slug>` that never renders.
  */
 export async function firstProductOfDesignSupplier(
+  designId: string,
   supplierId: string
 ): Promise<{ id: string; slug: string; nameNo: string } | null> {
-  const { data, error } = await adminClient()
+  const db = adminClient();
+  const { data: products, error } = await db
     .from("products")
     .select("id, slug, name_no, supplier_id, visible, sort_order")
     .eq("supplier_id", supplierId)
     .eq("visible", true)
-    .order("sort_order", { ascending: true })
-    .limit(1)
-    .maybeSingle();
+    .order("sort_order", { ascending: true });
   if (error) throw error;
-  if (!data) return null;
-  return { id: data.id, slug: data.slug, nameNo: data.name_no };
+
+  const { data: wl, error: wlErr } = await db
+    .from("design_products")
+    .select("product_id")
+    .eq("design_id", designId);
+  if (wlErr) throw wlErr;
+
+  const whitelist = new Set((wl ?? []).map((r) => r.product_id));
+  const effective =
+    whitelist.size === 0
+      ? products ?? []
+      : (products ?? []).filter((p) => whitelist.has(p.id));
+  const first = effective[0];
+  if (!first) return null;
+  return { id: first.id, slug: first.slug, nameNo: first.name_no };
 }
 
 /** First supplier (for seeding order items). */

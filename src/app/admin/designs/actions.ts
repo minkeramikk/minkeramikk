@@ -8,6 +8,7 @@ import { uniqueSlug } from "@/lib/catalog/slug";
 import { assignMissingCodes } from "@/lib/configurator/assign-codes";
 import { PALETTE_COLORS, LOGO_ASSETS } from "@/lib/catalog/design-templates";
 import { planAssetCopy, ownedAssetsToDelete } from "@/lib/catalog/design-assets";
+import { productsWithForeignSupplier } from "@/lib/catalog/design-products";
 import { uploadVariant } from "@/lib/asset-variant-image";
 import { variantPath, variantWidth } from "@/lib/asset-variants";
 
@@ -27,7 +28,7 @@ async function nextSortOrder(
   return (data?.sort_order ?? -1) + 1;
 }
 
-export type DesignFormState = { error: string | null };
+export type DesignFormState = { error: string | null; ok?: boolean };
 
 const IMAGE_TYPES = ["image/png", "image/jpeg", "image/webp"];
 
@@ -392,6 +393,22 @@ export async function duplicateDesign(
     }
   }
 
+  // F34: carry over the whitelist. Products are shared (same supplier, not
+  // cloned) so the ids are valid as-is; the same-supplier trigger re-checks.
+  const { data: srcWhitelist } = await supabase
+    .from("design_products")
+    .select("product_id")
+    .eq("design_id", id.data);
+  if (srcWhitelist && srcWhitelist.length > 0) {
+    const { error: wErr } = await supabase.from("design_products").insert(
+      srcWhitelist.map((r) => ({
+        design_id: design.id,
+        product_id: r.product_id,
+      }))
+    );
+    if (wErr) return { error: "Could not copy the available ceramics." };
+  }
+
   await assignMissingCodes(supabase); // fresh codes for the clone
   revalidateTag("catalog");
   revalidatePath("/admin/designs");
@@ -446,6 +463,80 @@ export async function deleteDesign(
   revalidateTag("catalog");
   revalidatePath("/admin/designs");
   redirect("/admin/designs");
+}
+
+// ── F34: design→product whitelist (Available ceramics) ──────────────────────
+
+const uuidArraySchema = z.array(z.string().uuid());
+
+export async function saveDesignProducts(
+  _prev: DesignFormState,
+  formData: FormData
+): Promise<DesignFormState> {
+  const designId = z.string().uuid().safeParse(formData.get("designId"));
+  const mode = z.enum(["all", "some"]).safeParse(formData.get("mode"));
+  if (!designId.success || !mode.success) return { error: "Invalid input" };
+
+  // "all" == no rows; parse the picked ids only when in "some" mode.
+  let wantedIds: string[] = [];
+  if (mode.data === "some") {
+    let raw: unknown;
+    try {
+      raw = JSON.parse(String(formData.get("productIds") ?? "[]"));
+    } catch {
+      return { error: "Invalid selection." };
+    }
+    const ids = uuidArraySchema.safeParse(raw);
+    if (!ids.success) return { error: "Invalid selection." };
+    wantedIds = ids.data;
+    if (wantedIds.length === 0) {
+      return { error: "Select at least one ceramic — or switch back to 'All'." };
+    }
+  }
+
+  const supabase = await createClient();
+
+  // resolve the design's supplier
+  const { data: design } = await supabase
+    .from("designs")
+    .select("supplier_id")
+    .eq("id", designId.data)
+    .maybeSingle();
+  if (!design) return { error: "Design not found." };
+
+  // same-supplier guard (defense in depth #1; the DB trigger is #2)
+  if (wantedIds.length > 0) {
+    const { data: picked, error: pErr } = await supabase
+      .from("products")
+      .select("id, supplier_id")
+      .in("id", wantedIds);
+    if (pErr) return { error: "Could not validate the selection." };
+    const found = picked ?? [];
+    if (found.length !== wantedIds.length) {
+      return { error: "Some selected ceramics no longer exist." };
+    }
+    const foreign = productsWithForeignSupplier(
+      design.supplier_id,
+      found.map((p) => ({ id: p.id, supplierId: p.supplier_id }))
+    );
+    if (foreign.length > 0) {
+      return { error: "Every selected ceramic must belong to this design's supplier." };
+    }
+  }
+
+  // atomic replace (delete + insert in one transaction, migration 0021)
+  const { error } = await supabase.rpc("replace_design_products", {
+    p_design_id: designId.data,
+    p_product_ids: wantedIds,
+  });
+  if (error) return { error: "Could not save the available ceramics." };
+
+  // NB: no revalidatePath on this admin page — it's force-dynamic (never cached),
+  // so a reload re-queries anyway, and the RSC refresh a revalidate triggers
+  // desyncs the controlled checkboxes (React keeps checked=true while the DOM
+  // resets to false) since this action stays on the page instead of redirecting.
+  revalidateTag("catalog"); // public configurator catalog cache only
+  return { error: null, ok: true };
 }
 
 // ── nested categories ──

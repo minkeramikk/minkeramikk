@@ -57,3 +57,34 @@ test-email: build
 # una spec singola: make run-e2e-grep G=cart
 run-e2e-grep: build
 	npx playwright test e2e/$(G).spec.ts
+
+# ── DB a due ambienti (2026-07-16) ─────────────────────────────────────────
+# STAGING = progetto Supabase VECCHIO (rqhsb…, quello di .env.local: app locale,
+#           suite RLS, e2e). Qui si testano le migration di una card.
+# PROD    = progetto NUOVO org tech (lfphy…, Vercel). Push SOLO al merge.
+# Credenziali in .env.migration (gitignorato, dal giorno dell'handover).
+# Ogni DB traccia le proprie migration applicate → il CLI applica solo le mancanti.
+# Si bypassa `supabase link` (--db-url esplicito): il ref linkato è irrilevante.
+# NB: se una password contiene caratteri speciali va URL-encodata nella stringa.
+
+.PHONY: db-push-staging db-push-prod db-status
+
+db-push-staging:
+	@set -a && . ./.env.migration && set +a && \
+	echo ">> push migration su STAGING ($$OLD_PROJECT_REF — DB vecchio)" && \
+	supabase db push --db-url "postgresql://$$OLD_DB_USER:$$OLD_DB_PASSWORD@$$OLD_DB_HOST:$$OLD_DB_PORT/postgres"
+
+db-push-prod:
+	@set -a && . ./.env.migration && set +a && \
+	echo "!! Stai per pushare su PRODUZIONE ($$NEW_PROJECT_REF). Scrivi 'si' per confermare:" && \
+	read conferma && [ "$$conferma" = "si" ] && \
+	supabase db push --db-url "postgresql://$$NEW_DB_USER:$$NEW_DB_PASSWORD@$$NEW_DB_HOST:$$NEW_DB_PORT/postgres" || \
+	{ echo "annullato."; exit 1; }
+
+# stato migration su entrambi gli ambienti (Local = file nel repo)
+db-status:
+	@set -a && . ./.env.migration && set +a && \
+	echo "── STAGING ($$OLD_PROJECT_REF) ──" && \
+	supabase migration list --db-url "postgresql://$$OLD_DB_USER:$$OLD_DB_PASSWORD@$$OLD_DB_HOST:$$OLD_DB_PORT/postgres" ; \
+	echo "── PROD ($$NEW_PROJECT_REF) ──" && \
+	supabase migration list --db-url "postgresql://$$NEW_DB_USER:$$NEW_DB_PASSWORD@$$NEW_DB_HOST:$$NEW_DB_PORT/postgres"

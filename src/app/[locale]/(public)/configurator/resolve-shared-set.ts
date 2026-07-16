@@ -2,7 +2,7 @@ import "server-only";
 
 import { getActiveDesigns } from "@/lib/catalog/designs";
 import { getDesignDetail } from "@/lib/catalog/design-options";
-import { getSupplierProducts } from "@/lib/catalog/products";
+import { getDesignProducts } from "@/lib/catalog/products";
 import { assetUrl } from "@/lib/storage";
 import {
   decodeConfigCode,
@@ -55,16 +55,17 @@ export async function resolveSharedSet(raw: string): Promise<ResolvedSharedSet> 
   const findByCode = (code: string) =>
     [...codecBySlug.values()].find((d) => d.code === code.toUpperCase()) ?? null;
 
-  // per-supplier product lists, fetched once each (already cached per-supplier)
-  const productsBySupplier = new Map<
+  // per-DESIGN product lists (F34: two designs of one supplier can differ),
+  // each fetched once. Keyed by design id, resolved via the whitelist-aware read.
+  const productsByDesign = new Map<
     string,
-    ReturnType<typeof getSupplierProducts>
+    ReturnType<typeof getDesignProducts>
   >();
-  const supplierProducts = (supplierId: string) => {
-    let p = productsBySupplier.get(supplierId);
+  const designProducts = (designId: string, supplierId: string) => {
+    let p = productsByDesign.get(designId);
     if (!p) {
-      p = getSupplierProducts(supplierId);
-      productsBySupplier.set(supplierId, p);
+      p = getDesignProducts(designId, supplierId);
+      productsByDesign.set(designId, p);
     }
     return p;
   };
@@ -78,10 +79,11 @@ export async function resolveSharedSet(raw: string): Promise<ResolvedSharedSet> 
         unavailable++;
         continue;
       }
-      const products = await supplierProducts(design.supplierId);
+      const products = await designProducts(design.id, design.supplierId);
       const product = products.find((p) => p.slug === entry.productSlug);
       if (!product) {
-        // hidden or deleted ceramic → this row degrades, the set survives
+        // hidden, deleted, OR not in this design's whitelist → row degrades,
+        // the set survives (existing defensive pattern, F34 AC5).
         unavailable++;
         continue;
       }
