@@ -321,7 +321,10 @@ describe.skipIf(!hasEnv)("RLS — anon client", () => {
     expect(error).not.toBeNull();
   });
 
-  it("CAN insert an order (public insert is allowed) but cannot read it back", async () => {
+  // Since migration 0020 anon has NO write path to orders: inserts are created
+  // only via the create_order() RPC (SECURITY DEFINER, service_role). A direct
+  // anon INSERT must be blocked by RLS, and SELECT is still denied too.
+  it("cannot insert an order (public insert dropped in 0020) nor read it back", async () => {
     const code = `RLS-ANON-${Date.now()}`;
     const { error } = await anon.from("orders").insert({
       code,
@@ -329,12 +332,10 @@ describe.skipIf(!hasEnv)("RLS — anon client", () => {
       email: "anon@example.com",
       locale: "en",
     });
-    expect(error).toBeNull();
+    expect(error).not.toBeNull();
 
     const { data } = await anon.from("orders").select("id").eq("code", code);
     expect(data).toHaveLength(0);
-
-    await admin.from("orders").delete().eq("code", code);
   });
 
   // ── F03: anon sees only visible products of the supplier ──
