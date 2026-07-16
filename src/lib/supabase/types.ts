@@ -214,8 +214,9 @@ export type Database = {
           image: string | null
           is_default: boolean
           layer_image: string | null
-          name: string
+          name: string | null
           sort_order: number
+          supplier_color_id: string | null
         }
         Insert: {
           active?: boolean
@@ -226,8 +227,9 @@ export type Database = {
           image?: string | null
           is_default?: boolean
           layer_image?: string | null
-          name: string
+          name?: string | null
           sort_order?: number
+          supplier_color_id?: string | null
         }
         Update: {
           active?: boolean
@@ -238,8 +240,9 @@ export type Database = {
           image?: string | null
           is_default?: boolean
           layer_image?: string | null
-          name?: string
+          name?: string | null
           sort_order?: number
+          supplier_color_id?: string | null
         }
         Relationships: [
           {
@@ -247,6 +250,13 @@ export type Database = {
             columns: ["category_id"]
             isOneToOne: false
             referencedRelation: "option_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "options_supplier_color_id_fkey"
+            columns: ["supplier_color_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_colors"
             referencedColumns: ["id"]
           },
         ]
@@ -504,6 +514,44 @@ export type Database = {
         }
         Relationships: []
       }
+      supplier_colors: {
+        Row: {
+          active: boolean
+          hex: string
+          id: string
+          name: string
+          sort_order: number
+          supplier_id: string
+          swatch_image: string | null
+        }
+        Insert: {
+          active?: boolean
+          hex: string
+          id?: string
+          name: string
+          sort_order?: number
+          supplier_id: string
+          swatch_image?: string | null
+        }
+        Update: {
+          active?: boolean
+          hex?: string
+          id?: string
+          name?: string
+          sort_order?: number
+          supplier_id?: string
+          swatch_image?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_colors_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       suppliers: {
         Row: {
           active: boolean
@@ -577,6 +625,10 @@ export type Database = {
       }
       replace_product_attributes: {
         Args: { p_product_id: string; p_rows: Json }
+        Returns: undefined
+      }
+      replace_supplier_colors: {
+        Args: { p_supplier_id: string; p_rows: Json }
         Returns: undefined
       }
       storage_size_bytes: { Args: never; Returns: number }

@@ -17,6 +17,8 @@ erDiagram
     products o|--o{ order_items : "referenced by"
     designs ||--o{ design_products : "whitelisted on"
     products ||--o{ design_products : "allows"
+    suppliers ||--o{ supplier_colors : "glaze palette"
+    supplier_colors ||--o{ options : "colours (kind=color)"
 
     designs {
         uuid id PK
@@ -46,13 +48,24 @@ erDiagram
     options {
         uuid id PK
         uuid category_id FK
+        uuid supplier_color_id FK "→ supplier_colors, NO ACTION deferrable; NOT NULL se kind=color (ADR 0018)"
         text code "corto, stabile, unico per categoria - segmento del config code (ADR 0011)"
-        text name
-        text image "display/thumb (swatch reale anche per kind=color, ADR 0012)"
-        text hex "colore - NOT NULL se kind=color; placeholder/fallback (ADR 0012)"
+        text name "nullable: per kind=color arriva dal join palette (ADR 0018)"
+        text image "nullable per kind=color (dal join); display/thumb per kind=image"
+        text hex "nullable per kind=color (dal join palette, ADR 0018)"
         text layer_image "asset di compositing/preview, Storage (ADR 0010)"
         int sort_order
         bool active
+    }
+
+    supplier_colors {
+        uuid id PK
+        uuid supplier_id FK "→ suppliers, RESTRICT (ADR 0018)"
+        text hex "CHECK ^#[0-9a-f]{6}$ - UNIQUE(supplier_id, hex)"
+        text name "UNIQUE(supplier_id, name)"
+        text swatch_image "foto glassa reale, Storage; hex = fallback (ADR 0012)"
+        bool active
+        int sort_order
     }
 
     suppliers {
@@ -152,15 +165,21 @@ Enum `order_status`: `new → contacted → confirmed → in_production → deli
 | `orders.email` | storico ordini dello stesso cliente nel back-office |
 | `featured_configs.sort_order` | la strip della home legge ordinata a ogni render (cache-ato, F28) |
 | `design_products.product_id` | lookup inverso "quali design fissano questo prodotto" + cascade su delete prodotto (F34) |
+| `supplier_colors.supplier_id` | palette per fornitore (join step 2 + editor palette, ADR 0018) |
+| `options (category_id, supplier_color_id)` UNIQUE WHERE supplier_color_id NOT NULL | un colore di palette al più una volta per categoria (ADR 0018) |
 
 Vincoli aggiuntivi: `UNIQUE(design_id, slug)` su option_categories (slug di categoria
 unici dentro il design, non globali). `UNIQUE(designs.code)` e `UNIQUE(category_id, code)`
 su options (codici del config code stabili e non ambigui, ADR 0011).
+`UNIQUE(supplier_id, hex)` e `UNIQUE(supplier_id, name)` su supplier_colors (una glassa
+per hex e per nome dentro il fornitore, ADR 0018).
 
-`options`: CHECK su `image`/`hex` **rilassato** da one-of a `num_nonnulls(image, hex) >= 1`
-(almeno uno) — un'opzione colore può portare insieme la foto-swatch (`image`), l'`hex`
-(placeholder) e il `layer_image` (preview); la corrispondenza col `kind` resta a carico
-dell'app (ADR 0012).
+`options` (ADR 0018, revisiona ADR 0012 in parte): la vecchia CHECK `image`/`hex` è
+**rimossa**; il "modello a due vie" è ora imposto da trigger (`options_kind_shape`):
+`kind=color` ⇒ `supplier_color_id` NOT NULL e stesso fornitore del design, con
+`name/hex/image` NULL (arrivano dal join su `supplier_colors`); `kind=image` ⇒
+`supplier_color_id` NULL e `image` NOT NULL. La foto-swatch reale + hex-fallback (ADR 0012)
+resta, ma vive una volta sola nella palette invece che copiata per opzione.
 
 Niente GIN su `config_snapshot`: nessuna query dentro il jsonb prevista.
 
@@ -172,6 +191,8 @@ Niente GIN su `config_snapshot`: nessuna query dentro il jsonb prevista.
 | `order_items.product_id` | SET NULL (FK nullable) | gli ordini sono storia: sopravvivono al prodotto grazie agli snapshot |
 | `order_items.order_id`, `options.category_id`, `option_categories.design_id` | CASCADE | i figli non hanno senso senza il padre |
 | `design_products.design_id`, `design_products.product_id` | CASCADE (entrambi) | la restrizione non ha senso senza design o prodotto; gli ordini NON sono toccati (snapshot, F34/ADR 0017) |
+| `supplier_colors.supplier_id` | **RESTRICT** | una palette non si perde cancellando il fornitore — lo si disattiva |
+| `options.supplier_color_id` | **NO ACTION** (DEFERRABLE INITIALLY IMMEDIATE) | un colore in uso non si cancella — si disattiva (check immediato di default = come RESTRICT); NO ACTION invece di RESTRICT perché RESTRICT non è deferibile, e la RPC `replace_supplier_colors` defera il vincolo per il replace atomico (delete+reinsert stesso id → check al commit), ADR 0018 / migration 0023 |
 
 ## Note di lettura
 
@@ -190,6 +211,13 @@ Niente GIN su `config_snapshot`: nessuna query dentro il jsonb prevista.
   (`design_products_same_supplier`) oltre che dall'app. Lettura pubblica (serve al
   configuratore anon), scrittura authenticated (pattern 0002_rls). Replace atomico via
   RPC `replace_design_products`. Estende ADR 0007 senza sostituirlo.
+- `supplier_colors` (F35, ADR 0018): palette glasse **per fornitore** — nome/hex/swatch
+  vivono una volta sola. Le opzioni `kind=color` puntano a una riga via `supplier_color_id`
+  (niente più name/hex/image copiati: arrivano dal join). Forma a due vie + stesso
+  fornitore garantiti dal trigger `options_kind_shape`. Lettura pubblica (l'anon risolve
+  nome/hex/swatch nel configuratore), scrittura authenticated. Replace atomico via RPC
+  `replace_supplier_colors` (FK deferita per il ciclo delete+reinsert). Revisiona in parte
+  ADR 0012: il principio "swatch reale + hex fallback" resta, cambia solo *dove* vive.
 - RLS: catalogo in lettura pubblica (`active`/`visible`), scrittura authenticated;
   orders/order_items insert pubblico, lettura/modifica solo authenticated;
   suppliers: campi safe (id/name/active) leggibili da anon su righe attive,

@@ -98,7 +98,9 @@ export default async function EditDesignPage({
   for (const o of allOptionsRows) {
     const slot: OptionSlot = {
       id: o.id,
-      name: o.name,
+      // F35: options.name is nullable now; CP5 reworks this page to feed the
+      // palette. ponytail: coerce for now to keep the tree compiling.
+      name: o.name ?? "",
       hex: o.hex,
       image: o.image,
       layerImage: o.layer_image,

@@ -101,7 +101,9 @@ async function loadDesignDetail(slug: string): Promise<DesignDetail | null> {
         .map((o) => ({
           id: o.id,
           code: o.code,
-          name: o.name,
+          // F35 CP2: name is nullable now; CP3 replaces this with mapOptionRow
+          // resolving name/hex/image from the supplier_colors join. ponytail: coerce.
+          name: o.name ?? "",
           image: o.image,
           hex: o.hex,
           layerImage: o.layer_image,

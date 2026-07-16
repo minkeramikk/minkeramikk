@@ -396,6 +396,123 @@ describe.skipIf(!hasEnv)("RLS — anon client", () => {
     expect(viaTable.error).toBeNull();
     expect(viaTable.data).toHaveLength(0);
   });
+
+  // ── F35 / AC8: supplier_colors palette (fails loudly until 0022 is on staging) ──
+  // These reference supplier_colors / options.supplier_color_id / the trigger /
+  // the RPC, none of which exist before `make db-push-staging`. That is expected
+  // and documented in the CP2 checklist — NO silent skips (F07 lesson).
+  describe("AC8 — supplier_colors palette (needs migration 0022)", () => {
+    let colourCatId: string;
+    let colourId: string;
+    let foreignColourId: string;
+    let optionId: string;
+
+    beforeAll(async () => {
+      const ts = Date.now();
+      // a kind=color category on the test design (supplierId)
+      const cat = await admin
+        .from("option_categories")
+        .insert({ design_id: dpDesignId, slug: `rls-color-${ts}`, kind: "color" })
+        .select("id")
+        .single();
+      if (cat.error) throw cat.error;
+      colourCatId = cat.data.id;
+
+      // a palette colour for supplierId, and one for the foreign supplier
+      const colour = await admin
+        .from("supplier_colors")
+        .insert({ supplier_id: supplierId, hex: "#0160b2", name: `RLS Havblå ${ts}` })
+        .select("id")
+        .single();
+      if (colour.error) throw colour.error;
+      colourId = colour.data.id;
+
+      const foreign = await admin
+        .from("supplier_colors")
+        .insert({ supplier_id: dpForeignSupplierId, hex: "#ff9048", name: `RLS Foreign ${ts}` })
+        .select("id")
+        .single();
+      if (foreign.error) throw foreign.error;
+      foreignColourId = foreign.data.id;
+
+      // a colour option pointing at the same-supplier palette colour (trigger OK)
+      const option = await admin
+        .from("options")
+        .insert({ category_id: colourCatId, supplier_color_id: colourId, sort_order: 0 })
+        .select("id")
+        .single();
+      if (option.error) throw option.error;
+      optionId = option.data.id;
+    });
+
+    afterAll(async () => {
+      // order matters: the option references the colour (RESTRICT), the colour
+      // references the supplier (RESTRICT) — clear both before the outer afterAll
+      // deletes the suppliers/design.
+      if (optionId) await admin.from("options").delete().eq("id", optionId);
+      if (colourId) await admin.from("supplier_colors").delete().eq("id", colourId);
+      if (foreignColourId)
+        await admin.from("supplier_colors").delete().eq("id", foreignColourId);
+      // the category is removed by the design CASCADE in the outer afterAll
+    });
+
+    it("anon may SELECT supplier_colors (public palette)", async () => {
+      const { error } = await anon.from("supplier_colors").select("id").limit(1);
+      expect(error).toBeNull();
+    });
+
+    it("anon may NOT INSERT or UPDATE supplier_colors", async () => {
+      const ins = await anon
+        .from("supplier_colors")
+        .insert({ supplier_id: supplierId, hex: "#000000", name: "anon" });
+      expect(ins.error).not.toBeNull();
+      expect(ins.error!.code).toBe("42501");
+
+      const upd = await anon
+        .from("supplier_colors")
+        .update({ name: "hacked" })
+        .eq("id", colourId)
+        .select("id");
+      expect(upd.error ? true : (upd.data ?? []).length === 0).toBe(true);
+    });
+
+    it("trigger rejects a colour option pointing at another supplier's palette colour", async () => {
+      // service role bypasses RLS but NOT the trigger
+      const { error } = await admin
+        .from("options")
+        .insert({ category_id: colourCatId, supplier_color_id: foreignColourId, sort_order: 1 });
+      expect(error).not.toBeNull();
+      expect(error?.message ?? "").toMatch(/different supplier/i);
+    });
+
+    it("cannot delete a supplier_color still referenced by an option (RESTRICT, 23503)", async () => {
+      const { error } = await admin
+        .from("supplier_colors")
+        .delete()
+        .eq("id", colourId);
+      expect(error).not.toBeNull();
+      expect(error!.code).toBe("23503");
+    });
+
+    it("replace_supplier_colors round-trip: same ids succeed, omitting a used colour raises 23503", async () => {
+      // same rows (same id) → delete+reinsert with the deferred FK succeeds
+      const same = await admin.rpc("replace_supplier_colors", {
+        p_supplier_id: supplierId,
+        p_rows: [
+          { id: colourId, hex: "#0160b2", name: `RLS Havblå ${Date.now()}`, active: true, sort_order: 0 },
+        ],
+      });
+      expect(same.error).toBeNull();
+
+      // omitting the still-referenced colour → dangling FK at commit → 23503
+      const omit = await admin.rpc("replace_supplier_colors", {
+        p_supplier_id: supplierId,
+        p_rows: [],
+      });
+      expect(omit.error).not.toBeNull();
+      expect(omit.error!.code).toBe("23503");
+    });
+  });
 });
 
 describe.skipIf(!hasEnv)("RLS — featured_configs (F28)", () => {
