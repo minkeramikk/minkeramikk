@@ -205,6 +205,42 @@ async function main() {
     for (const o of invalid) console.log(`   option ${o.id}: "${o.hex}"`);
   }
 
+  // Post-migration palette dump: the ACTUAL supplier_colors as they now exist.
+  // Empty/absent pre-migration (table not created yet); the real verification
+  // view right after `make db-push-prod`. Reference count = options pointing at
+  // each colour via supplier_color_id.
+  let palettes = [];
+  try {
+    palettes = await selectAll(
+      "supplier_colors",
+      "id, supplier_id, hex, name, swatch_image, sort_order"
+    );
+  } catch {
+    palettes = []; // pre-migration: no table yet
+  }
+  if (palettes.length) {
+    const refCount = new Map();
+    for (const o of options) {
+      if (o.supplier_color_id)
+        refCount.set(o.supplier_color_id, (refCount.get(o.supplier_color_id) ?? 0) + 1);
+    }
+    const bySupplier = new Map();
+    for (const c of palettes) {
+      if (!bySupplier.has(c.supplier_id)) bySupplier.set(c.supplier_id, []);
+      bySupplier.get(c.supplier_id).push(c);
+    }
+    console.log(`\n════ supplier_colors palette (post-migration, ${palettes.length} colours) ════`);
+    for (const [supplierId, rows] of bySupplier) {
+      rows.sort((a, b) => a.sort_order - b.sort_order || a.hex.localeCompare(b.hex));
+      console.log(`\n  ${supplierName.get(supplierId) ?? supplierId} (${rows.length} colours):`);
+      for (const c of rows) {
+        console.log(
+          `   [${c.sort_order}] ${c.hex}  ${c.swatch_image ? "◼ swatch" : "· no-swatch"}  "${c.name}"  ← ${refCount.get(c.id) ?? 0} option(s)`
+        );
+      }
+    }
+  }
+
   console.log(
     `\n${stop ? "⛔ STOP items present — resolve before db-push-staging." : "✓ No STOP items. Review the palette + renames above before pushing."}`
   );
