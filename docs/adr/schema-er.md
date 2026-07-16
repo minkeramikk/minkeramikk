@@ -15,6 +15,8 @@ erDiagram
     suppliers ||--o{ order_items : "fulfills"
     orders ||--|{ order_items : "contains"
     products o|--o{ order_items : "referenced by"
+    designs ||--o{ design_products : "whitelisted on"
+    products ||--o{ design_products : "allows"
 
     designs {
         uuid id PK
@@ -98,6 +100,11 @@ erDiagram
         int pieces "F29: pezzi del prodotto, default 1; >1 = set (badge Sett N deler)"
     }
 
+    design_products {
+        uuid design_id FK "→ designs(id) ON DELETE CASCADE - PK(design_id, product_id)"
+        uuid product_id FK "→ products(id) ON DELETE CASCADE"
+    }
+
     orders {
         uuid id PK
         text code UK "es. MK-2606"
@@ -144,6 +151,7 @@ Enum `order_status`: `new → contacted → confirmed → in_production → deli
 | `order_items.supplier_id` | split PDF/email per laboratorio e filtro ordini per fornitore (ADR 0007) |
 | `orders.email` | storico ordini dello stesso cliente nel back-office |
 | `featured_configs.sort_order` | la strip della home legge ordinata a ogni render (cache-ato, F28) |
+| `design_products.product_id` | lookup inverso "quali design fissano questo prodotto" + cascade su delete prodotto (F34) |
 
 Vincoli aggiuntivi: `UNIQUE(design_id, slug)` su option_categories (slug di categoria
 unici dentro il design, non globali). `UNIQUE(designs.code)` e `UNIQUE(category_id, code)`
@@ -163,6 +171,7 @@ Niente GIN su `config_snapshot`: nessuna query dentro il jsonb prevista.
 | `designs.supplier_id`, `products.supplier_id` | **RESTRICT** | NOT NULL: un fornitore con catalogo non si cancella — si disattiva (`suppliers.active=false`) |
 | `order_items.product_id` | SET NULL (FK nullable) | gli ordini sono storia: sopravvivono al prodotto grazie agli snapshot |
 | `order_items.order_id`, `options.category_id`, `option_categories.design_id` | CASCADE | i figli non hanno senso senza il padre |
+| `design_products.design_id`, `design_products.product_id` | CASCADE (entrambi) | la restrizione non ha senso senza design o prodotto; gli ordini NON sono toccati (snapshot, F34/ADR 0017) |
 
 ## Note di lettura
 
@@ -175,6 +184,12 @@ Niente GIN su `config_snapshot`: nessuna query dentro il jsonb prevista.
   design aggancia il fornitore per l'articolo; carrello misto consentito; PDF d'ordine
   per laboratorio generato uno per fornitore (ADR 0007).
 - `settings`: riga singola coi 3 token tema, lettura pubblica, scrittura authenticated (ADR 0008).
+- `design_products` (F34, ADR 0017): whitelist **opzionale** design→prodotto. Nessuna riga
+  per un design ⇒ tutti i prodotti visibili del suo fornitore (retro-compatibile, zero
+  backfill). Righe ⇒ solo quelli, ∩ visibili. Stesso fornitore garantito da trigger
+  (`design_products_same_supplier`) oltre che dall'app. Lettura pubblica (serve al
+  configuratore anon), scrittura authenticated (pattern 0002_rls). Replace atomico via
+  RPC `replace_design_products`. Estende ADR 0007 senza sostituirlo.
 - RLS: catalogo in lettura pubblica (`active`/`visible`), scrittura authenticated;
   orders/order_items insert pubblico, lettura/modifica solo authenticated;
   suppliers: campi safe (id/name/active) leggibili da anon su righe attive,
