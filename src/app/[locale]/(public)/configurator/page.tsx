@@ -3,7 +3,7 @@ import ReactDOM from "react-dom";
 import { getTranslations } from "next-intl/server";
 import { getActiveDesigns } from "@/lib/catalog/designs";
 import { getDesignDetail, type DesignDetail } from "@/lib/catalog/design-options";
-import { getSupplierProducts } from "@/lib/catalog/products";
+import { getSupplierProducts, getDesignProducts } from "@/lib/catalog/products";
 import { assetUrl } from "@/lib/storage";
 import { buildConfigLinePayload } from "@/lib/configurator/line-payload";
 import { pickDefaultOption } from "@/lib/configurator/default-option";
@@ -51,7 +51,7 @@ export default async function ConfiguratorPage({
   if (step === "3" && selected) {
     const [detail, products] = await Promise.all([
       getDesignDetail(selected.slug),
-      getSupplierProducts(selected.supplierId),
+      getDesignProducts(selected.id, selected.supplierId),
     ]);
     if (detail) {
       // snapshot + canonical code (ADR 0011) + F19 mini-preview layers, all
