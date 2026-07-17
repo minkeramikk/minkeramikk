@@ -75,6 +75,9 @@ export interface DesignDetail {
   nameEn: string;
   /** R2-2a: shop opted this design into custom colour notes (step-2 block). */
   acceptsCustomNotes: boolean;
+  descriptionStep2No: string | null;
+  descriptionStep2En: string | null;
+  images: string[]; // F36: gallery Storage paths, ordered by sort_order
   categories: DesignCategory[];
 }
 
@@ -90,9 +93,15 @@ export interface DesignDetail {
 export async function getDesignDetail(
   slug: string
 ): Promise<DesignDetail | null> {
-  return unstable_cache(() => loadDesignDetail(slug), ["design-detail", slug], {
-    tags: ["catalog"],
-  })();
+  // keyParts version "v2": F36 added `images` + `descriptionStep2No/En` to the
+  // DTO. Without a bump, Vercel's Data Cache keeps serving pre-F36-shaped entries
+  // (no `images` key) for slugs not revalidated since deploy — the client then
+  // crashed on `detail.images.length`. The version segment retires those entries.
+  return unstable_cache(
+    () => loadDesignDetail(slug),
+    ["design-detail", "v2", slug],
+    { tags: ["catalog"] }
+  )();
 }
 
 async function loadDesignDetail(slug: string): Promise<DesignDetail | null> {
@@ -100,11 +109,19 @@ async function loadDesignDetail(slug: string): Promise<DesignDetail | null> {
 
   const { data: design, error: designErr } = await supabase
     .from("designs")
-    .select("id, slug, code, name, name_no, name_en, accepts_custom_notes")
+    .select(
+      "id, slug, code, name, name_no, name_en, accepts_custom_notes, description_step2_no, description_step2_en"
+    )
     .eq("slug", slug)
     .maybeSingle();
   if (designErr) throw designErr;
   if (!design) return null;
+
+  const { data: imgRows } = await supabase
+    .from("design_images")
+    .select("image")
+    .eq("design_id", design.id)
+    .order("sort_order", { ascending: true });
 
   const { data: categories, error: catErr } = await supabase
     .from("option_categories")
@@ -123,6 +140,9 @@ async function loadDesignDetail(slug: string): Promise<DesignDetail | null> {
     nameNo: design.name_no,
     nameEn: design.name_en,
     acceptsCustomNotes: design.accepts_custom_notes ?? false,
+    descriptionStep2No: design.description_step2_no,
+    descriptionStep2En: design.description_step2_en,
+    images: (imgRows ?? []).map((r) => r.image),
     categories: (categories ?? []).map((c) => ({
       id: c.id,
       slug: c.slug,

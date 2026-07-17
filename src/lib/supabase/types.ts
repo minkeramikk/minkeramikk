@@ -34,6 +34,35 @@ export type Database = {
   }
   public: {
     Tables: {
+      design_images: {
+        Row: {
+          design_id: string
+          id: string
+          image: string
+          sort_order: number
+        }
+        Insert: {
+          design_id: string
+          id?: string
+          image: string
+          sort_order?: number
+        }
+        Update: {
+          design_id?: string
+          id?: string
+          image?: string
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "design_images_design_id_fkey"
+            columns: ["design_id"]
+            isOneToOne: false
+            referencedRelation: "designs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       design_products: {
         Row: {
           design_id: string
@@ -71,6 +100,8 @@ export type Database = {
           code: string | null
           description_en: string | null
           description_no: string | null
+          description_step2_en: string | null
+          description_step2_no: string | null
           id: string
           name: string
           name_en: string
@@ -86,6 +117,8 @@ export type Database = {
           code?: string | null
           description_en?: string | null
           description_no?: string | null
+          description_step2_en?: string | null
+          description_step2_no?: string | null
           id?: string
           name: string
           name_en?: string
@@ -101,6 +134,8 @@ export type Database = {
           code?: string | null
           description_en?: string | null
           description_no?: string | null
+          description_step2_en?: string | null
+          description_step2_no?: string | null
           id?: string
           name?: string
           name_en?: string

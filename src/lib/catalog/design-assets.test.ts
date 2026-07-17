@@ -17,6 +17,22 @@ describe("asset classification", () => {
     expect(isStoragePath("")).toBe(false);
   });
 
+  it("treats design-photos/<slug>/ as owned and remaps within that base", () => {
+    expect(isOwnedByDesign("design-photos/ansjos-stim/ab12.jpg", "ansjos-stim")).toBe(true);
+    expect(remapOwnedAsset("design-photos/ansjos-stim/ab12.jpg", "ansjos-stim", "ansjos-stim-copy"))
+      .toBe("design-photos/ansjos-stim-copy/ab12.jpg");
+    expect(planAssetCopy("design-photos/ansjos-stim/ab12.jpg", "ansjos-stim", "clone"))
+      .toEqual({ from: "design-photos/ansjos-stim/ab12.jpg", to: "design-photos/clone/ab12.jpg" });
+    expect(ownedAssetsToDelete(["design-photos/ansjos-stim/ab12.jpg", "swatches/aaa.png"], "ansjos-stim"))
+      .toEqual(["design-photos/ansjos-stim/ab12.jpg"]);
+  });
+
+  it("still owns and remaps designs/<slug>/ layers (unchanged)", () => {
+    expect(isOwnedByDesign("designs/ansjos-stim/dots/lilla.png", "ansjos-stim")).toBe(true);
+    expect(remapOwnedAsset("designs/ansjos-stim/dots/lilla.png", "ansjos-stim", "clone"))
+      .toBe("designs/clone/dots/lilla.png");
+  });
+
   it("ownership is scoped to designs/<slug>/", () => {
     expect(isOwnedByDesign("designs/amalfi/animal/h-layer.png", "amalfi")).toBe(true);
     expect(isOwnedByDesign("designs/amalfi/animal/h-layer.png", "blomster")).toBe(false);

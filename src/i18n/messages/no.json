@@ -76,7 +76,12 @@
     },
     "step2": {
       "titleDetails": "Velg detaljer",
-      "titleBorders": "Velg kanter"
+      "titleBorders": "Velg kanter",
+      "showMore": "Vis mer",
+      "showLess": "Vis mindre",
+      "photosLabel": "Bilder av designet",
+      "previousPhoto": "Forrige bilde",
+      "nextPhoto": "Neste bilde"
     },
     "step3": {
       "title": "Velg keramikk",

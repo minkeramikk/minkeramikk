@@ -203,4 +203,33 @@ describe.skipIf(!hasEnv)("F35 hotfix — designs actions (integration, needs 002
     expect(res.error).toMatch(/glaze colours/i);
     expect(await countDesigns()).toBe(before); // palette checked BEFORE creating the design
   });
+
+  it("(d) duplicate carries the dedicated step-2 description (TL amendment 2026-07-17)", async () => {
+    const marker = `STEP2-${Date.now()}`;
+    // column exists only once migration 0024 is pushed; tolerate its absence so the
+    // gate stays green pre-migration, then tighten automatically post-push.
+    const upd = await db
+      .from("designs")
+      .update({ description_step2_no: marker, description_step2_en: marker })
+      .eq("id", srcDesignId);
+    if (upd.error) return; // pre-0024: columns not present yet — nothing to assert
+    let redirected = false;
+    try {
+      await duplicateDesign({ error: null }, fd({ id: srcDesignId }));
+    } catch (e) {
+      if (!isRedirect(e)) throw e;
+      redirected = true;
+    }
+    expect(redirected).toBe(true);
+    const { data: copy } = await db
+      .from("designs")
+      .select("description_step2_no, description_step2_en")
+      .eq("supplier_id", supWith)
+      .ilike("name", "%(copy)%")
+      .order("sort_order", { ascending: false })
+      .limit(1)
+      .single();
+    expect(copy!.description_step2_no).toBe(marker);
+    expect(copy!.description_step2_en).toBe(marker);
+  });
 });

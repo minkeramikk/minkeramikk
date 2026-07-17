@@ -12,7 +12,8 @@
  *
  * Sources of truth (a path referenced by ANY of these, plus its F26 variant, is
  * kept): options.image, options.layer_image, supplier_colors.swatch_image,
- * products.image, designs.preview_image, featured_configs.thumb_image.
+ * products.image, designs.preview_image, featured_configs.thumb_image,
+ * design_images.image.
  * (featured_configs added beyond the card's list — the `featured/` thumbnails are
  * live assets; without it a dry-run flags them and --apply would delete them.)
  *
@@ -70,6 +71,7 @@ const referencedMasters = [
   ...(await column("products", "image")),
   ...(await column("designs", "preview_image")),
   ...(await column("featured_configs", "thumb_image")),
+  ...(await column("design_images", "image")),
 ].filter((p) => !/^https?:\/\//.test(p)); // external URLs aren't bucket objects
 
 const referenced = new Set();

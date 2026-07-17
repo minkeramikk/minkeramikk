@@ -17,6 +17,7 @@ erDiagram
     products o|--o{ order_items : "referenced by"
     designs ||--o{ design_products : "whitelisted on"
     products ||--o{ design_products : "allows"
+    designs ||--o{ design_images : "lifestyle photos"
     suppliers ||--o{ supplier_colors : "glaze palette"
     supplier_colors ||--o{ options : "colours (kind=color)"
 
@@ -28,6 +29,8 @@ erDiagram
         text name "nome proprio, non tradotto"
         text description_no
         text description_en
+        text description_step2_no "F36 (TL amendment): testo step 2 (sopra la gallery foto), distinto da description_no"
+        text description_step2_en "F36 (TL amendment): testo step 2 (sopra la gallery foto), distinto da description_en"
         text preview_image
         int sort_order
         bool active
@@ -118,6 +121,13 @@ erDiagram
         uuid product_id FK "→ products(id) ON DELETE CASCADE"
     }
 
+    design_images {
+        uuid id PK
+        uuid design_id FK "→ designs(id) ON DELETE CASCADE"
+        text image "Storage path, bucket assets (design-photos/<slug>/<uuid>.<ext>, F26)"
+        int sort_order
+    }
+
     orders {
         uuid id PK
         text code UK "es. MK-2606"
@@ -165,6 +175,7 @@ Enum `order_status`: `new → contacted → confirmed → in_production → deli
 | `orders.email` | storico ordini dello stesso cliente nel back-office |
 | `featured_configs.sort_order` | la strip della home legge ordinata a ogni render (cache-ato, F28) |
 | `design_products.product_id` | lookup inverso "quali design fissano questo prodotto" + cascade su delete prodotto (F34) |
+| `design_images.design_id` | filmstrip step 2 del configuratore, ordinata per `sort_order` (F36) |
 | `supplier_colors.supplier_id` | palette per fornitore (join step 2 + editor palette, ADR 0018) |
 | `options (category_id, supplier_color_id)` UNIQUE WHERE supplier_color_id NOT NULL | un colore di palette al più una volta per categoria (ADR 0018) |
 
@@ -191,6 +202,7 @@ Niente GIN su `config_snapshot`: nessuna query dentro il jsonb prevista.
 | `order_items.product_id` | SET NULL (FK nullable) | gli ordini sono storia: sopravvivono al prodotto grazie agli snapshot |
 | `order_items.order_id`, `options.category_id`, `option_categories.design_id` | CASCADE | i figli non hanno senso senza il padre |
 | `design_products.design_id`, `design_products.product_id` | CASCADE (entrambi) | la restrizione non ha senso senza design o prodotto; gli ordini NON sono toccati (snapshot, F34/ADR 0017) |
+| `design_images.design_id` | CASCADE | le foto non hanno senso senza il design (asset owned, F36) |
 | `supplier_colors.supplier_id` | **RESTRICT** | una palette non si perde cancellando il fornitore — lo si disattiva |
 | `options.supplier_color_id` | **NO ACTION** (DEFERRABLE INITIALLY IMMEDIATE) | un colore in uso non si cancella — si disattiva (check immediato di default = come RESTRICT); NO ACTION invece di RESTRICT perché RESTRICT non è deferibile, e la RPC `replace_supplier_colors` defera il vincolo per il replace atomico (delete+reinsert stesso id → check al commit), ADR 0018 / migration 0023 |
 
@@ -211,6 +223,11 @@ Niente GIN su `config_snapshot`: nessuna query dentro il jsonb prevista.
   (`design_products_same_supplier`) oltre che dall'app. Lettura pubblica (serve al
   configuratore anon), scrittura authenticated (pattern 0002_rls). Replace atomico via
   RPC `replace_design_products`. Estende ADR 0007 senza sostituirlo.
+- `design_images` (F36, ADR 0019): galleria di foto lifestyle per design (filmstrip
+  step 2). Nessuna colonna `active` → tutte le righe sono lette dal pubblico, ordinate
+  per `sort_order`. Asset owned in Storage sotto `design-photos/<slug>/<uuid>.<ext>`
+  (classe F26, 1024w). Niente lightbox in v1. Lettura pubblica, scrittura authenticated
+  (pattern 0002_rls). CASCADE su delete design.
 - `supplier_colors` (F35, ADR 0018): palette glasse **per fornitore** — nome/hex/swatch
   vivono una volta sola. Le opzioni `kind=color` puntano a una riga via `supplier_color_id`
   (niente più name/hex/image copiati: arrivano dal join). Forma a due vie + stesso
