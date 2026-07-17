@@ -10,6 +10,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
 import { usePathname, useRouter } from "@/i18n/navigation";
 import { Stepper } from "@/components/ui-domain/stepper";
+import { DesignRound } from "@/components/ui-domain/design-round";
 import { CartLineThumb } from "@/components/ui-domain/cart-line-thumb";
 import { OrderForm } from "@/components/ui-domain/order-form";
 import { Button } from "@/components/ui/button";
@@ -165,6 +166,8 @@ function ExpandedProductCard({
   onAdd,
   tCart,
   tCfg,
+  designLayers,
+  designName,
 }: {
   product: CeramicProduct;
   locale: "no" | "en";
@@ -172,7 +175,11 @@ function ExpandedProductCard({
   onQty: (next: number) => void;
   onAdd: () => void;
   tCart: (k: string) => string;
-  tCfg: (k: string) => string;
+  tCfg: (k: string, values?: Record<string, string | number>) => string;
+  /** F37: current config layers (empty → no composed pair rendered). */
+  designLayers: CartLayer[];
+  /** F37: localised design name for the pair caption. */
+  designName: string;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   // R2 fix: the "added" confirmation shows ONLY right after a successful add,
@@ -214,6 +221,37 @@ function ExpandedProductCard({
       style={{ gridColumn: "1 / -1" }}
       className="flex flex-col gap-2 rounded-md border border-primary/50 bg-primary/5 p-3"
     >
+      {/* F37 ②: the current design shown NEXT TO the ceramic photo (never
+          composited onto it). Photo missing → only the design round, like the
+          cart rows. Self-gates on an empty config (AC4 / ?set= landing). */}
+      {designLayers.length > 0 && (
+        <div
+          data-testid="expanded-composed-preview"
+          className="flex items-center gap-3 border-b border-border/60 pb-3"
+        >
+          <div className="flex items-center gap-2">
+            {p.image && (
+              <>
+                {/* eslint-disable-next-line @next/next/no-img-element -- catalog art from storage */}
+                <img
+                  src={assetUrl(p.image)}
+                  alt=""
+                  aria-hidden
+                  className="size-20 rounded-md border border-border bg-card object-contain p-1"
+                />
+                <span aria-hidden className="text-lg font-semibold text-muted-foreground">
+                  +
+                </span>
+              </>
+            )}
+            <DesignRound layers={designLayers} className="size-20" />
+          </div>
+          <p className="text-xs font-medium text-primary">
+            {tCfg("yourSelection.pairCaption", { name: designName })}
+          </p>
+        </div>
+      )}
+
       {/* Add — primary, anchored at the top so opening details never scrolls it away */}
       <div className="flex items-center gap-3">
         <div className="flex items-center rounded-sm border border-border bg-card">
@@ -561,13 +599,16 @@ export function CeramicsStep({
             onAdd={addSelected}
             tCart={t}
             tCfg={tc}
+            designLayers={designLayers}
+            designName={designLabel(snapshot, locale) ?? ""}
           />
         );
       }
     });
     return nodes;
     // addSelected/setQty/setSelectedId/t/tc are stable for the render; qty &
-    // selection drive the rebuild.
+    // selection drive the rebuild. designLayers/snapshot are stable per-render
+    // props from the server (F37).
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [products, selectedId, selected, cols, qty, locale]);
 
