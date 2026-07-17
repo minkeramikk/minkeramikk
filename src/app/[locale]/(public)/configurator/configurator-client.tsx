@@ -572,7 +572,7 @@ export function ConfiguratorClient({
             {/* F36: design description (per-locale) — no text, no block */}
             {(() => {
               const desc =
-                locale === "no" ? detail.descriptionNo : detail.descriptionEn;
+                locale === "no" ? detail.descriptionStep2No : detail.descriptionStep2En;
               return desc ? <DesignDescription text={desc} /> : null;
             })()}
             {/* F36: real-photo filmstrip — no images, no strip, no placeholder */}

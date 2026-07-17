@@ -11,8 +11,8 @@ function design(acceptsCustomNotes: boolean): DesignDetail {
     nameNo: "Amalfi Dyr",
     nameEn: "Amalfi Animals",
     acceptsCustomNotes,
-    descriptionNo: null,
-    descriptionEn: null,
+    descriptionStep2No: null,
+    descriptionStep2En: null,
     images: [],
     categories: [
       {
