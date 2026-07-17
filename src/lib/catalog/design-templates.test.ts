@@ -79,8 +79,8 @@ describe("TEMPLATE_META", () => {
     }
   });
 
-  it("'colors-only' description mentions the palette count", () => {
-    expect(TEMPLATE_META["colors-only"].description).toContain(String(PALETTE_COLORS.length));
+  it("'colors-only' description references the supplier's glaze palette (F35)", () => {
+    expect(TEMPLATE_META["colors-only"].description).toMatch(/glaze palette/i);
   });
 
   it("'colors-and-logos' description mentions the logo count", () => {

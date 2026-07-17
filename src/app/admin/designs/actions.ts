@@ -6,7 +6,7 @@ import { revalidatePath, revalidateTag } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { uniqueSlug } from "@/lib/catalog/slug";
 import { assignMissingCodes } from "@/lib/configurator/assign-codes";
-import { PALETTE_COLORS, LOGO_ASSETS } from "@/lib/catalog/design-templates";
+import { LOGO_ASSETS } from "@/lib/catalog/design-templates";
 import { planAssetCopy, ownedAssetsToDelete } from "@/lib/catalog/design-assets";
 import { productsWithForeignSupplier } from "@/lib/catalog/design-products";
 import { uploadAsset } from "@/lib/catalog/upload-asset";
@@ -139,10 +139,12 @@ const templateSchema = z.object({
  * F22: create a new design from a starting template.
  *
  * "Vuoto" → design only (active=false, no categories).
- * "Solo colori" → adds a "Hoofdfarge / Colour" (color/base) category seeded
- *   with 21 palette swatches from the F15 backfill (swatches/<hex>.png paths).
+ * "Solo colori" → adds a "Hovedfarge / Colour" (color/base) category seeded with
+ *   the selected supplier's active glaze palette — one option per supplier_colors
+ *   row, pointing at it (name/hex/swatch resolve via the join, ADR 0018). A
+ *   supplier with no palette gets a friendly message instead (no orphan design).
  * "Colori + loghi" → same as above plus an "Dyr / Animal" (image/animal)
- *   category seeded with 14 animal assets (CDN URLs, zero new uploads).
+ *   category seeded with animal assets (CDN URLs, zero new uploads).
  *
  * All designs are created as active=false (drafts). Codes are assigned via
  * the stable assignMissingCodes routine (ADR 0011).
@@ -162,6 +164,25 @@ export async function createDesignFromTemplate(
   const { template, name, supplierId } = parsed.data;
 
   const supabase = await createClient();
+
+  // Colour templates now seed from the supplier's own glaze palette (F35). Resolve
+  // it BEFORE creating anything so a supplier with no palette gets a friendly
+  // message instead of an orphan draft design + a trigger error.
+  let palette: { id: string; sort_order: number }[] = [];
+  if (template === "colors-only" || template === "colors-and-logos") {
+    const { data: colours } = await supabase
+      .from("supplier_colors")
+      .select("id, sort_order")
+      .eq("supplier_id", supplierId)
+      .eq("active", true)
+      .order("sort_order");
+    if (!colours || colours.length === 0) {
+      return {
+        error: `Add glaze colours to this supplier first — /admin/suppliers/${supplierId}`,
+      };
+    }
+    palette = colours;
+  }
 
   // unique slug for this design
   const { data: existing } = await supabase.from("designs").select("slug");
@@ -201,13 +222,13 @@ export async function createDesignFromTemplate(
       .single();
     if (ccErr || !colorCat) return { error: "Could not create the Colour category." };
 
+    // Palette-linked options: name/hex/swatch come from supplier_colors via the
+    // join (ADR 0018); the option only points at the colour + keeps its order.
     const { error: coErr } = await supabase.from("options").insert(
-      PALETTE_COLORS.map((p, i) => ({
+      palette.map((c) => ({
         category_id: colorCat.id,
-        name: p.name,
-        hex: p.hex,
-        image: p.image, // swatches/<hex>.png — already in Storage (F15)
-        sort_order: i,
+        supplier_color_id: c.id,
+        sort_order: c.sort_order,
         active: true,
       })),
     );
@@ -271,7 +292,7 @@ export async function duplicateDesign(
     .select(
       "name, name_no, name_en, slug, supplier_id, description_no, description_en, preview_image, " +
         "option_categories(slug, label_no, label_en, kind, layer_slot, sync_group, sort_order, " +
-        "options(name, hex, image, layer_image, sort_order, active))"
+        "options(name, hex, image, layer_image, supplier_color_id, sort_order, active))"
     )
     .eq("id", id.data)
     .maybeSingle();
@@ -296,10 +317,11 @@ export async function duplicateDesign(
           sort_order: number | null;
           options:
             | {
-                name: string;
+                name: string | null;
                 hex: string | null;
                 image: string | null;
                 layer_image: string | null;
+                supplier_color_id: string | null;
                 sort_order: number | null;
                 active: boolean;
               }[]
@@ -370,10 +392,13 @@ export async function duplicateDesign(
     const rows = await Promise.all(
       (cat.options ?? []).map(async (o) => ({
         category_id: newCat.id,
+        // colour options carry name/hex/image = null (they resolve via the
+        // palette join); supplier_color_id is what the kind=color trigger needs.
         name: o.name,
         hex: o.hex,
-        image: await resolveAsset(o.image),
+        image: await resolveAsset(o.image), // no-op for colour options (image null)
         layer_image: await resolveAsset(o.layer_image),
+        supplier_color_id: o.supplier_color_id,
         sort_order: o.sort_order ?? 0,
         active: o.active,
       }))
