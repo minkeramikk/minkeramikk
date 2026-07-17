@@ -128,6 +128,12 @@
     },
     "productCard": {
       "details": "Product details"
+    },
+    "yourSelection": {
+      "kicker": "Your selection",
+      "edit": "Edit colours",
+      "editShort": "Edit",
+      "pairCaption": "This ceramic + your design «{name}»"
     }
   },
   "orderForm": {
