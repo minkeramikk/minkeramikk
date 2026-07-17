@@ -25,6 +25,8 @@ export interface OrderConfigSnapshot {
   selections?: { label: string; option: string; hex: string | null }[];
   /** R2-2b: customer colour note (present ⇒ design accepts notes; "" = default). */
   customNote?: string;
+  /** F38 — customer inscription; see ConfigSnapshot.customText. */
+  customText?: string;
 }
 
 export interface AdminOrderItem {
