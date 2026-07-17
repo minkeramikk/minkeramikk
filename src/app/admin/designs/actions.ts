@@ -425,6 +425,21 @@ export async function duplicateDesign(
     if (wErr) return { error: "Could not copy the available ceramics." };
   }
 
+  // F36: copy the cover-photo gallery into the clone's folder too.
+  const { data: srcPhotos } = await supabase
+    .from("design_images")
+    .select("image, sort_order")
+    .eq("design_id", id.data)
+    .order("sort_order", { ascending: true });
+  for (const ph of srcPhotos ?? []) {
+    const copied = await resolveAsset(ph.image);
+    await supabase.from("design_images").insert({
+      design_id: design.id,
+      image: copied ?? ph.image,
+      sort_order: ph.sort_order,
+    });
+  }
+
   await assignMissingCodes(supabase); // fresh codes for the clone
   revalidateTag("catalog");
   revalidatePath("/admin/designs");
@@ -459,6 +474,12 @@ export async function deleteDesign(
   const paths: (string | null)[] = [design.preview_image];
   for (const c of design.option_categories ?? [])
     for (const o of c.options ?? []) paths.push(o.image, o.layer_image);
+  // F36: free the cover-photo gallery too (rows themselves cascade via FK).
+  const { data: photoRows } = await supabase
+    .from("design_images")
+    .select("image")
+    .eq("design_id", id.data);
+  paths.push(...(photoRows ?? []).map((r) => r.image));
   // F26: remove each owned master together with its @<w>.webp variant
   const toRemove = ownedAssetsToDelete(paths, design.slug).flatMap((p) => {
     const w = variantWidth(p);
