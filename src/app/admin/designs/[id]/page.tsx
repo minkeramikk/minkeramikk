@@ -5,6 +5,7 @@ import { DesignForm } from "@/components/admin/design-form";
 import { DesignTree, type CategorySlot, type OptionSlot } from "@/components/admin/design-tree";
 import { DeleteDesignButton } from "@/components/admin/delete-design-button";
 import { DesignProductsEditor, type EditorProduct } from "@/components/admin/design-products-editor";
+import { DesignPhotosEditor } from "@/components/admin/design-photos-editor";
 import { formatMoney, money, type Currency } from "@/lib/money/money";
 import { PreviewCanvas } from "@/components/ui-domain/preview-canvas";
 import { createClient } from "@/lib/supabase/server";
@@ -29,7 +30,7 @@ export default async function EditDesignPage({
     supabase
       .from("designs")
       .select(
-        "id, name, name_no, name_en, description_no, description_en, supplier_id, preview_image, sort_order, active, accepts_custom_notes, code, option_categories(id, label_no, label_en, kind, layer_slot, sync_group, sort_order)"
+        "id, name, slug, name_no, name_en, description_no, description_en, supplier_id, preview_image, sort_order, active, accepts_custom_notes, code, option_categories(id, label_no, label_en, kind, layer_slot, sync_group, sort_order)"
       )
       .eq("id", id)
       .maybeSingle(),
@@ -132,6 +133,13 @@ export default async function EditDesignPage({
     swatchUrl: c.swatch_image ? assetUrl(c.swatch_image) : null,
   }));
 
+  // F36: gallery photos for the design's public detail page
+  const { data: photos } = await supabase
+    .from("design_images")
+    .select("id, image")
+    .eq("design_id", id)
+    .order("sort_order", { ascending: true });
+
   const categorySlots: CategorySlot[] = cats.map((c) => ({
     id: c.id,
     labelNo: c.label_no ?? "",
@@ -212,6 +220,12 @@ export default async function EditDesignPage({
               products={availableCeramics}
               initialSelectedIds={selectedProductIds}
             />
+          </section>
+
+          {/* F36: gallery photos */}
+          <section>
+            <h2 className="mb-3 text-base font-semibold">Photos</h2>
+            <DesignPhotosEditor designId={design.id} slug={design.slug} photos={photos ?? []} />
           </section>
 
           {/* Danger zone */}
