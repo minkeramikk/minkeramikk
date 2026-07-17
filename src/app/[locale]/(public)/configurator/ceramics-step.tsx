@@ -168,7 +168,6 @@ function ExpandedProductCard({
   tCart,
   tCfg,
   designLayers,
-  designName,
 }: {
   product: CeramicProduct;
   locale: "no" | "en";
@@ -179,8 +178,6 @@ function ExpandedProductCard({
   tCfg: (k: string, values?: Record<string, string | number>) => string;
   /** F37: current config layers (empty → no composed pair rendered). */
   designLayers: CartLayer[];
-  /** F37: localised design name for the pair caption. */
-  designName: string;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   // R2 fix: the "added" confirmation shows ONLY right after a successful add,
@@ -230,7 +227,7 @@ function ExpandedProductCard({
           data-testid="expanded-composed-preview"
           className="flex items-center gap-3 border-b border-border/60 pb-3"
         >
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-2">
             {p.image && (
               <>
                 {/* eslint-disable-next-line @next/next/no-img-element -- catalog art from storage */}
@@ -247,8 +244,8 @@ function ExpandedProductCard({
             )}
             <DesignRound layers={designLayers} className="size-20" />
           </div>
-          <p className="text-xs font-medium text-primary">
-            {tCfg("yourSelection.pairCaption", { name: designName })}
+          <p className="min-w-0 text-xs font-medium text-primary">
+            {tCfg("yourSelection.pairCaption")}
           </p>
         </div>
       )}
@@ -606,7 +603,6 @@ export function CeramicsStep({
             tCart={t}
             tCfg={tc}
             designLayers={designLayers}
-            designName={designLabel(snapshot, locale) ?? ""}
           />
         );
       }
