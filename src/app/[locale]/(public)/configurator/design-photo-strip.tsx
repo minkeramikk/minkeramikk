@@ -18,7 +18,7 @@ export function DesignPhotoStrip({
   images: string[];
   alt: string;
 }) {
-  // TODO:nb-review NO copy: photosLabel
+  // TODO:nb-review NO copy: photosLabel / previousPhoto / nextPhoto
   const t = useTranslations("configurator.step2");
   const stripRef = useRef<HTMLDivElement>(null);
   const scroll = (dir: -1 | 1) => {
@@ -27,7 +27,7 @@ export function DesignPhotoStrip({
   };
 
   return (
-    <div className="relative" aria-label={t("photosLabel")}>
+    <div className="relative" role="group" aria-label={t("photosLabel")}>
       <div
         ref={stripRef}
         className="flex gap-2.5 overflow-x-auto scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden snap-x snap-mandatory"
@@ -50,7 +50,7 @@ export function DesignPhotoStrip({
       <button
         type="button"
         onClick={() => scroll(-1)}
-        aria-label="‹"
+        aria-label={t("previousPhoto")}
         className="absolute left-0 top-1/2 hidden size-8 -translate-y-1/2 items-center justify-center rounded-full bg-background ring-1 ring-border md:flex"
       >
         ‹
@@ -58,7 +58,7 @@ export function DesignPhotoStrip({
       <button
         type="button"
         onClick={() => scroll(1)}
-        aria-label="›"
+        aria-label={t("nextPhoto")}
         className="absolute right-0 top-1/2 hidden size-8 -translate-y-1/2 items-center justify-center rounded-full bg-background ring-1 ring-border md:flex"
       >
         ›

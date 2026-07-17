@@ -80,7 +80,9 @@
       "titleBorders": "Choose borders",
       "showMore": "Show more",
       "showLess": "Show less",
-      "photosLabel": "Photos of the design"
+      "photosLabel": "Photos of the design",
+      "previousPhoto": "Previous photo",
+      "nextPhoto": "Next photo"
     },
     "step3": {
       "title": "Choose ceramics",
