@@ -275,7 +275,7 @@ test("R2-1b: mobile @390 — Next-step CTA is reachable without scrolling", asyn
 test.describe("R2-3+R2-4 expandable card", () => {
   test.skip(!ADMIN_READY, "needs ADMIN_EMAIL + ADMIN_PASSWORD + service role");
 
-  test("typed admin attrs → step-3 card expands with inline add + spec chips", async ({ page }) => {
+  test("typed admin attrs → step-3 card expands with inline add + spec chips", async ({ page }, testInfo) => {
     const design = await firstActiveDesignWithId();
     const { data: d, error: dErr } = await adminClient()
       .from("designs")
@@ -315,6 +315,17 @@ test.describe("R2-3+R2-4 expandable card", () => {
       const expanded = page.getByTestId("expanded-card");
       await expect(expanded).toBeVisible();
 
+      // F37: current config still visible at step 3 — desktop box on the
+      // `desktop` project, mobile strip on `mobile` (mutually exclusive via
+      // md:block / md:hidden), plus the composed ceramic+design pair on BOTH.
+      const isMobile = testInfo.project.name === "mobile";
+      if (isMobile) {
+        await expect(page.getByTestId("step3-your-selection-strip")).toBeVisible();
+      } else {
+        await expect(page.getByTestId("step3-your-selection")).toBeVisible();
+      }
+      await expect(page.getByTestId("expanded-composed-preview")).toBeVisible();
+
       // R2-6 F (rev 2): typed spec chips are ALWAYS visible above "Product
       // details"; the chips carry the attributes. "Product details" is an
       // expandable toggle, CLOSED by default, that reveals only the description.
@@ -343,6 +354,13 @@ test.describe("R2-3+R2-4 expandable card", () => {
       const feedback = expanded.getByTestId("add-feedback");
       await expect(feedback).toBeVisible();
       await expect(feedback).toBeHidden({ timeout: 4000 });
+
+      // F37: "Endre farger" (edit) returns to step 2, keeping the design in
+      // the URL. Clicked LAST — it navigates away, so it must not run before
+      // the add-to-cart assertions above.
+      const editTestId = isMobile ? "your-selection-edit-mobile" : "your-selection-edit";
+      await page.getByTestId(editTestId).click();
+      await expect(page).toHaveURL(/step=2/);
     } finally {
       // Restore: remove the attributes via the admin UI.
       await page.goto(`/admin/products/${product!.id}`);
