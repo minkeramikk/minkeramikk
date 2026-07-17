@@ -38,6 +38,7 @@ import {
   type AttributeKey,
 } from "@/lib/catalog/product-attributes";
 import { fullRowInsertIndex } from "@/lib/configurator/grid-rows";
+import { formatSelections } from "@/lib/configurator/readable-selections";
 import { Weight, Circle, Ruler, Tag, Check, ChevronDown, MoveVertical, Container } from "lucide-react";
 import type { ResolvedSharedSet } from "./resolve-shared-set";
 import { cn } from "@/lib/utils";
@@ -440,6 +441,11 @@ export function CeramicsStep({
   }, []);
 
   const selected = products.find((p) => p.id === selectedId) ?? null;
+
+  // F37: current-config recap data (name + readable selections). Rendered only
+  // when there are design layers (AC4: no config / ?set= landing → nothing).
+  const hasConfig = designLayers.length > 0;
+  const designName = designLabel(snapshot, locale) ?? "";
 
   // R1-FB2/FB4: warm the ceramic photos in idle (desktop) — covers the
   // lazy-loaded below-the-fold thumbs so the hover popup is instant too.
@@ -852,6 +858,60 @@ export function CeramicsStep({
     </div>
   );
 
+  // F37 ①: desktop "Ditt valg" — sits ABOVE the cart in the sticky column,
+  // visually SEPARATE from it (accent left border). Present even with an empty
+  // basket. "Endre farger" returns to step 2 keeping the config (goToStep).
+  const yourSelectionBox = hasConfig && (
+    <div
+      data-testid="step3-your-selection"
+      className="mb-4 flex items-center gap-3.5 rounded-sm border border-border border-l-4 border-l-primary bg-card p-4"
+    >
+      <DesignRound layers={designLayers} className="size-14" />
+      <div className="min-w-0">
+        <p className="text-[10.5px] uppercase tracking-[0.06em] text-muted-foreground">
+          {tc("yourSelection.kicker")}
+        </p>
+        <p className="truncate text-sm font-semibold">{designName}</p>
+        <p className="text-xs text-muted-foreground">
+          {formatSelections(snapshot.selections, locale, { withLabels: true })}
+        </p>
+      </div>
+      <button
+        type="button"
+        data-testid="your-selection-edit"
+        onClick={() => goToStep(2)}
+        className="ml-auto flex min-h-11 shrink-0 items-center text-xs font-semibold text-primary hover:underline"
+      >
+        {tc("yourSelection.edit")} ›
+      </button>
+    </div>
+  );
+
+  // F37 ①: mobile strip — compact, IN-FLOW (never fixed), an entry-point anchor
+  // under the title. Options abbreviated (no labels). Scrolls away with content.
+  const yourSelectionStrip = hasConfig && (
+    <div
+      data-testid="step3-your-selection-strip"
+      className="mb-3.5 flex items-center gap-2.5 rounded-sm border border-border border-l-[3px] border-l-primary bg-card px-3 py-1.5 md:hidden"
+    >
+      <DesignRound layers={designLayers} className="size-9" />
+      <div className="min-w-0">
+        <p className="truncate text-xs font-semibold">{designName}</p>
+        <p className="truncate text-[10.5px] text-muted-foreground">
+          {formatSelections(snapshot.selections, locale)}
+        </p>
+      </div>
+      <button
+        type="button"
+        data-testid="your-selection-edit-mobile"
+        onClick={() => goToStep(2)}
+        className="ml-auto flex min-h-11 shrink-0 items-center text-[11.5px] font-semibold text-primary hover:underline"
+      >
+        {tc("yourSelection.editShort")} ›
+      </button>
+    </div>
+  );
+
   return (
     <div data-testid="ceramics-step">
       {/* F21: nav cluster — stepper always; Back active; Next disabled at step 3 */}
@@ -964,6 +1024,8 @@ export function CeramicsStep({
           </p>
           <h2 className="mb-4 mt-1 text-xl font-semibold">{t("title")}</h2>
 
+          {yourSelectionStrip}
+
           <div
             role="radiogroup"
             aria-label={t("title")}
@@ -986,6 +1048,7 @@ export function CeramicsStep({
           className="hidden min-w-0 rounded-sm border border-border bg-card p-5 md:block md:sticky md:top-4 md:self-start"
           data-testid="docked-cart-panel"
         >
+          {yourSelectionBox}
           {cartPanel}
         </div>
       </div>
