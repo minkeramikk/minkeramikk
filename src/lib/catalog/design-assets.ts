@@ -4,9 +4,10 @@
  * external (referenced as-is, never copied or deleted).
  *
  * Path convention (bucket "assets"):
- *   - `designs/<slug>/…`   → owned by that design (bespoke layers, preview)
- *   - `swatches/<hex>.png` → shared library (F15) — never copy/delete
- *   - `https://…`          → external CDN URL — never copy/delete
+ *   - `designs/<slug>/…`        → owned by that design (bespoke layers, preview)
+ *   - `design-photos/<slug>/…`  → owned by that design (gallery photos, F36)
+ *   - `swatches/<hex>.png`      → shared library (F15) — never copy/delete
+ *   - `https://…`               → external CDN URL — never copy/delete
  */
 
 export function isExternalUrl(path: string): boolean {
@@ -18,23 +19,33 @@ export function isStoragePath(path: string): boolean {
   return path.length > 0 && !isExternalUrl(path);
 }
 
-/** Owned by a specific design = lives under `designs/<slug>/`. */
-export function isOwnedByDesign(path: string, slug: string): boolean {
-  return isStoragePath(path) && path.startsWith(`designs/${slug}/`);
+/** The Storage prefixes a design owns, in bucket "assets". */
+function ownedPrefixes(slug: string): string[] {
+  return [`designs/${slug}/`, `design-photos/${slug}/`]; // F36: gallery is owned too
 }
 
-/** Re-path an owned asset into another design's folder; anything not owned by
- *  `fromSlug` (shared/external) is returned unchanged. */
+/** The owned prefix a path sits under, or null. */
+function ownedPrefix(path: string, slug: string): string | null {
+  if (!isStoragePath(path)) return null;
+  return ownedPrefixes(slug).find((p) => path.startsWith(p)) ?? null;
+}
+
+/** Owned by a specific design = lives under one of its owned prefixes. */
+export function isOwnedByDesign(path: string, slug: string): boolean {
+  return ownedPrefix(path, slug) !== null;
+}
+
+/** Re-path an owned asset into another design's folder, keeping its base prefix;
+ *  anything not owned by `fromSlug` (shared/external) is returned unchanged. */
 export function remapOwnedAsset(
   path: string,
   fromSlug: string,
   toSlug: string
 ): string {
-  const prefix = `designs/${fromSlug}/`;
-  if (isOwnedByDesign(path, fromSlug)) {
-    return `designs/${toSlug}/${path.slice(prefix.length)}`;
-  }
-  return path;
+  const prefix = ownedPrefix(path, fromSlug);
+  if (!prefix) return path;
+  const base = prefix.slice(0, prefix.length - `${fromSlug}/`.length); // "designs/" | "design-photos/"
+  return `${base}${toSlug}/${path.slice(prefix.length)}`;
 }
 
 export interface AssetCopy {
@@ -58,7 +69,7 @@ export function planAssetCopy(
 
 /**
  * The Storage objects to delete when removing a design: only the ones it OWNS
- * (`designs/<slug>/…`). Shared swatches and external URLs are kept. Deduplicated.
+ * (`designs/<slug>/…` and `design-photos/<slug>/…`). Shared swatches and external URLs are kept. Deduplicated.
  */
 export function ownedAssetsToDelete(
   paths: (string | null | undefined)[],
