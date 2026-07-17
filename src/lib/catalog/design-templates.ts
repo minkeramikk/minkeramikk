@@ -59,7 +59,7 @@ export const TEMPLATE_META: Record<TemplateKey, TemplateInfo> = {
   },
   "colors-only": {
     title: "Solo colori",
-    description: `Includes a "Colour" category pre-filled with ${PALETTE_COLORS.length} shared palette swatches.`,
+    description: `Includes a "Colour" category pre-filled with the supplier's glaze palette.`,
   },
   "colors-and-logos": {
     title: "Colori + loghi",
