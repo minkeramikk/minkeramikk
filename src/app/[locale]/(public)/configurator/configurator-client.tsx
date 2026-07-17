@@ -6,6 +6,8 @@ import { useSearchParams } from "next/navigation";
 import { usePathname, useRouter } from "@/i18n/navigation";
 import { OptionCard } from "@/components/ui-domain/option-card";
 import { useWarmupPreviews } from "@/components/ui-domain/hover-preview";
+import { DesignDescription } from "./design-description";
+import { DesignPhotoStrip } from "./design-photo-strip";
 import { FloatingPreview } from "./floating-preview";
 import { PreviewCanvas } from "@/components/ui-domain/preview-canvas";
 import { Stepper } from "@/components/ui-domain/stepper";
@@ -566,6 +568,20 @@ export function ConfiguratorClient({
               </p>
               <h2 className="mt-1 text-xl font-semibold">{designName(selected)}</h2>
             </div>
+
+            {/* F36: design description (per-locale) — no text, no block */}
+            {(() => {
+              const desc =
+                locale === "no" ? detail.descriptionNo : detail.descriptionEn;
+              return desc ? <DesignDescription text={desc} /> : null;
+            })()}
+            {/* F36: real-photo filmstrip — no images, no strip, no placeholder */}
+            {detail.images.length > 0 && (
+              <DesignPhotoStrip
+                images={detail.images}
+                alt={designName(selected)}
+              />
+            )}
 
             {hasSyncGroup && (
               <label className="flex items-center gap-2.5 text-sm">

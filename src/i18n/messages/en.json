@@ -77,7 +77,10 @@
     },
     "step2": {
       "titleDetails": "Choose details",
-      "titleBorders": "Choose borders"
+      "titleBorders": "Choose borders",
+      "showMore": "Show more",
+      "showLess": "Show less",
+      "photosLabel": "Photos of the design"
     },
     "step3": {
       "title": "Choose ceramics",
