@@ -41,6 +41,7 @@ describe.skipIf(!hasEnv)("RLS — anon client", () => {
   let dpDesignId: string;
   let dpForeignSupplierId: string;
   let dpForeignProductId: string;
+  let diImageId: string;
 
   beforeAll(async () => {
     anon = createClient(url!, anonKey!);
@@ -149,10 +150,22 @@ describe.skipIf(!hasEnv)("RLS — anon client", () => {
       .single();
     if (foreignProduct.error) throw foreignProduct.error;
     dpForeignProductId = foreignProduct.data.id;
+
+    // F36 fixture: a design_images row on the same seeded design.
+    // NOTE: false-green until migration 0024 is pushed (table doesn't exist yet
+    // remotely — the insert errors here, and the tests below tolerate that too,
+    // same pattern as R2-2a/R2-4a). Do NOT throw: a missing design_images table
+    // must not abort the whole describe block's beforeAll.
+    const image = await admin
+      .from("design_images")
+      .insert({ design_id: dpDesignId, image: `design-photos/rls-${ts}/a.jpg` })
+      .select("id")
+      .single();
+    diImageId = image.data?.id ?? "";
   });
 
   afterAll(async () => {
-    // CASCADE clears design_products when the design/foreign supplier go
+    // CASCADE clears design_products/design_images when the design/foreign supplier go
     if (dpDesignId) await admin.from("designs").delete().eq("id", dpDesignId);
     if (dpForeignProductId)
       await admin.from("products").delete().eq("id", dpForeignProductId);
@@ -215,6 +228,28 @@ describe.skipIf(!hasEnv)("RLS — anon client", () => {
       .insert({ design_id: dpDesignId, product_id: visibleProductId });
     expect(error).not.toBeNull();
     expect(error!.code).toBe("42501"); // insufficient_privilege
+  });
+
+  // NOTE: false-green until migration 0024 is pushed (design_images doesn't
+  // exist yet remotely → both selects/inserts error, which the assertions
+  // below also accept — same pattern as R2-2a/R2-4a). Becomes a real RLS
+  // assertion once the table exists remotely.
+  it("anon may SELECT design_images (catalog is public, F36)", async () => {
+    if (!diImageId) return; // table not migrated yet — nothing to assert
+    const { data, error } = await anon
+      .from("design_images")
+      .select("id")
+      .eq("id", diImageId);
+    expect(error).toBeNull();
+    expect(data).toHaveLength(1);
+  });
+
+  it("anon may NOT INSERT design_images (F36)", async () => {
+    const { error } = await anon
+      .from("design_images")
+      .insert({ design_id: dpDesignId, image: "design-photos/x/a.jpg" });
+    expect(error).not.toBeNull();
+    if (diImageId) expect(error?.code).toBe("42501");
   });
 
   it("same-supplier trigger rejects a cross-supplier row (AC6, app-bypass)", async () => {
