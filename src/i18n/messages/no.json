@@ -127,6 +127,12 @@
     },
     "productCard": {
       "details": "Produktdetaljer"
+    },
+    "yourSelection": {
+      "kicker": "Ditt valg",
+      "edit": "Endre farger",
+      "editShort": "Endre",
+      "pairCaption": "Denne keramikken + ditt design «{name}»"
     }
   },
   "orderForm": {
