@@ -15,6 +15,8 @@ export interface DesignValues {
   nameEn: string;
   descriptionNo: string | null;
   descriptionEn: string | null;
+  descriptionStep2No: string | null;
+  descriptionStep2En: string | null;
   supplierId: string;
   previewImage: string | null;
   sortOrder: number;
@@ -73,12 +75,23 @@ export function DesignForm({
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor="descriptionNo">Description (NO)</Label>
+          <Label htmlFor="descriptionNo">Description — step 1 (NO)</Label>
           <Textarea id="descriptionNo" name="descriptionNo" rows={2} defaultValue={design?.descriptionNo ?? ""} />
         </div>
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor="descriptionEn">Description (EN)</Label>
+          <Label htmlFor="descriptionEn">Description — step 1 (EN)</Label>
           <Textarea id="descriptionEn" name="descriptionEn" rows={2} defaultValue={design?.descriptionEn ?? ""} />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="descriptionStep2No">Description above photos — step 2 (NO)</Label>
+          <Textarea id="descriptionStep2No" name="descriptionStep2No" rows={2} defaultValue={design?.descriptionStep2No ?? ""} />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="descriptionStep2En">Description above photos — step 2 (EN)</Label>
+          <Textarea id="descriptionStep2En" name="descriptionStep2En" rows={2} defaultValue={design?.descriptionStep2En ?? ""} />
         </div>
       </div>
 

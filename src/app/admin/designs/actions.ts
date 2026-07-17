@@ -37,6 +37,8 @@ const designSchema = z.object({
   nameEn: z.string().trim().min(1, "English name is required"),
   descriptionNo: z.string().trim().optional().or(z.literal("")),
   descriptionEn: z.string().trim().optional().or(z.literal("")),
+  descriptionStep2No: z.string().trim().optional().or(z.literal("")),
+  descriptionStep2En: z.string().trim().optional().or(z.literal("")),
   supplierId: z.string().uuid("Pick a supplier"),
   sortOrder: z.coerce.number().int().min(0).default(0),
   active: z.coerce.boolean(),
@@ -53,6 +55,8 @@ export async function saveDesign(
     nameEn: formData.get("nameEn") ?? "",
     descriptionNo: formData.get("descriptionNo") ?? "",
     descriptionEn: formData.get("descriptionEn") ?? "",
+    descriptionStep2No: formData.get("descriptionStep2No") ?? "",
+    descriptionStep2En: formData.get("descriptionStep2En") ?? "",
     supplierId: formData.get("supplierId") ?? "",
     sortOrder: formData.get("sortOrder") ?? 0,
     active: formData.get("active") === "on" || formData.get("active") === "true",
@@ -96,6 +100,8 @@ export async function saveDesign(
     name_en: d.nameEn,
     description_no: d.descriptionNo || null,
     description_en: d.descriptionEn || null,
+    description_step2_no: d.descriptionStep2No || null,
+    description_step2_en: d.descriptionStep2En || null,
     supplier_id: d.supplierId,
     sort_order: d.sortOrder,
     active: d.active,
@@ -331,6 +337,22 @@ export async function duplicateDesign(
   } | null;
   if (!src) return { error: "Design not found." };
 
+  // TL amendment 2026-07-17: dedicated step-2 description (migration 0024).
+  // Fetched separately so a pre-migration DB (column not there yet) only drops
+  // this one field instead of failing the whole clone — the main select above
+  // stays on the always-present columns.
+  const step2 = await supabase
+    .from("designs")
+    .select("description_step2_no, description_step2_en")
+    .eq("id", id.data)
+    .maybeSingle();
+  const step2Cols = step2.error
+    ? {}
+    : {
+        description_step2_no: step2.data?.description_step2_no ?? null,
+        description_step2_en: step2.data?.description_step2_en ?? null,
+      };
+
   const { data: all } = await supabase.from("designs").select("slug");
   const fromSlug = src.slug;
   const name = `${src.name} (copy)`;
@@ -364,6 +386,7 @@ export async function duplicateDesign(
       supplier_id: src.supplier_id,
       description_no: src.description_no,
       description_en: src.description_en,
+      ...step2Cols,
       preview_image: await resolveAsset(src.preview_image),
       active: false,
       sort_order: await nextSortOrder(supabase),
