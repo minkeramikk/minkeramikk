@@ -100,6 +100,8 @@ export type Database = {
           code: string | null
           description_en: string | null
           description_no: string | null
+          description_step2_en: string | null
+          description_step2_no: string | null
           id: string
           name: string
           name_en: string
@@ -115,6 +117,8 @@ export type Database = {
           code?: string | null
           description_en?: string | null
           description_no?: string | null
+          description_step2_en?: string | null
+          description_step2_no?: string | null
           id?: string
           name: string
           name_en?: string
@@ -130,6 +134,8 @@ export type Database = {
           code?: string | null
           description_en?: string | null
           description_no?: string | null
+          description_step2_en?: string | null
+          description_step2_no?: string | null
           id?: string
           name?: string
           name_en?: string

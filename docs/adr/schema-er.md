@@ -29,6 +29,8 @@ erDiagram
         text name "nome proprio, non tradotto"
         text description_no
         text description_en
+        text description_step2_no "F36 (TL amendment): testo step 2 (sopra la gallery foto), distinto da description_no"
+        text description_step2_en "F36 (TL amendment): testo step 2 (sopra la gallery foto), distinto da description_en"
         text preview_image
         int sort_order
         bool active

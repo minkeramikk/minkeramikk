@@ -28,6 +28,11 @@ una riga per foto, invece di espandere `designs` con colonne multiple o un array
   `supplier_colors`), scrittura solo `authenticated` (pattern `0002_rls.sql`).
   ON DELETE CASCADE su `design_id`: le foto non hanno senso senza il design.
 
+**TL amendment (2026-07-17)**: il testo mostrato allo step 2 (sopra il filmstrip)
+usa colonne dedicate `designs.description_step2_no` / `description_step2_en`,
+NON `description_no`/`description_en` — quelle restano il testo dello step 1
+(R3-B23). Colonne additive, nullable, senza default né backfill.
+
 **Alternativa scartata — colonna array/jsonb su `designs`** (es. `photo_paths text[]`).
 Rotta perché: niente `sort_order` per riga, niente FK verso lo Storage path pulito,
 riordino/cancellazione singola più scomodi lato back-office, e rompe la convenzione

@@ -18,3 +18,9 @@ create policy "design_images public read" on design_images
 -- Back-office writes (same as other catalog tables, 0002/0021 pattern).
 create policy "design_images authenticated all" on design_images
   for all to authenticated using (true) with check (true);
+
+-- F36 (TL amendment 2026-07-17): dedicated step-2 description text on the design
+-- itself (distinct from description_no/_en, which belong to step 1 / R3-B23).
+alter table designs
+  add column if not exists description_step2_no text,
+  add column if not exists description_step2_en text;
