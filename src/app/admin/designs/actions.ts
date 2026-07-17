@@ -346,6 +346,12 @@ export async function duplicateDesign(
     .select("description_step2_no, description_step2_en")
     .eq("id", id.data)
     .maybeSingle();
+  // 42703 = undefined_column: pre-migration DB, tolerate and drop just this field.
+  // Any other error is real (transient/RLS) → surface it rather than silently
+  // cloning without the step-2 text (this runs before the clone row is inserted).
+  if (step2.error && step2.error.code !== "42703") {
+    return { error: "Could not read the design." };
+  }
   const step2Cols = step2.error
     ? {}
     : {
