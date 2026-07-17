@@ -75,6 +75,9 @@ export interface DesignDetail {
   nameEn: string;
   /** R2-2a: shop opted this design into custom colour notes (step-2 block). */
   acceptsCustomNotes: boolean;
+  descriptionNo: string | null;
+  descriptionEn: string | null;
+  images: string[]; // F36: gallery Storage paths, ordered by sort_order
   categories: DesignCategory[];
 }
 
@@ -100,11 +103,19 @@ async function loadDesignDetail(slug: string): Promise<DesignDetail | null> {
 
   const { data: design, error: designErr } = await supabase
     .from("designs")
-    .select("id, slug, code, name, name_no, name_en, accepts_custom_notes")
+    .select(
+      "id, slug, code, name, name_no, name_en, accepts_custom_notes, description_no, description_en"
+    )
     .eq("slug", slug)
     .maybeSingle();
   if (designErr) throw designErr;
   if (!design) return null;
+
+  const { data: imgRows } = await supabase
+    .from("design_images")
+    .select("image")
+    .eq("design_id", design.id)
+    .order("sort_order", { ascending: true });
 
   const { data: categories, error: catErr } = await supabase
     .from("option_categories")
@@ -123,6 +134,9 @@ async function loadDesignDetail(slug: string): Promise<DesignDetail | null> {
     nameNo: design.name_no,
     nameEn: design.name_en,
     acceptsCustomNotes: design.accepts_custom_notes ?? false,
+    descriptionNo: design.description_no,
+    descriptionEn: design.description_en,
+    images: (imgRows ?? []).map((r) => r.image),
     categories: (categories ?? []).map((c) => ({
       id: c.id,
       slug: c.slug,
