@@ -71,10 +71,13 @@ export default async function ConfiguratorPage({
       // nor the set= link). Honour it only when the design accepts notes.
       const rawNote = typeof params.note === "string" ? params.note : "";
       const customNote = detail.acceptsCustomNotes ? rawNote : "";
+      const rawText = typeof params.text === "string" ? params.text : "";
+      const customText = detail.acceptsCustomText ? rawText : "";
       const { snapshot, configCode, designLayers } = buildConfigLinePayload(
         detail,
         selById,
-        customNote
+        customNote,
+        customText
       );
 
       // CA-3: a `set=` param is a shared basket — resolve it server-side
