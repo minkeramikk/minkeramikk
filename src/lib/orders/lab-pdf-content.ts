@@ -28,6 +28,8 @@ export interface LabPdfItem {
   selections: LabPdfSelection[];
   /** R2-2b: present ⇒ render the "Customer note" line ("" = studio default). */
   customNote?: string;
+  /** F38: the customer's inscription — a production instruction, shown prominently. */
+  customText?: string;
 }
 
 /** Customer ship-to block — the workshop ships the finished pieces here. */
@@ -67,6 +69,7 @@ function toItem(it: AdminOrderItem): LabPdfItem {
       hex: s.hex,
     })),
     customNote: it.configSnapshot?.customNote,
+    customText: it.configSnapshot?.customText || undefined,
   };
 }
 

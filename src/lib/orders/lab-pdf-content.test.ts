@@ -33,6 +33,7 @@ const ORDER: AdminOrder = {
       configSnapshot: {
         designName: "Krabbe",
         customNote: "brown dog with white spots",
+        customText: "Hei Åse",
         selections: [
           { label: "Farger", option: "Blå", hex: "#123456" },
           { label: "Kanter", option: "Gull", hex: "#ddaa33" },
@@ -81,6 +82,7 @@ describe("buildLabPdfDoc", () => {
           configCode: "MK-D-A-Q",
           quantity: 4,
           customNote: "brown dog with white spots",
+          customText: "Hei Åse",
           selections: [
             { label: "Farger", option: "Blå", hex: "#123456" },
             { label: "Kanter", option: "Gull", hex: "#ddaa33" },
@@ -137,5 +139,15 @@ describe("buildLabPdfDoc", () => {
   it("leaves customNote undefined when the snapshot has none", () => {
     const doc = buildLabPdfDoc(ORDER, "sup-other")!;
     expect(doc.items[0].customNote).toBeUndefined();
+  });
+
+  it("carries a non-empty customText into the lab item (F38)", () => {
+    const doc = buildLabPdfDoc(ORDER, "sup-vietri")!;
+    expect(doc.items[0].customText).toBe("Hei Åse");
+  });
+
+  it("leaves customText undefined when the snapshot has none", () => {
+    const doc = buildLabPdfDoc(ORDER, "sup-other")!;
+    expect(doc.items[0].customText).toBeUndefined();
   });
 });
