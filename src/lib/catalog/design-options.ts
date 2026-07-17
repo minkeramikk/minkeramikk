@@ -93,9 +93,15 @@ export interface DesignDetail {
 export async function getDesignDetail(
   slug: string
 ): Promise<DesignDetail | null> {
-  return unstable_cache(() => loadDesignDetail(slug), ["design-detail", slug], {
-    tags: ["catalog"],
-  })();
+  // keyParts version "v2": F36 added `images` + `descriptionStep2No/En` to the
+  // DTO. Without a bump, Vercel's Data Cache keeps serving pre-F36-shaped entries
+  // (no `images` key) for slugs not revalidated since deploy — the client then
+  // crashed on `detail.images.length`. The version segment retires those entries.
+  return unstable_cache(
+    () => loadDesignDetail(slug),
+    ["design-detail", "v2", slug],
+    { tags: ["catalog"] }
+  )();
 }
 
 async function loadDesignDetail(slug: string): Promise<DesignDetail | null> {

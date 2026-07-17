@@ -8,6 +8,7 @@ import { OptionCard } from "@/components/ui-domain/option-card";
 import { useWarmupPreviews } from "@/components/ui-domain/hover-preview";
 import { DesignDescription } from "./design-description";
 import { DesignPhotoStrip } from "./design-photo-strip";
+import { hasPhotos } from "./design-photos";
 import { FloatingPreview } from "./floating-preview";
 import { PreviewCanvas } from "@/components/ui-domain/preview-canvas";
 import { Stepper } from "@/components/ui-domain/stepper";
@@ -576,7 +577,7 @@ export function ConfiguratorClient({
               return desc ? <DesignDescription text={desc} /> : null;
             })()}
             {/* F36: real-photo filmstrip — no images, no strip, no placeholder */}
-            {detail.images.length > 0 && (
+            {hasPhotos(detail.images) && (
               <DesignPhotoStrip
                 images={detail.images}
                 alt={designName(selected)}
