@@ -34,6 +34,7 @@ export async function makeVariant(
   // products are photos → they take harder compression than the flat-color layers
   const quality = assetClass(path) === "products" ? 70 : 80;
   const data = await sharp(master)
+    .rotate() // F36: bake EXIF orientation before resize (no-op for EXIF-less masters)
     .resize(width, width, { fit: "inside", withoutEnlargement: true })
     .webp({ quality })
     .toBuffer();
