@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { buildConfigLinePayload } from "./line-payload";
 import type { DesignDetail } from "@/lib/catalog/design-options";
 
-function design(acceptsCustomNotes: boolean): DesignDetail {
+function design(acceptsCustomNotes: boolean, acceptsCustomText = false): DesignDetail {
   return {
     id: "d1",
     slug: "amalfi-dyr",
@@ -11,6 +11,7 @@ function design(acceptsCustomNotes: boolean): DesignDetail {
     nameNo: "Amalfi Dyr",
     nameEn: "Amalfi Animals",
     acceptsCustomNotes,
+    acceptsCustomText,
     descriptionStep2No: null,
     descriptionStep2En: null,
     images: [],
@@ -53,5 +54,27 @@ describe("buildConfigLinePayload — customNote", () => {
   it("omits customNote entirely on a non-feature design even if a note is passed", () => {
     const { snapshot } = buildConfigLinePayload(design(false), { farge: "o1" }, "ignored");
     expect("customNote" in snapshot).toBe(false);
+  });
+});
+
+describe("buildConfigLinePayload — customText (F38)", () => {
+  it("sets the trimmed inscription on a text-enabled design", () => {
+    const { snapshot } = buildConfigLinePayload(design(false, true), {}, "", "  Hei Åse  ");
+    expect(snapshot.customText).toBe("Hei Åse");
+  });
+  it("omits customText when the value is whitespace-only (empty after trim)", () => {
+    const { snapshot } = buildConfigLinePayload(design(false, true), {}, "", "   ");
+    expect("customText" in snapshot).toBe(false);
+  });
+  it("omits customText entirely on a non-text design even if text is passed", () => {
+    const { snapshot } = buildConfigLinePayload(design(false, false), {}, "", "Hei");
+    expect("customText" in snapshot).toBe(false);
+  });
+  // TL mandate 1: forged URL (text=) is untrusted — the builder re-sanitises.
+  it("sanitises + truncates a forged over-long / control-char value", () => {
+    const forged = "\x00\x07" + "x".repeat(500);
+    const { snapshot } = buildConfigLinePayload(design(false, true), {}, "", forged);
+    expect(snapshot.customText).toBe("x".repeat(100));
+    expect(snapshot.customText!.length).toBe(100);
   });
 });

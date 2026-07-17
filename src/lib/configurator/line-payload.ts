@@ -16,6 +16,7 @@ import { encodeConfigCode, toCodecDesign } from "./config-code";
 import { pickDefaultOption } from "./default-option";
 import { getPreviewLayers } from "./preview";
 import { assetUrl } from "@/lib/storage";
+import { cleanCustomText } from "@/lib/orders/schema";
 
 export interface ConfigLinePayload {
   snapshot: ConfigSnapshot;
@@ -31,14 +32,25 @@ export interface ConfigLinePayload {
  * @param customNote R2-2b — the customer's free-text colour note. Only stored
  *   on designs where `detail.acceptsCustomNotes` is true; trimmed automatically.
  *   Omit (or pass `""`) for default/studio-choice mode.
+ * @param customText F38 — the customer's inscription text, read from the
+ *   untrusted `text=` URL param. Only stored on designs where
+ *   `detail.acceptsCustomText` is true; this builder is the single
+ *   sanitise choke point for that read path — re-sanitised + re-truncated
+ *   via `cleanCustomText`, never just trimmed.
  */
 export function buildConfigLinePayload(
   detail: DesignDetail,
   selById: Record<string, string>,
-  customNote?: string
+  customNote?: string,
+  customText?: string
 ): ConfigLinePayload {
   const pick = (c: DesignDetail["categories"][number]) =>
     c.options.find((o) => o.id === selById[c.slug]) ?? pickDefaultOption(c.options);
+
+  // F38: `text=` is untrusted URL input → re-sanitise + re-truncate here, the
+  // one place every snapshot producer routes through (TL mandate 1). Only on
+  // text-enabled designs; whitespace-only cleans to "" → treated as absent.
+  const cleanedText = detail.acceptsCustomText ? cleanCustomText(customText ?? "") : "";
 
   const snapshot: ConfigSnapshot = {
     designSlug: detail.slug,
@@ -57,6 +69,9 @@ export function buildConfigLinePayload(
     // R2-2b: present (possibly "") only on designs that accept notes; the
     // server re-sanitises at order submit (zod). Off-feature designs omit it.
     ...(detail.acceptsCustomNotes ? { customNote: (customNote ?? "").trim() } : {}),
+    // F38: present only when non-empty after cleaning (no "studio default" for
+    // text, unlike the note). Never enters the config code / set= link.
+    ...(cleanedText ? { customText: cleanedText } : {}),
   };
 
   const normalized: Record<string, string> = {};
