@@ -30,7 +30,7 @@ export default async function EditDesignPage({
     supabase
       .from("designs")
       .select(
-        "id, name, slug, name_no, name_en, description_no, description_en, description_step2_no, description_step2_en, supplier_id, preview_image, sort_order, active, accepts_custom_notes, code, option_categories(id, label_no, label_en, kind, layer_slot, sync_group, sort_order)"
+        "id, name, slug, name_no, name_en, description_no, description_en, description_step2_no, description_step2_en, supplier_id, preview_image, sort_order, active, accepts_custom_notes, accepts_custom_text, code, option_categories(id, label_no, label_en, kind, layer_slot, sync_group, sort_order)"
       )
       .eq("id", id)
       .maybeSingle(),
@@ -188,6 +188,7 @@ export default async function EditDesignPage({
                 sortOrder: design.sort_order,
                 active: design.active,
                 acceptsCustomNotes: design.accepts_custom_notes,
+                acceptsCustomText: design.accepts_custom_text,
                 code: design.code,
               }}
             />
