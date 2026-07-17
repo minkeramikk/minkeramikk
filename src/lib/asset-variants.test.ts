@@ -34,6 +34,23 @@ describe("assetClass", () => {
     expect(variantWidth("suppliers/s1/colors/0160b2-ab12.png")).toBe(96);
   });
 
+  it("classifies design-photos lifestyle gallery as its own class", () => {
+    expect(assetClass("design-photos/ansjos-stim/ab12cd34.jpg")).toBe(
+      "design-photos"
+    );
+    expect(assetClass("design-photos/ansjos-stim/ab12cd34.webp")).toBe(
+      "design-photos"
+    );
+  });
+
+  it("does NOT reclassify compositing layers under designs/", () => {
+    // AC7: the 512 designs class must be untouched by the new prefix
+    expect(assetClass("designs/ansjos-stim/dots/lilla.png")).toBe("designs");
+    expect(assetClass("designs/ansjos-stim/animal/fish-layer.png")).toBe(
+      "designs"
+    );
+  });
+
   it("returns null for external URLs, existing variants and unknown prefixes", () => {
     expect(assetClass("https://cdn.example.com/x.png")).toBeNull();
     expect(assetClass("swatches/a3759f@96.webp")).toBeNull();
@@ -48,6 +65,10 @@ describe("variantWidth", () => {
     expect(variantWidth("products/krus.png")).toBe(256);
     expect(variantWidth("designs/amalfi/dots/lilla.png")).toBe(512); // F26.1: was 800
     expect(variantWidth("misc/x.png")).toBeNull();
+  });
+
+  it("uses 1024 for lifestyle design photos", () => {
+    expect(variantWidth("design-photos/ansjos-stim/ab12cd34.jpg")).toBe(1024);
   });
 });
 
