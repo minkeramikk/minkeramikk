@@ -57,6 +57,11 @@ export function add(a: Money, b: Money): Money {
   return money(a.amountCents + b.amountCents, a.currency);
 }
 
+export function subtract(a: Money, b: Money): Money {
+  if (a.currency !== b.currency) throw new CurrencyMismatchError(a.currency, b.currency);
+  return money(a.amountCents - b.amountCents, a.currency);
+}
+
 /** Multiply by an integer quantity (cart lines). */
 export function multiply(m: Money, quantity: number): Money {
   if (!Number.isSafeInteger(quantity) || quantity < 0) {

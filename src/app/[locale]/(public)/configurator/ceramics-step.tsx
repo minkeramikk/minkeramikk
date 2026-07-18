@@ -31,6 +31,10 @@ import { encodeSetParam, SET_LINK_BUDGET } from "@/lib/cart/set-code";
 import { SetBadge } from "@/components/ui-domain/set-badge";
 import { CartLineRecap } from "@/components/ui-domain/cart-line-recap";
 import {
+  CartShippingRow,
+  useShippingTotalSuffix,
+} from "@/components/ui-domain/cart-shipping-row";
+import {
   attributeLabel,
   formatAttributeValue,
   publicAttributes,
@@ -436,6 +440,7 @@ export function CeramicsStep({
 
   const count = hydrated ? itemCount(cart) : 0;
   const total = cartTotal(cart);
+  const totalSuffix = useShippingTotalSuffix(total);
 
   function addSelected() {
     if (!selected) return;
@@ -732,10 +737,7 @@ export function CeramicsStep({
           </div>
 
           <div className="mt-3 flex flex-col gap-3 border-t border-border pt-3">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">{t("shipping")}</span>
-              <span className="text-muted-foreground">{t("shippingIncluded")}</span>
-            </div>
+            <CartShippingRow total={total} />
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">{t("total")}</span>
               <span
@@ -743,6 +745,7 @@ export function CeramicsStep({
                 className="text-lg font-semibold tabular-nums"
               >
                 {formatMoney(total, locale)}
+                {totalSuffix}
               </span>
             </div>
 

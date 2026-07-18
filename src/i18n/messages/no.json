@@ -186,8 +186,16 @@
     "viewBasket": "Vis handlekurv",
     "backToCart": "Tilbake til handlekurven",
     "reopen": "Åpne igjen",
-    "shipping": "Frakt",
-    "shippingIncluded": "Inkludert",
+    "insurance": {
+      "title": "Frakt med forsikring",
+      "included": "Inkludert",
+      "toBeConfirmed": "Beregnes",
+      "plusShipping": "+ frakt",
+      "nudge": "Fri frakt over {threshold} — legg til {amount}",
+      "policyShort": "Alle forsendelser er forsikret. Skulle noe komme frem skadet, gi oss beskjed innen 48 timer — vi erstatter det kostnadsfritt. Tips: film gjerne utpakkingen.",
+      "readMore": "Les mer",
+      "policyTerms": "8. Frakt med forsikring\nHåndlaget keramikk pakkes omhyggelig og sendes alltid med forsikring. Skulle et produkt bli skadet under transport, erstatter vi det kostnadsfritt: meld fra innen 48 timer etter mottak, helst med bilder eller video av utpakkingen. Erstatningen gjelder transportskader på produktene."
+    },
     "itemCount": "{count, plural, =0 {Tom} one {# vare} other {# varer}}",
     "share": {
       "button": "Del settet",

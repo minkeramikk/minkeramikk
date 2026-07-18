@@ -17,6 +17,10 @@ import { Button } from "@/components/ui/button";
 import { OrderForm } from "@/components/ui-domain/order-form";
 import { CartLineThumb } from "@/components/ui-domain/cart-line-thumb";
 import { CartLineRecap } from "@/components/ui-domain/cart-line-recap";
+import {
+  CartShippingRow,
+  useShippingTotalSuffix,
+} from "@/components/ui-domain/cart-shipping-row";
 import { useCartContext } from "@/lib/cart/cart-context";
 import {
   cartTotal,
@@ -53,6 +57,7 @@ export function CartMenu() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const count = itemCount(cart);
+  const totalSuffix = useShippingTotalSuffix(cartTotal(cart));
   // gate count on hydration to avoid SSR/client mismatch (cart starts empty)
   const liveCount = hydrated ? count : 0;
 
@@ -233,6 +238,7 @@ export function CartMenu() {
               </div>
 
               <SheetFooter className="border-t border-border">
+                <CartShippingRow total={cartTotal(cart)} />
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-muted-foreground">
                     {t("total")}
@@ -242,6 +248,7 @@ export function CartMenu() {
                     className="text-lg font-semibold tabular-nums"
                   >
                     {formatMoney(cartTotal(cart), locale)}
+                    {totalSuffix}
                   </span>
                 </div>
                 <Button

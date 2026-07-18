@@ -33,6 +33,12 @@ test("AC1: add to cart → badge counts, drawer line shows product + price", asy
   await expect(line).toHaveCount(1);
   await expect(line).toContainText(name);
   await expect(drawer(page).getByTestId("cart-total")).toContainText(/\d[\d\s]*\s*kr/);
+  // R3-B4: insured shipping row — status is either "Inkludert" (≥ threshold) or
+  // "Beregnes" + the nudge; the send is never blocked either way.
+  await expect(drawer(page).getByTestId("cart-shipping-status")).toContainText(
+    /Inkludert|Beregnes/
+  );
+  await expect(drawer(page).getByTestId("cart-checkout")).toBeEnabled();
 });
 
 test("AC2: cart persists across a reload (badge + drawer)", async ({ page }) => {
