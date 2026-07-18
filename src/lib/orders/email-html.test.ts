@@ -67,6 +67,27 @@ describe("customerEmail", () => {
     expect(out.html).toContain("&lt;b&gt;brun hund&lt;/b&gt;");
     expect(out.html).not.toContain("<b>brun hund</b>");
   });
+
+  it("renders the inscription escaped, only when present (F38)", () => {
+    const out = customerEmail({
+      name: "Kari",
+      code: "MK-1",
+      locale: "no",
+      items: [
+        {
+          productName: "Flat",
+          quantity: 1,
+          unitPriceCents: 50000,
+          currency: "NOK",
+          configCode: "MK-D-A",
+          customText: "Hei & Åse",
+        },
+      ],
+      setUrl: null,
+      theme: { light: "#eee", dark: "#222", accent: "#933" },
+    });
+    expect(out.html).toContain("«Hei &amp; Åse»");
+  });
 });
 
 describe("adminEmail / supplierEmail", () => {

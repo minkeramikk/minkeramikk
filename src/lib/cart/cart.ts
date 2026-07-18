@@ -40,6 +40,13 @@ export interface ConfigSnapshot {
    * the `set=` link (lean) — it lives only in the order snapshot.
    */
   customNote?: string;
+  /**
+   * F38 — the customer's inscription to realise on the ceramic. Present
+   * (non-empty) only on designs that accept text (`acceptsCustomText`); absent
+   * otherwise. Twin of `customNote` but literal words, not colour instructions.
+   * Does NOT travel in the config code or the set= link (lean + privacy).
+   */
+  customText?: string;
 }
 
 /**

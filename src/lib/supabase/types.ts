@@ -96,6 +96,7 @@ export type Database = {
       designs: {
         Row: {
           accepts_custom_notes: boolean
+          accepts_custom_text: boolean
           active: boolean
           code: string | null
           description_en: string | null
@@ -113,6 +114,7 @@ export type Database = {
         }
         Insert: {
           accepts_custom_notes?: boolean
+          accepts_custom_text?: boolean
           active?: boolean
           code?: string | null
           description_en?: string | null
@@ -130,6 +132,7 @@ export type Database = {
         }
         Update: {
           accepts_custom_notes?: boolean
+          accepts_custom_text?: boolean
           active?: boolean
           code?: string | null
           description_en?: string | null

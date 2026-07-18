@@ -492,6 +492,73 @@ test.describe("R2-2b custom notes", () => {
       await expect(page).toHaveURL(/\/admin\/designs$/);
     }
   });
+
+  /**
+   * F38: Custom inscription — e2e journey. Mirrors the notes test above, but
+   * the inscription field has NO toggle and NO autofocus: the input is
+   * visible as soon as the block renders, so we never assert `.toBeFocused()`
+   * (the field must stay unfocused by default — that IS the requirement).
+   */
+  test("flagged design shows the inscription block with a visible (unfocused) input; text rides URL", async ({
+    page,
+  }) => {
+    // (a) Discover the first active design (needs id for admin URL, slug for public URL).
+    const design = await firstActiveDesignWithId();
+
+    // (b) Via admin UI: ensure design-accepts-text is CHECKED, then save.
+    // This triggers revalidateTag("catalog") via saveDesign server action.
+    await loginAdmin(page);
+    await page.goto(`/admin/designs/${design.id}`);
+    const checkbox = page.getByTestId("design-accepts-text");
+    await expect(checkbox).toBeVisible();
+    const wasChecked = await checkbox.isChecked();
+    if (!wasChecked) {
+      await checkbox.click();
+    }
+    await page.getByTestId("design-save").click();
+    // Wait for the post-save redirect to /admin/designs (confirms catalog revalidated).
+    await expect(page).toHaveURL(/\/admin\/designs$/);
+
+    try {
+      // (c) Public configurator — step 2 with the flagged design.
+      await page.goto(`/no/configurator?design=${design.slug}&step=2`);
+
+      // AC: custom-text block is visible when flag is set.
+      const block = page.getByTestId("custom-text");
+      await expect(block).toBeVisible();
+
+      // No toggle, no autofocus: the input is visible immediately — do NOT
+      // assert focus, the field must not steal focus on render.
+      const input = page.getByTestId("custom-text-input");
+      await expect(input).toBeVisible();
+
+      // Fill the inscription (includes a Norwegian char).
+      await input.fill("Gratulerer Åse");
+
+      // Text rides the URL when advancing to step 3.
+      await page.getByTestId("next-step").click();
+      await expect(page).toHaveURL(/text=/);
+
+      // (e) Off-case: a second active design (without the flag) should NOT
+      // show the custom-text block. If only one design exists, skip gracefully.
+      const second = await secondActiveDesignWithId();
+      if (second) {
+        await page.goto(`/no/configurator?design=${second.slug}&step=2`);
+        await expect(page.getByTestId("custom-text")).toHaveCount(0);
+      }
+      // else: only one active design; off-case is covered by unit tests.
+    } finally {
+      // (d) RESTORE: navigate back to admin, UNCHECK the flag, save (revalidates cache).
+      await page.goto(`/admin/designs/${design.id}`);
+      const restoreCheckbox = page.getByTestId("design-accepts-text");
+      await expect(restoreCheckbox).toBeVisible();
+      if (await restoreCheckbox.isChecked()) {
+        await restoreCheckbox.click();
+      }
+      await page.getByTestId("design-save").click();
+      await expect(page).toHaveURL(/\/admin\/designs$/);
+    }
+  });
 });
 
 /**

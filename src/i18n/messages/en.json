@@ -131,6 +131,12 @@
       "counter": "{count}/250",
       "selectedFigure": "Selected figure"
     },
+    "customText": {
+      "title": "Text on the ceramic",
+      "placeholder": "e.g. Happy Birthday Grandma",
+      "helper": "The workshop confirms the final wording before production — it doesn't change the preview.",
+      "counter": "{count}/100"
+    },
     "productCard": {
       "details": "Product details"
     },
@@ -138,7 +144,7 @@
       "kicker": "Your selection",
       "edit": "Edit colours",
       "editShort": "Edit",
-      "pairCaption": "This ceramic + your design «{name}»"
+      "pairCaption": "This ceramic + your design"
     }
   },
   "orderForm": {
@@ -202,7 +208,8 @@
       "expand": "Show details",
       "collapse": "Hide details",
       "edit": "Edit design",
-      "ceramic": "Ceramic"
+      "ceramic": "Ceramic",
+      "customText": "Inscription"
     },
     "colourBadge": {
       "custom": "Custom colours",

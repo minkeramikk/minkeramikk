@@ -19,6 +19,8 @@ export interface MailItem {
   configCode: string;
   /** R2-2b: customer colour note. Rendered escaped; only when non-empty. */
   customNote?: string;
+  /** F38: customer inscription on the ceramic. Rendered escaped, only when non-empty. */
+  customText?: string;
 }
 
 export interface RenderedEmail {
@@ -119,6 +121,7 @@ function shell(
 /** Order-lines table (shared by customer + admin), prices included. */
 function itemsTable(items: MailItem[], theme: ThemeTokens, locale: "no" | "en") {
   const noteLabel = COPY[locale].noteLabel;
+  const textLabel = COPY[locale].textLabel;
   const rows = items
     .map(
       (i) => `<tr>
@@ -132,6 +135,12 @@ function itemsTable(items: MailItem[], theme: ThemeTokens, locale: "no" | "en") 
             ? `<br><span style="font-size:12px;opacity:.75;">${esc(
                 noteLabel
               )}: ${esc(i.customNote)}</span>`
+            : ""
+        }${
+          i.customText
+            ? `<br><span style="font-size:12px;font-weight:600;opacity:.85;">${esc(
+                textLabel
+              )}: «${esc(i.customText)}»</span>`
             : ""
         }</td>
       <td style="padding:8px 0;border-bottom:1px solid ${esc(
@@ -158,6 +167,7 @@ const COPY = {
     reopen: "Åpne settet ditt på nytt",
     totalLabel: "Totalt",
     noteLabel: "Din beskjed til verkstedet", // TODO:nb-review
+    textLabel: "Tekst på keramikken", // TODO:nb-review
     legalIntro:
       "For mer om salgsvilkår og personvern — inkludert hvordan vi behandler personopplysninger — se våre",
     legalTerms: "salgsvilkår",
@@ -174,6 +184,7 @@ const COPY = {
     reopen: "Reopen your set",
     totalLabel: "Total",
     noteLabel: "Your note to the workshop",
+    textLabel: "Inscription on the ceramic",
     legalIntro:
       "For more on our sales terms and privacy — including how we handle your personal data — see our",
     legalTerms: "Terms of Sale",

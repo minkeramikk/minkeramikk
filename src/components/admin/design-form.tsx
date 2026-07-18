@@ -22,6 +22,7 @@ export interface DesignValues {
   sortOrder: number;
   active: boolean;
   acceptsCustomNotes: boolean;
+  acceptsCustomText: boolean;
   code: string | null;
 }
 
@@ -130,6 +131,17 @@ export function DesignForm({
           data-testid="design-accepts-notes"
         />
         Accepts custom colour notes from the customer
+      </label>
+
+      <label className="flex items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          name="acceptsCustomText"
+          defaultChecked={design ? design.acceptsCustomText : false}
+          className="size-4 accent-[var(--primary)]"
+          data-testid="design-accepts-text"
+        />
+        Accepts custom text (inscription) on the ceramic
       </label>
 
       {state.error && (

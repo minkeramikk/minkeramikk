@@ -8,6 +8,17 @@ import { CURRENCIES } from "@/lib/money/money";
 /** R2-2b AC7: hard cap on the customer's free-text colour note. */
 export const MAX_CUSTOM_NOTE = 250;
 
+/** F38: hard cap on the customer's inscription on the ceramic (100 chars). */
+export const MAX_CUSTOM_TEXT = 100;
+
+/** F38 — sanitise for the UNTRUSTED read path (URL → snapshot): same cleaner as
+ *  the note (trim + strip control chars), then TRUNCATE to the cap. A URL can't
+ *  be rejected gracefully, so we truncate rather than 400. Whitespace-only → ""
+ *  (the cleaner trims first), which every present-check then treats as absent. */
+export function cleanCustomText(input: string): string {
+  return cleanCustomNote(input).slice(0, MAX_CUSTOM_TEXT);
+}
+
 /** Strip ASCII/Unicode control chars (except newline) and trim. The XSS escape
  *  itself happens at each sink (email HTML); here we only normalise the input. */
 export function cleanCustomNote(input: string): string {
@@ -22,6 +33,13 @@ const customNoteSchema = z
   .transform(cleanCustomNote)
   .refine((s) => s.length <= MAX_CUSTOM_NOTE, { message: "custom note too long" });
 
+/** F38: the inscription on the form path — same cleaner as the note, tighter
+ *  cap. Over-cap → payload rejected (400), like customNoteSchema. */
+const customTextSchema = z
+  .string()
+  .transform(cleanCustomNote)
+  .refine((s) => s.length <= MAX_CUSTOM_TEXT, { message: "custom text too long" });
+
 /** One cart line as it travels to the server (snapshots are rebuilt server-side
  *  from these trusted-by-shape fields; prices stay cents+currency, never float). */
 export const orderItemSchema = z.object({
@@ -33,10 +51,14 @@ export const orderItemSchema = z.object({
   currency: z.enum(CURRENCIES),
   quantity: z.number().int().positive(),
   configCode: z.string().min(1),
-  // The snapshot is trusted-by-shape EXCEPT the free-text note, which is
-  // sanitised + length-checked here (AC7). passthrough keeps the other fields.
+  // The snapshot is trusted-by-shape EXCEPT the free-text note and inscription,
+  // which are sanitised + length-checked here (AC7, F38). passthrough keeps
+  // the other fields.
   configSnapshot: z
-    .object({ customNote: customNoteSchema.optional() })
+    .object({
+      customNote: customNoteSchema.optional(),
+      customText: customTextSchema.optional(),
+    })
     .passthrough()
     .nullable(),
   /** F30: lets the customer email build the CA-3 "reopen your set" link.

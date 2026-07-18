@@ -96,6 +96,15 @@ export function CartLineRecap({
               <dd className="font-medium">{s.option}</dd>
             </div>
           ))}
+          {line.configSnapshot.customText && (
+            <div
+              data-testid="cart-line-custom-text"
+              className="flex items-center gap-2 text-xs"
+            >
+              <dt className="text-muted-foreground">{t("line.customText")}</dt>
+              <dd className="min-w-0 font-medium">«{line.configSnapshot.customText}»</dd>
+            </div>
+          )}
           <div className="flex items-center gap-2 text-xs">
             <dt className="text-muted-foreground">{t("line.ceramic")}</dt>
             <dd className="flex items-center gap-1.5 font-medium">

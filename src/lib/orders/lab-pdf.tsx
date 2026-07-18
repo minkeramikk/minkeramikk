@@ -75,6 +75,7 @@ const s = StyleSheet.create({
   cellHex: { fontSize: 8, color: THEME.muted },
   code: { fontSize: 9, color: THEME.accent, marginTop: 6, fontFamily: "Helvetica-Bold" },
   note: { marginTop: 4, fontSize: 9, color: THEME.muted },
+  customText: { marginTop: 4, fontSize: 11, fontWeight: 700, color: THEME.ink },
   foot: {
     position: "absolute",
     bottom: 0,
@@ -223,6 +224,9 @@ export function LabPdfDocument({
                   Customer note: {item.customNote || "Complementary colours (studio's choice)"}
                 </Text>
               )}
+              {item.customText ? (
+                <Text style={s.customText}>TEKST PÅ PRODUKTET: «{item.customText}»</Text>
+              ) : null}
             </View>
           </View>
         ))}

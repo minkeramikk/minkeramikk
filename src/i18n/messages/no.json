@@ -130,6 +130,12 @@
       "counter": "{count}/250",
       "selectedFigure": "Valgt figur"
     },
+    "customText": {
+      "title": "Tekst på keramikken",
+      "placeholder": "f.eks. Gratulerer med dagen bestemor",
+      "helper": "Verkstedet bekrefter den endelige teksten før produksjon — endrer ikke forhåndsvisningen.",
+      "counter": "{count}/100"
+    },
     "productCard": {
       "details": "Produktdetaljer"
     },
@@ -137,7 +143,7 @@
       "kicker": "Ditt valg",
       "edit": "Endre farger",
       "editShort": "Endre",
-      "pairCaption": "Denne keramikken + ditt design «{name}»"
+      "pairCaption": "Denne keramikken + ditt design"
     }
   },
   "orderForm": {
@@ -201,7 +207,8 @@
       "expand": "Vis detaljer",
       "collapse": "Skjul detaljer",
       "edit": "Rediger design",
-      "ceramic": "Keramikk"
+      "ceramic": "Keramikk",
+      "customText": "Tekst"
     },
     "colourBadge": {
       "custom": "Egendefinerte farger",

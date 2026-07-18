@@ -123,6 +123,16 @@ export function ConfiguratorClient({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- key on design only
   }, [selected.slug]);
 
+  // F38: custom inscription. Lives in state + the working URL (text=) only —
+  // never the config code nor the set= link (privacy/lean, like the note).
+  const [customText, setCustomText] = useState(searchParams.get("text") ?? "");
+
+  // Reset when the selected design changes (per-design field).
+  useEffect(() => {
+    setCustomText(new URLSearchParams(searchParams.toString()).get("text") ?? "");
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- key on design only
+  }, [selected.slug]);
+
   // Focus the textarea when "I'll choose" is selected (AC3, also for SR users).
   // R3-A: preventScroll — the textarea is at the page bottom; the default
   // scroll-into-view shifts the IntersectionObserver ratio behind the step-2
@@ -301,6 +311,12 @@ export function ConfiguratorClient({
       params.set("note", noteText.trim());
     } else {
       params.delete("note");
+    }
+    // F38: carry the inscription forward only when the design accepts it.
+    if (detail.acceptsCustomText && customText.trim()) {
+      params.set("text", customText.trim());
+    } else {
+      params.delete("text");
     }
     // CA-6b: default scroll (top) on step change — the new step starts from
     // its beginning; option selects keep scroll:false (same view).
@@ -774,6 +790,43 @@ export function ConfiguratorClient({
                     </div>
                   </div>
                 )}
+              </section>
+            )}
+
+            {/* F38: custom inscription — only when the design supports it.
+                Plain optional input (no default/custom toggle, unlike the note);
+                lives in state + text= URL param only, never the code/preview. */}
+            {detail.acceptsCustomText && (
+              <section
+                data-testid="custom-text"
+                className="rounded-sm border border-border bg-card/40 p-4"
+              >
+                <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-[0.06em]">
+                  {t("customText.title")}
+                </h3>
+                <input
+                  type="text"
+                  data-testid="custom-text-input"
+                  value={customText}
+                  maxLength={100}
+                  onChange={(e) => setCustomText(e.target.value)}
+                  placeholder={t("customText.placeholder")}
+                  aria-label={t("customText.title")}
+                  aria-describedby="custom-text-helper"
+                  className="w-full rounded-sm border border-input bg-card p-2 text-base focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring md:text-sm"
+                />
+                <div className="mt-1 flex items-start justify-between gap-3">
+                  <p
+                    id="custom-text-helper"
+                    data-testid="custom-text-helper"
+                    className="text-xs text-muted-foreground"
+                  >
+                    {t("customText.helper")}
+                  </p>
+                  <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+                    {t("customText.counter", { count: customText.length })}
+                  </span>
+                </div>
               </section>
             )}
 

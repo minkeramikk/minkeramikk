@@ -34,6 +34,7 @@ erDiagram
         text preview_image
         int sort_order
         bool active
+        bool accepts_custom_text "F38 — design accepts a customer inscription"
     }
 
     option_categories {
