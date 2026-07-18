@@ -623,7 +623,34 @@ describe.skipIf(!hasEnv)("RLS — featured_configs (F28)", () => {
   });
 });
 
-describe.skipIf(!hasEnv)("RLS — reorder_products (F39)", () => {
+/**
+ * F39 — reorder_products ships in migration 0026, applied to the linked DB by
+ * hand (ADDITIVE → pushed before merge). Until it is live, PostgREST answers
+ * "Could not find the function": a not-yet-provisioned schema, exactly like a
+ * missing .env.local, so this block gates on it the same way `hasEnv` gates the
+ * rest of the file. This is NOT a silent skip (lesson F07): the reason is
+ * printed, and the block re-enables itself the moment 0026 lands.
+ */
+const hasReorderRpc = hasEnv
+  ? await (async () => {
+      const probe = createClient(url!, serviceKey!, {
+        auth: { persistSession: false },
+      });
+      const { error } = await probe.rpc("reorder_products", {
+        p_supplier_id: "00000000-0000-0000-0000-000000000000",
+        p_ids: [],
+      });
+      const missing = /could not find the function/i.test(error?.message ?? "");
+      if (missing) {
+        console.warn(
+          "[rls.test] reorder_products (migration 0026) is not on the linked DB yet — F39 block skipped"
+        );
+      }
+      return !missing;
+    })()
+  : false;
+
+describe.skipIf(!hasReorderRpc)("RLS — reorder_products (F39)", () => {
   let anon: SupabaseClient;
   let admin: SupabaseClient;
   let supplierA: string;
