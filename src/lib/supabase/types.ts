@@ -657,6 +657,10 @@ export type Database = {
         Returns: string
       }
       db_size_bytes: { Args: never; Returns: number }
+      reorder_products: {
+        Args: { p_supplier_id: string; p_ids: string[] }
+        Returns: undefined
+      }
       replace_design_products: {
         Args: { p_design_id: string; p_product_ids: string[] }
         Returns: undefined

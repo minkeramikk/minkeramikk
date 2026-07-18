@@ -622,3 +622,99 @@ describe.skipIf(!hasEnv)("RLS — featured_configs (F28)", () => {
     expect(still.data?.label_no ?? null).toBeNull();
   });
 });
+
+describe.skipIf(!hasEnv)("RLS — reorder_products (F39)", () => {
+  let anon: SupabaseClient;
+  let admin: SupabaseClient;
+  let supplierA: string;
+  let supplierB: string;
+  let a1: string;
+  let a2: string;
+  let b1: string;
+
+  beforeAll(async () => {
+    anon = createClient(url!, anonKey!);
+    admin = createClient(url!, serviceKey!, {
+      auth: { persistSession: false },
+    });
+
+    const stamp = Date.now();
+    const { data: sa } = await admin
+      .from("suppliers")
+      .insert({ name: `RLS F39 A ${stamp}` })
+      .select("id")
+      .single();
+    const { data: sb } = await admin
+      .from("suppliers")
+      .insert({ name: `RLS F39 B ${stamp}` })
+      .select("id")
+      .single();
+    supplierA = sa!.id;
+    supplierB = sb!.id;
+
+    const mk = async (supplierId: string, n: number) => {
+      const { data } = await admin
+        .from("products")
+        .insert({
+          slug: `rls-f39-${supplierId.slice(0, 8)}-${n}-${stamp}`,
+          supplier_id: supplierId,
+          name_no: `RLS F39 ${n}`,
+          name_en: `RLS F39 ${n}`,
+          price_cents: 1000,
+          sort_order: n,
+        })
+        .select("id")
+        .single();
+      return data!.id as string;
+    };
+    a1 = await mk(supplierA, 1);
+    a2 = await mk(supplierA, 2);
+    b1 = await mk(supplierB, 1);
+  });
+
+  afterAll(async () => {
+    await admin.from("products").delete().in("id", [a1, a2, b1]);
+    await admin.from("suppliers").delete().in("id", [supplierA, supplierB]);
+  });
+
+  it("anon cannot execute reorder_products", async () => {
+    const { error } = await anon.rpc("reorder_products", {
+      p_supplier_id: supplierA,
+      p_ids: [a2, a1],
+    });
+    expect(error).not.toBeNull();
+  });
+
+  it("renumbers the group 1..n in one call", async () => {
+    const { error } = await admin.rpc("reorder_products", {
+      p_supplier_id: supplierA,
+      p_ids: [a2, a1],
+    });
+    expect(error).toBeNull();
+    const { data } = await admin
+      .from("products")
+      .select("id, sort_order")
+      .in("id", [a1, a2]);
+    const byId = Object.fromEntries((data ?? []).map((r) => [r.id, r.sort_order]));
+    expect(byId[a2]).toBe(1);
+    expect(byId[a1]).toBe(2);
+  });
+
+  it("raises when an id belongs to another supplier (AC-D3, forged request)", async () => {
+    const { error } = await admin.rpc("reorder_products", {
+      p_supplier_id: supplierA,
+      p_ids: [a1, b1],
+    });
+    expect(error).not.toBeNull();
+    expect(error!.message).toMatch(/not in supplier/i);
+  });
+
+  it("leaves the other supplier's order untouched after the failed call", async () => {
+    const { data } = await admin
+      .from("products")
+      .select("sort_order")
+      .eq("id", b1)
+      .single();
+    expect(data!.sort_order).toBe(1);
+  });
+});
