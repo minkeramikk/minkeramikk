@@ -161,46 +161,97 @@ export async function toggleProductVisible(formData: FormData): Promise<void> {
 }
 
 /**
- * Move a product up/down (arrows ↑↓, same UX as F28 featured). The list is
- * RENUMBERED 1..n after the move, never value-swapped: products default to
- * sort_order=0 so duplicates are the norm and a swap of equal values would be a
- * silent no-op — renumbering is idempotent and self-healing. Tie-break is `id`
- * (products has no created_at), matching the list page ordering.
+ * Orders keep their own snapshots (`product_name_snapshot`, `price_cents_snapshot`,
+ * …) and `order_items.product_id` is ON DELETE SET NULL, so deleting a ceramic
+ * never destroys order history — it only detaches the link. What CAN block is
+ * another table holding a RESTRICT reference (23503).
  */
-export async function moveProduct(
-  // bound client-side: React does NOT forward the submitter button's
-  // name/value to plain form server actions.
-  direction: "up" | "down",
-  formData: FormData
-): Promise<void> {
-  const id = z.string().uuid().safeParse(formData.get("id"));
-  if (!id.success || (direction !== "up" && direction !== "down")) return;
+function deleteFailureMessage(code: string | undefined): string {
+  return code === "23503"
+    ? "Still referenced elsewhere — hide it (Visible = No) instead of deleting."
+    : "Could not delete.";
+}
+
+/** Inline row delete: returns the error instead of redirecting, so the list can show it. */
+export async function deleteProductById(
+  id: string
+): Promise<{ error: string | null }> {
+  const parsed = z.string().uuid().safeParse(id);
+  if (!parsed.success) return { error: "Invalid product." };
 
   const supabase = await createClient();
-  const { data: rows } = await supabase
-    .from("products")
-    .select("id, sort_order")
-    .order("sort_order", { ascending: true })
-    .order("id", { ascending: true }); // stable tiebreak (no created_at)
-  if (!rows) return;
-
-  const idx = rows.findIndex((r) => r.id === id.data);
-  const target = direction === "up" ? idx - 1 : idx + 1;
-  if (idx === -1 || target < 0 || target >= rows.length) return;
-
-  const order = rows.map((r) => r.id);
-  [order[idx], order[target]] = [order[target], order[idx]];
-
-  for (let i = 0; i < order.length; i++) {
-    const row = rows.find((r) => r.id === order[i])!;
-    if (row.sort_order !== i + 1) {
-      await supabase
-        .from("products")
-        .update({ sort_order: i + 1 })
-        .eq("id", order[i]);
-    }
-  }
+  const { error } = await supabase.from("products").delete().eq("id", parsed.data);
+  if (error) return { error: deleteFailureMessage(error.code) };
 
   revalidateTag("catalog");
   revalidatePath("/admin/products");
+  return { error: null };
+}
+
+/**
+ * Delete every ceramic of ONE supplier in a single statement — all or nothing,
+ * so a blocked row can never leave the group half-emptied. Saves opening each
+ * product just to delete it.
+ */
+export async function deleteAllProductsForSupplier(
+  supplierId: string
+): Promise<{ deleted: number; error: string | null }> {
+  const parsed = z.string().uuid().safeParse(supplierId);
+  if (!parsed.success) return { deleted: 0, error: "Invalid supplier." };
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("products")
+    .delete()
+    .eq("supplier_id", parsed.data)
+    .select("id");
+  if (error) return { deleted: 0, error: deleteFailureMessage(error.code) };
+
+  revalidateTag("catalog");
+  revalidatePath("/admin/products");
+  return { deleted: data?.length ?? 0, error: null };
+}
+
+/**
+ * F39 §3-bis — persist the whole order of ONE supplier's group, once, at the
+ * end of the gesture (drag drop, or the tail of an arrow sequence).
+ *
+ * Replaces moveProduct, which fired one request per arrow click and renumbered
+ * the entire catalogue with a serial UPDATE loop. The RPC (0026) does it in one
+ * statement and refuses ids from another supplier, so a reorder can never move
+ * a product across suppliers (AC-D3) nor leave the list half-numbered (AC-D4).
+ */
+export async function reorderProducts(
+  supplierId: string,
+  orderedIds: string[]
+): Promise<{ error: string | null }> {
+  const parsed = z
+    .object({
+      supplierId: z.string().uuid(),
+      orderedIds: z.array(z.string().uuid()).min(1),
+    })
+    .safeParse({ supplierId, orderedIds });
+  if (!parsed.success) return { error: "Invalid order." };
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("reorder_products", {
+    p_supplier_id: parsed.data.supplierId,
+    p_ids: parsed.data.orderedIds,
+  });
+  if (error) {
+    // The RPC refuses anything that is not the exact group (22023,
+    // invalid_parameter_value) — most often a page rendered before someone
+    // added or cloned a product. Say so: "could not save" would send the admin
+    // hunting for a fault that reloading fixes.
+    if (error.code === "22023") {
+      return { error: "This list is out of date — reload the page and try again." };
+    }
+    return { error: "Could not save the new order." };
+  }
+
+  // Only the tag: the public configurator's cached reads need it. NO
+  // revalidatePath("/admin/products") — the client already holds the new order
+  // optimistically, and an incoming RSC payload would snap the list back.
+  revalidateTag("catalog");
+  return { error: null };
 }

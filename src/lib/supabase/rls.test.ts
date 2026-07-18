@@ -622,3 +622,165 @@ describe.skipIf(!hasEnv)("RLS — featured_configs (F28)", () => {
     expect(still.data?.label_no ?? null).toBeNull();
   });
 });
+
+/**
+ * F39 — reorder_products ships in migration 0026, applied to the linked DB by
+ * hand (ADDITIVE → pushed before merge). Until it is live, PostgREST answers
+ * "Could not find the function": a not-yet-provisioned schema, exactly like a
+ * missing .env.local, so this block gates on it the same way `hasEnv` gates the
+ * rest of the file. This is NOT a silent skip (lesson F07): the reason is
+ * printed, and the block re-enables itself the moment 0026 lands.
+ */
+const hasReorderRpc = hasEnv
+  ? await (async () => {
+      const probe = createClient(url!, serviceKey!, {
+        auth: { persistSession: false },
+      });
+      const { error } = await probe.rpc("reorder_products", {
+        p_supplier_id: "00000000-0000-0000-0000-000000000000",
+        p_ids: [],
+      });
+      const missing = /could not find the function/i.test(error?.message ?? "");
+      if (missing) {
+        console.warn(
+          "[rls.test] reorder_products (migration 0026) is not on the linked DB yet — F39 block skipped"
+        );
+      }
+      return !missing;
+    })()
+  : false;
+
+describe.skipIf(!hasReorderRpc)(
+  // The reason rides in the title: vitest's default reporter swallows
+  // console.warn for a file that passes overall, so a bare warn would make this
+  // exactly the silent skip F07 taught us not to write.
+  hasReorderRpc
+    ? "RLS — reorder_products (F39)"
+    : "RLS — reorder_products (F39) — SKIPPED: migration 0026 not applied to the linked DB yet",
+  () => {
+  let anon: SupabaseClient;
+  let admin: SupabaseClient;
+  let supplierA: string;
+  let supplierB: string;
+  let a1: string;
+  let a2: string;
+  let b1: string;
+
+  beforeAll(async () => {
+    anon = createClient(url!, anonKey!);
+    admin = createClient(url!, serviceKey!, {
+      auth: { persistSession: false },
+    });
+
+    const stamp = Date.now();
+    const { data: sa } = await admin
+      .from("suppliers")
+      .insert({ name: `RLS F39 A ${stamp}` })
+      .select("id")
+      .single();
+    const { data: sb } = await admin
+      .from("suppliers")
+      .insert({ name: `RLS F39 B ${stamp}` })
+      .select("id")
+      .single();
+    supplierA = sa!.id;
+    supplierB = sb!.id;
+
+    const mk = async (supplierId: string, n: number) => {
+      const { data } = await admin
+        .from("products")
+        .insert({
+          slug: `rls-f39-${supplierId.slice(0, 8)}-${n}-${stamp}`,
+          supplier_id: supplierId,
+          name_no: `RLS F39 ${n}`,
+          name_en: `RLS F39 ${n}`,
+          price_cents: 1000,
+          sort_order: n,
+        })
+        .select("id")
+        .single();
+      return data!.id as string;
+    };
+    a1 = await mk(supplierA, 1);
+    a2 = await mk(supplierA, 2);
+    b1 = await mk(supplierB, 1);
+  });
+
+  afterAll(async () => {
+    await admin.from("products").delete().in("id", [a1, a2, b1]);
+    await admin.from("suppliers").delete().in("id", [supplierA, supplierB]);
+  });
+
+  it("anon cannot execute reorder_products", async () => {
+    const { error } = await anon.rpc("reorder_products", {
+      p_supplier_id: supplierA,
+      p_ids: [a2, a1],
+    });
+    expect(error).not.toBeNull();
+  });
+
+  it("renumbers the group 1..n in one call", async () => {
+    const { error } = await admin.rpc("reorder_products", {
+      p_supplier_id: supplierA,
+      p_ids: [a2, a1],
+    });
+    expect(error).toBeNull();
+    const { data } = await admin
+      .from("products")
+      .select("id, sort_order")
+      .in("id", [a1, a2]);
+    const byId = Object.fromEntries((data ?? []).map((r) => [r.id, r.sort_order]));
+    expect(byId[a2]).toBe(1);
+    expect(byId[a1]).toBe(2);
+  });
+
+  it("raises when an id belongs to another supplier (AC-D3, forged request)", async () => {
+    const { error } = await admin.rpc("reorder_products", {
+      p_supplier_id: supplierA,
+      p_ids: [a1, b1],
+    });
+    expect(error).not.toBeNull();
+    expect(error!.message).toMatch(/not in supplier/i);
+  });
+
+  it("raises on a partial list — a subset would renumber only part of the group", async () => {
+    const { error } = await admin.rpc("reorder_products", {
+      p_supplier_id: supplierA,
+      p_ids: [a1],
+    });
+    expect(error).not.toBeNull();
+    expect(error!.message).toMatch(/every product/i);
+  });
+
+  it("raises on a duplicated id", async () => {
+    const { error } = await admin.rpc("reorder_products", {
+      p_supplier_id: supplierA,
+      p_ids: [a1, a1],
+    });
+    expect(error).not.toBeNull();
+  });
+
+  it("raises on a duplicate ON TOP of full coverage — distinct count alone is not a permutation", async () => {
+    // [a1, a2, a1]: every id belongs to supplier A and the DISTINCT count is 2,
+    // so both original guards pass — yet the array has 3 entries and the UPDATE
+    // would match a1 twice with an unspecified winning ordinality. Only the
+    // array_length check rejects it.
+    const { error } = await admin.rpc("reorder_products", {
+      p_supplier_id: supplierA,
+      p_ids: [a1, a2, a1],
+    });
+    expect(error).not.toBeNull();
+    expect(error!.message).toMatch(/every product/i);
+    expect(error!.code).toBe("22023");
+  });
+
+  it("leaves the other supplier's order untouched after the failed call", async () => {
+    const { data } = await admin
+      .from("products")
+      .select("sort_order")
+      .eq("id", b1)
+      .single();
+    expect(data!.sort_order).toBe(1);
+  });
+}
+);

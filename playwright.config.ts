@@ -20,8 +20,11 @@ const realEmail = process.env.MK_E2E_REAL_EMAIL === "1";
 // API/route flow and share-set is desktop-only by policy → desktop only.
 const MOBILE_JOURNEYS =
   /(configurator|config-code|cart|order|admin-auth|admin-orders)\.spec\.ts$/;
+// admin-products (F39) is desktop-only on purpose: its drag&drop is native HTML5,
+// which does not fire under touch emulation — on mobile the ↑↓ arrows are the
+// reorder path, and they are covered by the desktop run too.
 const DESKTOP_JOURNEYS =
-  /(configurator|config-code|cart|order|admin-auth|admin-orders|supplier-pdf|share-set)\.spec\.ts$/;
+  /(configurator|config-code|cart|order|admin-auth|admin-orders|supplier-pdf|share-set|admin-products)\.spec\.ts$/;
 
 export default defineConfig({
   testDir: "./e2e",
