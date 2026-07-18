@@ -133,7 +133,7 @@ async function main() {
     console.log(`  Palette (${palette.length} colours):`);
     palette.forEach((p, i) => {
       console.log(
-        `   [${i}] ${p.hex}  ${p.swatch ? "◼ swatch" : "· no-swatch"}  "${p.name}"  (${p.sources} source design(s))`
+        `   [${i}] ${p.hex}  ${p.swatch ? "◼ swatch" : "· no-swatch"}  "${p.name}"  (${p.sources} option(s))`
       );
     });
 
