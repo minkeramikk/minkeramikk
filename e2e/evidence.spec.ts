@@ -117,6 +117,14 @@ test("F09: catalog CRUD — products/suppliers lists + product form", async ({ p
   await page.goto("/admin/products/new");
   await page.getByTestId("product-form").waitFor();
   await page.screenshot({ path: `${OUT09}/f09-product-form-390.png` });
+
+  await page.goto("/admin/products");
+  await page.getByTestId("product-group").first().waitFor();
+  await page.screenshot({ path: `${OUT09}/f39-products-by-supplier.png`, fullPage: true });
+
+  await page.goto("/admin/products/clone");
+  await page.getByTestId("clone-ceramics").waitFor();
+  await page.screenshot({ path: `${OUT09}/f39-clone-ceramics.png`, fullPage: true });
 });
 
 const OUT06 = "docs/evidence/f06";
