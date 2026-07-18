@@ -10,7 +10,7 @@ export default async function AdminDesignsPage() {
   const supabase = await createClient();
   const { data: designs } = await supabase
     .from("designs")
-    .select("id, name, code, active, sort_order, suppliers(name), option_categories(id)")
+    .select("id, name, name_no, name_en, code, active, sort_order, suppliers(name), option_categories(id)")
     .order("sort_order", { ascending: true });
 
   const rows = designs ?? [];
@@ -71,7 +71,11 @@ export default async function AdminDesignsPage() {
                       </td>
                       <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-3">
-                          <DuplicateDesignButton designId={d.id} />
+                          <DuplicateDesignButton
+                            designId={d.id}
+                            designNameNo={d.name_no ?? d.name}
+                            designNameEn={d.name_en ?? d.name}
+                          />
                           <Link
                             href={`/admin/designs/${d.id}`}
                             data-testid="design-edit"

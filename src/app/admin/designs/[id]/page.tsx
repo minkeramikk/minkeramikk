@@ -184,6 +184,7 @@ export default async function EditDesignPage({
                 descriptionStep2No: design.description_step2_no,
                 descriptionStep2En: design.description_step2_en,
                 supplierId: design.supplier_id,
+                slug: design.slug,
                 previewImage: design.preview_image,
                 sortOrder: design.sort_order,
                 active: design.active,

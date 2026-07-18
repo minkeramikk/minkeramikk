@@ -22,6 +22,7 @@ import {
 import {
   saveOption,
   deleteOption,
+  deleteOptions,
   setDefaultOption,
 } from "@/app/admin/designs/options-actions";
 import { assetUrl } from "@/lib/storage";
@@ -384,6 +385,8 @@ function TreeOptionRow({
   supplierId,
   usedColourIds,
   option,
+  selected,
+  onSelect,
 }: {
   designId: string;
   categoryId: string;
@@ -393,6 +396,9 @@ function TreeOptionRow({
   /** colours used by OTHER options in this category (this option's own excluded) */
   usedColourIds: string[];
   option: OptionSlot;
+  /** Bug 6 — multi-select for the category's "Delete selected". */
+  selected: boolean;
+  onSelect: (id: string, checked: boolean) => void;
 }) {
   const [delState, del, deleting] = useActionState(deleteOption, { error: null });
   const [editState, save, saving] = useActionState(saveOption, { error: null });
@@ -418,6 +424,14 @@ function TreeOptionRow({
       className="border-b border-border/40 py-2 last:border-0"
     >
       <div className="flex items-center gap-2.5">
+        <input
+          type="checkbox"
+          checked={selected}
+          onChange={(e) => onSelect(option.id, e.target.checked)}
+          data-testid="tree-option-select"
+          aria-label={`Select ${option.name}`}
+          className="size-4 shrink-0 accent-[var(--primary)]"
+        />
         <form action={setDefault} className="flex shrink-0 items-center">
           <input type="hidden" name="optionId" value={option.id} />
           <input type="hidden" name="categoryId" value={categoryId} />
@@ -695,6 +709,17 @@ function CategoryItem({
   const [confirmDel, setConfirmDel] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
   const [showBulk, setShowBulk] = useState(false);
+  // Bug 6 — batch cleanup after a clone: multi-select + one delete.
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [confirmBatch, setConfirmBatch] = useState(false);
+  const [batchState, deleteSelected, deletingBatch] = useActionState(deleteOptions, {
+    error: null,
+  });
+  const toggleSelected = (id: string, checked: boolean) =>
+    setSelectedIds((ids) => (checked ? [...ids, id] : ids.filter((x) => x !== id)));
+  // the RSC refresh after a delete brings a shorter option list — drop the ids
+  // that no longer exist so the bar disappears instead of counting ghosts.
+  const liveSelected = selectedIds.filter((id) => cat.options.some((o) => o.id === id));
 
   // colours already used by options in this category (dup-prevention in the picker)
   const usedColourIds = cat.options
@@ -903,6 +928,66 @@ function CategoryItem({
           </form>
         )}
 
+        {/* Bug 6 — selection bar, in-place confirm (no window.confirm) */}
+        {liveSelected.length > 0 && (
+          <div
+            data-testid="tree-selection-bar"
+            className="mb-2 flex flex-wrap items-center gap-3 rounded-lg border border-border bg-muted/40 px-3 py-2 text-xs"
+          >
+            <span data-testid="tree-selection-count" className="font-medium">
+              {liveSelected.length} selected
+            </span>
+            {confirmBatch ? (
+              <form action={deleteSelected} className="flex items-center gap-3">
+                <input type="hidden" name="designId" value={designId} />
+                <input type="hidden" name="categoryId" value={cat.id} />
+                <input type="hidden" name="ids" value={JSON.stringify(liveSelected)} />
+                <button
+                  type="submit"
+                  disabled={deletingBatch}
+                  data-testid="tree-confirm-delete-selected"
+                  className="font-medium text-destructive"
+                >
+                  {deletingBatch
+                    ? "Deleting…"
+                    : `Yes, delete ${liveSelected.length} option${liveSelected.length !== 1 ? "s" : ""}`}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmBatch(false)}
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  Cancel
+                </button>
+              </form>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setConfirmBatch(true)}
+                data-testid="tree-delete-selected"
+                className="font-medium text-destructive hover:underline"
+              >
+                Delete selected
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedIds([]);
+                setConfirmBatch(false);
+              }}
+              className="ml-auto text-muted-foreground hover:text-foreground"
+            >
+              Clear
+            </button>
+            {batchState.error && (
+              <span role="alert" className="text-destructive">
+                {batchState.error}
+              </span>
+            )}
+          </div>
+        )}
+
         {/* options list */}
         {cat.options.length > 0 ? (
           <div data-testid="tree-options-list">
@@ -916,6 +1001,8 @@ function CategoryItem({
                 supplierId={supplierId}
                 usedColourIds={usedColourIds.filter((id) => id !== opt.supplierColorId)}
                 option={opt}
+                selected={liveSelected.includes(opt.id)}
+                onSelect={toggleSelected}
               />
             ))}
           </div>

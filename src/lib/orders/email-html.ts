@@ -9,6 +9,7 @@
  * `html`, so the message is sent multipart.
  */
 import { formatMoney, money, type Currency } from "@/lib/money/money";
+import { shippingStatus } from "@/lib/cart/shipping";
 import type { ThemeTokens } from "@/lib/theme";
 
 export interface MailItem {
@@ -46,14 +47,11 @@ function totals(items: MailItem[], locale: "no" | "en") {
         )}`
     )
     .join("\n");
-  const total = formatMoney(
-    money(
-      items.reduce((n, i) => n + i.unitPriceCents * i.quantity, 0),
-      (items[0]?.currency ?? "NOK") as Currency
-    ),
-    locale
+  const totalMoney = money(
+    items.reduce((n, i) => n + i.unitPriceCents * i.quantity, 0),
+    (items[0]?.currency ?? "NOK") as Currency
   );
-  return { lines, total };
+  return { lines, total: formatMoney(totalMoney, locale), totalMoney };
 }
 
 /**
@@ -166,6 +164,10 @@ const COPY = {
       "Dette er en spesialbestilling — vi tar kontakt for å bekrefte designet før noe skal betales.",
     reopen: "Åpne settet ditt på nytt",
     totalLabel: "Totalt",
+    // R3-B4 · TODO:alessio-review — provisional wording, same source as cart.insurance.*
+    shippingLabel: "Frakt med forsikring",
+    shippingIncluded: "Inkludert",
+    shippingToBeConfirmed: "Beregnes",
     noteLabel: "Din beskjed til verkstedet", // TODO:nb-review
     textLabel: "Tekst på keramikken", // TODO:nb-review
     legalIntro:
@@ -183,6 +185,9 @@ const COPY = {
       "This is a custom order — we'll get in touch to confirm the design before anything is paid.",
     reopen: "Reopen your set",
     totalLabel: "Total",
+    shippingLabel: "Insured shipping",
+    shippingIncluded: "Included",
+    shippingToBeConfirmed: "To be confirmed",
     noteLabel: "Your note to the workshop",
     textLabel: "Inscription on the ceramic",
     legalIntro:
@@ -218,10 +223,15 @@ export function customerEmail(params: {
         c.legalPrivacy
       )}</a>.</div>`
     : undefined;
-  const { lines, total } = totals(params.items, params.locale);
+  const { lines, total, totalMoney } = totals(params.items, params.locale);
+  // R3-B4: the shipping entry travels in the recap too — textual status only,
+  // no new arithmetic (the shop confirms the shipping cost by hand).
+  const shippingValue = shippingStatus(totalMoney).included
+    ? c.shippingIncluded
+    : c.shippingToBeConfirmed;
   const text =
     `${c.greeting(params.name)}\n\n${c.thanks} ${c.codeLabel}: ${params.code}.\n\n` +
-    `${lines}\n\n${c.totalLabel}: ${total}\n\n${c.custom}\n` +
+    `${lines}\n\n${c.shippingLabel}: ${shippingValue}\n${c.totalLabel}: ${total}\n\n${c.custom}\n` +
     (params.setUrl ? `\n${c.reopen}: ${params.setUrl}\n` : "") +
     `\nMin Keramikk`;
 
@@ -236,6 +246,12 @@ export function customerEmail(params: {
     )};margin-top:4px;">${esc(params.code)}</div></div>`;
 
   const totalRow = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+    <td style="padding-top:8px;font-size:13px;opacity:.75;">${esc(
+      c.shippingLabel
+    )}</td>
+    <td style="padding-top:8px;font-size:13px;opacity:.75;text-align:right;">${esc(
+      shippingValue
+    )}</td></tr><tr>
     <td style="padding-top:8px;font-size:15px;font-weight:bold;">${esc(
       c.totalLabel
     )}</td>

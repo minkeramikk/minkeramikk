@@ -10,7 +10,14 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function TermsPage() {
   const t = await getTranslations("legal.terms");
+  // R3-B4: the insurance policy is appended from `cart.insurance.policyTerms`
+  // — the SAME source the cart row reads, never re-typed into `legal.terms.body`.
+  const tInsurance = await getTranslations("cart.insurance");
   return (
-    <LegalArticle title={t("title")} body={t("body")} testid="legal-terms" />
+    <LegalArticle
+      title={t("title")}
+      body={`${t("body")}\n\n${tInsurance("policyTerms")}`}
+      testid="legal-terms"
+    />
   );
 }

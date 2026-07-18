@@ -187,8 +187,16 @@
     "viewBasket": "View basket",
     "backToCart": "Back to basket",
     "reopen": "Reopen",
-    "shipping": "Shipping",
-    "shippingIncluded": "Included",
+    "insurance": {
+      "title": "Insured shipping",
+      "included": "Included",
+      "toBeConfirmed": "To be confirmed",
+      "plusShipping": "+ shipping",
+      "nudge": "Free shipping over {threshold} — add {amount}",
+      "policyShort": "Every shipment is insured. If anything arrives damaged, let us know within 48 hours — we'll replace it free of charge. Tip: film the unboxing if you can.",
+      "readMore": "Read more",
+      "policyTerms": "8. Insured shipping\nHandmade ceramics are packed with care and always shipped insured. Should a piece be damaged in transit, we will replace it free of charge: report it within 48 hours of delivery, ideally with photos or a video of the unboxing. Replacement covers transport damage to the products."
+    },
     "itemCount": "{count, plural, =0 {Empty} one {# item} other {# items}}",
     "share": {
       "button": "Share this set",

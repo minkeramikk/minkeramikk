@@ -4,10 +4,14 @@ import { z } from "zod";
 import { redirect } from "next/navigation";
 import { revalidatePath, revalidateTag } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { uniqueSlug } from "@/lib/catalog/slug";
+import { slugify, uniqueSlug } from "@/lib/catalog/slug";
 import { assignMissingCodes } from "@/lib/configurator/assign-codes";
 import { LOGO_ASSETS } from "@/lib/catalog/design-templates";
-import { planAssetCopy, ownedAssetsToDelete } from "@/lib/catalog/design-assets";
+import {
+  planAssetCopy,
+  ownedAssetsToDelete,
+  remapOwnedAsset,
+} from "@/lib/catalog/design-assets";
 import { productsWithForeignSupplier } from "@/lib/catalog/design-products";
 import { uploadAsset } from "@/lib/catalog/upload-asset";
 import { variantPath, variantWidth } from "@/lib/asset-variants";
@@ -30,6 +34,137 @@ async function nextSortOrder(
 
 export type DesignFormState = { error: string | null; ok?: boolean };
 
+/**
+ * R3-VARIE §B — move a design's OWNED Storage assets to a new slug prefix and
+ * rewrite the paths in the DB. The slug is the assets' ownership prefix
+ * (`designs/<slug>/…`, `design-photos/<slug>/…`), so renaming it without moving
+ * the objects breaks ownership silently (future duplicate/delete stop seeing
+ * them).
+ *
+ * Order matters: copy everything FIRST (additive, reversible), then rewrite the
+ * child paths, then the slug itself. If a single copy fails we delete what we
+ * already copied and abort — the slug and every path stay as they were, never a
+ * half-moved design. The old objects are removed only at the very end,
+ * best-effort (a leftover is orphan storage, not a broken design).
+ */
+async function moveDesignAssets(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  designId: string,
+  fromSlug: string,
+  toSlug: string
+): Promise<string | null> {
+  const { data: designRaw } = await supabase
+    .from("designs")
+    .select("preview_image, option_categories(options(id, image, layer_image))")
+    .eq("id", designId)
+    .maybeSingle();
+  const design = designRaw as unknown as {
+    preview_image: string | null;
+    option_categories:
+      | {
+          options:
+            | { id: string; image: string | null; layer_image: string | null }[]
+            | null;
+        }[]
+      | null;
+  } | null;
+  if (!design) return "Design not found.";
+
+  const { data: photos } = await supabase
+    .from("design_images")
+    .select("id, image")
+    .eq("design_id", designId);
+
+  const options = (design.option_categories ?? []).flatMap((c) => c.options ?? []);
+  const oldPaths: (string | null)[] = [
+    design.preview_image,
+    ...options.flatMap((o) => [o.image, o.layer_image]),
+    ...(photos ?? []).map((p) => p.image),
+  ];
+
+  // masters to copy: only what this design OWNS (shared swatches / CDN urls
+  // are referenced as-is and must stay where they are).
+  const copies = oldPaths
+    .map((p) => planAssetCopy(p, fromSlug, toSlug))
+    .filter((c): c is NonNullable<typeof c> => c !== null);
+
+  const copied: string[] = [];
+  const rollback = async () => {
+    if (copied.length) await supabase.storage.from(ASSET_BUCKET).remove(copied);
+  };
+
+  for (const c of copies) {
+    const { error } = await supabase.storage.from(ASSET_BUCKET).copy(c.from, c.to);
+    // "already exists" at the destination is fine (a retry after a partial run).
+    if (error && !/exist/i.test(error.message)) {
+      await rollback();
+      return `Could not move "${c.from}" — the slug was NOT changed.`;
+    }
+    copied.push(c.to);
+    // F26 variants travel with their master; best-effort (a missing variant only
+    // costs the onError fallback until the backfill regenerates it).
+    const w = variantWidth(c.from);
+    const vFrom = w ? variantPath(c.from, w) : null;
+    const vTo = w ? variantPath(c.to, w) : null;
+    if (vFrom && vTo) {
+      const { error: vErr } = await supabase.storage
+        .from(ASSET_BUCKET)
+        .copy(vFrom, vTo);
+      if (!vErr) copied.push(vTo);
+    }
+  }
+
+  const remap = (p: string | null) => (p ? remapOwnedAsset(p, fromSlug, toSlug) : p);
+
+  // rewrite the children first, the slug last: if a child update fails we abort
+  // with the OLD slug still on the design, and the paths already rewritten point
+  // at objects that exist (we just copied them) — nothing dangles either way.
+  for (const o of options) {
+    const image = remap(o.image);
+    const layer = remap(o.layer_image);
+    if (image === o.image && layer === o.layer_image) continue;
+    const { error } = await supabase
+      .from("options")
+      .update({ image, layer_image: layer })
+      .eq("id", o.id);
+    if (error) {
+      await rollback();
+      return "Could not move the design images — the slug was NOT changed.";
+    }
+  }
+  for (const ph of photos ?? []) {
+    const image = remapOwnedAsset(ph.image, fromSlug, toSlug);
+    if (image === ph.image) continue;
+    const { error } = await supabase
+      .from("design_images")
+      .update({ image })
+      .eq("id", ph.id);
+    if (error) {
+      await rollback();
+      return "Could not move the design photos — the slug was NOT changed.";
+    }
+  }
+
+  const { error: slugErr } = await supabase
+    .from("designs")
+    .update({ slug: toSlug, preview_image: remap(design.preview_image) })
+    .eq("id", designId);
+  if (slugErr) {
+    await rollback();
+    return "Could not change the slug.";
+  }
+
+  // best-effort cleanup of the old prefix (net: cleanup-orphan)
+  const stale = ownedAssetsToDelete(oldPaths, fromSlug).flatMap((p) => {
+    const w = variantWidth(p);
+    const v = w ? variantPath(p, w) : null;
+    return v ? [p, v] : [p];
+  });
+  if (stale.length) await supabase.storage.from(ASSET_BUCKET).remove(stale);
+
+  return null;
+}
+
 
 const designSchema = z.object({
   id: z.string().uuid().optional().or(z.literal("")),
@@ -40,6 +175,9 @@ const designSchema = z.object({
   descriptionStep2No: z.string().trim().optional().or(z.literal("")),
   descriptionStep2En: z.string().trim().optional().or(z.literal("")),
   supplierId: z.string().uuid("Pick a supplier"),
+  // R3-VARIE §B: the slug is editable on edit; empty = keep the current one.
+  slug: z.string().trim().optional().or(z.literal("")),
+  slugConfirmed: z.coerce.boolean().default(false),
   sortOrder: z.coerce.number().int().min(0).default(0),
   active: z.coerce.boolean(),
   acceptsCustomNotes: z.coerce.boolean(),
@@ -59,6 +197,10 @@ export async function saveDesign(
     descriptionStep2No: formData.get("descriptionStep2No") ?? "",
     descriptionStep2En: formData.get("descriptionStep2En") ?? "",
     supplierId: formData.get("supplierId") ?? "",
+    slug: formData.get("slug") ?? "",
+    slugConfirmed:
+      formData.get("slugConfirmed") === "on" ||
+      formData.get("slugConfirmed") === "true",
     sortOrder: formData.get("sortOrder") ?? 0,
     active: formData.get("active") === "on" || formData.get("active") === "true",
     acceptsCustomNotes:
@@ -74,8 +216,11 @@ export async function saveDesign(
   const d = parsed.data;
   const supabase = await createClient();
 
-  // slug: permanent key — generate unique on create, keep on edit
+  // slug: generated on create; on edit it stays put unless it is explicitly
+  // changed (R3-VARIE §B) — the change is validated, confirmed and moves the
+  // design's Storage assets with it.
   let slug: string;
+  let renameFrom: string | null = null;
   if (d.id) {
     const { data: cur } = await supabase
       .from("designs")
@@ -84,9 +229,33 @@ export async function saveDesign(
       .maybeSingle();
     if (!cur) return { error: "Design not found." };
     slug = cur.slug;
+    const wanted = d.slug ?? "";
+    if (wanted && wanted !== cur.slug) {
+      if (slugify(wanted) !== wanted) {
+        return {
+          error: "Slug: lowercase letters, numbers and dashes only (e.g. amalfi-dyr).",
+        };
+      }
+      const { data: clash } = await supabase
+        .from("designs")
+        .select("id")
+        .eq("slug", wanted)
+        .maybeSingle();
+      if (clash) return { error: "That slug is already used by another design." };
+      if (!d.slugConfirmed) return { error: "Confirm the slug change to continue." };
+      renameFrom = cur.slug;
+      slug = wanted;
+    }
   } else {
     const { data: existing } = await supabase.from("designs").select("slug");
     slug = uniqueSlug(d.nameNo, (existing ?? []).map((r) => r.slug));
+  }
+
+  // Slug change: move the assets BEFORE anything else writes under the new
+  // prefix. On failure nothing changed — we bail out with the design untouched.
+  if (renameFrom && d.id) {
+    const moveError = await moveDesignAssets(supabase, d.id, renameFrom, slug);
+    if (moveError) return { error: moveError };
   }
 
   // optional preview image — token'd path (cache fix, Bug 1) + F26 variant
@@ -366,8 +535,13 @@ export async function duplicateDesign(
 
   const { data: all } = await supabase.from("designs").select("slug");
   const fromSlug = src.slug;
-  const name = `${src.name} (copy)`;
-  const toSlug = uniqueSlug(name, (all ?? []).map((r) => r.slug));
+  // R3-VARIE §B fix 1: the copy is named AT duplication (the form pre-fills
+  // "<name> (copy)"), so its slug and asset folders are born right instead of
+  // carrying a "-copy" URL forever. No name submitted → the old default.
+  const nameNo = String(formData.get("nameNo") ?? "").trim() || `${src.name_no} (copy)`;
+  const nameEn = String(formData.get("nameEn") ?? "").trim() || `${src.name_en} (copy)`;
+  const name = nameNo;
+  const toSlug = uniqueSlug(nameNo, (all ?? []).map((r) => r.slug));
 
   // copy an owned asset to the clone's folder; fall back to referencing the
   // original if the source object is missing — never leave a dangling path.
@@ -391,8 +565,8 @@ export async function duplicateDesign(
     .from("designs")
     .insert({
       name,
-      name_no: `${src.name_no} (copy)`,
-      name_en: `${src.name_en} (copy)`,
+      name_no: nameNo,
+      name_en: nameEn,
       slug: toSlug,
       supplier_id: src.supplier_id,
       description_no: src.description_no,
