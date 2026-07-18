@@ -137,3 +137,17 @@
     cursor: pointer;
   }
 }
+
+/* Ⓔ — mobile step 2: la mini-plate FAB (F31) è `fixed` in basso a destra e,
+ * con la tastiera aperta `vvBottom` la solleva proprio sopra la tastiera, cioè
+ * sopra il campo note/scritta che si sta compilando. Un tap destinato al campo
+ * finiva sulla bolla → scrollBack() → view in cima (R3-polish-A: niente scroll
+ * indotti). Mentre un campo di testo ha il focus la bolla si spegne: opacity +
+ * pointer-events soltanto, mai `display`, così non può muovere il layout di un
+ * pixel (invariante QA-fix #3 di FloatingPreview). Regola NON in @layer: deve
+ * vincere sulle utility Tailwind (`opacity-100`), che stanno in un layer
+ * successivo — la specificità da sola non basterebbe. */
+body:has(input:focus, textarea:focus) [data-testid="floating-preview"] {
+  opacity: 0;
+  pointer-events: none;
+}
