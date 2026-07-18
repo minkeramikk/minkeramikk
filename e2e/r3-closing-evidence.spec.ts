@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { mkdirSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { ADMIN_READY, adminClient, loadEnvLocal, loginAdmin } from "./helpers";
 
 /**
@@ -165,6 +165,68 @@ test("① fallback: design without description → name + CTA only", async ({ pa
   }
 });
 
+/**
+ * ⑤ lab PDF — the F38 inscription row must read "TEXT ON THE PRODUCT:" (the
+ * PDF is English for an Italian workshop). Seeds a throwaway order with an
+ * inscription, downloads the real PDF and deletes the order.
+ */
+test("⑤ lab PDF: inscription label in English", async ({ page }) => {
+  test.skip(!ADMIN_READY, "needs ADMIN_EMAIL + ADMIN_PASSWORD + service role");
+  const db = adminClient();
+  const { data: design, error: dErr } = await db
+    .from("designs")
+    .select("slug, name, supplier_id")
+    .eq("active", true)
+    .limit(1)
+    .single();
+  if (dErr) throw dErr;
+  const { data: supplier, error: sErr } = await db
+    .from("suppliers")
+    .select("id, name")
+    .eq("id", design!.supplier_id)
+    .single();
+  if (sErr) throw sErr;
+
+  const { data: order, error: oErr } = await db
+    .from("orders")
+    .insert({
+      code: `MK-EVID-R3C-${Date.now()}`,
+      customer_name: "Evidence R3-CLOSING",
+      email: "e@example.no",
+      locale: "no",
+      status: "new",
+    })
+    .select("id")
+    .single();
+  if (oErr) throw oErr;
+
+  try {
+    await db.from("order_items").insert({
+      order_id: order!.id,
+      supplier_id: supplier!.id,
+      supplier_name_snapshot: supplier!.name,
+      product_name_snapshot: "Vietri Flat",
+      price_cents_snapshot: 50000,
+      currency_snapshot: "NOK",
+      quantity: 2,
+      config_snapshot: {
+        designSlug: design!.slug,
+        designName: design!.name,
+        selections: [],
+        customText: "Gratulerer med dagen",
+      },
+    });
+
+    await loginAdmin(page);
+    const res = await page.request.get(
+      `/api/admin/orders/${order!.id}/pdf?supplier=${supplier!.id}`
+    );
+    expect(res.status()).toBe(200);
+    writeFileSync(`${OUT}/09-lab-pdf-english-label.pdf`, await res.body());
+  } finally {
+    await db.from("orders").delete().eq("id", order!.id);
+  }
+});
 
 /** ②bis clickable teaser — focus ring on step 1, in-flow position on step 2. */
 test("②bis teaser: focus state + step-2 placement", async ({ page }) => {
