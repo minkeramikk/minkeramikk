@@ -118,6 +118,8 @@ test("F09: catalog CRUD — products/suppliers lists + product form", async ({ p
   await page.getByTestId("product-form").waitFor();
   await page.screenshot({ path: `${OUT09}/f09-product-form-390.png` });
 
+  // Desktop evidence — reset from the 390px mobile viewport set above.
+  await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto("/admin/products");
   await page.getByTestId("product-group").first().waitFor();
   await page.screenshot({ path: `${OUT09}/f39-products-by-supplier.png`, fullPage: true });

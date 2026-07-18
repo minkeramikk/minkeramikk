@@ -23,6 +23,16 @@ import { adminClient, loginAdmin, ADMIN_READY } from "./helpers";
  * `saved.current` on error) is a plain state assignment with no async
  * branching worth a dedicated unit test either — it's exercised by reading,
  * which is the honest thing to say rather than fake an RPC failure here.
+ *
+ * AC-D2 (arrow-click burst) is similarly limited: this suite cannot assert
+ * how many `reorderProducts` requests a burst of clicks produced — that
+ * would need the same request interception AC-D4 is missing. The test below
+ * verifies what it CAN observe from the DOM (the arrows still reorder
+ * through a burst, the final order persists, the UI settles into "Saved ✓"),
+ * not that the clicks were coalesced into a single request: an app that
+ * dropped the debounce and fired one immediate save per click would reach
+ * the same final order and the same terminal "Saved ✓", because the saves
+ * are serialised through `chain.current`.
  */
 
 test.skip(!ADMIN_READY, "needs ADMIN_EMAIL/PASSWORD + service role");
@@ -35,6 +45,14 @@ interface Fixture {
 
 let fx: Fixture;
 
+// Populated as soon as each insert below succeeds, so afterAll can clean up
+// whatever actually got created even if a LATER step in beforeAll throws —
+// the all-or-nothing `fx` object only exists once every step has succeeded,
+// so gating cleanup on it left earlier inserts orphaned in the shared e2e DB
+// whenever a later step failed.
+const createdSupplierIds: string[] = [];
+const createdProductIds: string[] = [];
+
 test.beforeAll(async () => {
   const db = adminClient();
   const stamp = Date.now();
@@ -45,12 +63,15 @@ test.beforeAll(async () => {
     .select("id")
     .single();
   if (eA) throw eA;
+  createdSupplierIds.push(supA!.id as string);
+
   const { data: supB, error: eB } = await db
     .from("suppliers")
     .insert({ name: `E2E Products B ${stamp}`, active: true })
     .select("id")
     .single();
   if (eB) throw eB;
+  createdSupplierIds.push(supB!.id as string);
 
   const supplierAId = supA!.id as string;
   const supplierBId = supB!.id as string;
@@ -68,23 +89,28 @@ test.beforeAll(async () => {
     sort_order: n,
     pieces: 1,
   }));
-  const { error: aErr } = await db.from("products").insert(aRows);
+  const { data: aInserted, error: aErr } = await db.from("products").insert(aRows).select("id");
   if (aErr) throw aErr;
+  createdProductIds.push(...(aInserted ?? []).map((r) => r.id as string));
 
   // 1 product for B: a second group to fence a cross-group drag against
   // (AC-D3), and a supplier to clone INTO (AC1/AC2).
-  const { error: bErr } = await db.from("products").insert({
-    slug: `e2e-plate-b1-${stamp}`,
-    supplier_id: supplierBId,
-    name_no: `E2E Plate B1 ${stamp}`,
-    name_en: `E2E Plate B1 ${stamp}`,
-    price_cents: 10000,
-    currency: "NOK",
-    visible: true,
-    sort_order: 1,
-    pieces: 1,
-  });
+  const { data: bInserted, error: bErr } = await db
+    .from("products")
+    .insert({
+      slug: `e2e-plate-b1-${stamp}`,
+      supplier_id: supplierBId,
+      name_no: `E2E Plate B1 ${stamp}`,
+      name_en: `E2E Plate B1 ${stamp}`,
+      price_cents: 10000,
+      currency: "NOK",
+      visible: true,
+      sort_order: 1,
+      pieces: 1,
+    })
+    .select("id");
   if (bErr) throw bErr;
+  createdProductIds.push(...(bInserted ?? []).map((r) => r.id as string));
 
   const { data: aFetched, error: aFetchErr } = await db
     .from("products")
@@ -101,11 +127,20 @@ test.beforeAll(async () => {
 });
 
 test.afterAll(async () => {
-  if (!fx) return;
   const db = adminClient();
   // Products first (FK: supplier_id references suppliers on delete restrict).
-  await db.from("products").delete().in("supplier_id", [fx.supplierAId, fx.supplierBId]);
-  await db.from("suppliers").delete().in("id", [fx.supplierAId, fx.supplierBId]);
+  // Delete by tracked id, not by the all-or-nothing `fx` — this runs cleanup
+  // even when beforeAll threw partway through.
+  if (createdProductIds.length) {
+    await db.from("products").delete().in("id", createdProductIds);
+  }
+  // Keep the sweep-by-supplier too: it also removes clone-created rows
+  // (AC1/AC2 clones products into supplier B's group, which never went
+  // through createdProductIds).
+  if (createdSupplierIds.length) {
+    await db.from("products").delete().in("supplier_id", createdSupplierIds);
+    await db.from("suppliers").delete().in("id", createdSupplierIds);
+  }
 });
 
 const groupLocator = (page: Page, supplierId: string) =>
@@ -124,14 +159,19 @@ test("AC-D1: dragging a product changes the order and it survives a reload", asy
   const firstName = (await rows.nth(0).innerText()).split("\n")[0];
   await rows.nth(0).dragTo(rows.nth(1));
 
-  await expect(group.getByTestId("product-order-saved")).toBeVisible();
+  // Page-scoped on purpose: "product-order-saved" lives in the group's
+  // header <div>, a SIBLING of the <ul data-testid="product-group"> that
+  // `group` points at — a group-scoped getByTestId would search only the
+  // <ul>'s subtree and never find it. Only one group is mid-save here, so
+  // page-scoping is unambiguous. Do not "fix" this back to `group`.
+  await expect(page.getByTestId("product-order-saved")).toBeVisible();
 
   await page.reload();
   const reloadedRows = groupLocator(page, fx.supplierAId).getByTestId("product-row");
   await expect(reloadedRows.nth(1)).toContainText(firstName);
 });
 
-test("AC-D2: the arrows still reorder and a burst of clicks saves once", async ({
+test("AC-D2: the arrows still reorder through a fast burst and the order persists", async ({
   page,
 }) => {
   await loginAdmin(page);
@@ -146,10 +186,13 @@ test("AC-D2: the arrows still reorder and a burst of clicks saves once", async (
   await rows.nth(2).getByTestId("product-move-up").click();
   await rows.nth(1).getByTestId("product-move-up").click();
 
-  // One debounced save for the whole burst, not one per click: a single
-  // "Saved ✓" is the observable proof (product-order-list.tsx coalesces via
-  // the 600ms SAVE_DELAY_MS timer + the gen/chain guards).
-  await expect(group.getByTestId("product-order-saved")).toBeVisible();
+  // This proves the burst reorders correctly and the UI settles into
+  // "Saved ✓" — it does NOT prove the burst was coalesced into a single
+  // request (see the file-level comment above: that would need request
+  // interception this suite doesn't have).
+  // Page-scoped on purpose, same reason as AC-D1 above: "product-order-saved"
+  // is a sibling of the <ul> `group` points at, not a descendant.
+  await expect(page.getByTestId("product-order-saved")).toBeVisible();
 
   await page.reload();
   const reloadedRows = groupLocator(page, fx.supplierAId).getByTestId("product-row");
