@@ -743,6 +743,23 @@ describe.skipIf(!hasReorderRpc)(
     expect(error!.message).toMatch(/not in supplier/i);
   });
 
+  it("raises on a partial list — a subset would renumber only part of the group", async () => {
+    const { error } = await admin.rpc("reorder_products", {
+      p_supplier_id: supplierA,
+      p_ids: [a1],
+    });
+    expect(error).not.toBeNull();
+    expect(error!.message).toMatch(/every product/i);
+  });
+
+  it("raises on a duplicated id", async () => {
+    const { error } = await admin.rpc("reorder_products", {
+      p_supplier_id: supplierA,
+      p_ids: [a1, a1],
+    });
+    expect(error).not.toBeNull();
+  });
+
   it("leaves the other supplier's order untouched after the failed call", async () => {
     const { data } = await admin
       .from("products")

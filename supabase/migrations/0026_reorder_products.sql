@@ -29,9 +29,21 @@ begin
     raise exception 'reorder_products: id not in supplier % group', p_supplier_id;
   end if;
 
-  -- p_ids is expected to be a permutation of the group: the caller sends the
-  -- whole list it just reordered. A duplicated id would make which `ord` wins
-  -- nondeterministic; the drag list cannot produce one, so it is not guarded.
+  -- p_ids must be a full permutation of the group, not a subset: the UPDATE
+  -- below only touches the ids it is given, so a partial list would renumber
+  -- part of the group 1..k and leave the rest on their old values — duplicate
+  -- and gapped sort_order, silently, with no error for the admin to see.
+  -- count(distinct) also rejects a duplicated id, which would otherwise make
+  -- which `ord` wins nondeterministic. Together with the guard above (every id
+  -- belongs to the supplier) this proves p_ids is exactly the group.
+  -- A stale client — e.g. a page rendered before a clone added a product —
+  -- lands here and gets a clean failure the UI can roll back on (AC-D4).
+  if (select count(distinct pid) from unnest(p_ids) as pid)
+     <> (select count(*) from products p where p.supplier_id = p_supplier_id)
+  then
+    raise exception 'reorder_products: p_ids must list every product of supplier % exactly once', p_supplier_id;
+  end if;
+
   update products p
      set sort_order = o.ord
     from unnest(p_ids) with ordinality as o(id, ord)

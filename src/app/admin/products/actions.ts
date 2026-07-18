@@ -186,7 +186,15 @@ export async function reorderProducts(
     p_supplier_id: parsed.data.supplierId,
     p_ids: parsed.data.orderedIds,
   });
-  if (error) return { error: "Could not save the new order." };
+  if (error) {
+    // The RPC refuses anything that is not the exact group — most often a page
+    // rendered before someone added or cloned a product. Say so: "could not
+    // save" would send the admin hunting for a fault that reloading fixes.
+    if (/every product/i.test(error.message)) {
+      return { error: "This list is out of date — reload the page and try again." };
+    }
+    return { error: "Could not save the new order." };
+  }
 
   revalidateTag("catalog");
   revalidatePath("/admin/products");
