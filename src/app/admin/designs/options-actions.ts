@@ -176,6 +176,42 @@ export async function deleteOption(
   return { error: null };
 }
 
+/**
+ * Bug 6 — delete several options of a category in one go (after a clone, the
+ * cleanup is always a batch). Same delete as `deleteOption`, one round trip.
+ * The Storage objects are intentionally NOT removed here, exactly like the
+ * single delete: option images can be shared (palette swatches, CDN logos) and
+ * orphans are swept by cleanup-orphan.
+ */
+export async function deleteOptions(
+  _prev: OptionFormState,
+  formData: FormData
+): Promise<OptionFormState> {
+  const designId = String(formData.get("designId") ?? "");
+  const categoryId = z.string().uuid().safeParse(formData.get("categoryId"));
+  let raw: unknown;
+  try {
+    raw = JSON.parse(String(formData.get("ids") ?? "[]"));
+  } catch {
+    return { error: "Invalid selection." };
+  }
+  const ids = z.array(z.string().uuid()).min(1).safeParse(raw);
+  if (!ids.success || !categoryId.success) return { error: "Invalid selection." };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("options")
+    .delete()
+    .eq("category_id", categoryId.data) // never delete outside the category shown
+    .in("id", ids.data);
+  if (error) return { error: "Could not delete the selected options." };
+
+  revalidateTag("catalog");
+  revalidatePath(`/admin/designs/${designId}/categories/${categoryId.data}`);
+  revalidatePath(`/admin/designs/${designId}`);
+  return { error: null };
+}
+
 const setDefaultSchema = z.object({
   optionId: z.string().uuid(),
   categoryId: z.string().uuid(),

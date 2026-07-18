@@ -46,6 +46,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 import { duplicateDesign, createDesignFromTemplate, saveDesign } from "./actions";
+import { deleteOptions } from "./options-actions";
 
 const isRedirect = (e: unknown): boolean =>
   e instanceof Error &&
@@ -498,5 +499,85 @@ describe.skipIf(!hasEnv)("R3-VARIE §B — design slug (integration)", () => {
 
     const { data: after } = await db.from("designs").select("slug").eq("id", src.id).single();
     expect(after!.slug).toBe(`r3b-guard-${ts}`);
+  });
+});
+
+/** Bug 6 — batch option delete, scoped to the category it was issued from. */
+describe.skipIf(!hasEnv)("Bug 6 — deleteOptions (integration)", () => {
+  let db: SupabaseClient;
+  let supplierId: string;
+  let designId: string;
+  let catA: string;
+  let catB: string;
+  let ids: string[];
+  let strayId: string;
+
+  beforeAll(async () => {
+    db = createSb(url!, serviceKey!, { auth: { persistSession: false } });
+    mockDb.client = db;
+    const ts = Date.now();
+    supplierId = (
+      await db.from("suppliers").insert({ name: `Bug6 ${ts}` }).select("id").single()
+    ).data!.id;
+    designId = (
+      await db
+        .from("designs")
+        .insert({ name: `Bug6 ${ts}`, name_no: "B6", name_en: "B6", slug: `bug6-${ts}`, supplier_id: supplierId })
+        .select("id")
+        .single()
+    ).data!.id;
+    const mkCat = async (slug: string) =>
+      (
+        await db
+          .from("option_categories")
+          .insert({ design_id: designId, slug, label_no: slug, label_en: slug, kind: "image", layer_slot: "detail", sort_order: 0 })
+          .select("id")
+          .single()
+      ).data!.id as string;
+    catA = await mkCat(`a-${ts}`);
+    catB = await mkCat(`b-${ts}`);
+
+    const { data: made } = await db
+      .from("options")
+      .insert([
+        { category_id: catA, name: "one", image: "x/1.png", sort_order: 0, active: true },
+        { category_id: catA, name: "two", image: "x/2.png", sort_order: 1, active: true },
+        { category_id: catA, name: "three", image: "x/3.png", sort_order: 2, active: true },
+      ])
+      .select("id, name");
+    ids = made!.filter((o) => o.name !== "three").map((o) => o.id);
+    strayId = (
+      await db
+        .from("options")
+        .insert({ category_id: catB, name: "other", image: "x/9.png", sort_order: 0, active: true })
+        .select("id")
+        .single()
+    ).data!.id;
+  });
+
+  afterAll(async () => {
+    await db.from("designs").delete().eq("id", designId);
+    await db.from("suppliers").delete().eq("id", supplierId);
+  });
+
+  it("deletes exactly the selected options, and nothing from another category", async () => {
+    const res = await deleteOptions(
+      { error: null },
+      fd({ designId, categoryId: catA, ids: JSON.stringify([...ids, strayId]) })
+    );
+    expect(res.error).toBeNull();
+
+    const { data: left } = await db.from("options").select("id, name").eq("category_id", catA);
+    expect(left!.map((o) => o.name)).toEqual(["three"]);
+    // the id from the OTHER category was in the payload but is scoped out
+    const { data: stray } = await db.from("options").select("id").eq("id", strayId).maybeSingle();
+    expect(stray).not.toBeNull();
+  });
+
+  it("refuses an empty or malformed selection", async () => {
+    expect((await deleteOptions({ error: null }, fd({ designId, categoryId: catA, ids: "[]" }))).error)
+      .toMatch(/invalid selection/i);
+    expect((await deleteOptions({ error: null }, fd({ designId, categoryId: catA, ids: "not json" }))).error)
+      .toMatch(/invalid selection/i);
   });
 });
