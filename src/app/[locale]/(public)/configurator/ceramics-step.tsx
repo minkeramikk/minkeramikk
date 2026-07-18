@@ -39,7 +39,7 @@ import {
 } from "@/lib/catalog/product-attributes";
 import { fullRowInsertIndex } from "@/lib/configurator/grid-rows";
 import { formatSelections } from "@/lib/configurator/readable-selections";
-import { Weight, Circle, Ruler, Tag, Check, ChevronDown, MoveVertical, Container } from "lucide-react";
+import { Weight, Circle, Ruler, Tag, Check, MoveVertical, MoveHorizontal, Container } from "lucide-react";
 import type { ResolvedSharedSet } from "./resolve-shared-set";
 import { cn } from "@/lib/utils";
 import { NewDesignButton } from "./new-design-button";
@@ -76,6 +76,7 @@ const ATTR_ICON: Record<AttributeKey, typeof Weight> = {
   diameter: Circle,
   dimensions: Ruler,
   height: MoveVertical,
+  length: MoveHorizontal,
   volume: Container,
   custom: Tag,
 };
@@ -156,8 +157,8 @@ function CeramicOptionCard({
 /**
  * R2-3+R2-4 — full-row expanded panel rendered after the selected card's row.
  * Contains qty stepper + Add anchored at top, aria-live confirmation, the typed
- * spec chips ALWAYS visible, and a chevron "Product details" toggle (CLOSED by
- * default) that reveals the product description (R2-6 F, rev 2).
+ * spec chips ALWAYS visible, and the "Product details" description block, also
+ * always visible (R3-VARIE-D — the R2-6 F toggle is gone).
  */
 function ExpandedProductCard({
   product: p,
@@ -183,9 +184,6 @@ function ExpandedProductCard({
   // R2 fix: the "added" confirmation shows ONLY right after a successful add,
   // then auto-dismisses (it used to render by default on every card).
   const [showAdded, setShowAdded] = useState(false);
-  // R2-6 F (rev 2): "Product details" (the description) is expandable, CLOSED by
-  // default. The typed spec chips above stay always-visible, outside this toggle.
-  const [open, setOpen] = useState(false);
   const addedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const description = locale === "no" ? p.descriptionNo : p.descriptionEn;
   // Storefront shows only customer-facing attributes (weight is internal).
@@ -309,11 +307,9 @@ function ExpandedProductCard({
         {showAdded ? tCart("added") : ""}
       </span>
 
-      {/* R2-6 F (rev 2): typed metadata is ALWAYS visible (no chevron) and sits
-          above "Product details". The description lives behind an expandable
-          "Product details" toggle, CLOSED by default. Weight stays internal
-          (publicAttributes filters it). Each section self-gates: no attributes
-          → no chip row; no description → no toggle. */}
+      {/* R2-6 F (rev 2): typed metadata is ALWAYS visible and sits above
+          "Product details". Weight stays internal (publicAttributes filters
+          it). Each section self-gates: no attributes → no chip row. */}
       {attributes.length > 0 && (
         <ul data-testid="spec-chips" className="flex flex-wrap gap-2">
           {attributes.map((a, i) => {
@@ -333,31 +329,17 @@ function ExpandedProductCard({
         </ul>
       )}
 
+      {/* R3-VARIE-D: "Product details" is ALWAYS open — no chevron, no
+          aria-expanded (revises the AC of R2-3-4 / R2-6-F). The section still
+          self-gates: no description → nothing rendered. */}
       {description && (
         <div className="flex flex-col gap-1">
-          <button
-            type="button"
-            data-testid="details-toggle"
-            aria-expanded={open}
-            aria-controls={`details-${p.slug}`}
-            onClick={() => setOpen((o) => !o)}
-            className="flex min-h-11 items-center gap-1 self-start text-sm font-medium text-foreground"
-          >
+          <p className="text-sm font-medium text-foreground">
             {tCfg("productCard.details")}
-            <ChevronDown
-              className={cn("size-4 transition-transform", open && "rotate-180")}
-              aria-hidden
-            />
-          </button>
-          {open && (
-            <p
-              id={`details-${p.slug}`}
-              data-testid="product-details"
-              className="text-sm text-foreground"
-            >
-              {description}
-            </p>
-          )}
+          </p>
+          <p data-testid="product-details" className="text-sm text-foreground">
+            {description}
+          </p>
         </div>
       )}
     </div>

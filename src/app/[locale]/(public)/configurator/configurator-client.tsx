@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
 import { usePathname, useRouter } from "@/i18n/navigation";
@@ -27,7 +27,7 @@ import {
   type CodecDesign,
 } from "@/lib/configurator/config-code";
 import { pickDefaultOption } from "@/lib/configurator/default-option";
-import { useVisualViewportBottom } from "@/lib/configurator/use-visual-viewport-bottom";
+import { fullRowInsertIndex } from "@/lib/configurator/grid-rows";
 import { cn } from "@/lib/utils";
 import type { DesignDetail } from "@/lib/catalog/design-options";
 import type { PreviewLayer } from "@/lib/configurator/preview";
@@ -41,6 +41,9 @@ export interface DesignChoice {
   nameEn: string;
   supplierId: string;
   supplierName: string | null;
+  /** R3-B23: per-locale description shown in the step-1 contextual block. */
+  descriptionNo: string | null;
+  descriptionEn: string | null;
   previewImage: string | null;
   defaultLayers: PreviewLayer[];
 }
@@ -88,8 +91,16 @@ export function ConfiguratorClient({
   const searchParams = useSearchParams();
   /** F31: the big preview's container — observed by the mobile floating bubble */
   const previewRef = useRef<HTMLDivElement>(null);
-  // R3-B: lift the fixed mobile bar above the on-screen keyboard (iOS).
-  const vvBottom = useVisualViewportBottom();
+  // R3-B23: live column count (2 under sm, 3 from sm) — same grid as step 3, so
+  // the contextual block lands after the LAST card of the selected card's row.
+  const [cols, setCols] = useState(2);
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 640px)");
+    const apply = () => setCols(mq.matches ? 3 : 2);
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, []);
 
   const step = searchParams.get("step") === "2" ? 2 : 1;
   const urlSlug = searchParams.get("design");
@@ -97,6 +108,15 @@ export function ConfiguratorClient({
     designs.find((d) => d.slug === urlSlug) ?? designs[0]; // sort_order=1 default (AC1)
   const detail = detailsBySlug[selected.slug];
   const colorLock = searchParams.get("lock") === "1";
+  // R3-B23: the block describes the SELECTION, so it takes name/description from
+  // `selected` and is injected after the last card of the selected card's row.
+  const contextBlockAfter = fullRowInsertIndex(
+    designs.findIndex((d) => d.slug === selected.slug),
+    cols,
+    designs.length
+  );
+  const selectedDescription =
+    locale === "no" ? selected.descriptionNo : selected.descriptionEn;
 
   const selections = useMemo(
     () => resolveSelections(detail, new URLSearchParams(searchParams.toString())),
@@ -215,8 +235,9 @@ export function ConfiguratorClient({
     "#9bb7d4",
   ];
   const teaserThumbs = teaserProducts[selected.supplierId] ?? [];
-  // step 1 teaser is now static → always shown; step 2 still needs real thumbs.
-  const showTeaser = step === 1 ? true : teaserThumbs.length > 0;
+  // VARIE-A-bis: the teaser IS the in-flow next-step CTA, so it always renders —
+  // a supplier with no product photos would otherwise leave step 2 without one.
+  // The thumb strip self-gates instead (no photos → text + chevron only).
 
   // ── F15 / QA#3: keep the live preview visible while the option list scrolls ──
   // Desktop: the preview column is sticky (CSS only, md:sticky). Mobile: it scrolls
@@ -367,17 +388,21 @@ export function ConfiguratorClient({
     setNoteMode(order[next]);
   }
 
-  // CA-6 / CA-6b: informative teaser of the NEXT step — not clickable (no
-  // role, no handler). Rendered twice: desktop under the
-  // sticky preview (F15), mobile at the END of the options column (CA-6b) so
-  // it never lengthens the scroll to the options (the CA-2 pain point).
-  // Images: existing F26 variants only, lazy.
+  // CA-6 / CA-6b: teaser of the NEXT step. VARIE-A-bis: the whole block is the
+  // CTA — a real <button> (keyboard + SR reachable, hover/focus visible), not a
+  // div with a handler. On step 2 it IS the in-flow "next" of VARIE-A: one
+  // element, one gesture, no CTA doubled next to it.
+  // Rendered twice: desktop under the sticky preview (F15), mobile in the
+  // options column. Images: existing F26 variants only, lazy.
   function renderTeaser(className: string) {
     return (
-      <div
+      <button
+        type="button"
         data-testid="next-step-teaser"
         data-design={selected.slug}
-        className={`${className} flex items-center gap-4 rounded-sm border border-border bg-card/55 p-4`}
+        aria-label={step === 1 ? t("teaser.goToColors") : t("teaser.goToCeramics")}
+        onClick={() => goToStep(step === 1 ? 2 : 3)}
+        className={`${className} flex w-full items-center gap-4 rounded-sm border border-border bg-card/55 p-4 text-left transition-colors hover:border-ring hover:bg-card focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring`}
       >
         {step === 1 ? (
           // Decorative colour teaser: FIXED dots, identical for every design,
@@ -398,7 +423,7 @@ export function ConfiguratorClient({
               />
             ))}
           </div>
-        ) : (
+        ) : teaserThumbs.length > 0 ? (
           <div className="flex shrink-0 gap-2.5" aria-hidden>
             {teaserThumbs.map((img) => (
               // eslint-disable-next-line @next/next/no-img-element -- catalog art from storage
@@ -412,7 +437,7 @@ export function ConfiguratorClient({
               />
             ))}
           </div>
-        )}
+        ) : null}
         <div className="min-w-0">
           <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
             {t("teaser.nextStep")}
@@ -421,7 +446,10 @@ export function ConfiguratorClient({
             {step === 1 ? t("teaser.colors") : t("teaser.ceramics")}
           </p>
         </div>
-      </div>
+        <span aria-hidden className="ml-auto shrink-0 text-muted-foreground">
+          ›
+        </span>
+      </button>
     );
   }
 
@@ -497,13 +525,13 @@ export function ConfiguratorClient({
           </div>
           {/* CA-6: informative teaser of the NEXT step — desktop instance,
               inside the sticky block so it follows the preview (F15). */}
-          {showTeaser && renderTeaser("max-md:hidden")}
+          {renderTeaser("max-md:hidden")}
         </div>
 
         {/* RIGHT: panel swaps with the step */}
         {step === 1 ? (
           <div
-            className="flex min-w-0 flex-col max-md:pb-20"
+            className="flex min-w-0 flex-col"
             data-testid="design-step"
             data-supplier-id={selected.supplierId}
           >
@@ -512,19 +540,48 @@ export function ConfiguratorClient({
             </p>
             <h2 className="mb-4 mt-1 text-xl font-semibold">{t("step1.title")}</h2>
             <div className="mb-5 grid grid-cols-2 gap-2.5 sm:grid-cols-3">
-              {designs.map((d) => (
-                <OptionCard
-                  key={d.id}
-                  label={designName(d)}
-                  // CA-7: design-as-a-button — composited plate from the same
-                  // default layers the preview uses (zero new assets).
-                  layers={d.defaultLayers.map((l) => ({
-                    src: assetUrl(l.src),
-                    recolor: l.blend === "multiply",
-                  }))}
-                  selected={d.slug === selected.slug}
-                  onSelect={() => selectDesign(d)}
-                />
+              {designs.map((d, i) => (
+                <Fragment key={d.id}>
+                  <OptionCard
+                    label={designName(d)}
+                    // CA-7: design-as-a-button — composited plate from the same
+                    // default layers the preview uses (zero new assets).
+                    layers={d.defaultLayers.map((l) => ({
+                      src: assetUrl(l.src),
+                      recolor: l.blend === "multiply",
+                    }))}
+                    selected={d.slug === selected.slug}
+                    onSelect={() => selectDesign(d)}
+                  />
+                  {i === contextBlockAfter && (
+                    // R3-B23: contextual block under the SELECTED card's row —
+                    // name + per-locale description + explicit next-step CTA.
+                    // Replaces the old fixed bottom bar (it sat under the thumb).
+                    // The CTA is here on EVERY viewport (client decision
+                    // 2026-07-18): this block is the primary path after picking
+                    // a design; the in-flow nav at the end of the column stays.
+                    <div
+                      data-testid="design-context-block"
+                      style={{ gridColumn: "1 / -1" }}
+                      className="rounded-sm border border-border bg-card p-3.5"
+                    >
+                      <p className="text-sm font-semibold">{designName(selected)}</p>
+                      {selectedDescription && (
+                        <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">
+                          {selectedDescription}
+                        </p>
+                      )}
+                      <Button
+                        size="lg"
+                        data-testid="next-step-mobile"
+                        className="mt-3 min-h-11 w-full"
+                        onClick={() => goToStep(2)}
+                      >
+                        {t("nextStepColors")} ›
+                      </Button>
+                    </div>
+                  )}
+                </Fragment>
               ))}
             </div>
             {/* CA-6b: mobile teaser sits right BEFORE the CTA — "what's next"
@@ -532,14 +589,13 @@ export function ConfiguratorClient({
                 the f18 invariant: nav block closed only by the code bar).
                 mb-6 = the step-2 column's gap-6, so the teaser→CTA breathing
                 room matches across steps (this column has no flex gap). */}
-            {showTeaser && renderTeaser("md:hidden mt-3 mb-6")}
+            {renderTeaser("md:hidden mt-3 mb-6")}
             {/* CA-2: advance CTA closes the options column — natural end of
                 the flow, single instance for every viewport. No Back here:
                 step 1 is the first step. */}
-            {/* Desktop only: on mobile the sticky CTA below is the single
-                Next-step (R2-1b, kept for visibility). Removing the in-flow one
-                on mobile fixes the duplicate-CTA / double-copy issue; the
-                "Velg fargene dine" teaser stays above it. */}
+            {/* Desktop only: on mobile the R3-B23 contextual block carries the
+                single CTA. On desktop it stays as the end-of-column nav, below
+                the block's own CTA (client decision 2026-07-18). */}
             <div data-testid="step-nav-flow" className="max-md:hidden">
               <Button
                 size="lg"
@@ -547,29 +603,7 @@ export function ConfiguratorClient({
                 className="min-h-11 w-full"
                 onClick={() => goToStep(2)}
               >
-                {t("nextStepDetails")} ›
-              </Button>
-            </div>
-            {/* R2-1b: mobile-only sticky CTA — after choosing a design the
-                "Next step" is reachable without scrolling to the bottom of the
-                grid. Desktop keeps the in-column CTA above (unchanged). Step 1
-                only: the F31 floating preview mounts on step 2, so no overlap.
-                Keeps the config in the URL via goToStep (design + opt_* + lock). */}
-            <div
-              data-testid="next-step-mobile-bar"
-              className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 p-3 backdrop-blur supports-[backdrop-filter]:bg-background/80 md:hidden"
-              style={{
-                bottom: vvBottom,
-                paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom))",
-              }}
-            >
-              <Button
-                size="lg"
-                data-testid="next-step-mobile"
-                className="min-h-11 w-full"
-                onClick={() => goToStep(2)}
-              >
-                {t("teaser.nextStep")} ›
+                {t("nextStepColors")} ›
               </Button>
             </div>
           </div>
@@ -698,6 +732,13 @@ export function ConfiguratorClient({
                 </fieldset>
               );
             })}
+
+            {/* VARIE-A + VARIE-A-bis: the clickable teaser IS the in-flow next
+                step, placed right where the colour choice ends — reachable
+                without scrolling past notes/inscription. Mobile only: on desktop
+                the same teaser sits under the sticky preview and the nav closes
+                the column. Never fixed (CA-2 / R3-polish-B). */}
+            {renderTeaser("md:hidden")}
 
             {/* R2-2b: custom colour note block — only when the design supports it (AC2).
                 The note lives in state + URL param only; it never enters selections or
@@ -830,8 +871,6 @@ export function ConfiguratorClient({
               </section>
             )}
 
-            {/* CA-6b: mobile teaser right BEFORE the CTA (see step 1) */}
-            {showTeaser && renderTeaser("md:hidden")}
             {/* CA-2: Back + advance close the options column (last in DOM →
                 natural tab order: options → CTA). */}
             <div className="flex gap-3" data-testid="step-nav-flow">

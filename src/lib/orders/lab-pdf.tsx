@@ -225,7 +225,7 @@ export function LabPdfDocument({
                 </Text>
               )}
               {item.customText ? (
-                <Text style={s.customText}>TEKST PÅ PRODUKTET: «{item.customText}»</Text>
+                <Text style={s.customText}>TEXT ON THE PRODUCT: «{item.customText}»</Text>
               ) : null}
             </View>
           </View>

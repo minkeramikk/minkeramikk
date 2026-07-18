@@ -63,8 +63,8 @@
   "configurator": {
     "pageTitle": "Bygg din design",
     "stepIndicator": "Steg {step} av 3",
-    "nextStepDetails": "Neste steg: Detaljer",
-    "nextStepCeramic": "Neste steg: Keramikk",
+    "nextStepColors": "Neste steg: Velg farger",
+    "nextStepCeramic": "Neste steg: Velg keramikk",
     "back": "Tilbake",
     "previewNote": "Konfigurator viser designet ditt i et rundt mønster, husk at du kan også bestille serveringsfat, kopper, ildfastformer osv. i samme design, sluttresultatet bare ikke vises i konfigurator.",
     "step1": {
@@ -111,7 +111,9 @@
     "teaser": {
       "nextStep": "Neste steg",
       "colors": "Velg fargene dine",
-      "ceramics": "Velg keramikken din"
+      "ceramics": "Velg keramikken din",
+      "goToColors": "Gå til steg 2: velg farger",
+      "goToCeramics": "Gå til steg 3: velg keramikk"
     },
     "setBadge": "Sett · {count, plural, one {# del} other {# deler}}",
     "backToPreview": "Tilbake til forhåndsvisningen",

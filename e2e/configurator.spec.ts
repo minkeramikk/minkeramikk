@@ -241,12 +241,12 @@ test("R2-1a: changing the cover default in F10 changes the step-1 cover", async 
   await db.from("options").update({ is_default: true }).eq("id", current.id);
 });
 
-test("R2-1b: mobile @390 — Next-step CTA is reachable without scrolling", async ({
+test("R3-B23: mobile @390 — contextual next-step block appears under the selected design", async ({
   page,
 }, testInfo) => {
   test.skip(
     testInfo.project.name !== "mobile",
-    "mobile-only CTA (sticky bar is md:hidden)"
+    "mobile-only CTA (the block's button is md:hidden)"
   );
 
   await page.goto("/no/configurator");
@@ -254,6 +254,9 @@ test("R2-1b: mobile @390 — Next-step CTA is reachable without scrolling", asyn
   // Choose the first design (AC6 frames the CTA as "after choosing a design").
   await designCards(page).first().click();
 
+  // R3-B23: the CTA lives in the contextual block inside the grid, right after
+  // the selected card's row — no fixed bottom bar any more.
+  await expect(page.getByTestId("design-context-block")).toBeVisible();
   const cta = page.getByTestId("next-step-mobile");
   await expect(cta).toBeVisible();
 
@@ -269,6 +272,29 @@ test("R2-1b: mobile @390 — Next-step CTA is reachable without scrolling", asyn
   await cta.click();
   await expect(page).toHaveURL(/[?&]step=2/);
   await expect(page).toHaveURL(/[?&]design=/);
+});
+
+test("VARIE-A-bis: the next-step teaser is a real button and navigates", async ({
+  page,
+}) => {
+  await page.goto("/no/configurator");
+  const teaser = page.locator('[data-testid="next-step-teaser"]:visible').first();
+  await expect(teaser).toBeVisible();
+  // a real <button> (not a div+onClick) with a target-naming label
+  expect(await teaser.evaluate((el) => el.tagName)).toBe("BUTTON");
+  await expect(teaser).toHaveAttribute("aria-label", /steg 2/i);
+
+  // keyboard reachable: focus + Enter goes to step 2, config kept in the URL
+  await teaser.focus();
+  await expect(teaser).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(page).toHaveURL(/[?&]step=2/);
+
+  // step 2's teaser is the in-flow "next" of VARIE-A → step 3
+  const teaser2 = page.locator('[data-testid="next-step-teaser"]:visible').first();
+  await expect(teaser2).toHaveAttribute("aria-label", /steg 3/i);
+  await teaser2.click();
+  await expect(page).toHaveURL(/[?&]step=3/);
 });
 
 /**
@@ -347,18 +373,17 @@ test.describe("R2-3+R2-4 expandable card", () => {
       }
 
       // R2-6 F (rev 2): typed spec chips are ALWAYS visible above "Product
-      // details"; the chips carry the attributes. "Product details" is an
-      // expandable toggle, CLOSED by default, that reveals only the description.
+      // details"; the chips carry the attributes.
       const chips = page.getByTestId("spec-chips");
       await expect(chips).toBeVisible();
       await expect(chips).toContainText("Ø 22");
       await expect(chips).toContainText("Farge");
       await expect(chips).toContainText("Blå");
 
-      // Description is collapsed by default → hidden until the toggle is opened.
-      await expect(page.getByTestId("product-details")).toBeHidden();
-      await expanded.getByTestId("details-toggle").click();
+      // R3-VARIE-D: "Product details" is always open — no toggle to click and
+      // no orphan aria-expanded control left behind.
       await expect(page.getByTestId("product-details")).toBeVisible();
+      await expect(expanded.getByTestId("details-toggle")).toHaveCount(0);
 
       // Inline add → docked cart gains a line (robust: docked cart, not header badge).
       // Note: cart-line renders in BOTH the desktop panel and the mobile section

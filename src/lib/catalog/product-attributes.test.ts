@@ -159,6 +159,28 @@ describe("formatAttributeValue — height & volume (F)", () => {
   });
 });
 
+describe("length (R3-VARIE-C)", () => {
+  const length = (mm: number): TypedAttribute => ({ key: "length", labelNo: null, labelEn: null, valueNum: mm, value: null });
+
+  it("is a public numeric type entered in mm and shown in cm", () => {
+    expect(ATTRIBUTE_REGISTRY.length.publicVisible).toBe(true);
+    expect(ATTRIBUTE_REGISTRY.length.kind).toBe("num");
+    expect(ATTRIBUTE_REGISTRY.length.inputUnit).toBe("mm");
+    expect(attributeLabel(length(400), "no")).toBe("Lengde");
+    expect(attributeLabel(length(400), "en")).toBe("Length");
+    expect(formatAttributeValue(length(400), "en")).toBe("40 cm");
+    expect(formatAttributeValue(length(405), "no")).toBe("40,5 cm");
+    expect(publicAttributes([length(400)])).toHaveLength(1);
+  });
+
+  it("round-trips through the admin form field", () => {
+    expect(parseTypedAttributesField(JSON.stringify([{ key: "length", valueNum: "400" }]))).toEqual([
+      { key: "length", labelNo: null, labelEn: null, valueNum: 400, value: null },
+    ]);
+    expect(KNOWN_KEYS).toContain("length");
+  });
+});
+
 describe("mapTypedAttributes", () => {
   it("orders by sort_order and falls back unknown keys to custom", () => {
     expect(
