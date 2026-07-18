@@ -39,7 +39,7 @@ import {
 } from "@/lib/catalog/product-attributes";
 import { fullRowInsertIndex } from "@/lib/configurator/grid-rows";
 import { formatSelections } from "@/lib/configurator/readable-selections";
-import { Weight, Circle, Ruler, Tag, Check, ChevronDown, MoveVertical, Container } from "lucide-react";
+import { Weight, Circle, Ruler, Tag, Check, ChevronDown, MoveVertical, MoveHorizontal, Container } from "lucide-react";
 import type { ResolvedSharedSet } from "./resolve-shared-set";
 import { cn } from "@/lib/utils";
 import { NewDesignButton } from "./new-design-button";
@@ -76,6 +76,7 @@ const ATTR_ICON: Record<AttributeKey, typeof Weight> = {
   diameter: Circle,
   dimensions: Ruler,
   height: MoveVertical,
+  length: MoveHorizontal,
   volume: Container,
   custom: Tag,
 };
