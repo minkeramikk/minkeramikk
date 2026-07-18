@@ -235,8 +235,9 @@ export function ConfiguratorClient({
     "#9bb7d4",
   ];
   const teaserThumbs = teaserProducts[selected.supplierId] ?? [];
-  // step 1 teaser is now static → always shown; step 2 still needs real thumbs.
-  const showTeaser = step === 1 ? true : teaserThumbs.length > 0;
+  // VARIE-A-bis: the teaser IS the in-flow next-step CTA, so it always renders —
+  // a supplier with no product photos would otherwise leave step 2 without one.
+  // The thumb strip self-gates instead (no photos → text + chevron only).
 
   // ── F15 / QA#3: keep the live preview visible while the option list scrolls ──
   // Desktop: the preview column is sticky (CSS only, md:sticky). Mobile: it scrolls
@@ -387,17 +388,21 @@ export function ConfiguratorClient({
     setNoteMode(order[next]);
   }
 
-  // CA-6 / CA-6b: informative teaser of the NEXT step — not clickable (no
-  // role, no handler). Rendered twice: desktop under the
-  // sticky preview (F15), mobile at the END of the options column (CA-6b) so
-  // it never lengthens the scroll to the options (the CA-2 pain point).
-  // Images: existing F26 variants only, lazy.
+  // CA-6 / CA-6b: teaser of the NEXT step. VARIE-A-bis: the whole block is the
+  // CTA — a real <button> (keyboard + SR reachable, hover/focus visible), not a
+  // div with a handler. On step 2 it IS the in-flow "next" of VARIE-A: one
+  // element, one gesture, no CTA doubled next to it.
+  // Rendered twice: desktop under the sticky preview (F15), mobile in the
+  // options column. Images: existing F26 variants only, lazy.
   function renderTeaser(className: string) {
     return (
-      <div
+      <button
+        type="button"
         data-testid="next-step-teaser"
         data-design={selected.slug}
-        className={`${className} flex items-center gap-4 rounded-sm border border-border bg-card/55 p-4`}
+        aria-label={step === 1 ? t("teaser.goToColors") : t("teaser.goToCeramics")}
+        onClick={() => goToStep(step === 1 ? 2 : 3)}
+        className={`${className} flex w-full items-center gap-4 rounded-sm border border-border bg-card/55 p-4 text-left transition-colors hover:border-ring hover:bg-card focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring`}
       >
         {step === 1 ? (
           // Decorative colour teaser: FIXED dots, identical for every design,
@@ -418,7 +423,7 @@ export function ConfiguratorClient({
               />
             ))}
           </div>
-        ) : (
+        ) : teaserThumbs.length > 0 ? (
           <div className="flex shrink-0 gap-2.5" aria-hidden>
             {teaserThumbs.map((img) => (
               // eslint-disable-next-line @next/next/no-img-element -- catalog art from storage
@@ -432,7 +437,7 @@ export function ConfiguratorClient({
               />
             ))}
           </div>
-        )}
+        ) : null}
         <div className="min-w-0">
           <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
             {t("teaser.nextStep")}
@@ -441,7 +446,10 @@ export function ConfiguratorClient({
             {step === 1 ? t("teaser.colors") : t("teaser.ceramics")}
           </p>
         </div>
-      </div>
+        <span aria-hidden className="ml-auto shrink-0 text-muted-foreground">
+          ›
+        </span>
+      </button>
     );
   }
 
@@ -517,7 +525,7 @@ export function ConfiguratorClient({
           </div>
           {/* CA-6: informative teaser of the NEXT step — desktop instance,
               inside the sticky block so it follows the preview (F15). */}
-          {showTeaser && renderTeaser("max-md:hidden")}
+          {renderTeaser("max-md:hidden")}
         </div>
 
         {/* RIGHT: panel swaps with the step */}
@@ -581,7 +589,7 @@ export function ConfiguratorClient({
                 the f18 invariant: nav block closed only by the code bar).
                 mb-6 = the step-2 column's gap-6, so the teaser→CTA breathing
                 room matches across steps (this column has no flex gap). */}
-            {showTeaser && renderTeaser("md:hidden mt-3 mb-6")}
+            {renderTeaser("md:hidden mt-3 mb-6")}
             {/* CA-2: advance CTA closes the options column — natural end of
                 the flow, single instance for every viewport. No Back here:
                 step 1 is the first step. */}
@@ -725,6 +733,13 @@ export function ConfiguratorClient({
               );
             })}
 
+            {/* VARIE-A + VARIE-A-bis: the clickable teaser IS the in-flow next
+                step, placed right where the colour choice ends — reachable
+                without scrolling past notes/inscription. Mobile only: on desktop
+                the same teaser sits under the sticky preview and the nav closes
+                the column. Never fixed (CA-2 / R3-polish-B). */}
+            {renderTeaser("md:hidden")}
+
             {/* R2-2b: custom colour note block — only when the design supports it (AC2).
                 The note lives in state + URL param only; it never enters selections or
                 previewLayers (AC3, no-preview-mutation invariant). */}
@@ -856,8 +871,6 @@ export function ConfiguratorClient({
               </section>
             )}
 
-            {/* CA-6b: mobile teaser right BEFORE the CTA (see step 1) */}
-            {showTeaser && renderTeaser("md:hidden")}
             {/* CA-2: Back + advance close the options column (last in DOM →
                 natural tab order: options → CTA). */}
             <div className="flex gap-3" data-testid="step-nav-flow">

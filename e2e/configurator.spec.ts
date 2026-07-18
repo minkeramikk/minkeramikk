@@ -274,6 +274,29 @@ test("R3-B23: mobile @390 — contextual next-step block appears under the selec
   await expect(page).toHaveURL(/[?&]design=/);
 });
 
+test("VARIE-A-bis: the next-step teaser is a real button and navigates", async ({
+  page,
+}) => {
+  await page.goto("/no/configurator");
+  const teaser = page.locator('[data-testid="next-step-teaser"]:visible').first();
+  await expect(teaser).toBeVisible();
+  // a real <button> (not a div+onClick) with a target-naming label
+  expect(await teaser.evaluate((el) => el.tagName)).toBe("BUTTON");
+  await expect(teaser).toHaveAttribute("aria-label", /steg 2/i);
+
+  // keyboard reachable: focus + Enter goes to step 2, config kept in the URL
+  await teaser.focus();
+  await expect(teaser).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(page).toHaveURL(/[?&]step=2/);
+
+  // step 2's teaser is the in-flow "next" of VARIE-A → step 3
+  const teaser2 = page.locator('[data-testid="next-step-teaser"]:visible').first();
+  await expect(teaser2).toHaveAttribute("aria-label", /steg 3/i);
+  await teaser2.click();
+  await expect(page).toHaveURL(/[?&]step=3/);
+});
+
 /**
  * R2-3+R2-4: typed attributes + expandable product card.
  *
