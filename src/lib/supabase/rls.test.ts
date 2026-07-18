@@ -650,7 +650,14 @@ const hasReorderRpc = hasEnv
     })()
   : false;
 
-describe.skipIf(!hasReorderRpc)("RLS — reorder_products (F39)", () => {
+describe.skipIf(!hasReorderRpc)(
+  // The reason rides in the title: vitest's default reporter swallows
+  // console.warn for a file that passes overall, so a bare warn would make this
+  // exactly the silent skip F07 taught us not to write.
+  hasReorderRpc
+    ? "RLS — reorder_products (F39)"
+    : "RLS — reorder_products (F39) — SKIPPED: migration 0026 not applied to the linked DB yet",
+  () => {
   let anon: SupabaseClient;
   let admin: SupabaseClient;
   let supplierA: string;
@@ -744,4 +751,5 @@ describe.skipIf(!hasReorderRpc)("RLS — reorder_products (F39)", () => {
       .single();
     expect(data!.sort_order).toBe(1);
   });
-});
+}
+);

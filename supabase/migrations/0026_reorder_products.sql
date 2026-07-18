@@ -29,6 +29,9 @@ begin
     raise exception 'reorder_products: id not in supplier % group', p_supplier_id;
   end if;
 
+  -- p_ids is expected to be a permutation of the group: the caller sends the
+  -- whole list it just reordered. A duplicated id would make which `ord` wins
+  -- nondeterministic; the drag list cannot produce one, so it is not guarded.
   update products p
      set sort_order = o.ord
     from unnest(p_ids) with ordinality as o(id, ord)
