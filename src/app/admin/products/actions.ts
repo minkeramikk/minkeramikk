@@ -161,6 +161,58 @@ export async function toggleProductVisible(formData: FormData): Promise<void> {
 }
 
 /**
+ * Orders keep their own snapshots (`product_name_snapshot`, `price_cents_snapshot`,
+ * …) and `order_items.product_id` is ON DELETE SET NULL, so deleting a ceramic
+ * never destroys order history — it only detaches the link. What CAN block is
+ * another table holding a RESTRICT reference (23503).
+ */
+function deleteFailureMessage(code: string | undefined): string {
+  return code === "23503"
+    ? "Still referenced elsewhere — hide it (Visible = No) instead of deleting."
+    : "Could not delete.";
+}
+
+/** Inline row delete: returns the error instead of redirecting, so the list can show it. */
+export async function deleteProductById(
+  id: string
+): Promise<{ error: string | null }> {
+  const parsed = z.string().uuid().safeParse(id);
+  if (!parsed.success) return { error: "Invalid product." };
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("products").delete().eq("id", parsed.data);
+  if (error) return { error: deleteFailureMessage(error.code) };
+
+  revalidateTag("catalog");
+  revalidatePath("/admin/products");
+  return { error: null };
+}
+
+/**
+ * Delete every ceramic of ONE supplier in a single statement — all or nothing,
+ * so a blocked row can never leave the group half-emptied. Saves opening each
+ * product just to delete it.
+ */
+export async function deleteAllProductsForSupplier(
+  supplierId: string
+): Promise<{ deleted: number; error: string | null }> {
+  const parsed = z.string().uuid().safeParse(supplierId);
+  if (!parsed.success) return { deleted: 0, error: "Invalid supplier." };
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("products")
+    .delete()
+    .eq("supplier_id", parsed.data)
+    .select("id");
+  if (error) return { deleted: 0, error: deleteFailureMessage(error.code) };
+
+  revalidateTag("catalog");
+  revalidatePath("/admin/products");
+  return { deleted: data?.length ?? 0, error: null };
+}
+
+/**
  * F39 §3-bis — persist the whole order of ONE supplier's group, once, at the
  * end of the gesture (drag drop, or the tail of an arrow sequence).
  *

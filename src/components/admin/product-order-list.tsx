@@ -1,10 +1,15 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { GripVertical, ChevronUp, ChevronDown } from "lucide-react";
 import { moveItem } from "@/lib/catalog/reorder";
-import { reorderProducts, toggleProductVisible } from "@/app/admin/products/actions";
+import {
+  reorderProducts,
+  toggleProductVisible,
+  deleteProductById,
+  deleteAllProductsForSupplier,
+} from "@/app/admin/products/actions";
 
 export interface OrderRow {
   id: string;
@@ -96,18 +101,87 @@ export function ProductOrderList({ group }: { group: SupplierGroup }) {
 
   const dragIndex = dragId ? rows.findIndex((r) => r.id === dragId) : -1;
 
+  // Delete asks twice, in place. No window.confirm(): a modal dialog blocks the
+  // page for anything driving the browser, and the second click is enough.
+  const [confirming, setConfirming] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deleting, startDelete] = useTransition();
+
+  function runDelete(id: string) {
+    setConfirming(null);
+    setDeleteError(null);
+    startDelete(async () => {
+      const { error } = await deleteProductById(id);
+      if (error) setDeleteError(error);
+      // No local splice: the action revalidates the page and the sync effect
+      // above adopts the server's list — one source of truth for what exists.
+    });
+  }
+
+  function runDeleteAll() {
+    setConfirming(null);
+    setDeleteError(null);
+    startDelete(async () => {
+      const { error } = await deleteAllProductsForSupplier(group.supplierId);
+      if (error) setDeleteError(error);
+    });
+  }
+
   return (
     <div className="overflow-hidden rounded-lg border border-border bg-card">
       <div className="flex items-center justify-between border-b border-border px-4 py-2">
-        <h2 className="text-sm font-medium" data-testid="product-group-supplier">
-          {group.supplierName}
-        </h2>
+        <div className="flex items-center gap-3">
+          <h2 className="text-sm font-medium" data-testid="product-group-supplier">
+            {group.supplierName}
+          </h2>
+          {confirming === "all" ? (
+            <span className="flex items-center gap-2 text-xs">
+              <span className="text-destructive">
+                Delete all {rows.length} ceramics of {group.supplierName}?
+              </span>
+              <button
+                type="button"
+                onClick={runDeleteAll}
+                disabled={deleting}
+                data-testid="product-delete-all-confirm"
+                className="rounded-sm bg-destructive px-2 py-1 font-medium text-destructive-foreground"
+              >
+                Yes, delete
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirming(null)}
+                data-testid="product-delete-cancel"
+                className="rounded-sm border border-border px-2 py-1"
+              >
+                Cancel
+              </button>
+            </span>
+          ) : (
+            rows.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setConfirming("all")}
+                disabled={deleting}
+                data-testid="product-delete-all"
+                className="rounded-sm border border-border px-2 py-1 text-xs text-destructive"
+              >
+                Delete all
+              </button>
+            )
+          )}
+        </div>
         <span className="text-xs" role="status" aria-live="polite" data-testid="product-order-status">
           {status === "saving" && <span className="text-muted-foreground">Saving…</span>}
           {status === "saved" && <span className="text-[var(--primary)]" data-testid="product-order-saved">Saved ✓</span>}
           {status === "error" && (
             <span className="text-destructive" data-testid="product-order-error">
               Could not save the new order — the list was put back.
+            </span>
+          )}
+          {deleteError && (
+            <span className="text-destructive" data-testid="product-delete-error">
+              {deleteError}
             </span>
           )}
           {/* Announced alongside the status, never instead of it. */}
@@ -235,6 +309,39 @@ export function ProductOrderList({ group }: { group: SupplierGroup }) {
             >
               Edit
             </Link>
+
+            {confirming === p.id ? (
+              <span className="flex items-center gap-2 text-xs">
+                <button
+                  type="button"
+                  onClick={() => runDelete(p.id)}
+                  disabled={deleting}
+                  data-testid="product-delete-confirm"
+                  className="rounded-sm bg-destructive px-2 py-1 font-medium text-destructive-foreground"
+                >
+                  Delete?
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirming(null)}
+                  data-testid="product-delete-cancel"
+                  className="rounded-sm border border-border px-2 py-1"
+                >
+                  No
+                </button>
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setConfirming(p.id)}
+                disabled={deleting}
+                aria-label={`Delete ${p.nameNo}`}
+                data-testid="product-delete"
+                className="text-sm text-destructive underline-offset-2 hover:underline"
+              >
+                Delete
+              </button>
+            )}
           </li>
         ))}
       </ul>

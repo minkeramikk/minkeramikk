@@ -3,38 +3,56 @@ import { AdminShell } from "@/components/shell/admin-shell";
 import { createClient } from "@/lib/supabase/server";
 import { formatMoney, money, type Currency } from "@/lib/money/money";
 import { ProductOrderList, type SupplierGroup } from "@/components/admin/product-order-list";
+import { SupplierPicker } from "@/components/admin/supplier-picker";
 
 // Live data: a new/edited/hidden product is reflected immediately (and so is the
 // public configurator step 3, which is force-dynamic).
 export const dynamic = "force-dynamic";
 
-export default async function AdminProductsPage() {
-  const supabase = await createClient();
-  const { data: products } = await supabase
-    .from("products")
-    .select("id, supplier_id, name_no, price_cents, currency, visible, sort_order, pieces, suppliers(name)")
-    .order("sort_order", { ascending: true })
-    .order("id", { ascending: true }); // stable tiebreak inside a group
+type SearchParams = Promise<{ supplier?: string }>;
 
-  // Group by supplier, suppliers alphabetical — same order as /admin/suppliers.
-  const groups: SupplierGroup[] = [];
-  for (const p of products ?? []) {
-    const supplierName = (p.suppliers as { name: string } | null)?.name ?? "—";
-    let g = groups.find((x) => x.supplierId === p.supplier_id);
-    if (!g) {
-      g = { supplierId: p.supplier_id, supplierName, rows: [] };
-      groups.push(g);
-    }
-    g.rows.push({
-      id: p.id,
-      nameNo: p.name_no,
-      supplierId: p.supplier_id,
-      price: formatMoney(money(p.price_cents, p.currency as Currency), "en"),
-      visible: p.visible,
-      pieces: p.pieces,
-    });
-  }
-  groups.sort((a, b) => a.supplierName.localeCompare(b.supplierName));
+export default async function AdminProductsPage({
+  searchParams,
+}: {
+  searchParams: SearchParams;
+}) {
+  const { supplier } = await searchParams;
+  const supabase = await createClient();
+
+  const { data: suppliers } = await supabase
+    .from("suppliers")
+    .select("id, name")
+    .order("name");
+  const supplierList = suppliers ?? [];
+
+  // One supplier at a time: an unknown/absent ?supplier falls back to the first
+  // one alphabetically, so the page always shows a real list instead of nothing.
+  const selected =
+    supplierList.find((s) => s.id === supplier) ?? supplierList[0] ?? null;
+
+  const { data: products } = selected
+    ? await supabase
+        .from("products")
+        .select("id, supplier_id, name_no, price_cents, currency, visible, sort_order, pieces")
+        .eq("supplier_id", selected.id)
+        .order("sort_order", { ascending: true })
+        .order("id", { ascending: true }) // stable tiebreak inside the group
+    : { data: [] };
+
+  const group: SupplierGroup | null = selected
+    ? {
+        supplierId: selected.id,
+        supplierName: selected.name,
+        rows: (products ?? []).map((p) => ({
+          id: p.id,
+          nameNo: p.name_no,
+          supplierId: p.supplier_id,
+          price: formatMoney(money(p.price_cents, p.currency as Currency), "en"),
+          visible: p.visible,
+          pieces: p.pieces,
+        })),
+      }
+    : null;
 
   return (
     <AdminShell
@@ -59,13 +77,24 @@ export default async function AdminProductsPage() {
         </div>
       }
     >
-      <div data-testid="admin-products" className="flex flex-col gap-6">
-        {groups.length === 0 ? (
+      <div data-testid="admin-products" className="flex flex-col gap-4">
+        {supplierList.length > 1 && (
+          <SupplierPicker suppliers={supplierList} selectedId={selected?.id ?? ""} />
+        )}
+
+        {!group ? (
           <div className="rounded-lg border border-border bg-card p-10 text-center text-sm text-muted-foreground">
-            No products yet.
+            No suppliers yet.
+          </div>
+        ) : group.rows.length === 0 ? (
+          <div
+            data-testid="products-empty"
+            className="rounded-lg border border-border bg-card p-10 text-center text-sm text-muted-foreground"
+          >
+            No ceramics for {group.supplierName} yet.
           </div>
         ) : (
-          groups.map((g) => <ProductOrderList key={g.supplierId} group={g} />)
+          <ProductOrderList key={group.supplierId} group={group} />
         )}
       </div>
     </AdminShell>

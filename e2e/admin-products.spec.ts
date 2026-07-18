@@ -150,7 +150,9 @@ test("AC-D1: dragging a product changes the order and it survives a reload", asy
   page,
 }) => {
   await loginAdmin(page);
-  await page.goto("/admin/products");
+  // One supplier at a time now: open A explicitly, the page would otherwise
+  // default to whichever supplier sorts first across the whole catalog.
+  await page.goto(`/admin/products?supplier=${fx.supplierAId}`);
 
   const group = groupLocator(page, fx.supplierAId);
   const rows = group.getByTestId("product-row");
@@ -175,7 +177,9 @@ test("AC-D2: the arrows still reorder through a fast burst and the order persist
   page,
 }) => {
   await loginAdmin(page);
-  await page.goto("/admin/products");
+  // One supplier at a time now: open A explicitly, the page would otherwise
+  // default to whichever supplier sorts first across the whole catalog.
+  await page.goto(`/admin/products?supplier=${fx.supplierAId}`);
 
   const group = groupLocator(page, fx.supplierAId);
   const rows = group.getByTestId("product-row");
@@ -199,30 +203,23 @@ test("AC-D2: the arrows still reorder through a fast burst and the order persist
   await expect(reloadedRows.nth(0)).toContainText(name);
 });
 
-test("AC-D3: a product cannot be dragged into another supplier's group", async ({
+test("AC-D3: the picker shows one supplier at a time, so no drag can cross suppliers", async ({
   page,
 }) => {
   await loginAdmin(page);
-  await page.goto("/admin/products");
 
-  const groupA = groupLocator(page, fx.supplierAId);
-  const groupB = groupLocator(page, fx.supplierBId);
-  await expect(groupA.getByTestId("product-row")).toHaveCount(3);
-  await expect(groupB.getByTestId("product-row")).toHaveCount(1);
+  // The page now loads ONE supplier's ceramics, chosen by the picker. That is
+  // what fences AC-D3 in the UI: two groups are never on screen together, so
+  // there is nothing to drag a row into. The server-side half of AC-D3 (a
+  // forged request naming a foreign id) is asserted in the gated RLS tests for
+  // reorder_products, which raise on an id outside the supplier's group.
+  await page.goto(`/admin/products?supplier=${fx.supplierAId}`);
+  await expect(groupLocator(page, fx.supplierAId).getByTestId("product-row")).toHaveCount(3);
+  await expect(groupLocator(page, fx.supplierBId)).toHaveCount(0);
 
-  const aFirstName = (await groupA.getByTestId("product-row").first().innerText()).split(
-    "\n"
-  )[0];
-
-  await groupA
-    .getByTestId("product-row")
-    .first()
-    .dragTo(groupB.getByTestId("product-row").first());
-
-  // Confined to the group: no row crossed over, A's lead item is unmoved.
-  await expect(groupA.getByTestId("product-row")).toHaveCount(3);
-  await expect(groupB.getByTestId("product-row")).toHaveCount(1);
-  await expect(groupA.getByTestId("product-row").first()).toContainText(aFirstName);
+  await page.getByTestId("products-supplier-picker").selectOption(fx.supplierBId);
+  await expect(groupLocator(page, fx.supplierBId).getByTestId("product-row")).toHaveCount(1);
+  await expect(groupLocator(page, fx.supplierAId)).toHaveCount(0);
 });
 
 test("AC1/AC2: cloning ceramics onto another supplier creates hidden copies in the target group", async ({
@@ -247,7 +244,7 @@ test("AC1/AC2: cloning ceramics onto another supplier creates hidden copies in t
   await expect(page.getByTestId("clone-report-ok")).toHaveCount(fx.productAIds.length);
   await expect(page.getByTestId("clone-report-fail")).toHaveCount(0);
 
-  await page.goto("/admin/products");
+  await page.goto(`/admin/products?supplier=${fx.supplierBId}`);
   const groupB = groupLocator(page, fx.supplierBId);
   // The original visible product + the fresh (hidden) clones.
   await expect(groupB.getByTestId("product-row")).toHaveCount(1 + fx.productAIds.length);
