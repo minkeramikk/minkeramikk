@@ -8,7 +8,10 @@ import { buildProductClone } from "@/lib/catalog/clone-product";
 /** Per-row outcome — the panel renders one line per clone (card §2, AC2). */
 export type CloneResult =
   | { ok: true; id: string; name: string }
-  | { ok: false; name: string; error: string };
+  // `id` is present on a failure only when the row WAS created and a later step
+  // failed: the report links straight to the draft it left behind, instead of
+  // telling the admin to go hunt for it by name.
+  | { ok: false; name: string; error: string; id?: string };
 
 const args = z.object({
   sourceId: z.string().uuid(),
@@ -83,6 +86,7 @@ export async function cloneProductToSupplier(
       return {
         ok: false,
         name: src.name_no,
+        id: created.id,
         error: "Copied, but the details could not be copied — check the new ceramic.",
       };
     }
