@@ -24,13 +24,22 @@ export default async function AdminProductsPage() {
       active="/admin/products"
       title="Products"
       action={
-        <Link
-          href="/admin/products/new"
-          data-testid="new-product"
-          className="h-9 rounded-lg bg-primary px-3 text-sm font-medium leading-9 text-primary-foreground"
-        >
-          New product
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/admin/products/clone"
+            data-testid="clone-ceramics-link"
+            className="h-9 rounded-lg border border-border px-3 text-sm font-medium leading-9"
+          >
+            Clone ceramics
+          </Link>
+          <Link
+            href="/admin/products/new"
+            data-testid="new-product"
+            className="h-9 rounded-lg bg-primary px-3 text-sm font-medium leading-9 text-primary-foreground"
+          >
+            New product
+          </Link>
+        </div>
       }
     >
       <div data-testid="admin-products">
