@@ -78,6 +78,9 @@ export function CloneCeramicsPanel({
     setFromId(id);
     setSelected(new Set()); // ids from the old supplier are meaningless now
     setReport(null);
+    // Picking the current target as the source drops it from the target list;
+    // clear it too, or the select shows blank while state still holds the id.
+    if (toId === id) setToId("");
   }
 
   function run() {
