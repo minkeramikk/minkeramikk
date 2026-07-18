@@ -33,15 +33,24 @@ begin
   -- below only touches the ids it is given, so a partial list would renumber
   -- part of the group 1..k and leave the rest on their old values — duplicate
   -- and gapped sort_order, silently, with no error for the admin to see.
-  -- count(distinct) also rejects a duplicated id, which would otherwise make
-  -- which `ord` wins nondeterministic. Together with the guard above (every id
-  -- belongs to the supplier) this proves p_ids is exactly the group.
+  -- Three conditions together prove p_ids is a permutation of the group:
+  -- every id belongs to the supplier (guard above), the DISTINCT count equals
+  -- the group size, AND the array length equals it too. The length check is not
+  -- redundant: [a1, a2, a1] on a 2-product group has distinct count 2 and only
+  -- known ids, yet `unnest ... with ordinality` would match a1 twice and which
+  -- `ord` wins is unspecified. With all three, |p_ids| = |distinct p_ids| =
+  -- |group| ⇒ bijection.
   -- A stale client — e.g. a page rendered before a clone added a product —
   -- lands here and gets a clean failure the UI can roll back on (AC-D4).
+  -- ERRCODE 22023 (invalid_parameter_value) so the action can discriminate this
+  -- failure by SQLSTATE instead of matching the message text.
   if (select count(distinct pid) from unnest(p_ids) as pid)
-     <> (select count(*) from products p where p.supplier_id = p_supplier_id)
+       <> (select count(*) from products p where p.supplier_id = p_supplier_id)
+     or coalesce(array_length(p_ids, 1), 0)
+       <> (select count(*) from products p where p.supplier_id = p_supplier_id)
   then
-    raise exception 'reorder_products: p_ids must list every product of supplier % exactly once', p_supplier_id;
+    raise exception 'reorder_products: p_ids must list every product of supplier % exactly once', p_supplier_id
+      using errcode = '22023';
   end if;
 
   update products p

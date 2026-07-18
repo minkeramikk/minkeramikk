@@ -29,10 +29,22 @@ export function ProductOrderList({ group }: { group: SupplierGroup }) {
   const [dragId, setDragId] = useState<string | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  // Announced move ("Kopp moved to position 2 of 5") — an arrow click has to be
+  // perceivable without sight, and the Saving/Saved text alone does not say
+  // WHAT moved or where it landed.
+  const [announce, setAnnounce] = useState("");
 
   // The last order the server acknowledged — the rollback target (AC-D4).
   const saved = useRef(group.rows);
   const dirty = useRef(false);
+  // Bumped by every gesture. A save's continuation only owns the state if the
+  // generation it was scheduled under is still the current one — otherwise a
+  // request that resolves late would clear `dirty` on behalf of a NEWER gesture,
+  // letting the sync effect below overwrite it and cancel its pending save.
+  const gen = useRef(0);
+  // Saves run one at a time: two overlapping calls send two legal permutations,
+  // but they can commit in either order and persist the older arrangement.
+  const chain = useRef<Promise<void>>(Promise.resolve());
 
   // Server data wins whenever the page re-renders with a fresh order.
   useEffect(() => {
@@ -45,28 +57,44 @@ export function ProductOrderList({ group }: { group: SupplierGroup }) {
   function reorder(from: number, to: number) {
     if (from === to) return;
     dirty.current = true;
+    gen.current += 1;
     setStatus("saving");
+    setAnnounce(`${rows[from]?.nameNo ?? "Product"} moved to position ${to + 1} of ${rows.length}`);
     setRows((r) => moveItem(r, from, to));
   }
 
   // One debounced save per gesture: a drop, or the tail of an arrow burst.
   useEffect(() => {
     if (!dirty.current) return;
-    const before = saved.current;
-    const t = setTimeout(async () => {
-      const ids = rows.map((r) => r.id);
-      const { error } = await reorderProducts(group.supplierId, ids);
-      dirty.current = false;
-      if (error) {
-        setRows(before); // rollback to the last acknowledged order
-        setStatus("error");
-        return;
-      }
-      saved.current = rows;
-      setStatus("saved");
+    const myGen = gen.current;
+    const sending = rows; // freeze the payload: `rows` must not drift under us
+    const t = setTimeout(() => {
+      const send = async () => {
+        const { error } = await reorderProducts(
+          group.supplierId,
+          sending.map((r) => r.id)
+        ).catch(() => ({ error: "Could not save the new order." }));
+        // A newer gesture owns the list now — touch nothing, its own save is
+        // already queued behind this one.
+        if (gen.current !== myGen) return;
+        dirty.current = false;
+        if (error) {
+          // Read the acknowledged order HERE, not when the effect ran: an
+          // earlier save may have moved it on since.
+          setRows(saved.current);
+          setStatus("error");
+          return;
+        }
+        saved.current = sending;
+        setStatus("saved");
+      };
+      // `then(send, send)` also recovers the chain if a previous link rejected.
+      chain.current = chain.current.then(send, send);
     }, SAVE_DELAY_MS);
     return () => clearTimeout(t);
   }, [rows, group.supplierId]);
+
+  const dragIndex = dragId ? rows.findIndex((r) => r.id === dragId) : -1;
 
   return (
     <div className="overflow-hidden rounded-lg border border-border bg-card">
@@ -82,6 +110,8 @@ export function ProductOrderList({ group }: { group: SupplierGroup }) {
               Could not save the new order — the list was put back.
             </span>
           )}
+          {/* Announced alongside the status, never instead of it. */}
+          <span className="sr-only">{announce}</span>
         </span>
       </div>
 
@@ -126,7 +156,13 @@ export function ProductOrderList({ group }: { group: SupplierGroup }) {
               // border is information, not decoration.
               "transition-shadow motion-reduce:transition-none",
               dragId === p.id ? "opacity-60 shadow-lg motion-reduce:shadow-none" : "",
-              overId === p.id ? "border-t-2 border-t-primary" : "",
+              // The indicator sits on the edge the row will actually land on:
+              // a downward drag inserts AFTER the target, an upward one before.
+              overId === p.id
+                ? dragIndex > -1 && dragIndex < i
+                  ? "border-b-2 border-b-primary"
+                  : "border-t-2 border-t-primary"
+                : "",
             ].join(" ")}
           >
             <span
@@ -137,25 +173,30 @@ export function ProductOrderList({ group }: { group: SupplierGroup }) {
               <GripVertical className="size-4" />
             </span>
 
-            {/* Keyboard/touch fallback — secondary, but never removed (a11y). */}
+            {/* Keyboard/touch fallback — secondary, but never removed (a11y).
+                aria-disabled, not disabled: the row that just reached the top
+                disables its own ↑ in the same commit, and a disabled element
+                cannot hold focus — the browser would drop the keyboard user to
+                <body> exactly when they finish moving an item. 24px box min
+                (WCAG 2.2 SC 2.5.8); the icon alone is 14px. */}
             <span className="flex flex-col">
               <button
                 type="button"
-                disabled={i === 0}
-                onClick={() => reorder(i, i - 1)}
+                aria-disabled={i === 0}
+                onClick={() => { if (i > 0) reorder(i, i - 1); }}
                 aria-label={`Move ${p.nameNo} up`}
                 data-testid="product-move-up"
-                className="text-muted-foreground disabled:opacity-30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+                className="flex size-6 items-center justify-center rounded-sm text-muted-foreground aria-disabled:opacity-30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
               >
                 <ChevronUp className="size-3.5" />
               </button>
               <button
                 type="button"
-                disabled={i === rows.length - 1}
-                onClick={() => reorder(i, i + 1)}
+                aria-disabled={i === rows.length - 1}
+                onClick={() => { if (i < rows.length - 1) reorder(i, i + 1); }}
                 aria-label={`Move ${p.nameNo} down`}
                 data-testid="product-move-down"
-                className="text-muted-foreground disabled:opacity-30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+                className="flex size-6 items-center justify-center rounded-sm text-muted-foreground aria-disabled:opacity-30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
               >
                 <ChevronDown className="size-3.5" />
               </button>

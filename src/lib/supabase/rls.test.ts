@@ -760,6 +760,20 @@ describe.skipIf(!hasReorderRpc)(
     expect(error).not.toBeNull();
   });
 
+  it("raises on a duplicate ON TOP of full coverage — distinct count alone is not a permutation", async () => {
+    // [a1, a2, a1]: every id belongs to supplier A and the DISTINCT count is 2,
+    // so both original guards pass — yet the array has 3 entries and the UPDATE
+    // would match a1 twice with an unspecified winning ordinality. Only the
+    // array_length check rejects it.
+    const { error } = await admin.rpc("reorder_products", {
+      p_supplier_id: supplierA,
+      p_ids: [a1, a2, a1],
+    });
+    expect(error).not.toBeNull();
+    expect(error!.message).toMatch(/every product/i);
+    expect(error!.code).toBe("22023");
+  });
+
   it("leaves the other supplier's order untouched after the failed call", async () => {
     const { data } = await admin
       .from("products")

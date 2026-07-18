@@ -187,16 +187,19 @@ export async function reorderProducts(
     p_ids: parsed.data.orderedIds,
   });
   if (error) {
-    // The RPC refuses anything that is not the exact group — most often a page
-    // rendered before someone added or cloned a product. Say so: "could not
-    // save" would send the admin hunting for a fault that reloading fixes.
-    if (/every product/i.test(error.message)) {
+    // The RPC refuses anything that is not the exact group (22023,
+    // invalid_parameter_value) — most often a page rendered before someone
+    // added or cloned a product. Say so: "could not save" would send the admin
+    // hunting for a fault that reloading fixes.
+    if (error.code === "22023") {
       return { error: "This list is out of date — reload the page and try again." };
     }
     return { error: "Could not save the new order." };
   }
 
+  // Only the tag: the public configurator's cached reads need it. NO
+  // revalidatePath("/admin/products") — the client already holds the new order
+  // optimistically, and an incoming RSC payload would snap the list back.
   revalidateTag("catalog");
-  revalidatePath("/admin/products");
   return { error: null };
 }
