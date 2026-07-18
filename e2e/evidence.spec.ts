@@ -87,6 +87,7 @@ test("F10a: designs list + design detail (form + categories + preview)", async (
 });
 
 const OUT09 = "docs/evidence/f09";
+const OUT39 = "docs/evidence/f39";
 
 test("F09: catalog CRUD — products/suppliers lists + product form", async ({ page }) => {
   test.skip(
@@ -94,6 +95,7 @@ test("F09: catalog CRUD — products/suppliers lists + product form", async ({ p
     "needs a seeded admin"
   );
   mkdirSync(OUT09, { recursive: true });
+  mkdirSync(OUT39, { recursive: true });
   await page.goto("/admin/login");
   await page.getByTestId("login-email").fill(process.env.ADMIN_EMAIL!);
   await page.getByTestId("login-password").fill(process.env.ADMIN_PASSWORD!);
@@ -122,11 +124,11 @@ test("F09: catalog CRUD — products/suppliers lists + product form", async ({ p
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto("/admin/products");
   await page.getByTestId("product-group").first().waitFor();
-  await page.screenshot({ path: `${OUT09}/f39-products-by-supplier.png`, fullPage: true });
+  await page.screenshot({ path: `${OUT39}/f39-products-by-supplier.png`, fullPage: true });
 
   await page.goto("/admin/products/clone");
   await page.getByTestId("clone-ceramics").waitFor();
-  await page.screenshot({ path: `${OUT09}/f39-clone-ceramics.png`, fullPage: true });
+  await page.screenshot({ path: `${OUT39}/f39-clone-ceramics.png`, fullPage: true });
 });
 
 const OUT06 = "docs/evidence/f06";

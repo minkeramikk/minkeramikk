@@ -94,5 +94,9 @@ export async function cloneProductToSupplier(
 
   revalidateTag("catalog");
   revalidatePath("/admin/products");
+  // The panel itself lives here, and its duplicate-name warning (AC2) is built
+  // from this page's server props: without this, a second run in the same
+  // session compares against a stale target list and warns about nothing.
+  revalidatePath("/admin/products/clone");
   return { ok: true, id: created.id, name: src.name_no };
 }
