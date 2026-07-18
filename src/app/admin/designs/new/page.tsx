@@ -101,6 +101,8 @@ export default async function NewDesignPage() {
                 <div className="mt-auto">
                   <DuplicateDesignButton
                     designId={d.id}
+                    designNameNo={d.nameNo}
+                    designNameEn={d.nameEn}
                     label="Use as starting point"
                     pendingLabel="Copying…"
                     testid="start-from-design"

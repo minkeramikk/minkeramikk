@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { saveDesign, type DesignFormState } from "@/app/admin/designs/actions";
 import { assetUrl } from "@/lib/storage";
 import { FileThumbInput } from "@/components/admin/file-thumb-input";
@@ -18,6 +18,7 @@ export interface DesignValues {
   descriptionStep2No: string | null;
   descriptionStep2En: string | null;
   supplierId: string;
+  slug: string;
   previewImage: string | null;
   sortOrder: number;
   active: boolean;
@@ -36,9 +37,25 @@ export function DesignForm({
   suppliers: { id: string; name: string }[];
 }) {
   const [state, formAction, pending] = useActionState(saveDesign, initial);
+  const [slug, setSlug] = useState(design?.slug ?? "");
+  const [confirming, setConfirming] = useState(false);
+  const slugChanged = Boolean(design) && slug.trim() !== design?.slug;
 
   return (
-    <form action={formAction} className="flex max-w-lg flex-col gap-4" data-testid="design-form">
+    <form
+      action={formAction}
+      // R3-VARIE §B: a changed slug needs one explicit confirmation — the first
+      // submit only opens the panel below (no window.confirm, no type-swapping
+      // button: swapping type mid-click submits the form by accident).
+      onSubmit={(e) => {
+        if (slugChanged && !confirming) {
+          e.preventDefault();
+          setConfirming(true);
+        }
+      }}
+      className="flex max-w-lg flex-col gap-4"
+      data-testid="design-form"
+    >
       {design && <input type="hidden" name="id" value={design.id} />}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -96,6 +113,25 @@ export function DesignForm({
         </div>
       </div>
 
+      {design && (
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="slug">Slug (public URL)</Label>
+          <Input
+            id="slug"
+            name="slug"
+            value={slug}
+            onChange={(e) => {
+              setSlug(e.target.value);
+              setConfirming(false);
+            }}
+            data-testid="design-slug"
+          />
+          <p className="text-xs text-muted-foreground">
+            /configurator?design=<span className="font-mono">{slug || "…"}</span>
+          </p>
+        </div>
+      )}
+
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="previewImage">Preview image (PNG/JPG/WebP)</Label>
         <FileThumbInput
@@ -150,10 +186,60 @@ export function DesignForm({
         </p>
       )}
 
-      <div>
-        <Button type="submit" size="lg" className="min-h-11" disabled={pending} data-testid="design-save">
-          {pending ? "Saving…" : "Save design"}
+      {/* R3-VARIE §B: a slug change is confirmed in place (no window.confirm),
+          with the honest consequences spelled out. */}
+      {slugChanged && confirming && (
+        <div
+          data-testid="design-slug-confirm"
+          className="rounded-lg border border-border bg-muted/40 p-3 text-xs leading-relaxed"
+        >
+          <p className="text-sm font-medium">
+            Change the public URL to “{slug.trim()}”?
+          </p>
+          <ul className="mt-1.5 list-disc pl-4 text-muted-foreground">
+            <li>
+              Direct links to <span className="font-mono">?design={design?.slug}</span>{" "}
+              stop working.
+            </li>
+            <li>
+              Shared configuration codes (<span className="font-mono">?code=</span> and
+              share links) keep working — they resolve by code.
+            </li>
+            <li>
+              This design&apos;s images are moved to the new folder automatically. If a
+              single file cannot be moved, nothing is changed at all.
+            </li>
+          </ul>
+          <input type="hidden" name="slugConfirmed" value="true" />
+        </div>
+      )}
+
+      <div className="flex items-center gap-3">
+        <Button
+          type="submit"
+          size="lg"
+          className="min-h-11"
+          disabled={pending}
+          data-testid={slugChanged && confirming ? "design-slug-confirm-save" : "design-save"}
+        >
+          {pending
+            ? "Saving…"
+            : slugChanged && confirming
+              ? "Yes, change the URL and save"
+              : "Save design"}
         </Button>
+        {slugChanged && confirming && (
+          <button
+            type="button"
+            onClick={() => {
+              setSlug(design?.slug ?? "");
+              setConfirming(false);
+            }}
+            className="text-sm text-muted-foreground hover:text-foreground"
+          >
+            Keep the current slug
+          </button>
+        )}
       </div>
     </form>
   );
