@@ -161,46 +161,34 @@ export async function toggleProductVisible(formData: FormData): Promise<void> {
 }
 
 /**
- * Move a product up/down (arrows ↑↓, same UX as F28 featured). The list is
- * RENUMBERED 1..n after the move, never value-swapped: products default to
- * sort_order=0 so duplicates are the norm and a swap of equal values would be a
- * silent no-op — renumbering is idempotent and self-healing. Tie-break is `id`
- * (products has no created_at), matching the list page ordering.
+ * F39 §3-bis — persist the whole order of ONE supplier's group, once, at the
+ * end of the gesture (drag drop, or the tail of an arrow sequence).
+ *
+ * Replaces moveProduct, which fired one request per arrow click and renumbered
+ * the entire catalogue with a serial UPDATE loop. The RPC (0026) does it in one
+ * statement and refuses ids from another supplier, so a reorder can never move
+ * a product across suppliers (AC-D3) nor leave the list half-numbered (AC-D4).
  */
-export async function moveProduct(
-  // bound client-side: React does NOT forward the submitter button's
-  // name/value to plain form server actions.
-  direction: "up" | "down",
-  formData: FormData
-): Promise<void> {
-  const id = z.string().uuid().safeParse(formData.get("id"));
-  if (!id.success || (direction !== "up" && direction !== "down")) return;
+export async function reorderProducts(
+  supplierId: string,
+  orderedIds: string[]
+): Promise<{ error: string | null }> {
+  const parsed = z
+    .object({
+      supplierId: z.string().uuid(),
+      orderedIds: z.array(z.string().uuid()).min(1),
+    })
+    .safeParse({ supplierId, orderedIds });
+  if (!parsed.success) return { error: "Invalid order." };
 
   const supabase = await createClient();
-  const { data: rows } = await supabase
-    .from("products")
-    .select("id, sort_order")
-    .order("sort_order", { ascending: true })
-    .order("id", { ascending: true }); // stable tiebreak (no created_at)
-  if (!rows) return;
-
-  const idx = rows.findIndex((r) => r.id === id.data);
-  const target = direction === "up" ? idx - 1 : idx + 1;
-  if (idx === -1 || target < 0 || target >= rows.length) return;
-
-  const order = rows.map((r) => r.id);
-  [order[idx], order[target]] = [order[target], order[idx]];
-
-  for (let i = 0; i < order.length; i++) {
-    const row = rows.find((r) => r.id === order[i])!;
-    if (row.sort_order !== i + 1) {
-      await supabase
-        .from("products")
-        .update({ sort_order: i + 1 })
-        .eq("id", order[i]);
-    }
-  }
+  const { error } = await supabase.rpc("reorder_products", {
+    p_supplier_id: parsed.data.supplierId,
+    p_ids: parsed.data.orderedIds,
+  });
+  if (error) return { error: "Could not save the new order." };
 
   revalidateTag("catalog");
   revalidatePath("/admin/products");
+  return { error: null };
 }
