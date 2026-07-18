@@ -241,12 +241,12 @@ test("R2-1a: changing the cover default in F10 changes the step-1 cover", async 
   await db.from("options").update({ is_default: true }).eq("id", current.id);
 });
 
-test("R2-1b: mobile @390 — Next-step CTA is reachable without scrolling", async ({
+test("R3-B23: mobile @390 — contextual next-step block appears under the selected design", async ({
   page,
 }, testInfo) => {
   test.skip(
     testInfo.project.name !== "mobile",
-    "mobile-only CTA (sticky bar is md:hidden)"
+    "mobile-only CTA (the block's button is md:hidden)"
   );
 
   await page.goto("/no/configurator");
@@ -254,6 +254,9 @@ test("R2-1b: mobile @390 — Next-step CTA is reachable without scrolling", asyn
   // Choose the first design (AC6 frames the CTA as "after choosing a design").
   await designCards(page).first().click();
 
+  // R3-B23: the CTA lives in the contextual block inside the grid, right after
+  // the selected card's row — no fixed bottom bar any more.
+  await expect(page.getByTestId("design-context-block")).toBeVisible();
   const cta = page.getByTestId("next-step-mobile");
   await expect(cta).toBeVisible();
 

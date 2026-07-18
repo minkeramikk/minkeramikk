@@ -63,7 +63,7 @@
   "configurator": {
     "pageTitle": "Bygg din design",
     "stepIndicator": "Steg {step} av 3",
-    "nextStepDetails": "Neste steg: Detaljer",
+    "nextStepColors": "Neste steg: Velg farger",
     "nextStepCeramic": "Neste steg: Keramikk",
     "back": "Tilbake",
     "previewNote": "Konfigurator viser designet ditt i et rundt mønster, husk at du kan også bestille serveringsfat, kopper, ildfastformer osv. i samme design, sluttresultatet bare ikke vises i konfigurator.",
