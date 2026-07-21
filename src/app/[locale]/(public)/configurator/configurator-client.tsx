@@ -675,28 +675,6 @@ export function ConfiguratorClient({
               );
             })}
 
-            {/* VARIE-A + VARIE-A-bis: il next-step in-flow sta dove finisce la
-                scelta colori — raggiungibile senza scorrere oltre note e
-                scritta personalizzata. Mobile only: su desktop la riga nav
-                chiude la colonna ed è già in vista. Mai fixed (CA-2 /
-                R3-polish-B).
-                R-EXTRA: era il teaser CA-6, ora è la stessa pillola della riga
-                nav — testid distinto, altrimenti su mobile ce ne sono due con
-                lo stesso e Playwright va in strict-mode violation. */}
-            <NextStepPill
-              data-testid="next-step-inflow"
-              className="w-full md:hidden"
-              caption={t("teaser.nextStep")}
-              label={t("teaser.ceramics")}
-              arrow
-              icon={
-                <PillIcon>
-                  <Circle className="size-5 fill-muted stroke-muted-foreground/50" />
-                </PillIcon>
-              }
-              onClick={() => goToStep(3)}
-            />
-
             {/* R2-2b: custom colour note block — only when the design supports it (AC2).
                 The note lives in state + URL param only; it never enters selections or
                 previewLayers (AC3, no-preview-mutation invariant). */}
@@ -834,9 +812,17 @@ export function ConfiguratorClient({
                 2026-07-21) — la ottiene `items-stretch`, non un'altezza fissa:
                 Tilbake a una riga si allunga fino alla pillola a due righe. La
                 gerarchia resta, ed è data da outline (Tilbake) vs riempimento
-                (pillola). Nessuna freccetta su Tilbake: non fa avanzare. */}
+                (pillola). Nessuna freccetta su Tilbake: non fa avanzare.
+                R-EXTRA (bugfix mobile): questa riga è l'UNICO next-step dello
+                step 2 — la copia mobile in-flow (ex teaser CA-6) è stata
+                rimossa: su Pixel 8 erano due pillole identiche impilate.
+                `flex-wrap` + base 16rem sulla pillola invece di un breakpoint:
+                dove i due bottoni non ci stanno affiancati (390, ma anche 768,
+                dove la colonna torna stretta quanto a 390) la pillola va a capo
+                a piena larghezza. Mai troncare l'etichetta del CTA primario:
+                era il sintomo che AC10 deve chiudere, non una via d'uscita. */}
             <div
-              className="flex items-stretch gap-3"
+              className="flex flex-wrap items-stretch gap-3"
               data-testid="step-nav-flow"
             >
               <NextStepPill
@@ -853,7 +839,7 @@ export function ConfiguratorClient({
               />
               <NextStepPill
                 data-testid="next-step"
-                className="flex-1"
+                className="flex-[1_1_16rem]"
                 caption={t("teaser.nextStep")}
                 label={t("teaser.ceramics")}
                 arrow

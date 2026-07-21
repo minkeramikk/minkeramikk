@@ -73,7 +73,12 @@ export function NextStepPill({
       type="button"
       onClick={onClick}
       className={cn(
-        "flex items-center gap-3.5 rounded-full p-3 text-left transition-colors",
+        // `min-w-0`: da flex item il bottone avrebbe `min-width: auto` e non
+        // scenderebbe sotto il proprio contenuto — la riga Tilbake+pillola dello
+        // step 2 misurava 466px di min-content e sforava il viewport a 360/390/412
+        // e anche a 768. Il `min-w-0` dello span interno non serve a niente finché
+        // il bottone stesso non può restringersi.
+        "flex min-w-0 items-center gap-3.5 rounded-full p-3 text-left transition-colors",
         "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground",
         SURFACE[variant],
         className
