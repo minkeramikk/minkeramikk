@@ -38,7 +38,7 @@ export function FloatingPreview({
       CTA di fine colonna (step 2): la bolla è fixed in basso a destra e le
       finisce sopra appena entra in vista, e da quando la copia mobile del CTA
       non c'è più quella riga è l'unico modo di avanzare. */
-  hideNearRef?: RefObject<HTMLElement | null>;
+  hideNearRef: RefObject<HTMLElement | null>;
 }) {
   const t = useTranslations("configurator");
   const [visible, setVisible] = useState(false);
@@ -97,7 +97,7 @@ export function FloatingPreview({
   const [ctaOnScreen, setCtaOnScreen] = useState(false);
 
   useEffect(() => {
-    const el = hideNearRef?.current;
+    const el = hideNearRef.current;
     if (!el) return;
     // Nessuna isteresi qui, di proposito: la riga CTA entra in viewport quando
     // l'utente arriva in fondo alla colonna e ci resta. Non è la comparsa
@@ -117,10 +117,10 @@ export function FloatingPreview({
     // della scritta personalizzata e la riga CTA sono a schermo insieme, e
     // spegnere la bolla lì lascerebbe chi scrive senza nessun piatto davanti
     // (Parte C). La bolla resta, ma rimpicciolita e trasparente ai tap: se ne
-    // occupa la regola Ⓔ in globals.css.
+    // occupa la classe `typing && …` più sotto.
     const onIn = (e: FocusEvent) => {
-      const t = e.target as HTMLElement | null;
-      if (t?.tagName === "INPUT" || t?.tagName === "TEXTAREA") setTyping(true);
+      const tag = (e.target as HTMLElement | null)?.tagName;
+      setTyping(tag === "INPUT" || tag === "TEXTAREA");
     };
     const onOut = () => setTyping(false);
     document.addEventListener("focusin", onIn);
@@ -147,8 +147,8 @@ export function FloatingPreview({
       type="button"
       data-testid="floating-preview"
       aria-label={t("backToPreview")}
-      aria-hidden={!shown}
-      tabIndex={shown ? 0 : -1}
+      aria-hidden={!shown || typing}
+      tabIndex={shown && !typing ? 0 : -1}
       onClick={scrollBack}
       // above the iOS safe-area AND lifted clear of the one-handed thumb
       // rest zone (the very bottom-right corner is where the thumb sits);
@@ -161,11 +161,19 @@ export function FloatingPreview({
         // hitting the requested ~2x (150–160px) target. Border/shadow
         // from tokens; safe-area offset (bottom) keeps it clear of the CTA bar.
         "fixed right-4 z-40 size-40 overflow-hidden rounded-full border border-border bg-card shadow-(--shadow-card) md:hidden",
-        "transition-[opacity,transform] duration-200",
+        "transition-[opacity,scale] duration-200",
         "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
         shown
           ? "scale-100 opacity-100"
-          : "pointer-events-none scale-75 opacity-0"
+          : "pointer-events-none scale-75 opacity-0",
+        // R-EXTRA Parte C: mentre un campo di testo ha il focus la bolla resta a
+        // schermo (con la preview grande già scrollata via sarebbe l'unico piatto
+        // visibile) ma smette di intercettare i tap e si ritira verso l'angolo.
+        // `pointer-events-none` da solo chiude bug-E: il tap destinato al campo
+        // passa al campo, non fa più scrollBack(). Era una regola CSS fuori
+        // @layer in globals.css: ora che il componente conosce già `typing`, una
+        // sola sorgente di verità evita che JS e CSS divergano.
+        typing && "pointer-events-none origin-bottom-right scale-[0.6]"
       )}
     >
       {layers.map((l, i) => (
