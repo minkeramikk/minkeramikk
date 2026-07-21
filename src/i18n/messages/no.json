@@ -109,9 +109,7 @@
     "teaser": {
       "nextStep": "Neste steg",
       "colors": "Velg fargene dine",
-      "ceramics": "Velg keramikken din",
-      "goToColors": "Gå til steg 2: velg farger",
-      "goToCeramics": "Gå til steg 3: velg keramikk"
+      "ceramics": "Velg keramikken din"
     },
     "setBadge": "Sett · {count, plural, one {# del} other {# deler}}",
     "backToPreview": "Tilbake til forhåndsvisningen",

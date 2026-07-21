@@ -110,9 +110,7 @@
     "teaser": {
       "nextStep": "Next step",
       "colors": "Pick your colours",
-      "ceramics": "Pick your ceramics",
-      "goToColors": "Go to step 2: choose colours",
-      "goToCeramics": "Go to step 3: choose ceramics"
+      "ceramics": "Pick your ceramics"
     },
     "setBadge": "Set · {count, plural, one {# piece} other {# pieces}}",
     "backToPreview": "Back to the preview",

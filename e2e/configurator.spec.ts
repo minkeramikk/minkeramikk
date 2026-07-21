@@ -285,7 +285,9 @@ test("R-EXTRA: the next-step pills are real buttons and walk the funnel", async 
   const pill1 = page.getByTestId("next-step-mobile");
   await expect(pill1).toBeVisible();
   expect(await pill1.evaluate((el) => el.tagName)).toBe("BUTTON");
-  await expect(pill1).toHaveAttribute("aria-label", /steg 2/i);
+  // R-EXTRA fix: no more custom aria-label (WCAG 2.5.3 Label in Name) — the
+  // accessible name is the concatenated caption + visible label.
+  await expect(pill1).toHaveAccessibleName(/neste steg\s*velg fargene dine/i);
   // i CTA duplicati dello step 1 non esistono più
   await expect(page.getByTestId("next-step-teaser")).toHaveCount(0);
   await expect(page.getByTestId("next-step")).toHaveCount(0);
@@ -300,7 +302,7 @@ test("R-EXTRA: the next-step pills are real buttons and walk the funnel", async 
   const back = page.getByTestId("back-step");
   const pill2 = page.getByTestId("next-step");
   await expect(back).toBeVisible();
-  await expect(pill2).toHaveAttribute("aria-label", /steg 3/i);
+  await expect(pill2).toHaveAccessibleName(/neste steg\s*velg keramikken din/i);
   const backBox = await back.boundingBox();
   const pillBox = await pill2.boundingBox();
   expect(backBox).not.toBeNull();

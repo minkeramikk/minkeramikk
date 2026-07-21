@@ -40,7 +40,7 @@ export function PillIcon({
 
 /** Superficie per variante — la gerarchia è riempimento vs outline, non dimensione. */
 const SURFACE: Record<PillVariant, string> = {
-  primary: "border-2 border-primary bg-primary/10 hover:bg-primary/15",
+  primary: "border-2 border-primary bg-primary/10 hover:bg-primary/20",
   secondary: "border-2 border-primary bg-card hover:bg-primary/5",
   tertiary: "border border-border bg-card hover:border-ring",
 };
@@ -71,7 +71,7 @@ export function NextStepPill({
       onClick={onClick}
       className={cn(
         "flex items-center gap-3.5 rounded-full p-3 text-left transition-colors",
-        "focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring",
+        "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground",
         SURFACE[variant],
         className
       )}
@@ -80,7 +80,7 @@ export function NextStepPill({
       {icon}
       <span className="min-w-0 flex-1">
         {caption && (
-          <span className="block text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
+          <span className="block text-[11px] uppercase tracking-[0.08em] text-foreground/75">
             {caption}
           </span>
         )}

@@ -504,7 +504,6 @@ export function ConfiguratorClient({
                           reale di ciò che si sceglie allo step 2. */}
                       <NextStepPill
                         data-testid="next-step-mobile"
-                        aria-label={t("teaser.goToColors")}
                         className="mt-3 w-full"
                         caption={t("teaser.nextStep")}
                         label={t("teaser.colors")}
@@ -514,7 +513,7 @@ export function ConfiguratorClient({
                             {TEASER_PALETTE.map((color, i) => (
                               <span
                                 key={color}
-                                className="-ml-2.5 size-8 rounded-full first:ml-0"
+                                className="-ml-2.5 size-8 rounded-full first:ml-0 max-sm:-ml-3 max-sm:size-7"
                                 style={{
                                   background: color,
                                   ...(i >= TEASER_CRISP
@@ -674,14 +673,13 @@ export function ConfiguratorClient({
                 lo stesso e Playwright va in strict-mode violation. */}
             <NextStepPill
               data-testid="next-step-inflow"
-              aria-label={t("teaser.goToCeramics")}
               className="w-full md:hidden"
               caption={t("teaser.nextStep")}
               label={t("teaser.ceramics")}
               arrow
               icon={
                 <PillIcon>
-                  <Circle className="size-6 fill-muted stroke-muted-foreground/50" />
+                  <Circle className="size-5 fill-muted stroke-muted-foreground/50" />
                 </PillIcon>
               }
               onClick={() => goToStep(3)}
@@ -843,7 +841,6 @@ export function ConfiguratorClient({
               />
               <NextStepPill
                 data-testid="next-step"
-                aria-label={t("teaser.goToCeramics")}
                 className="flex-1"
                 caption={t("teaser.nextStep")}
                 label={t("teaser.ceramics")}
@@ -852,7 +849,7 @@ export function ConfiguratorClient({
                   <PillIcon>
                     {/* piatto generico: la ceramica si sceglie allo step 3,
                         qui non c'è nulla da anteprimare */}
-                    <Circle className="size-6 fill-muted stroke-muted-foreground/50" />
+                    <Circle className="size-5 fill-muted stroke-muted-foreground/50" />
                   </PillIcon>
                 }
                 onClick={() => goToStep(3)}
