@@ -216,9 +216,10 @@ export function ConfiguratorClient({
   );
   useWarmupPreviews(warmupUrls);
 
-  // ── CA-6: "what's next" teaser under the preview (informative only) ──
-  // step 1 → swatches of the SELECTED design's first colour category;
-  // step 2 → the supplier's ceramic thumbs (F26 @256 variants, lazy).
+  // ── R-EXTRA: pallini decorativi dell'icona della pillola step 1 (ex teaser
+  //    CA-6, rimosso). FISSI e identici per ogni design: nessun asset, nessun
+  //    fetch, nessun refetch al cambio design. I primi sono pieni, gli altri
+  //    sfumano — "ce n'è dell'altro".
   /** First dots fully opaque, the rest ramp down — "there's more". */
   const TEASER_CRISP = 4;
   /** Decorative colour-teaser dots (step 1): FIXED, identical for every design,
@@ -483,8 +484,9 @@ export function ConfiguratorClient({
                     // name + per-locale description + explicit next-step CTA.
                     // Replaces the old fixed bottom bar (it sat under the thumb).
                     // The CTA is here on EVERY viewport (client decision
-                    // 2026-07-18): this block is the primary path after picking
-                    // a design; the in-flow nav at the end of the column stays.
+                    // 2026-07-18): this pill is the ONLY next-step path in step 1
+                    // (R-EXTRA removed the old in-flow nav row at the end of the
+                    // column, and Task 6 removed the CA-6 teaser it replaced).
                     <div
                       data-testid="design-context-block"
                       style={{ gridColumn: "1 / -1" }}

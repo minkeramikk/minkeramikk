@@ -3,7 +3,7 @@ import ReactDOM from "react-dom";
 import { getTranslations } from "next-intl/server";
 import { getActiveDesigns } from "@/lib/catalog/designs";
 import { getDesignDetail, type DesignDetail } from "@/lib/catalog/design-options";
-import { getSupplierProducts, getDesignProducts } from "@/lib/catalog/products";
+import { getDesignProducts } from "@/lib/catalog/products";
 import { assetUrl } from "@/lib/storage";
 import { buildConfigLinePayload } from "@/lib/configurator/line-payload";
 import { pickDefaultOption } from "@/lib/configurator/default-option";
@@ -134,21 +134,6 @@ export default async function ConfiguratorPage({
   designs.forEach((d, i) => {
     const detail = details[i];
     if (detail) detailsBySlug[d.slug] = detail;
-  });
-
-  // CA-6: light data for the step-2 "what's next" teaser — 3 product thumbs
-  // per supplier (the selected design switches client-side, so cover every
-  // supplier on the page). Catalog-cached (PERF-1) → ~0 extra queries.
-  const supplierIds = [...new Set(designs.map((d) => d.supplierId))];
-  const productsPerSupplier = await Promise.all(
-    supplierIds.map((id) => getSupplierProducts(id))
-  );
-  const teaserProducts: Record<string, string[]> = {};
-  supplierIds.forEach((id, i) => {
-    teaserProducts[id] = productsPerSupplier[i]
-      .map((p) => p.image)
-      .filter((img): img is string => Boolean(img))
-      .slice(0, 3);
   });
 
   // Preload the default design's composed layers so the first paint is the

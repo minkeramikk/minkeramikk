@@ -64,8 +64,6 @@
   "configurator": {
     "pageTitle": "Build your design",
     "stepIndicator": "Step {step} of 3",
-    "nextStepColors": "Next step: Choose colours",
-    "nextStepCeramic": "Next step: Choose ceramics",
     "back": "Back",
     "previewNote": "The configurator shows your design in a round pattern. Remember you can also order serving dishes, cups, oven dishes etc. in the same design – the final result is just not shown in the configurator.",
     "step1": {
