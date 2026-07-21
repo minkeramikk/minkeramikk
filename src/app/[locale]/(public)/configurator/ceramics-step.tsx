@@ -776,18 +776,6 @@ export function CeramicsStep({
                     il funnel (uno riavvia il flusso, l'altro è collaterale).
                     R3-C (final): "Bygg et nytt design" resta l'UNICO punto da
                     cui si ricomincia, e tiene il carrello (F03/F16). */}
-                <NextStepPill
-                  variant="secondary"
-                  data-testid="new-design-cta"
-                  className="w-full"
-                  label={ta("newDesign")}
-                  icon={
-                    <PillIcon variant="secondary">
-                      <Plus className="size-5 text-primary" />
-                    </PillIcon>
-                  }
-                  onClick={() => goToStep(1)}
-                />
                 {/* Camioncino, non freccia: l'ordine parte: non c'è uno step
                     successivo nel wizard (nota-step3-cart.md). */}
                 <NextStepPill
@@ -803,8 +791,20 @@ export function CeramicsStep({
                   }
                   onClick={() => setCheckoutOpen(true)}
                 />
-                {/* CA-3: share sotto Send order — gesto leggero, quindi la
-                    variante più tenue della scala. */}
+                <NextStepPill
+                  variant="secondary"
+                  data-testid="new-design-cta"
+                  className="w-full"
+                  label={ta("newDesign")}
+                  icon={
+                    <PillIcon variant="secondary">
+                      <Plus className="size-5 text-primary" />
+                    </PillIcon>
+                  }
+                  onClick={() => goToStep(1)}
+                />
+                {/* CA-3: share in coda — gesto leggero, quindi la variante
+                    più tenue della scala. */}
                 <NextStepPill
                   variant="tertiary"
                   data-testid="share-set"
