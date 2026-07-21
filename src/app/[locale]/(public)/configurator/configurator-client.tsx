@@ -514,13 +514,17 @@ export function ConfiguratorClient({
                               <span
                                 key={color}
                                 className={cn(
-                                  "-ml-2.5 size-8 rounded-full first:ml-0 max-sm:-ml-3 max-sm:size-7",
-                                  // Sotto sm il pollice comanda: la coda sfumata
-                                  // sparisce per lasciare larghezza all'etichetta
-                                  // (a 390 il testo tronca, AC6). Restano i 4
-                                  // pallini pieni — l'anteprima della scelta è
-                                  // intatta, si perde solo il "ce n'è dell'altro".
-                                  i >= TEASER_CRISP && "max-sm:hidden"
+                                  "-ml-2.5 size-8 rounded-full first:ml-0 max-lg:-ml-3 max-lg:size-7",
+                                  // Sotto lg la coda sfumata sparisce e i pallini
+                                  // rimpiccioliscono, per lasciare larghezza
+                                  // all'etichetta (AC6). Restano i 4 pieni:
+                                  // l'anteprima della scelta è intatta, si perde
+                                  // solo il "ce n'è dell'altro".
+                                  // La soglia è lg, non sm: a 768 la griglia va a
+                                  // 2 colonne e il blocco torna largo quanto a
+                                  // 390 (~322px) ma coi pallini a misura piena —
+                                  // è il caso PEGGIORE, non un caso intermedio.
+                                  i >= TEASER_CRISP && "max-lg:hidden"
                                 )}
                                 style={{
                                   background: color,
