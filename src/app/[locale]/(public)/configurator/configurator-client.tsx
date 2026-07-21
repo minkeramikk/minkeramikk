@@ -13,6 +13,7 @@ import { FloatingPreview } from "./floating-preview";
 import { PreviewCanvas } from "@/components/ui-domain/preview-canvas";
 import { Stepper } from "@/components/ui-domain/stepper";
 import { Swatch } from "@/components/ui-domain/swatch";
+import { NextStepPill } from "@/components/ui-domain/next-step-pill";
 import { Button } from "@/components/ui/button";
 import { assetUrl } from "@/lib/storage";
 import { getPreviewLayers, type SelectedCategory } from "@/lib/configurator/preview";
@@ -523,9 +524,6 @@ export function ConfiguratorClient({
               layers={previewLayers}
             />
           </div>
-          {/* CA-6: informative teaser of the NEXT step — desktop instance,
-              inside the sticky block so it follows the preview (F15). */}
-          {renderTeaser("max-md:hidden")}
         </div>
 
         {/* RIGHT: panel swaps with the step */}
@@ -571,40 +569,44 @@ export function ConfiguratorClient({
                           {selectedDescription}
                         </p>
                       )}
-                      <Button
-                        size="lg"
+                      {/* R-EXTRA: la pillola è l'UNICO CTA "avanti" dello step 1
+                          (il teaser sotto la preview e il bottone di fondo griglia
+                          sono stati rimossi). Icona = pallini colore, anteprima
+                          reale di ciò che si sceglie allo step 2. */}
+                      <NextStepPill
                         data-testid="next-step-mobile"
-                        className="mt-3 min-h-11 w-full"
+                        aria-label={t("teaser.goToColors")}
+                        className="mt-3 w-full"
+                        caption={t("teaser.nextStep")}
+                        label={t("teaser.colors")}
+                        arrow
+                        icon={
+                          <span className="flex shrink-0" aria-hidden>
+                            {TEASER_PALETTE.map((color, i) => (
+                              <span
+                                key={color}
+                                className="-ml-2.5 size-8 rounded-full first:ml-0"
+                                style={{
+                                  background: color,
+                                  ...(i >= TEASER_CRISP
+                                    ? {
+                                        opacity: Math.max(
+                                          0.3,
+                                          0.75 - (i - TEASER_CRISP) * 0.2
+                                        ),
+                                      }
+                                    : {}),
+                                }}
+                              />
+                            ))}
+                          </span>
+                        }
                         onClick={() => goToStep(2)}
-                      >
-                        {t("nextStepColors")} ›
-                      </Button>
+                      />
                     </div>
                   )}
                 </Fragment>
               ))}
-            </div>
-            {/* CA-6b: mobile teaser sits right BEFORE the CTA — "what's next"
-                read before tapping Next; also keeps
-                the f18 invariant: nav block closed only by the code bar).
-                mb-6 = the step-2 column's gap-6, so the teaser→CTA breathing
-                room matches across steps (this column has no flex gap). */}
-            {renderTeaser("md:hidden mt-3 mb-6")}
-            {/* CA-2: advance CTA closes the options column — natural end of
-                the flow, single instance for every viewport. No Back here:
-                step 1 is the first step. */}
-            {/* Desktop only: on mobile the R3-B23 contextual block carries the
-                single CTA. On desktop it stays as the end-of-column nav, below
-                the block's own CTA (client decision 2026-07-18). */}
-            <div data-testid="step-nav-flow" className="max-md:hidden">
-              <Button
-                size="lg"
-                data-testid="next-step"
-                className="min-h-11 w-full"
-                onClick={() => goToStep(2)}
-              >
-                {t("nextStepColors")} ›
-              </Button>
             </div>
           </div>
         ) : (
