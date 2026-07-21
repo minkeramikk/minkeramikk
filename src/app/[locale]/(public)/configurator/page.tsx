@@ -3,7 +3,7 @@ import ReactDOM from "react-dom";
 import { getTranslations } from "next-intl/server";
 import { getActiveDesigns } from "@/lib/catalog/designs";
 import { getDesignDetail, type DesignDetail } from "@/lib/catalog/design-options";
-import { getDesignProducts } from "@/lib/catalog/products";
+import { getSupplierProducts, getDesignProducts } from "@/lib/catalog/products";
 import { assetUrl } from "@/lib/storage";
 import { buildConfigLinePayload } from "@/lib/configurator/line-payload";
 import { pickDefaultOption } from "@/lib/configurator/default-option";
@@ -136,6 +136,21 @@ export default async function ConfiguratorPage({
     if (detail) detailsBySlug[d.slug] = detail;
   });
 
+  // Foto reali di ceramica per l'icona della pillola step 2 — 3 miniature per
+  // fornitore (il design selezionato cambia client-side, quindi si coprono tutti
+  // i supplier in pagina). Cache di catalogo (PERF-1) → ~0 query in più.
+  const supplierIds = [...new Set(designs.map((d) => d.supplierId))];
+  const productsPerSupplier = await Promise.all(
+    supplierIds.map((id) => getSupplierProducts(id))
+  );
+  const ceramicThumbs: Record<string, string[]> = {};
+  supplierIds.forEach((id, i) => {
+    ceramicThumbs[id] = productsPerSupplier[i]
+      .map((p) => p.image)
+      .filter((img): img is string => Boolean(img))
+      .slice(0, 3);
+  });
+
   // Preload the default design's composed layers so the first paint is the
   // composed plate, not a hole/skeleton (F14 AC1).
   // F26.1 invariant: preload URL === render URL (both class-derived @512),
@@ -161,6 +176,7 @@ export default async function ConfiguratorPage({
       <ConfiguratorClient
         designs={designs}
         detailsBySlug={detailsBySlug}
+        ceramicThumbs={ceramicThumbs}
         featuredSlot={
           featured.length > 0 ? (
             <FeaturedStrip

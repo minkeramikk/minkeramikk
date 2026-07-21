@@ -72,10 +72,13 @@ function resolveSelections(
 export function ConfiguratorClient({
   designs,
   detailsBySlug,
+  ceramicThumbs = {},
   featuredSlot = null,
 }: {
   designs: DesignChoice[];
   detailsBySlug: Record<string, DesignDetail>;
+  /** supplierId → fino a 3 foto di ceramica per l'icona della pillola step 2. */
+  ceramicThumbs?: Record<string, string[]>;
   /** F28: server-rendered featured strip — step 1 only, between stepper and grid. */
   featuredSlot?: React.ReactNode;
 }) {
@@ -236,6 +239,8 @@ export function ConfiguratorClient({
     "#cf7b6b",
     "#9bb7d4",
   ];
+  /** Foto ceramica del fornitore del design scelto — icona della pillola step 2. */
+  const ceramics = ceramicThumbs[selected.supplierId] ?? [];
   // ── F15 / QA#3: keep the live preview visible while the option list scrolls ──
   // Desktop: the preview column is sticky (CSS only, md:sticky). Mobile: it scrolls
   // normally with the content. The old mobile collapse-to-thumbnail (zero-height
@@ -848,11 +853,36 @@ export function ConfiguratorClient({
                 label={t("teaser.ceramics")}
                 arrow
                 icon={
-                  <PillIcon>
-                    {/* piatto generico: la ceramica si sceglie allo step 3,
-                        qui non c'è nulla da anteprimare */}
-                    <Circle className="size-5 fill-muted stroke-muted-foreground/50" />
-                  </PillIcon>
+                  // Richiesta cliente 2026-07-21: foto REALI di ceramiche, tre
+                  // card quadrate affiancate (com'era il teaser CA-6), non
+                  // un'icona generica. Stessi asset delle miniature dello step 3
+                  // — nessun asset nuovo, nessuna query in più (cache catalogo).
+                  // size-9 (non size-11 come il cerchietto che sostituisce): tre
+                  // quadrati sono ~116px contro i 44 dell'icona singola, e a
+                  // 1280 come a 768 l'etichetta "Velg keramikk" si troncava.
+                  // L'etichetta del CTA primario non si tronca MAI (AC10).
+                  ceramics.length > 0 ? (
+                    <span className="flex shrink-0 gap-1" aria-hidden>
+                      {ceramics.map((img) => (
+                        // eslint-disable-next-line @next/next/no-img-element -- catalog art from storage
+                        <img
+                          key={img}
+                          src={assetUrl(img)}
+                          alt=""
+                          loading="lazy"
+                          decoding="async"
+                          data-testid="next-step-ceramic-thumb"
+                          className="size-9 rounded-sm border border-border bg-card object-contain"
+                        />
+                      ))}
+                    </span>
+                  ) : (
+                    // Fornitore senza foto prodotto: si ricade sull'icona neutra
+                    // invece di lasciare la pillola monca.
+                    <PillIcon>
+                      <Circle className="size-5 fill-muted stroke-muted-foreground/50" />
+                    </PillIcon>
+                  )
                 }
                 onClick={() => goToStep(3)}
               />
