@@ -878,3 +878,33 @@ export async function deleteCategory(
   revalidatePath(`/admin/designs/${designId.data}`);
   return { error: null };
 }
+
+// ── R-EXTRA: catalog order ──────────────────────────────────────────────────
+
+/**
+ * Persist the whole design order in one RPC (0028). Twin of reorderProducts,
+ * minus the supplier: designs are one flat, globally ordered catalog.
+ */
+export async function reorderDesigns(
+  orderedIds: string[]
+): Promise<{ error: string | null }> {
+  const parsed = z.array(z.string().uuid()).min(1).safeParse(orderedIds);
+  if (!parsed.success) return { error: "Invalid order." };
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("reorder_designs", { p_ids: parsed.data });
+  if (error) {
+    // The RPC refuses anything that is not the exact catalog (22023) — most
+    // often a page rendered before someone added or duplicated a design.
+    if (error.code === "22023") {
+      return { error: "This list is out of date — reload the page and try again." };
+    }
+    return { error: "Could not save the new order." };
+  }
+
+  // Only the tag: step 1 of the configurator reads the cached catalog. NO
+  // revalidatePath("/admin/designs") — the client already holds the new order
+  // optimistically, and an incoming RSC payload would snap the list back.
+  revalidateTag("catalog");
+  return { error: null };
+}
