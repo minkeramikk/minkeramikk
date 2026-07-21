@@ -485,8 +485,8 @@ export function ConfiguratorClient({
                     // Replaces the old fixed bottom bar (it sat under the thumb).
                     // The CTA is here on EVERY viewport (client decision
                     // 2026-07-18): this pill is the ONLY next-step path in step 1
-                    // (R-EXTRA removed the old in-flow nav row at the end of the
-                    // column, and Task 6 removed the CA-6 teaser it replaced).
+                    // (R-EXTRA removed both the old in-flow nav row at the end
+                    // of the column and the CA-6 teaser the pill replaces).
                     <div
                       data-testid="design-context-block"
                       style={{ gridColumn: "1 / -1" }}
