@@ -113,11 +113,11 @@ export function FloatingPreview({
   const [typing, setTyping] = useState(false);
 
   useEffect(() => {
-    // Il focus vince sul gate `ctaOnScreen`: in fondo alla colonna il campo
-    // della scritta personalizzata e la riga CTA sono a schermo insieme, e
-    // spegnere la bolla lì lascerebbe chi scrive senza nessun piatto davanti
-    // (Parte C). La bolla resta, ma rimpicciolita e trasparente ai tap: se ne
-    // occupa la classe `typing && …` più sotto.
+    // Focus su un campo di testo → la bolla resta ma si ritira: rimpicciolita e
+    // trasparente ai tap (classe `typing && …` più sotto). Chiude bug-E senza
+    // spegnerla: con la preview grande già scrollata via sarebbe l'unico piatto
+    // a schermo. NON scavalca `ctaOnScreen` (decisione cliente 2026-07-21):
+    // la riga CTA a schermo vince sempre, anche mentre si scrive.
     const onIn = (e: FocusEvent) => {
       const tag = (e.target as HTMLElement | null)?.tagName;
       setTyping(tag === "INPUT" || tag === "TEXTAREA");
@@ -131,7 +131,11 @@ export function FloatingPreview({
     };
   }, []);
 
-  const shown = visible && (!ctaOnScreen || typing);
+  // Precedenza, in quest'ordine: riga CTA a schermo → bolla spenta, punto (ci
+  // finiva sopra, ed è l'unico modo di avanzare da quando la copia mobile del
+  // CTA non c'è più); altrimenti campo di testo a fuoco → bolla ridotta e non
+  // cliccabile; altrimenti bolla piena.
+  const shown = visible && !ctaOnScreen;
 
   function scrollBack() {
     const el = targetRef.current;
