@@ -110,7 +110,28 @@ export function FloatingPreview({
     return () => io.disconnect();
   }, [hideNearRef]);
 
-  const shown = visible && !ctaOnScreen;
+  const [typing, setTyping] = useState(false);
+
+  useEffect(() => {
+    // Il focus vince sul gate `ctaOnScreen`: in fondo alla colonna il campo
+    // della scritta personalizzata e la riga CTA sono a schermo insieme, e
+    // spegnere la bolla lì lascerebbe chi scrive senza nessun piatto davanti
+    // (Parte C). La bolla resta, ma rimpicciolita e trasparente ai tap: se ne
+    // occupa la regola Ⓔ in globals.css.
+    const onIn = (e: FocusEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (t?.tagName === "INPUT" || t?.tagName === "TEXTAREA") setTyping(true);
+    };
+    const onOut = () => setTyping(false);
+    document.addEventListener("focusin", onIn);
+    document.addEventListener("focusout", onOut);
+    return () => {
+      document.removeEventListener("focusin", onIn);
+      document.removeEventListener("focusout", onOut);
+    };
+  }, []);
+
+  const shown = visible && (!ctaOnScreen || typing);
 
   function scrollBack() {
     const el = targetRef.current;
