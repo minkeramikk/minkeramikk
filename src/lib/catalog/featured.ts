@@ -103,21 +103,27 @@ export async function validateFeaturedPayload(
   }
   const namesNo: string[] = [];
   const namesEn: string[] = [];
+  let pieces = 0;
   for (const entry of entries) {
     const r = resolveDesign(entry.configCode);
     if (r.reason !== undefined) return { ok: false, reason: r.reason };
     if (!namesNo.includes(r.design.nameNo)) namesNo.push(r.design.nameNo);
     if (!namesEn.includes(r.design.nameEn)) namesEn.push(r.design.nameEn);
     const products = await getSupplierProducts(r.design.supplierId);
-    if (!products.some((p) => p.slug === entry.productSlug)) {
+    const product = products.find((p) => p.slug === entry.productSlug);
+    if (!product) {
       return { ok: false, reason: `product "${entry.productSlug}" is hidden or gone` };
     }
+    // "Sett · N deler" counts PIECES, not rows: a one-row entry whose ceramic
+    // is itself a set (F29 `products.pieces > 1`, e.g. "Christmas set") is a
+    // set too, and its N comes from the ceramic's own piece count.
+    pieces += entry.qty * product.pieces;
   }
   return {
     ok: true,
     designName: namesNo.join(" + "),
     designNameEn: namesEn.join(" + "),
-    setCount: entries.reduce((n, e) => n + e.qty, 0),
+    setCount: pieces,
     firstCode: entries[0].configCode,
   };
 }
