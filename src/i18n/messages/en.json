@@ -186,6 +186,7 @@
     "description": "Review your items and send your order.",
     "viewBasket": "View basket",
     "backToCart": "Back to basket",
+    "checkoutKicker": "Complete order",
     "reopen": "Reopen",
     "insurance": {
       "title": "Insured shipping",

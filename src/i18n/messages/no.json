@@ -185,6 +185,7 @@
     "description": "Se over varene og send bestillingen.",
     "viewBasket": "Vis handlekurv",
     "backToCart": "Tilbake til handlekurven",
+    "checkoutKicker": "Fullfør bestilling",
     "reopen": "Åpne igjen",
     "insurance": {
       "title": "Frakt med forsikring",

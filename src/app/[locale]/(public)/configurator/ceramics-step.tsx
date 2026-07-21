@@ -43,10 +43,10 @@ import {
 } from "@/lib/catalog/product-attributes";
 import { fullRowInsertIndex } from "@/lib/configurator/grid-rows";
 import { formatSelections } from "@/lib/configurator/readable-selections";
-import { Weight, Circle, Ruler, Tag, Check, MoveVertical, MoveHorizontal, Container } from "lucide-react";
+import { Weight, Circle, Ruler, Tag, Check, MoveVertical, MoveHorizontal, Container, Truck, Plus, ArrowUpRight } from "lucide-react";
 import type { ResolvedSharedSet } from "./resolve-shared-set";
 import { cn } from "@/lib/utils";
-import { NewDesignButton } from "./new-design-button";
+import { NextStepPill, PillIcon } from "@/components/ui-domain/next-step-pill";
 
 export interface CeramicProduct {
   id: string;
@@ -383,6 +383,7 @@ export function CeramicsStep({
   const t = useTranslations("cart");
   const tc = useTranslations("configurator");
   const to = useTranslations("order");
+  const ta = useTranslations("actions");
   const locale = useLocale() as "no" | "en";
   const router = useRouter();
   const pathname = usePathname();
@@ -769,30 +770,53 @@ export function CeramicsStep({
               </div>
             ) : (
               <>
-                {/* R3-C (final): the ONLY "Build a new
-                    design" — a full-size secondary CTA directly above Send
-                    order, same outline language as "Share this set". Keeps the
-                    basket (F03/F16) via goToStep(1). */}
-                <NewDesignButton onClick={() => goToStep(1)} />
-                <Button
-                  size="lg"
-                  className="min-h-11 w-full"
+                {/* R-EXTRA: lo stack usa la stessa pillola degli step 1/2
+                    (DESIGN-SYSTEM §3.16). Solo "Send bestilling" ha la
+                    freccetta e il riempimento: gli altri due non fanno avanzare
+                    il funnel (uno riavvia il flusso, l'altro è collaterale).
+                    R3-C (final): "Bygg et nytt design" resta l'UNICO punto da
+                    cui si ricomincia, e tiene il carrello (F03/F16). */}
+                <NextStepPill
+                  variant="secondary"
+                  data-testid="new-design-cta"
+                  className="w-full"
+                  label={ta("newDesign")}
+                  icon={
+                    <PillIcon variant="secondary">
+                      <Plus className="size-5 text-primary" />
+                    </PillIcon>
+                  }
+                  onClick={() => goToStep(1)}
+                />
+                {/* Camioncino, non freccia: l'ordine parte: non c'è uno step
+                    successivo nel wizard (nota-step3-cart.md). */}
+                <NextStepPill
                   data-testid="docked-checkout"
+                  className="w-full"
+                  caption={t("checkoutKicker")}
+                  label={to("title")}
+                  arrow
+                  icon={
+                    <PillIcon>
+                      <Truck className="size-5 text-primary" />
+                    </PillIcon>
+                  }
                   onClick={() => setCheckoutOpen(true)}
-                >
-                  {to("title")}
-                </Button>
-                {/* CA-3: share under Send order — light gesture,
-                    ConfigCodeBar pattern */}
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
+                />
+                {/* CA-3: share sotto Send order — gesto leggero, quindi la
+                    variante più tenue della scala. */}
+                <NextStepPill
+                  variant="tertiary"
                   data-testid="share-set"
+                  className="w-full"
+                  label={t("share.button")}
+                  icon={
+                    <PillIcon variant="tertiary">
+                      <ArrowUpRight className="size-5 text-muted-foreground" />
+                    </PillIcon>
+                  }
                   onClick={() => shareSet(false)}
-                >
-                  ⤴ {t("share.button")}
-                </Button>
+                />
                 {/* share feedback: announced, link visible (frame 1) */}
                 <div aria-live="polite">
                   {shareState && (
