@@ -176,7 +176,6 @@ export default async function ConfiguratorPage({
       <ConfiguratorClient
         designs={designs}
         detailsBySlug={detailsBySlug}
-        teaserProducts={teaserProducts}
         featuredSlot={
           featured.length > 0 ? (
             <FeaturedStrip
