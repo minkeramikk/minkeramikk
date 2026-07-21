@@ -1,7 +1,7 @@
 "use client";
 
 import { useLocale, useTranslations } from "next-intl";
-import { ShoppingBag } from "lucide-react";
+import { ShoppingBag, Truck } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import {
   Sheet,
@@ -14,6 +14,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
+import { NextStepPill, PillIcon } from "@/components/ui-domain/next-step-pill";
 import { OrderForm } from "@/components/ui-domain/order-form";
 import { CartLineThumb } from "@/components/ui-domain/cart-line-thumb";
 import { CartLineRecap } from "@/components/ui-domain/cart-line-recap";
@@ -251,14 +252,26 @@ export function CartMenu() {
                     {totalSuffix}
                   </span>
                 </div>
-                <Button
-                  size="lg"
-                  className="min-h-11 w-full"
+                {/* R-EXTRA AC8: stessa pillola dello stack step 3
+                    (`docked-checkout` in ceramics-step.tsx) — il drawer era
+                    rimasto l'ultimo punto d'invio ordine col bottone pieno
+                    vecchio. Camioncino e non freccia di avanzamento: l'ordine
+                    parte, non c'è uno step successivo nel wizard
+                    (nota-step3-cart.md). Testid invariato: cart.spec,
+                    order.spec, order-email.spec e evidence.spec lo usano. */}
+                <NextStepPill
                   data-testid="cart-checkout"
+                  className="w-full"
+                  caption={t("checkoutKicker")}
+                  label={to("title")}
+                  arrow
+                  icon={
+                    <PillIcon>
+                      <Truck className="size-5 text-primary" />
+                    </PillIcon>
+                  }
                   onClick={() => setView("checkout")}
-                >
-                  {to("title")}
-                </Button>
+                />
               </SheetFooter>
             </>
           ) : (

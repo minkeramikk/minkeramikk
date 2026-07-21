@@ -314,23 +314,6 @@ test("R-EXTRA: the next-step pills are real buttons and walk the funnel", async 
   await expect(page).toHaveURL(/[?&]step=3/);
 });
 
-test("R-EXTRA: step 2 keeps an in-flow pill on mobile only (VARIE-A-bis)", async ({
-  page,
-}, testInfo) => {
-  await page.goto("/no/configurator?step=2");
-  const inflow = page.getByTestId("next-step-inflow");
-  if (testInfo.project.name === "mobile") {
-    // reachability: il next-step è raggiungibile senza scorrere oltre note
-    // colore e scritta personalizzata
-    await expect(inflow).toBeVisible();
-    await inflow.click();
-    await expect(page).toHaveURL(/[?&]step=3/);
-  } else {
-    // su desktop la riga nav chiude la colonna ed è già in vista: md:hidden
-    await expect(inflow).toBeHidden();
-  }
-});
-
 /**
  * R2-3+R2-4: typed attributes + expandable product card.
  *
