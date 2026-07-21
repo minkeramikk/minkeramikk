@@ -28,11 +28,17 @@ import { cn } from "@/lib/utils";
 export function FloatingPreview({
   targetRef,
   layers,
+  hideNearRef,
 }: {
   /** the big preview's container — observed and scrolled back to */
   targetRef: RefObject<HTMLElement | null>;
   /** the canvas' memoized layers: {src, recolor} (recolor → multiply) */
   layers: { src: string; recolor?: boolean }[];
+  /** R-EXTRA: finché QUESTO elemento è a schermo la bolla si spegne. È la riga
+      CTA di fine colonna (step 2): la bolla è fixed in basso a destra e le
+      finisce sopra appena entra in vista, e da quando la copia mobile del CTA
+      non c'è più quella riga è l'unico modo di avanzare. */
+  hideNearRef?: RefObject<HTMLElement | null>;
 }) {
   const t = useTranslations("configurator");
   const [visible, setVisible] = useState(false);
@@ -88,6 +94,24 @@ export function FloatingPreview({
     };
   }, [targetRef]);
 
+  const [ctaOnScreen, setCtaOnScreen] = useState(false);
+
+  useEffect(() => {
+    const el = hideNearRef?.current;
+    if (!el) return;
+    // Nessuna isteresi qui, di proposito: la riga CTA entra in viewport quando
+    // l'utente arriva in fondo alla colonna e ci resta. Non è la comparsa
+    // nervosa che l'isteresi di sopra (QA-fix #3) esiste per domare.
+    const io = new IntersectionObserver(
+      (entries) => setCtaOnScreen(entries[entries.length - 1].isIntersecting),
+      { threshold: 0 }
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [hideNearRef]);
+
+  const shown = visible && !ctaOnScreen;
+
   function scrollBack() {
     const el = targetRef.current;
     if (!el) return;
@@ -102,8 +126,8 @@ export function FloatingPreview({
       type="button"
       data-testid="floating-preview"
       aria-label={t("backToPreview")}
-      aria-hidden={!visible}
-      tabIndex={visible ? 0 : -1}
+      aria-hidden={!shown}
+      tabIndex={shown ? 0 : -1}
       onClick={scrollBack}
       // above the iOS safe-area AND lifted clear of the one-handed thumb
       // rest zone (the very bottom-right corner is where the thumb sits);
@@ -118,7 +142,7 @@ export function FloatingPreview({
         "fixed right-4 z-40 size-40 overflow-hidden rounded-full border border-border bg-card shadow-(--shadow-card) md:hidden",
         "transition-[opacity,transform] duration-200",
         "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
-        visible
+        shown
           ? "scale-100 opacity-100"
           : "pointer-events-none scale-75 opacity-0"
       )}

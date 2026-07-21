@@ -89,6 +89,9 @@ export function ConfiguratorClient({
   const searchParams = useSearchParams();
   /** F31: the big preview's container — observed by the mobile floating bubble */
   const previewRef = useRef<HTMLDivElement>(null);
+  // R-EXTRA: la riga CTA di fine colonna — osservata da FloatingPreview, che si
+  // spegne quando questa entra in viewport (la bolla ci finiva sopra).
+  const navRef = useRef<HTMLDivElement>(null);
   // R3-B23: live column count (2 under sm, 3 from sm) — same grid as step 3, so
   // the contextual block lands after the LAST card of the selected card's row.
   const [cols, setCols] = useState(2);
@@ -822,6 +825,7 @@ export function ConfiguratorClient({
                 a piena larghezza. Mai troncare l'etichetta del CTA primario:
                 era il sintomo che AC10 deve chiudere, non una via d'uscita. */}
             <div
+              ref={navRef}
               className="flex flex-wrap items-stretch gap-3"
               data-testid="step-nav-flow"
             >
@@ -861,7 +865,11 @@ export function ConfiguratorClient({
           design grid previews, step 3 the cart panel). Fixed OVERLAY sibling
           of the layout — its visibility can never reflow the page. */}
       {step === 2 && (
-        <FloatingPreview targetRef={previewRef} layers={previewLayers} />
+        <FloatingPreview
+          targetRef={previewRef}
+          layers={previewLayers}
+          hideNearRef={navRef}
+        />
       )}
     </div>
   );
