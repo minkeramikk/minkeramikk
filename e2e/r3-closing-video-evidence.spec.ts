@@ -3,7 +3,7 @@ import { loadEnvLocal } from "./helpers";
 
 /**
  * R3-CLOSING evidence — mobile video (390): select a design → the contextual
- * block appears under its row → "Neste steg: Velg farger" moves to step 2.
+ * block appears under its row → the "Velg fargene dine" pill moves to step 2.
  * The .webm lands in test-results/ (copy it into docs/evidence/r3-closing).
  */
 loadEnvLocal();

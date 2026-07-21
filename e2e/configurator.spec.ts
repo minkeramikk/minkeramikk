@@ -129,7 +129,9 @@ test("AC4: english locale renders english labels", async ({ page }) => {
   await expect(
     page.getByRole("heading", { name: "Choose design" })
   ).toBeVisible();
-  await expect(page.getByTestId("next-step")).toContainText("Next step");
+  // R-EXTRA: allo step 1 il solo CTA è la pillola nel blocco contestuale; il
+  // "Next step" ora è la sua caption, non il prefisso della label.
+  await expect(page.getByTestId("next-step-mobile")).toContainText("Next step");
 });
 
 test("AC5 (mobile): no horizontal overflow, touch targets ≥44px", async ({
@@ -274,27 +276,57 @@ test("R3-B23: mobile @390 — contextual next-step block appears under the selec
   await expect(page).toHaveURL(/[?&]design=/);
 });
 
-test("VARIE-A-bis: the next-step teaser is a real button and navigates", async ({
+test("R-EXTRA: the next-step pills are real buttons and walk the funnel", async ({
   page,
 }) => {
   await page.goto("/no/configurator");
-  const teaser = page.locator('[data-testid="next-step-teaser"]:visible').first();
-  await expect(teaser).toBeVisible();
-  // a real <button> (not a div+onClick) with a target-naming label
-  expect(await teaser.evaluate((el) => el.tagName)).toBe("BUTTON");
-  await expect(teaser).toHaveAttribute("aria-label", /steg 2/i);
 
-  // keyboard reachable: focus + Enter goes to step 2, config kept in the URL
-  await teaser.focus();
-  await expect(teaser).toBeFocused();
+  // Step 1: UN SOLO percorso avanti — la pillola nel blocco contestuale.
+  const pill1 = page.getByTestId("next-step-mobile");
+  await expect(pill1).toBeVisible();
+  expect(await pill1.evaluate((el) => el.tagName)).toBe("BUTTON");
+  await expect(pill1).toHaveAttribute("aria-label", /steg 2/i);
+  // i CTA duplicati dello step 1 non esistono più
+  await expect(page.getByTestId("next-step-teaser")).toHaveCount(0);
+  await expect(page.getByTestId("next-step")).toHaveCount(0);
+
+  // raggiungibile da tastiera: focus + Enter porta allo step 2, config in URL
+  await pill1.focus();
+  await expect(pill1).toBeFocused();
   await page.keyboard.press("Enter");
   await expect(page).toHaveURL(/[?&]step=2/);
 
-  // step 2's teaser is the in-flow "next" of VARIE-A → step 3
-  const teaser2 = page.locator('[data-testid="next-step-teaser"]:visible').first();
-  await expect(teaser2).toHaveAttribute("aria-label", /steg 3/i);
-  await teaser2.click();
+  // Step 2: Tilbake e pillola sulla stessa riga, STESSA altezza (outline vs fill)
+  const back = page.getByTestId("back-step");
+  const pill2 = page.getByTestId("next-step");
+  await expect(back).toBeVisible();
+  await expect(pill2).toHaveAttribute("aria-label", /steg 3/i);
+  const backBox = await back.boundingBox();
+  const pillBox = await pill2.boundingBox();
+  expect(backBox).not.toBeNull();
+  expect(pillBox).not.toBeNull();
+  expect(Math.abs(backBox!.height - pillBox!.height)).toBeLessThanOrEqual(1);
+  expect(backBox!.height).toBeGreaterThanOrEqual(44);
+
+  await pill2.click();
   await expect(page).toHaveURL(/[?&]step=3/);
+});
+
+test("R-EXTRA: step 2 keeps an in-flow pill on mobile only (VARIE-A-bis)", async ({
+  page,
+}, testInfo) => {
+  await page.goto("/no/configurator?step=2");
+  const inflow = page.getByTestId("next-step-inflow");
+  if (testInfo.project.name === "mobile") {
+    // reachability: il next-step è raggiungibile senza scorrere oltre note
+    // colore e scritta personalizzata
+    await expect(inflow).toBeVisible();
+    await inflow.click();
+    await expect(page).toHaveURL(/[?&]step=3/);
+  } else {
+    // su desktop la riga nav chiude la colonna ed è già in vista: md:hidden
+    await expect(inflow).toBeHidden();
+  }
 });
 
 /**
