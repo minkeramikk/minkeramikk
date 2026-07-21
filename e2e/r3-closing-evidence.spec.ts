@@ -158,7 +158,9 @@ test("① fallback: design without description → name + CTA only", async ({ pa
     await page.goto(`/no/configurator?design=${design!.slug}`);
     const block = page.getByTestId("design-context-block");
     await expect(block).toBeVisible();
-    await expect(block).toContainText("Neste steg: Velg farger");
+    // R-EXTRA: la CTA è la pillola — "Neste steg" è la caption, "Velg fargene
+    // dine" la label (chiavi teaser.* riusate, nessuna stringa nuova).
+    await expect(block).toContainText("Velg fargene dine");
     await page.screenshot({ path: `${OUT}/08-step1-block-no-description-390.png`, fullPage: true });
   } finally {
     await setDescription(design!.description_no ?? "", design!.description_en ?? "");
@@ -228,26 +230,26 @@ test("⑤ lab PDF: inscription label in English", async ({ page }) => {
   }
 });
 
-/** ②bis clickable teaser — focus ring on step 1, in-flow position on step 2. */
-test("②bis teaser: focus state + step-2 placement", async ({ page }) => {
+/** ②bis pillole CTA — focus ring allo step 1, riga Tilbake+pillola allo step 2. */
+test("②bis pills: focus state + step-2 nav row", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
 
   await page.goto("/no/configurator");
-  const teaser = page.locator('[data-testid="next-step-teaser"]:visible').first();
-  await teaser.focus();
+  const pill1 = page.getByTestId("next-step-mobile");
+  await pill1.focus();
   await page.waitForTimeout(200);
-  await page.screenshot({ path: `${OUT}/10-teaser-focus-step1-390.png`, fullPage: true });
+  await page.screenshot({ path: `${OUT}/10-pill-focus-step1-390.png`, fullPage: true });
 
   await page.goto("/no/configurator?step=2&design=blomster-2");
-  const teaser2 = page.locator('[data-testid="next-step-teaser"]:visible').first();
-  await expect(teaser2).toBeVisible();
-  await teaser2.hover();
+  const pill2 = page.getByTestId("next-step");
+  await expect(pill2).toBeVisible();
+  await pill2.hover();
   await page.waitForTimeout(200);
-  await page.screenshot({ path: `${OUT}/11-teaser-step2-inflow-390.png`, fullPage: true });
+  await page.screenshot({ path: `${OUT}/11-pill-step2-navrow-390.png`, fullPage: true });
 
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto("/no/configurator?step=2&design=blomster-2");
-  await page.locator('[data-testid="next-step-teaser"]:visible').first().hover();
+  await page.getByTestId("next-step").hover();
   await page.waitForTimeout(200);
-  await page.screenshot({ path: `${OUT}/12-teaser-desktop-1280.png`, fullPage: true });
+  await page.screenshot({ path: `${OUT}/12-pill-desktop-1280.png`, fullPage: true });
 });

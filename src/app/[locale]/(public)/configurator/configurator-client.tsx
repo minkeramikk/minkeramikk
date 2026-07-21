@@ -13,7 +13,8 @@ import { FloatingPreview } from "./floating-preview";
 import { PreviewCanvas } from "@/components/ui-domain/preview-canvas";
 import { Stepper } from "@/components/ui-domain/stepper";
 import { Swatch } from "@/components/ui-domain/swatch";
-import { Button } from "@/components/ui/button";
+import { NextStepPill, PillIcon } from "@/components/ui-domain/next-step-pill";
+import { ChevronLeft, Circle } from "lucide-react";
 import { assetUrl } from "@/lib/storage";
 import { getPreviewLayers, type SelectedCategory } from "@/lib/configurator/preview";
 import {
@@ -71,13 +72,10 @@ function resolveSelections(
 export function ConfiguratorClient({
   designs,
   detailsBySlug,
-  teaserProducts = {},
   featuredSlot = null,
 }: {
   designs: DesignChoice[];
   detailsBySlug: Record<string, DesignDetail>;
-  /** CA-6: supplierId → up to 3 product image paths for the step-2 teaser. */
-  teaserProducts?: Record<string, string[]>;
   /** F28: server-rendered featured strip — step 1 only, between stepper and grid. */
   featuredSlot?: React.ReactNode;
 }) {
@@ -218,9 +216,10 @@ export function ConfiguratorClient({
   );
   useWarmupPreviews(warmupUrls);
 
-  // ── CA-6: "what's next" teaser under the preview (informative only) ──
-  // step 1 → swatches of the SELECTED design's first colour category;
-  // step 2 → the supplier's ceramic thumbs (F26 @256 variants, lazy).
+  // ── R-EXTRA: pallini decorativi dell'icona della pillola step 1 (ex teaser
+  //    CA-6, rimosso). FISSI e identici per ogni design: nessun asset, nessun
+  //    fetch, nessun refetch al cambio design. I primi sono pieni, gli altri
+  //    sfumano — "ce n'è dell'altro".
   /** First dots fully opaque, the rest ramp down — "there's more". */
   const TEASER_CRISP = 4;
   /** Decorative colour-teaser dots (step 1): FIXED, identical for every design,
@@ -234,11 +233,6 @@ export function ConfiguratorClient({
     "#cf7b6b",
     "#9bb7d4",
   ];
-  const teaserThumbs = teaserProducts[selected.supplierId] ?? [];
-  // VARIE-A-bis: the teaser IS the in-flow next-step CTA, so it always renders —
-  // a supplier with no product photos would otherwise leave step 2 without one.
-  // The thumb strip self-gates instead (no photos → text + chevron only).
-
   // ── F15 / QA#3: keep the live preview visible while the option list scrolls ──
   // Desktop: the preview column is sticky (CSS only, md:sticky). Mobile: it scrolls
   // normally with the content. The old mobile collapse-to-thumbnail (zero-height
@@ -388,71 +382,6 @@ export function ConfiguratorClient({
     setNoteMode(order[next]);
   }
 
-  // CA-6 / CA-6b: teaser of the NEXT step. VARIE-A-bis: the whole block is the
-  // CTA — a real <button> (keyboard + SR reachable, hover/focus visible), not a
-  // div with a handler. On step 2 it IS the in-flow "next" of VARIE-A: one
-  // element, one gesture, no CTA doubled next to it.
-  // Rendered twice: desktop under the sticky preview (F15), mobile in the
-  // options column. Images: existing F26 variants only, lazy.
-  function renderTeaser(className: string) {
-    return (
-      <button
-        type="button"
-        data-testid="next-step-teaser"
-        data-design={selected.slug}
-        aria-label={step === 1 ? t("teaser.goToColors") : t("teaser.goToCeramics")}
-        onClick={() => goToStep(step === 1 ? 2 : 3)}
-        className={`${className} flex w-full items-center gap-4 rounded-sm border border-border bg-card/55 p-4 text-left transition-colors hover:border-ring hover:bg-card focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring`}
-      >
-        {step === 1 ? (
-          // Decorative colour teaser: FIXED dots, identical for every design,
-          // no <img>/assetUrl → never refetches on design change (the old
-          // per-design swatch images reloaded each click). Opacity ramp keeps
-          // the "there's more" tail.
-          <div className="flex shrink-0" aria-hidden>
-            {TEASER_PALETTE.map((color, i) => (
-              <span
-                key={color}
-                className="-ml-2.5 size-8 rounded-full first:ml-0"
-                style={{
-                  background: color,
-                  ...(i >= TEASER_CRISP
-                    ? { opacity: Math.max(0.3, 0.75 - (i - TEASER_CRISP) * 0.2) }
-                    : {}),
-                }}
-              />
-            ))}
-          </div>
-        ) : teaserThumbs.length > 0 ? (
-          <div className="flex shrink-0 gap-2.5" aria-hidden>
-            {teaserThumbs.map((img) => (
-              // eslint-disable-next-line @next/next/no-img-element -- catalog art from storage
-              <img
-                key={img}
-                src={assetUrl(img)}
-                alt=""
-                loading="lazy"
-                decoding="async"
-                className="size-12 rounded-sm border border-border bg-card object-contain"
-              />
-            ))}
-          </div>
-        ) : null}
-        <div className="min-w-0">
-          <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
-            {t("teaser.nextStep")}
-          </p>
-          <p className="truncate text-sm font-medium">
-            {step === 1 ? t("teaser.colors") : t("teaser.ceramics")}
-          </p>
-        </div>
-        <span aria-hidden className="ml-auto shrink-0 text-muted-foreground">
-          ›
-        </span>
-      </button>
-    );
-  }
-
   return (
     <div data-testid="configurator">
       {/* CA-2: the top cluster holds ONLY the stepper (orientation + step
@@ -523,9 +452,6 @@ export function ConfiguratorClient({
               layers={previewLayers}
             />
           </div>
-          {/* CA-6: informative teaser of the NEXT step — desktop instance,
-              inside the sticky block so it follows the preview (F15). */}
-          {renderTeaser("max-md:hidden")}
         </div>
 
         {/* RIGHT: panel swaps with the step */}
@@ -558,8 +484,9 @@ export function ConfiguratorClient({
                     // name + per-locale description + explicit next-step CTA.
                     // Replaces the old fixed bottom bar (it sat under the thumb).
                     // The CTA is here on EVERY viewport (client decision
-                    // 2026-07-18): this block is the primary path after picking
-                    // a design; the in-flow nav at the end of the column stays.
+                    // 2026-07-18): this pill is the ONLY next-step path in step 1
+                    // (R-EXTRA removed both the old in-flow nav row at the end
+                    // of the column and the CA-6 teaser the pill replaces).
                     <div
                       data-testid="design-context-block"
                       style={{ gridColumn: "1 / -1" }}
@@ -571,40 +498,55 @@ export function ConfiguratorClient({
                           {selectedDescription}
                         </p>
                       )}
-                      <Button
-                        size="lg"
+                      {/* R-EXTRA: la pillola è l'UNICO CTA "avanti" dello step 1
+                          (il teaser sotto la preview e il bottone di fondo griglia
+                          sono stati rimossi). Icona = pallini colore, anteprima
+                          reale di ciò che si sceglie allo step 2. */}
+                      <NextStepPill
                         data-testid="next-step-mobile"
-                        className="mt-3 min-h-11 w-full"
+                        className="mt-3 w-full"
+                        caption={t("teaser.nextStep")}
+                        label={t("teaser.colors")}
+                        arrow
+                        icon={
+                          <span className="flex shrink-0" aria-hidden>
+                            {TEASER_PALETTE.map((color, i) => (
+                              <span
+                                key={color}
+                                className={cn(
+                                  "-ml-2.5 size-8 rounded-full first:ml-0 max-lg:-ml-3 max-lg:size-7",
+                                  // Sotto lg la coda sfumata sparisce e i pallini
+                                  // rimpiccioliscono, per lasciare larghezza
+                                  // all'etichetta (AC6). Restano i 4 pieni:
+                                  // l'anteprima della scelta è intatta, si perde
+                                  // solo il "ce n'è dell'altro".
+                                  // La soglia è lg, non sm: a 768 la griglia va a
+                                  // 2 colonne e il blocco torna largo quanto a
+                                  // 390 (~322px) ma coi pallini a misura piena —
+                                  // è il caso PEGGIORE, non un caso intermedio.
+                                  i >= TEASER_CRISP && "max-lg:hidden"
+                                )}
+                                style={{
+                                  background: color,
+                                  ...(i >= TEASER_CRISP
+                                    ? {
+                                        opacity: Math.max(
+                                          0.3,
+                                          0.75 - (i - TEASER_CRISP) * 0.2
+                                        ),
+                                      }
+                                    : {}),
+                                }}
+                              />
+                            ))}
+                          </span>
+                        }
                         onClick={() => goToStep(2)}
-                      >
-                        {t("nextStepColors")} ›
-                      </Button>
+                      />
                     </div>
                   )}
                 </Fragment>
               ))}
-            </div>
-            {/* CA-6b: mobile teaser sits right BEFORE the CTA — "what's next"
-                read before tapping Next; also keeps
-                the f18 invariant: nav block closed only by the code bar).
-                mb-6 = the step-2 column's gap-6, so the teaser→CTA breathing
-                room matches across steps (this column has no flex gap). */}
-            {renderTeaser("md:hidden mt-3 mb-6")}
-            {/* CA-2: advance CTA closes the options column — natural end of
-                the flow, single instance for every viewport. No Back here:
-                step 1 is the first step. */}
-            {/* Desktop only: on mobile the R3-B23 contextual block carries the
-                single CTA. On desktop it stays as the end-of-column nav, below
-                the block's own CTA (client decision 2026-07-18). */}
-            <div data-testid="step-nav-flow" className="max-md:hidden">
-              <Button
-                size="lg"
-                data-testid="next-step"
-                className="min-h-11 w-full"
-                onClick={() => goToStep(2)}
-              >
-                {t("nextStepColors")} ›
-              </Button>
             </div>
           </div>
         ) : (
@@ -733,12 +675,27 @@ export function ConfiguratorClient({
               );
             })}
 
-            {/* VARIE-A + VARIE-A-bis: the clickable teaser IS the in-flow next
-                step, placed right where the colour choice ends — reachable
-                without scrolling past notes/inscription. Mobile only: on desktop
-                the same teaser sits under the sticky preview and the nav closes
-                the column. Never fixed (CA-2 / R3-polish-B). */}
-            {renderTeaser("md:hidden")}
+            {/* VARIE-A + VARIE-A-bis: il next-step in-flow sta dove finisce la
+                scelta colori — raggiungibile senza scorrere oltre note e
+                scritta personalizzata. Mobile only: su desktop la riga nav
+                chiude la colonna ed è già in vista. Mai fixed (CA-2 /
+                R3-polish-B).
+                R-EXTRA: era il teaser CA-6, ora è la stessa pillola della riga
+                nav — testid distinto, altrimenti su mobile ce ne sono due con
+                lo stesso e Playwright va in strict-mode violation. */}
+            <NextStepPill
+              data-testid="next-step-inflow"
+              className="w-full md:hidden"
+              caption={t("teaser.nextStep")}
+              label={t("teaser.ceramics")}
+              arrow
+              icon={
+                <PillIcon>
+                  <Circle className="size-5 fill-muted stroke-muted-foreground/50" />
+                </PillIcon>
+              }
+              onClick={() => goToStep(3)}
+            />
 
             {/* R2-2b: custom colour note block — only when the design supports it (AC2).
                 The note lives in state + URL param only; it never enters selections or
@@ -872,25 +829,43 @@ export function ConfiguratorClient({
             )}
 
             {/* CA-2: Back + advance close the options column (last in DOM →
-                natural tab order: options → CTA). */}
-            <div className="flex gap-3" data-testid="step-nav-flow">
-              <Button
-                variant="outline"
-                size="lg"
+                natural tab order: options → CTA).
+                R-EXTRA: stessa altezza per i due bottoni (richiesta cliente
+                2026-07-21) — la ottiene `items-stretch`, non un'altezza fissa:
+                Tilbake a una riga si allunga fino alla pillola a due righe. La
+                gerarchia resta, ed è data da outline (Tilbake) vs riempimento
+                (pillola). Nessuna freccetta su Tilbake: non fa avanzare. */}
+            <div
+              className="flex items-stretch gap-3"
+              data-testid="step-nav-flow"
+            >
+              <NextStepPill
+                variant="secondary"
                 data-testid="back-step"
-                className="min-h-11 shrink-0"
+                className="shrink-0"
+                label={t("back")}
+                icon={
+                  <PillIcon variant="secondary">
+                    <ChevronLeft className="size-5 text-primary" />
+                  </PillIcon>
+                }
                 onClick={() => goToStep(1)}
-              >
-                ‹ {t("back")}
-              </Button>
-              <Button
-                size="lg"
+              />
+              <NextStepPill
                 data-testid="next-step"
-                className="min-h-11 flex-1"
+                className="flex-1"
+                caption={t("teaser.nextStep")}
+                label={t("teaser.ceramics")}
+                arrow
+                icon={
+                  <PillIcon>
+                    {/* piatto generico: la ceramica si sceglie allo step 3,
+                        qui non c'è nulla da anteprimare */}
+                    <Circle className="size-5 fill-muted stroke-muted-foreground/50" />
+                  </PillIcon>
+                }
                 onClick={() => goToStep(3)}
-              >
-                {t("nextStepCeramic")} ›
-              </Button>
+              />
             </div>
           </div>
         )}

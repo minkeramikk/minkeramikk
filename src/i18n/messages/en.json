@@ -64,8 +64,6 @@
   "configurator": {
     "pageTitle": "Build your design",
     "stepIndicator": "Step {step} of 3",
-    "nextStepColors": "Next step: Choose colours",
-    "nextStepCeramic": "Next step: Choose ceramics",
     "back": "Back",
     "previewNote": "The configurator shows your design in a round pattern. Remember you can also order serving dishes, cups, oven dishes etc. in the same design – the final result is just not shown in the configurator.",
     "step1": {
@@ -112,9 +110,7 @@
     "teaser": {
       "nextStep": "Next step",
       "colors": "Pick your colours",
-      "ceramics": "Pick your ceramics",
-      "goToColors": "Go to step 2: choose colours",
-      "goToCeramics": "Go to step 3: choose ceramics"
+      "ceramics": "Pick your ceramics"
     },
     "setBadge": "Set · {count, plural, one {# piece} other {# pieces}}",
     "backToPreview": "Back to the preview",
@@ -186,6 +182,7 @@
     "description": "Review your items and send your order.",
     "viewBasket": "View basket",
     "backToCart": "Back to basket",
+    "checkoutKicker": "Complete order",
     "reopen": "Reopen",
     "insurance": {
       "title": "Insured shipping",
