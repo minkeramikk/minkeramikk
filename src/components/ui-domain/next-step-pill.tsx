@@ -62,7 +62,10 @@ export function NextStepPill({
   variant?: PillVariant;
   onClick: () => void;
   className?: string;
-  "aria-label"?: string;
+  // Niente `aria-label`: il nome accessibile DEVE restare caption + label
+  // visibili (WCAG 2.5.3, chi usa il comando vocale pronuncia ciò che legge).
+  // La prop non è dichiarata apposta — così riaggiungerla costa un errore di
+  // TypeScript invece di una regressione silenziosa.
   "data-testid"?: string;
 }) {
   return (

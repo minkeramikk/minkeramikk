@@ -513,7 +513,15 @@ export function ConfiguratorClient({
                             {TEASER_PALETTE.map((color, i) => (
                               <span
                                 key={color}
-                                className="-ml-2.5 size-8 rounded-full first:ml-0 max-sm:-ml-3 max-sm:size-7"
+                                className={cn(
+                                  "-ml-2.5 size-8 rounded-full first:ml-0 max-sm:-ml-3 max-sm:size-7",
+                                  // Sotto sm il pollice comanda: la coda sfumata
+                                  // sparisce per lasciare larghezza all'etichetta
+                                  // (a 390 il testo tronca, AC6). Restano i 4
+                                  // pallini pieni — l'anteprima della scelta è
+                                  // intatta, si perde solo il "ce n'è dell'altro".
+                                  i >= TEASER_CRISP && "max-sm:hidden"
+                                )}
                                 style={{
                                   background: color,
                                   ...(i >= TEASER_CRISP
