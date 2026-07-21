@@ -784,3 +784,97 @@ describe.skipIf(!hasReorderRpc)(
   });
 }
 );
+
+/**
+ * R-EXTRA — reorder_designs ships in migration 0028, same deal as 0026: ADDITIVE,
+ * pushed to the linked DB before the merge. Same probe gate, same not-a-silent-skip
+ * rule (lesson F07) — the reason rides in the block title.
+ */
+const hasReorderDesignsRpc = hasEnv
+  ? await (async () => {
+      const probe = createClient(url!, serviceKey!, {
+        auth: { persistSession: false },
+      });
+      const { error } = await probe.rpc("reorder_designs", { p_ids: [] });
+      const missing = /could not find the function/i.test(error?.message ?? "");
+      if (missing) {
+        console.warn(
+          "[rls.test] reorder_designs (migration 0028) is not on the linked DB yet — R-EXTRA block skipped"
+        );
+      }
+      return !missing;
+    })()
+  : false;
+
+describe.skipIf(!hasReorderDesignsRpc)(
+  hasReorderDesignsRpc
+    ? "RLS — reorder_designs (R-EXTRA)"
+    : "RLS — reorder_designs (R-EXTRA) — SKIPPED: migration 0028 not applied to the linked DB yet",
+  () => {
+    let anon: SupabaseClient;
+    let admin: SupabaseClient;
+    // The catalog order as it stands. reorder_designs is GLOBAL — it renumbers
+    // every design — so this block seeds nothing and moves nothing: it exercises
+    // the guards (which cannot write) and, for the happy path, replays the
+    // CURRENT order. That is a no-op on the ordering of the real catalog while
+    // still proving the UPDATE runs and lands on 1..n.
+    let currentIds: string[] = [];
+
+    beforeAll(async () => {
+      anon = createClient(url!, anonKey!);
+      admin = createClient(url!, serviceKey!, { auth: { persistSession: false } });
+      const { data } = await admin
+        .from("designs")
+        .select("id")
+        .order("sort_order", { ascending: true })
+        .order("id", { ascending: true }); // stable tie-break: sort_order may still hold duplicates
+      currentIds = (data ?? []).map((d) => d.id as string);
+    });
+
+    it("anon cannot execute reorder_designs", async () => {
+      const { error } = await anon.rpc("reorder_designs", { p_ids: currentIds });
+      expect(error).not.toBeNull();
+      // 42501 = insufficient_privilege: the GRANT stops it before any RLS check,
+      // which is the point of the explicit anon revoke (lesson 0027).
+      expect(error!.code).toBe("42501");
+    });
+
+    it("raises 22023 on a partial list — a subset would renumber only part of the catalog", async () => {
+      const { error } = await admin.rpc("reorder_designs", {
+        p_ids: currentIds.slice(1),
+      });
+      expect(error).not.toBeNull();
+      expect(error!.code).toBe("22023");
+      expect(error!.message).toMatch(/every design/i);
+    });
+
+    it("raises 22023 on an id that is not a design — an unknown uuid would eat a position", async () => {
+      const { error } = await admin.rpc("reorder_designs", {
+        p_ids: [...currentIds.slice(0, -1), "00000000-0000-0000-0000-000000000000"],
+      });
+      expect(error).not.toBeNull();
+      expect(error!.code).toBe("22023");
+    });
+
+    it("raises 22023 on a duplicate ON TOP of full coverage", async () => {
+      const { error } = await admin.rpc("reorder_designs", {
+        p_ids: [...currentIds, currentIds[0]],
+      });
+      expect(error).not.toBeNull();
+      expect(error!.code).toBe("22023");
+    });
+
+    it("renumbers 1..n in one call (replaying the current order — no visible change)", async () => {
+      const { error } = await admin.rpc("reorder_designs", { p_ids: currentIds });
+      expect(error).toBeNull();
+      const { data } = await admin
+        .from("designs")
+        .select("id, sort_order")
+        .order("sort_order", { ascending: true });
+      expect((data ?? []).map((d) => d.id)).toEqual(currentIds);
+      expect((data ?? []).map((d) => d.sort_order)).toEqual(
+        currentIds.map((_, i) => i + 1)
+      );
+    });
+  }
+);
