@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { AdminShell } from "@/components/shell/admin-shell";
-import { DuplicateDesignButton } from "@/components/admin/duplicate-design-button";
+import { DesignOrderList, type DesignRow } from "@/components/admin/design-order-list";
 import { createClient } from "@/lib/supabase/server";
 
 // Live data: a new/edited design (and its active flag) is reflected at once.
@@ -13,7 +13,17 @@ export default async function AdminDesignsPage() {
     .select("id, name, name_no, name_en, code, active, sort_order, suppliers(name), option_categories(id)")
     .order("sort_order", { ascending: true });
 
-  const rows = designs ?? [];
+  // Shaped here so the client list gets plain rows (and a stable array to sync on).
+  const rows: DesignRow[] = (designs ?? []).map((d) => ({
+    id: d.id,
+    name: d.name,
+    nameNo: d.name_no ?? d.name,
+    nameEn: d.name_en ?? d.name,
+    supplierName: (d.suppliers as { name: string } | null)?.name ?? "—",
+    code: d.code,
+    categories: (d.option_categories as { id: string }[] | null)?.length ?? 0,
+    active: d.active,
+  }));
 
   return (
     <AdminShell
@@ -35,62 +45,7 @@ export default async function AdminDesignsPage() {
             No designs yet.
           </div>
         ) : (
-          <div className="overflow-hidden rounded-lg border border-border bg-card">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border text-left text-[11px] uppercase tracking-[0.06em] text-muted-foreground">
-                  <th className="px-4 py-2.5 font-medium">Name</th>
-                  <th className="hidden px-4 py-2.5 font-medium sm:table-cell">Supplier</th>
-                  <th className="px-4 py-2.5 font-medium">Code</th>
-                  <th className="px-4 py-2.5 font-medium">Categories</th>
-                  <th className="px-4 py-2.5 font-medium">Active</th>
-                  <th className="px-4 py-2.5" />
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((d) => {
-                  const supplierName =
-                    (d.suppliers as { name: string } | null)?.name ?? "—";
-                  const catCount = (d.option_categories as { id: string }[] | null)?.length ?? 0;
-                  return (
-                    <tr
-                      key={d.id}
-                      data-testid="design-row"
-                      className="border-b border-border/50 last:border-0 hover:bg-muted/50"
-                    >
-                      <td className="px-4 py-3 font-medium">{d.name}</td>
-                      <td className="hidden px-4 py-3 text-muted-foreground sm:table-cell">
-                        {supplierName}
-                      </td>
-                      <td className="px-4 py-3 font-mono text-xs">{d.code ?? "—"}</td>
-                      <td className="px-4 py-3 tabular-nums">{catCount}</td>
-                      <td className="px-4 py-3">
-                        <span data-status={d.active ? "active" : "draft"}>
-                          {d.active ? "Yes" : "Draft"}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <div className="flex items-center justify-end gap-3">
-                          <DuplicateDesignButton
-                            designId={d.id}
-                            designNameNo={d.name_no ?? d.name}
-                            designNameEn={d.name_en ?? d.name}
-                          />
-                          <Link
-                            href={`/admin/designs/${d.id}`}
-                            data-testid="design-edit"
-                            className="text-sm font-medium text-primary underline-offset-2 hover:underline"
-                          >
-                            Edit
-                          </Link>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          <DesignOrderList designs={rows} />
         )}
       </div>
     </AdminShell>
