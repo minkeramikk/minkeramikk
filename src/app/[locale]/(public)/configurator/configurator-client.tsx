@@ -326,6 +326,9 @@ export function ConfiguratorClient({
   function goToStep(target: 1 | 2 | 3) {
     const params = new URLSearchParams(searchParams.toString());
     params.set("design", selected.slug);
+    // Leaving steps 1–2 IS the explicit choice: whatever brought the design in
+    // (a shared set landing marks it `origin=set`) stops mattering here.
+    params.delete("origin");
     if (target === 1) params.delete("step");
     else params.set("step", String(target));
     // R2-2b: carry the note forward only when the design accepts it and the

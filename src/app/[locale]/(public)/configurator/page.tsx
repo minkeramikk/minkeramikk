@@ -39,8 +39,30 @@ export default async function ConfiguratorPage({
     getTranslations("configurator"),
   ]);
 
+  // TWO DIFFERENT STATES, deliberately not one flag (card R-EXTRA-step3-
+  // selection-e-badge-drawer, bugs 3+4):
+  //
+  //  a) "did the customer explicitly configure colours?" → `chosen`, i.e.
+  //     `?design=`, which `goToStep` writes when leaving steps 1–2. It gates
+  //     the "Your selection" box: no explicit choice ⇒ no box, not an empty one.
+  //  b) "which design is the current one?" → `currentDesign` below, resolved
+  //     further down as: explicit `?design=` > the shared/featured set's design
+  //     > positional fallback. It drives the ceramics grid, the code and the
+  //     layers.
+  //
+  // Collapsing them is what broke both ways: with one flag, loading the set's
+  // ceramics also brought back the bogus "Your selection".
+  const chosen = designSlug
+    ? designs.find((d) => d.slug === designSlug)
+    : undefined;
+  // `origin=set`: the design in the URL was pinned by a set landing when it
+  // consumed `set=` (see consumeSetParam) — current design, yes; explicit
+  // colour choice, no. Steps 1–2 drop the param the moment the customer
+  // really configures.
+  const fromSetOrigin = params.origin === "set";
+  const explicitChoice = chosen !== undefined && !fromSetOrigin;
   const selected =
-    (designSlug ? designs.find((d) => d.slug === designSlug) : undefined) ??
+    chosen ??
     // Default to the first design that actually composes a preview, so an active
     // but layer-less design (e.g. a freshly created one) never blanks the
     // configurator's default view. Falls back to the first design (F14 AC1).
@@ -49,9 +71,21 @@ export default async function ConfiguratorPage({
 
   // ── step 3: ceramics + cart (separate layout, no shared preview) ──
   if (step === "3" && selected) {
+    // CA-3: a `set=` param is a shared basket — resolve it server-side
+    // (multi-supplier, live prices); the client applies/asks and then
+    // consumes the param. Resolved FIRST because it carries the landing's
+    // design: without it the grid below would list the fallback design's
+    // ceramics (bug 4).
+    const rawSet = typeof params.set === "string" ? params.set : "";
+    const sharedSet = rawSet ? await resolveSharedSet(rawSet) : null;
+    const fromSet = sharedSet?.context
+      ? designs.find((d) => d.slug === sharedSet.context!.designSlug)
+      : undefined;
+    const currentDesign = chosen ?? fromSet ?? selected;
+
     const [detail, products] = await Promise.all([
-      getDesignDetail(selected.slug),
-      getDesignProducts(selected.id, selected.supplierId),
+      getDesignDetail(currentDesign.slug),
+      getDesignProducts(currentDesign.id, currentDesign.supplierId),
     ]);
     if (detail) {
       // snapshot + canonical code (ADR 0011) + F19 mini-preview layers, all
@@ -60,8 +94,13 @@ export default async function ConfiguratorPage({
       const selById: Record<string, string> = {};
       for (const c of detail.categories) {
         const v = params[`opt_${c.slug}`];
+        const fromShared = sharedSet?.context?.selections[c.slug];
         const opt =
           (typeof v === "string" && c.options.find((o) => o.id === v)) ||
+          // Set landing: the colours come from the shared row, not from the
+          // design's defaults — otherwise "this ceramic + your design" would
+          // add a line that looks nothing like the set the customer opened.
+          (fromShared && c.options.find((o) => o.id === fromShared)) ||
           // R2-1a: untouched category falls back to the cover default
           // (is_default else first-by-sort_order), matching steps 1-2.
           pickDefaultOption(c.options);
@@ -79,12 +118,6 @@ export default async function ConfiguratorPage({
         customNote,
         customText
       );
-
-      // CA-3: a `set=` param is a shared basket — resolve it server-side
-      // (multi-supplier, live prices); the client applies/asks and then
-      // consumes the param.
-      const rawSet = typeof params.set === "string" ? params.set : "";
-      const sharedSet = rawSet ? await resolveSharedSet(rawSet) : null;
 
       // No <Suspense> around the client steps: the page already awaits all
       // data (dynamic via `await searchParams`), so the boundary never showed
@@ -109,14 +142,16 @@ export default async function ConfiguratorPage({
                 attributes: p.attributes,
               }))}
               design={{
-                slug: selected.slug,
-                name: selected.name,
-                supplierId: selected.supplierId,
-                supplierName: selected.supplierName,
+                slug: currentDesign.slug,
+                name: currentDesign.name,
+                supplierId: currentDesign.supplierId,
+                supplierName: currentDesign.supplierName,
               }}
               snapshot={snapshot}
               configCode={configCode}
               designLayers={designLayers}
+              hasExplicitDesign={explicitChoice}
+              selections={selById}
               sharedSet={sharedSet}
             />
         </section>

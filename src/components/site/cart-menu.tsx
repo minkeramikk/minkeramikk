@@ -18,6 +18,7 @@ import { NextStepPill, PillIcon } from "@/components/ui-domain/next-step-pill";
 import { OrderForm } from "@/components/ui-domain/order-form";
 import { CartLineThumb } from "@/components/ui-domain/cart-line-thumb";
 import { CartLineRecap } from "@/components/ui-domain/cart-line-recap";
+import { SetBadge } from "@/components/ui-domain/set-badge";
 import {
   CartShippingRow,
   useShippingTotalSuffix,
@@ -155,8 +156,14 @@ export function CartMenu() {
                         plateImage={line.plateImage}
                       />
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium">
-                          {locale === "no" ? line.productNameNo : line.productNameEn}
+                        <p className="flex items-center gap-1.5 text-sm font-medium">
+                          <span className="truncate">
+                            {locale === "no" ? line.productNameNo : line.productNameEn}
+                          </span>
+                          {/* F29: same set marker as the step-3 docked row
+                              (`docked-cart` in ceramics-step.tsx) — the drawer
+                              was the last surface still hiding it. */}
+                          <SetBadge count={line.pieces ?? 1} className="shrink-0" />
                         </p>
                         <p className="truncate text-xs text-muted-foreground">
                           {designLabel(line.configSnapshot, locale) ?? "—"}

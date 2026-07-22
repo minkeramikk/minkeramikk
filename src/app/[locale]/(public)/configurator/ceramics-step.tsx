@@ -369,6 +369,8 @@ export function CeramicsStep({
   snapshot,
   configCode,
   designLayers,
+  hasExplicitDesign,
+  selections = {},
   sharedSet = null,
 }: {
   products: CeramicProduct[];
@@ -377,6 +379,19 @@ export function CeramicsStep({
   configCode: string;
   /** F19: composited design layers (no plate); plate prepended at add-time. */
   designLayers: CartLayer[];
+  /**
+   * Did the customer actually choose this design (`?design=`), or is it the
+   * page's positional fallback? A `?set=` / featured-set landing arrives with
+   * no choice at all, and the fallback must never be shown back as "your
+   * selection".
+   */
+  hasExplicitDesign: boolean;
+  /**
+   * categorySlug → optionId of the config this step is rendering. Only used to
+   * pin the colours in the URL when a set landing consumes `set=`; the normal
+   * flow already carries them as `opt_*`.
+   */
+  selections?: Record<string, string>;
   /** CA-3: server-resolved `?set=` lines (live prices), or null when no set. */
   sharedSet?: ResolvedSharedSet | null;
 }) {
@@ -428,7 +443,10 @@ export function CeramicsStep({
 
   // F37: current-config recap data (name + readable selections). Rendered only
   // when there are design layers (AC4: no config / ?set= landing → nothing).
-  const hasConfig = designLayers.length > 0;
+  // ponytail: the box (and its "Edit colours ›") exists only for a REAL
+  // choice — no explicit design ⇒ no box, not an empty one. The grid below
+  // still works off the fallback design, which is fine as a catalog view.
+  const hasConfig = hasExplicitDesign && designLayers.length > 0;
   const designName = designLabel(snapshot, locale) ?? "";
 
   // R1-FB2/FB4: warm the ceramic photos in idle (desktop) — covers the
@@ -522,6 +540,23 @@ export function CeramicsStep({
   function consumeSetParam() {
     const params = new URLSearchParams(searchParams.toString());
     params.delete("set");
+    // Pin the landing's design before `set=` goes away, or the next server
+    // render falls back to the positional default design and the ceramics
+    // grid swaps to ANOTHER design's list (bug 4: the fix on the server side
+    // only survives while `set=` is in the URL).
+    // `origin=set` keeps this apart from a real colour choice: the design is
+    // current, but nothing was configured, so the "Your selection" box must
+    // stay away (bug 3). Two states, two params — one flag would trade one
+    // bug for the other.
+    if (!params.get("design")) {
+      params.set("design", design.slug);
+      params.set("origin", "set");
+      // ...with the set's own colours, not the design's defaults: a ceramic
+      // added right after the landing must match the set the customer opened.
+      for (const [slug, optionId] of Object.entries(selections)) {
+        params.set(`opt_${slug}`, optionId);
+      }
+    }
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
   }
 
