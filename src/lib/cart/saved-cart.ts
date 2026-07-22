@@ -9,7 +9,7 @@
  * CartLine — un formato parallelo sarebbe solo un secondo posto dove
  * dimenticarsi un campo.
  */
-import { addToCart, itemCount, lineKey, type Cart, type CartLine } from "./cart";
+import { addToCart, itemCount, type Cart, type CartLine } from "./cart";
 
 /** Chiave dedicata, stessa convenzione di `mk-cart-v1` (use-cart.ts). */
 export const SAVED_CART_KEY = "mk-saved-cart-v1";
