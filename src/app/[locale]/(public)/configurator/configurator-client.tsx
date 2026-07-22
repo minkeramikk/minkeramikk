@@ -824,20 +824,23 @@ export function ConfiguratorClient({
                 R-EXTRA (bugfix mobile): questa riga è l'UNICO next-step dello
                 step 2 — la copia mobile in-flow (ex teaser CA-6) è stata
                 rimossa: su Pixel 8 erano due pillole identiche impilate.
-                `flex-wrap` + base 16rem sulla pillola invece di un breakpoint:
-                dove i due bottoni non ci stanno affiancati (390, ma anche 768,
-                dove la colonna torna stretta quanto a 390) la pillola va a capo
-                a piena larghezza. Mai troncare l'etichetta del CTA primario:
+                R-EXTRA (mockup-mobile-stacked-COMPARE.jpg): quando i due non ci
+                stanno affiancati NON basta mandare a capo — l'ordine visivo si
+                inverte, il Next va SOPRA a piena larghezza e il Back SOTTO,
+                alleggerito e centrato. Da qui `flex-col-reverse` + `@container`:
+                la soglia è la larghezza della COLONNA, non del viewport (a 768
+                la colonna torna stretta quanto a 390, un breakpoint di viewport
+                mancherebbe il caso). Mai troncare l'etichetta del CTA primario:
                 era il sintomo che AC10 deve chiudere, non una via d'uscita. */}
-            <div
-              ref={navRef}
-              className="flex flex-wrap items-stretch gap-3"
-              data-testid="step-nav-flow"
-            >
+            <div ref={navRef} className="@container" data-testid="step-nav-flow">
+            <div className="flex flex-col-reverse gap-3 @md:flex-row @md:items-stretch">
               <NextStepPill
                 variant="secondary"
                 data-testid="back-step"
-                className="shrink-0"
+                // Stacked (colonna stretta): piena larghezza e contenuto
+                // centrato come da mockup. Affiancato: torna largo il minimo
+                // e allineato a sinistra, così il Next si prende il resto.
+                className="justify-center [&>span]:flex-none @md:shrink-0 @md:justify-start"
                 label={t("back")}
                 icon={
                   <PillIcon variant="secondary">
@@ -848,7 +851,10 @@ export function ConfiguratorClient({
               />
               <NextStepPill
                 data-testid="next-step"
-                className="flex-[1_1_16rem]"
+                // Solo affiancato: in colonna `flex-basis` sarebbe l'ALTEZZA
+                // (16rem di pillola). Stacked non serve: `stretch` fa già
+                // piena larghezza.
+                className="@md:flex-[1_1_16rem]"
                 caption={t("teaser.nextStep")}
                 label={t("teaser.ceramics")}
                 arrow
@@ -872,7 +878,12 @@ export function ConfiguratorClient({
                           loading="lazy"
                           decoding="async"
                           data-testid="next-step-ceramic-thumb"
-                          className="size-9 rounded-sm border border-border bg-card object-contain"
+                          // A colonna stretta (390, e 768 dove la colonna è
+                          // altrettanto stretta) i tre quadrati da 36px lasciano
+                          // 142px all'etichetta, che ne chiede 144: "Pick your
+                          // ceramics" si troncava di 2px. size-8 ne restituisce
+                          // 12. L'etichetta del CTA primario non si tronca MAI.
+                          className="size-8 rounded-sm border border-border bg-card object-contain @md:size-9"
                         />
                       ))}
                     </span>
@@ -886,6 +897,7 @@ export function ConfiguratorClient({
                 }
                 onClick={() => goToStep(3)}
               />
+            </div>
             </div>
           </div>
         )}

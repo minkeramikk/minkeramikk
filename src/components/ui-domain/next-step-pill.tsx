@@ -57,7 +57,10 @@ export function PillIcon({
  */
 const SURFACE: Record<PillVariant, string> = {
   primary: "border-2 border-primary bg-primary/10 hover:bg-primary/20",
-  secondary: "border-[1.5px] border-primary/40 bg-card hover:bg-primary/5",
+  // Nessun riempimento: nei mockup il secondario prende il colore della
+  // superficie su cui sta (rosa pagina allo step 2, card del carrello allo
+  // step 3). `bg-card` lo faceva stampare bianco sul rosa.
+  secondary: "border-[1.5px] border-primary/40 hover:bg-primary/5",
   tertiary: "border border-border bg-card hover:border-ring",
 };
 
@@ -111,7 +114,9 @@ export function NextStepPill({
         <span
           className={cn(
             "block truncate text-[15px] font-semibold",
-            variant === "secondary" && "font-bold text-nav-secondary",
+            // font-weight 500, NON bold: correzione card 2026-07-21 — il
+            // secondario alleggerito non deve pesare quanto il primario.
+            variant === "secondary" && "font-medium text-nav-secondary",
             variant === "tertiary" && "text-muted-foreground"
           )}
         >
