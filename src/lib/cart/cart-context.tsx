@@ -3,7 +3,6 @@
 import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
 import { useCart } from "./use-cart";
 import { useSavedCart } from "./use-saved-cart";
-import { SwapCartDialog } from "@/components/ui-domain/swap-cart-dialog";
 
 /**
  * Shared cart view (F16). The cart STATE and persistence already live in
@@ -43,10 +42,6 @@ export function CartProvider({ children }: { children: ReactNode }) {
   return (
     <CartContext.Provider value={value}>
       {children}
-      {/* F40: UNA sola istanza del dialogo di scambio — i due punti di
-          "Lagre til senere" (drawer e step 3) e "Hent tilbake" condividono
-          lo stesso stato, quindi lo stesso dialogo. */}
-      <SwapCartDialog />
     </CartContext.Provider>
   );
 }
