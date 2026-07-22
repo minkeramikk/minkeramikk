@@ -31,6 +31,7 @@ export function SaveForLaterPill({
       data-testid={testId}
       className={className}
       label={t("saved.cta")}
+      disabled={disabled}
       onClick={() => {
         if (!disabled) onClick();
       }}

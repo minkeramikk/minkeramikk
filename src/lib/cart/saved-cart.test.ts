@@ -207,6 +207,24 @@ describe("buildRestoredCart (AC4/AC5)", () => {
     expect(dropped.report.adapted[0].changes).toEqual(["note", "text"]);
   });
 
+  it("does not report a false adaptation for an empty note (fix 5): buildConfigLinePayload puts \"\" on every note-accepting design, even unwritten", () => {
+    const saved = snapshotCart(
+      [line({ configSnapshot: { ...line().configSnapshot!, customNote: "" } })],
+      NOW
+    );
+    const fresh = {
+      ...saved.lines[0],
+      configSnapshot: { ...saved.lines[0].configSnapshot!, customNote: undefined },
+    };
+    // even a design that STOPPED accepting notes must not flag "note": there
+    // was never a customer-written note to lose.
+    const { cart, report } = buildRestoredCart(saved, [
+      okEntry(fresh, { acceptsCustomNotes: false }),
+    ]);
+    expect(cart[0].configSnapshot?.customNote).toBeUndefined();
+    expect(report.adapted).toEqual([]);
+  });
+
   it("merges two saved lines that collapse onto the same identity", () => {
     const saved = snapshotCart([line({ quantity: 1 }), line({ id: "other", quantity: 2 })], NOW);
     const { cart } = buildRestoredCart(saved, [okEntry(saved.lines[0]), okEntry(saved.lines[0])]);

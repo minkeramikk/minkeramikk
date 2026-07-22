@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { Cart } from "./cart";
-import { STORAGE_KEY as CART_STORAGE_KEY } from "./use-cart";
+import { STORAGE_KEY as CART_STORAGE_KEY, loadCart } from "./use-cart";
+import { clampQty } from "./set-code";
 import {
   SAVED_CART_KEY,
   buildRestoredCart,
@@ -90,6 +91,10 @@ export function useSavedCart(
 
     setPending(true);
     try {
+      // Punto di verità PRIMA dell'unico await di questa funzione: si rilegge
+      // la chiave di nuovo DOPO la fetch e si confronta, per scoprire se
+      // un'altra tab ha scritto lo slot nel frattempo (nessun mutex tra tab).
+      const slotRawAtStart = window.localStorage.getItem(SAVED_CART_KEY);
       // Righe legacy pre-CA-3 senza productSlug non sono validabili: si contano
       // come rimosse invece di mandare `undefined` allo schema zod (che lo
       // rifiuterebbe con 400, facendo fallire TUTTO il ripristino).
@@ -103,12 +108,32 @@ export function useSavedCart(
             entries: validatable.map((l) => ({
               configCode: l.configCode,
               productSlug: l.productSlug!,
-              quantity: l.quantity,
+              // Il server ignora comunque questo campo (la quantità
+              // ripristinata viene dallo slot), ma lo schema zod la cappa a
+              // 99: uno slot con quantità più alta (nessun tetto negli
+              // stepper) farebbe fallire OGNI tentativo di ripristino con
+              // 400, bloccando lo slot per sempre.
+              quantity: clampQty(l.quantity),
             })),
           }),
         });
         if (!res.ok) throw new Error(String(res.status));
         ({ results } = (await res.json()) as { results: ValidatedEntry[] });
+      }
+      // Da qui in poi lo STORAGE è la fonte di verità, non `cart`/`slot`
+      // catturati alla chiusura del click: durante l'await un'altra tab può
+      // aver scritto il carrello o lo slot. Si rilegge il carrello (per usarlo)
+      // e lo slot (solo per confrontarlo) — mai i valori chiusi sull'evento.
+      const currentCart = loadCart();
+      const slotRawNow = window.localStorage.getItem(SAVED_CART_KEY);
+      if (slotRawNow !== slotRawAtStart) {
+        // Lo slot che abbiamo appena validato non è più quello in storage:
+        // scambiare comunque vorrebbe dire sovrascrivere la scrittura
+        // dell'altra tab con dati vecchi. Onestà > completamento silenzioso —
+        // si aborta con lo stesso avviso di validazione fallita, l'utente
+        // riprova sullo stato reale.
+        setFailed(true);
+        return;
       }
       // ri-allineare gli esiti alle righe salvate: le non-validabili sono "removed"
       let k = 0;
@@ -116,7 +141,7 @@ export function useSavedCart(
         l.productSlug ? results[k++] : { ok: false, reason: "product" }
       );
       const { cart: restored, report: restoreReport } = buildRestoredCart(slot, aligned);
-      const next = swapCarts(cart, restored, new Date());
+      const next = swapCarts(currentCart, restored, new Date());
 
       // Lo scambio tocca DUE chiavi (lo slot e mk-cart-v1). Le due scritture
       // durevoli stanno qui, una dopo l'altra, nello STESSO blocco sincrono:

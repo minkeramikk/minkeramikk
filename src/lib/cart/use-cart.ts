@@ -13,7 +13,10 @@ import {
  * ONE definition of the string, never a second copy to drift out of sync. */
 export const STORAGE_KEY = "mk-cart-v1";
 
-function load(): Cart {
+/** Exported so use-saved-cart.ts can re-read the live cart mid-swap (fix 2:
+ * the storage is the source of truth across the validation `await`, not the
+ * closure) — same defensive parse, ONE definition, no third variant. */
+export function loadCart(): Cart {
   if (typeof window === "undefined") return [];
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
@@ -35,10 +38,10 @@ export function useCart() {
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
-    setCart(load());
+    setCart(loadCart());
     setHydrated(true);
     const onStorage = (e: StorageEvent) => {
-      if (e.key === STORAGE_KEY) setCart(load());
+      if (e.key === STORAGE_KEY) setCart(loadCart());
     };
     window.addEventListener("storage", onStorage);
     return () => window.removeEventListener("storage", onStorage);

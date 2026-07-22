@@ -159,7 +159,11 @@ export function buildRestoredCart(
       : null;
     const note = savedLine.configSnapshot?.customNote;
     const text = savedLine.configSnapshot?.customText;
-    if (note !== undefined) {
+    // `buildConfigLinePayload` mette `customNote: ""` su OGNI design che accetta
+    // note, salvata o no dal cliente — `!== undefined` da solo segnalerebbe
+    // un adattamento fasullo ("1 elemento è stato adattato") per una nota mai
+    // scritta. Solo una nota non vuota è qualcosa da riattaccare o segnalare.
+    if (note) {
       if (result.acceptsCustomNotes && snapshot) snapshot.customNote = note;
       else changes.push("note");
     }

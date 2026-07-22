@@ -17,7 +17,9 @@ import { useCartContext } from "@/lib/cart/cart-context";
 /**
  * F40 — dialogo di scambio UNICO: stessa domanda per "salvo con slot pieno" e
  * "riprendo con carrello pieno", perché è lo stesso gesto (decisione di
- * prodotto 2). Montato una volta sola dentro CartProvider.
+ * prodotto 2). Montato una volta sola in PublicShell (non in CartProvider:
+ * questo componente legge useCartContext(), e importarlo dentro il provider
+ * stesso creava un import circolare — vedi il commento in public-shell.tsx).
  * Niente X di chiusura: le due uscite sono Avbryt e Bytt (mockup pannello 3).
  */
 export function SwapCartDialog() {
