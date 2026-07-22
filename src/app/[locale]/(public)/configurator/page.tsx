@@ -39,8 +39,14 @@ export default async function ConfiguratorPage({
     getTranslations("configurator"),
   ]);
 
+  // The ONLY signal that the customer really picked a design: `?design=`,
+  // which `goToStep` always writes when leaving steps 1–2. Everything else
+  // (bare `/configurator`, a `?set=` featured-set landing) has no selection.
+  const chosen = designSlug
+    ? designs.find((d) => d.slug === designSlug)
+    : undefined;
   const selected =
-    (designSlug ? designs.find((d) => d.slug === designSlug) : undefined) ??
+    chosen ??
     // Default to the first design that actually composes a preview, so an active
     // but layer-less design (e.g. a freshly created one) never blanks the
     // configurator's default view. Falls back to the first design (F14 AC1).
@@ -117,6 +123,7 @@ export default async function ConfiguratorPage({
               snapshot={snapshot}
               configCode={configCode}
               designLayers={designLayers}
+              hasExplicitDesign={chosen !== undefined}
               sharedSet={sharedSet}
             />
         </section>

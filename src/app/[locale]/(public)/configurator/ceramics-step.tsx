@@ -369,6 +369,7 @@ export function CeramicsStep({
   snapshot,
   configCode,
   designLayers,
+  hasExplicitDesign,
   sharedSet = null,
 }: {
   products: CeramicProduct[];
@@ -377,6 +378,13 @@ export function CeramicsStep({
   configCode: string;
   /** F19: composited design layers (no plate); plate prepended at add-time. */
   designLayers: CartLayer[];
+  /**
+   * Did the customer actually choose this design (`?design=`), or is it the
+   * page's positional fallback? A `?set=` / featured-set landing arrives with
+   * no choice at all, and the fallback must never be shown back as "your
+   * selection".
+   */
+  hasExplicitDesign: boolean;
   /** CA-3: server-resolved `?set=` lines (live prices), or null when no set. */
   sharedSet?: ResolvedSharedSet | null;
 }) {
@@ -428,7 +436,10 @@ export function CeramicsStep({
 
   // F37: current-config recap data (name + readable selections). Rendered only
   // when there are design layers (AC4: no config / ?set= landing → nothing).
-  const hasConfig = designLayers.length > 0;
+  // ponytail: the box (and its "Edit colours ›") exists only for a REAL
+  // choice — no explicit design ⇒ no box, not an empty one. The grid below
+  // still works off the fallback design, which is fine as a catalog view.
+  const hasConfig = hasExplicitDesign && designLayers.length > 0;
   const designName = designLabel(snapshot, locale) ?? "";
 
   // R1-FB2/FB4: warm the ceramic photos in idle (desktop) — covers the
