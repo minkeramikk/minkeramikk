@@ -173,7 +173,6 @@ export function buildRestoredCart(
     // codice canonico: due righe adattate sullo stesso config si fondono.
     cart = addToCart(cart, {
       ...result.line,
-      id: lineKey(result.line.productId, result.line.configCode),
       configSnapshot: snapshot,
       quantity: savedLine.quantity,
     });
