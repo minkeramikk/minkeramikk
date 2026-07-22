@@ -134,6 +134,7 @@ it("storage key follows the existing naming", () => {
 
 /** Risposta "tutto ancora valido" per una riga: il server rimanda la riga viva. */
 function okEntry(l: CartLine, over: Partial<ValidatedEntry> = {}): ValidatedEntry {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- `id` è locale: il server rimanda la riga senza identità
   const { id: _id, ...rest } = l;
   return {
     ok: true,

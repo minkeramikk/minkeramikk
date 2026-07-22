@@ -6,7 +6,10 @@ vi.mock("@/lib/cart/resolve-cart-entries", () => ({
   resolveCartEntries: vi.fn(),
 }));
 
-import { resolveCartEntries } from "@/lib/cart/resolve-cart-entries";
+import {
+  resolveCartEntries,
+  type ResolvedCartEntry,
+} from "@/lib/cart/resolve-cart-entries";
 
 describe("POST /api/cart/validate", () => {
   beforeEach(() => {
@@ -14,14 +17,15 @@ describe("POST /api/cart/validate", () => {
   });
   it("strips `selections` from ok entries and preserves failed entries in place (F40 boundary)", async () => {
     // The resolver returns internal fields like `selections` (for the ?set= landing);
-    // the route must not leak them. Here: one ok entry with selections + extra data,
-    // one failed entry. The response must have same length, same order, and the ok
+    // the route must not leak them. Here: one ok entry carrying selections, one
+    // failed entry. The response must have same length, same order, and the ok
     // entry must have NO `selections` key.
-    const mockResults = [
+    // Typed as ResolvedCartEntry[] on purpose: a fixture that drifts from the real
+    // resolver shape would prove nothing about the real boundary.
+    const mockResults: ResolvedCartEntry[] = [
       {
         ok: true as const,
         line: {
-          id: "p1::MK-A-B",
           productId: "p1",
           productNameNo: "Vietri sett",
           productNameEn: "Vietri set",
@@ -31,13 +35,17 @@ describe("POST /api/cart/validate", () => {
           currency: "NOK",
           quantity: 1,
           configCode: "MK-A-B",
-          configSnapshot: { designSlug: "amalfi" },
+          configSnapshot: {
+            designSlug: "amalfi",
+            designName: "Amalfi animals",
+            selections: [{ label: "Farge", option: "Blå", hex: "#123456" }],
+          },
           layers: [{ src: "/a.png", recolor: true }],
           plateImage: "/plate.png",
           productSlug: "vietri-set",
           pieces: 2,
         },
-        selections: [{ label: "Farge", option: "Blå" }], // resolver-only field, must not leave
+        selections: { farge: "opt-blue" }, // resolver-only field, must not leave
         acceptsCustomNotes: true,
         acceptsCustomText: false,
       },

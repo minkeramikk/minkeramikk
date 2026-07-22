@@ -161,8 +161,13 @@ export function useSavedCart(
         return;
       }
 
-      persist(next.slot);
-      replaceCart(next.cart);
+      // Il disco è già a posto: un fallimento qui non perde niente, ma
+      // lascerebbe lo STATO indietro rispetto allo storage senza dirlo a
+      // nessuno. Entrambe le chiamate vanno eseguite (niente short-circuit)
+      // e l'anomalia si segnala con lo stesso avviso della validazione.
+      const slotCommitted = persist(next.slot);
+      const cartCommitted = replaceCart(next.cart);
+      if (!slotCommitted || !cartCommitted) setFailed(true);
       if (restoreReport.removed.length || restoreReport.adapted.length) {
         setReport(restoreReport);
       }
