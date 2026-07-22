@@ -72,6 +72,7 @@ export function NextStepPill({
   arrow = false,
   variant = "primary",
   onClick,
+  disabled = false,
   className,
   ...rest
 }: {
@@ -81,6 +82,11 @@ export function NextStepPill({
   arrow?: boolean;
   variant?: PillVariant;
   onClick: () => void;
+  // Default false: le sei pillole esistenti non passano questa prop e devono
+  // restare invariate. Serve perché un `onClick` che si limita a fare da
+  // no-op (F40, swap in corso) lascia il bottone comunque vivo nel DOM —
+  // a fuoco, non attenuato — un controllo morto ma dall'aspetto attivo.
+  disabled?: boolean;
   className?: string;
   // Niente `aria-label`: il nome accessibile DEVE restare caption + label
   // visibili (WCAG 2.5.3, chi usa il comando vocale pronuncia ciò che legge).
@@ -92,6 +98,7 @@ export function NextStepPill({
     <button
       type="button"
       onClick={onClick}
+      disabled={disabled}
       className={cn(
         // `min-w-0`: da flex item il bottone avrebbe `min-width: auto` e non
         // scenderebbe sotto il proprio contenuto — la riga Tilbake+pillola dello
@@ -100,6 +107,8 @@ export function NextStepPill({
         // il bottone stesso non può restringersi.
         "flex min-w-0 items-center gap-3.5 rounded-full p-3 text-left transition-colors",
         "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground",
+        // Stesso trattamento del bottone "Hent tilbake" in SavedCartRow.
+        "disabled:opacity-60",
         SURFACE[variant],
         className
       )}

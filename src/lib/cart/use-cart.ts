@@ -9,9 +9,14 @@ import {
   type NewCartLine,
 } from "./cart";
 
-const STORAGE_KEY = "mk-cart-v1";
+/** Exported so use-saved-cart.ts can read/write this key during a swap —
+ * ONE definition of the string, never a second copy to drift out of sync. */
+export const STORAGE_KEY = "mk-cart-v1";
 
-function load(): Cart {
+/** Exported so use-saved-cart.ts can re-read the live cart mid-swap (fix 2:
+ * the storage is the source of truth across the validation `await`, not the
+ * closure) — same defensive parse, ONE definition, no third variant. */
+export function loadCart(): Cart {
   if (typeof window === "undefined") return [];
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
@@ -33,10 +38,10 @@ export function useCart() {
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
-    setCart(load());
+    setCart(loadCart());
     setHydrated(true);
     const onStorage = (e: StorageEvent) => {
-      if (e.key === STORAGE_KEY) setCart(load());
+      if (e.key === STORAGE_KEY) setCart(loadCart());
     };
     window.addEventListener("storage", onStorage);
     return () => window.removeEventListener("storage", onStorage);
@@ -67,5 +72,25 @@ export function useCart() {
     }
   }, []);
 
-  return { cart, hydrated, add, setQuantity, remove, clear };
+  /**
+   * F40 — replaces the WHOLE cart (restoring a saved cart). Same shape as
+   * `persist()` in use-saved-cart.ts: the durable write happens FIRST,
+   * inside a try, and `setCart` only runs on success. This matters because
+   * a swap is coordinated across two localStorage keys (this one and the
+   * saved-cart slot) — the caller needs a real success/failure signal to
+   * decide whether it's safe to commit React state, not just an
+   * unconditional write. Returns false if `setItem` threw (quota, Safari
+   * private mode); the caller must not assume the cart changed.
+   */
+  const replace = useCallback((lines: Cart): boolean => {
+    try {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(lines));
+    } catch {
+      return false;
+    }
+    setCart(lines);
+    return true;
+  }, []);
+
+  return { cart, hydrated, add, setQuantity, remove, clear, replace };
 }

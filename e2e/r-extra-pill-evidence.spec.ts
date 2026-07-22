@@ -116,7 +116,7 @@ for (const locale of ["no", "en"] as const) {
 
       // AC3: la freccetta sta SOLO su "Send bestilling". Le altre due non
       // fanno avanzare il funnel — una riavvia, l'altra è collaterale.
-      for (const id of ["new-design-cta", "share-set"]) {
+      for (const id of ["new-design-cta", "save-for-later", "share-set"]) {
         const other = page.locator(`[data-testid="${id}"]:visible`).first();
         await expect(other).toBeVisible();
         expect(
