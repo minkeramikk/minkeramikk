@@ -841,7 +841,7 @@ export function ConfiguratorClient({
                 label={t("back")}
                 icon={
                   <PillIcon variant="secondary">
-                    <ChevronLeft className="size-5 text-primary" />
+                    <ChevronLeft className="size-5 text-primary/60" />
                   </PillIcon>
                 }
                 onClick={() => goToStep(1)}

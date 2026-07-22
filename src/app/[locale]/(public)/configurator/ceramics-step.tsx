@@ -798,7 +798,7 @@ export function CeramicsStep({
                   label={ta("newDesign")}
                   icon={
                     <PillIcon variant="secondary">
-                      <Plus className="size-5 text-primary" />
+                      <Plus className="size-5 text-primary/60" />
                     </PillIcon>
                   }
                   onClick={() => goToStep(1)}
