@@ -13,6 +13,7 @@ import { Stepper } from "@/components/ui-domain/stepper";
 import { DesignRound } from "@/components/ui-domain/design-round";
 import { CartLineThumb } from "@/components/ui-domain/cart-line-thumb";
 import { OrderForm } from "@/components/ui-domain/order-form";
+import { SaveForLaterPill } from "@/components/ui-domain/save-for-later-pill";
 import { Button } from "@/components/ui/button";
 import { assetUrl } from "@/lib/storage";
 import { formatMoney, money } from "@/lib/money/money";
@@ -404,7 +405,7 @@ export function CeramicsStep({
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  const { cart, hydrated, add, setQuantity, remove, clear } = useCartContext();
+  const { cart, hydrated, add, setQuantity, remove, clear, saved } = useCartContext();
 
   const [selectedId, setSelectedId] = useState<string | null>(
     products[0]?.id ?? null
@@ -838,6 +839,11 @@ export function CeramicsStep({
                   }
                   onClick={() => goToStep(1)}
                 />
+                {/* F40 (mockup 2): "Lagre til senere" tra "Bygg et nytt design"
+                    e "Del settet". Stessa pillola del drawer, stesso ruolo 3:
+                    la gerarchia dello stack non cambia — "Send bestilling"
+                    resta l'unico pieno con freccetta (AC8). */}
+                <SaveForLaterPill className="w-full" disabled={saved.pending} onClick={saved.requestSave} />
                 {/* CA-3: share in coda — gesto leggero, quindi la variante
                     più tenue della scala. */}
                 <NextStepPill
