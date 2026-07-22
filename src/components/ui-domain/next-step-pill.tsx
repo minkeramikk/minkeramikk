@@ -57,10 +57,11 @@ export function PillIcon({
  */
 const SURFACE: Record<PillVariant, string> = {
   primary: "border-2 border-primary bg-primary/10 hover:bg-primary/20",
-  // Nessun riempimento: nei mockup il secondario prende il colore della
-  // superficie su cui sta (rosa pagina allo step 2, card del carrello allo
-  // step 3). `bg-card` lo faceva stampare bianco sul rosa.
-  secondary: "border-[1.5px] border-primary/40 hover:bg-primary/5",
+  // Stesso fill del terziario (`--card`, il crema di "Del settet"): secondario
+  // e terziario si distinguono SOLO per intensità di bordo e testo, così il
+  // bottone è identico su qualunque sfondo. Trasparente no: prendeva il colore
+  // della superficie e cambiava faccia tra step 2 (rosa) e step 3 (card).
+  secondary: "border-[1.5px] border-primary/40 bg-card hover:bg-primary/5",
   tertiary: "border border-border bg-card hover:border-ring",
 };
 
