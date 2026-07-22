@@ -132,7 +132,18 @@ export function CartMenu() {
               salvataggio (AC1/AC3). Nessun badge nuovo in header: il numerino
               resta del solo carrello attivo. */}
           {view === "cart" && saved.hydrated && (
-            <div className="flex flex-col gap-2 px-4 pt-4">
+            // La spaziatura è condizionale, non il blocco: la regione
+            // aria-live deve esistere PRIMA che l'avviso compaia (una region
+            // creata insieme al suo contenuto non viene annunciata da tutti
+            // gli screen reader). Senza slot né avvisi il blocco non occupa
+            // spazio e le righe restano attaccate all'header come prima.
+            <div
+              className={cn(
+                "flex flex-col",
+                (saved.slot || saved.report || saved.failed || saved.unsupported) &&
+                  "gap-2 px-4 pt-4"
+              )}
+            >
               {saved.slot && (
                 <SavedCartRow
                   saved={saved.slot}
@@ -161,7 +172,7 @@ export function CartMenu() {
                     <button
                       type="button"
                       onClick={saved.dismissNotice}
-                      className="mt-1 underline underline-offset-2"
+                      className="mt-1 flex min-h-11 items-center underline underline-offset-2"
                     >
                       {t("saved.dismiss")}
                     </button>
