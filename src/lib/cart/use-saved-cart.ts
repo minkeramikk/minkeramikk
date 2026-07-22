@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { Cart } from "./cart";
+import { STORAGE_KEY as CART_STORAGE_KEY } from "./use-cart";
 import {
   SAVED_CART_KEY,
   buildRestoredCart,
@@ -26,7 +27,7 @@ import {
  */
 export function useSavedCart(
   cart: Cart,
-  replaceCart: (lines: Cart) => void,
+  replaceCart: (lines: Cart) => boolean,
   clearCart: () => void
 ) {
   const [slot, setSlot] = useState<SavedCart | null>(null);
@@ -116,10 +117,51 @@ export function useSavedCart(
       );
       const { cart: restored, report: restoreReport } = buildRestoredCart(slot, aligned);
       const next = swapCarts(cart, restored, new Date());
-      if (!persist(next.slot)) {
+
+      // Lo scambio tocca DUE chiavi (lo slot e mk-cart-v1). Le due scritture
+      // durevoli stanno qui, una dopo l'altra, nello STESSO blocco sincrono:
+      // niente await nel mezzo, quindi una tab che si chiude non può
+      // infilarsi tra le due — l'unico fallimento realistico è un setItem
+      // che lancia (quota piena, Safari privato). Perciò: prima le due
+      // scritture grezze (non tramite persist()/replaceCart(), che
+      // impegnerebbero lo stato subito), POI lo stato React.
+      // - Se la PRIMA (lo slot) lancia: non abbiamo toccato nulla, si aborta.
+      // - Se la SECONDA (il carrello) lancia: lo slot è già atterrato e va
+      //   RIPRISTINATO al valore letto prima di sovrascriverlo — altrimenti
+      //   le righe che dovevano finire nel carrello sparirebbero da
+      //   entrambe le parti (né nello slot né in mk-cart-v1).
+      // Solo a scritture confermate si passa allo stato, tramite
+      // persist()/replaceCart(): riscrivono lo stesso valore già verificato
+      // (ridondante ma innocuo — stesso storage, un istante dopo) e
+      // aggiornano lo stato al successo, così resta UNA sola definizione di
+      // "come si scrive" ciascuna chiave.
+      const prevSlotRaw = window.localStorage.getItem(SAVED_CART_KEY);
+      try {
+        if (next.slot) {
+          window.localStorage.setItem(SAVED_CART_KEY, serializeSavedCart(next.slot));
+        } else {
+          window.localStorage.removeItem(SAVED_CART_KEY);
+        }
+      } catch {
         setFailed(true);
         return;
       }
+      try {
+        window.localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(next.cart));
+      } catch {
+        // rollback: lo slot era già scritto, il carrello no.
+        try {
+          if (prevSlotRaw === null) window.localStorage.removeItem(SAVED_CART_KEY);
+          else window.localStorage.setItem(SAVED_CART_KEY, prevSlotRaw);
+        } catch {
+          // best-effort: stesso identico setItem riuscito un istante prima,
+          // un secondo fallimento qui non è atteso — niente altro da fare.
+        }
+        setFailed(true);
+        return;
+      }
+
+      persist(next.slot);
       replaceCart(next.cart);
       if (restoreReport.removed.length || restoreReport.adapted.length) {
         setReport(restoreReport);
