@@ -851,10 +851,15 @@ export function ConfiguratorClient({
               />
               <NextStepPill
                 data-testid="next-step"
-                // Solo affiancato: in colonna `flex-basis` sarebbe l'ALTEZZA
-                // (16rem di pillola). Stacked non serve: `stretch` fa già
-                // piena larghezza.
-                className="@md:flex-[1_1_16rem]"
+                // `@md:` = affiancato: in colonna `flex-basis` sarebbe
+                // l'ALTEZZA (16rem di pillola), e stacked non serve comunque
+                // (`stretch` fa già piena larghezza).
+                // `@max-md:` = AC13, niente ellipsis a 360/390/412: a 360 in
+                // inglese l'etichetta chiedeva 144px in 124. Padding, gap
+                // interno e freccetta si comprimono SOLO in colonna e
+                // restituiscono 16px, le foto (sotto) altri 16 → 8px di
+                // margine sul caso peggiore. Comprimere, non troncare.
+                className="@max-md:gap-2.5 @max-md:p-2.5 @max-md:[&>span:last-child]:size-8 @md:flex-[1_1_16rem]"
                 caption={t("teaser.nextStep")}
                 label={t("teaser.ceramics")}
                 arrow
@@ -868,7 +873,7 @@ export function ConfiguratorClient({
                   // 1280 come a 768 l'etichetta "Velg keramikk" si troncava.
                   // L'etichetta del CTA primario non si tronca MAI (AC10).
                   ceramics.length > 0 ? (
-                    <span className="flex shrink-0 gap-1" aria-hidden>
+                    <span className="flex shrink-0 gap-0.5 @md:gap-1" aria-hidden>
                       {ceramics.map((img) => (
                         // eslint-disable-next-line @next/next/no-img-element -- catalog art from storage
                         <img
@@ -878,12 +883,12 @@ export function ConfiguratorClient({
                           loading="lazy"
                           decoding="async"
                           data-testid="next-step-ceramic-thumb"
-                          // A colonna stretta (390, e 768 dove la colonna è
-                          // altrettanto stretta) i tre quadrati da 36px lasciano
-                          // 142px all'etichetta, che ne chiede 144: "Pick your
-                          // ceramics" si troncava di 2px. size-8 ne restituisce
-                          // 12. L'etichetta del CTA primario non si tronca MAI.
-                          className="size-8 rounded-sm border border-border bg-card object-contain @md:size-9"
+                          // AC13: a colonna stretta i quadrati scendono a 28px
+                          // (e il loro gap a 2px) — 16px restituiti
+                          // all'etichetta, che a 360 in inglese ne mancava 20.
+                          // Restano leggibili: sono decorativi (aria-hidden),
+                          // il touch target è tutta la pillola.
+                          className="size-7 rounded-sm border border-border bg-card object-contain @md:size-9"
                         />
                       ))}
                     </span>
