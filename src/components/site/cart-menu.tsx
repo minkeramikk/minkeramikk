@@ -19,6 +19,8 @@ import { OrderForm } from "@/components/ui-domain/order-form";
 import { CartLineThumb } from "@/components/ui-domain/cart-line-thumb";
 import { CartLineRecap } from "@/components/ui-domain/cart-line-recap";
 import { SetBadge } from "@/components/ui-domain/set-badge";
+import { SavedCartRow } from "@/components/ui-domain/saved-cart-row";
+import { SaveForLaterPill } from "@/components/ui-domain/save-for-later-pill";
 import {
   CartShippingRow,
   useShippingTotalSuffix,
@@ -52,7 +54,7 @@ export function CartMenu() {
   const t = useTranslations("cart");
   const to = useTranslations("order");
   const locale = useLocale() as "no" | "en";
-  const { cart, hydrated, setQuantity, remove, clear, open, setOpen } =
+  const { cart, hydrated, setQuantity, remove, clear, open, setOpen, saved } =
     useCartContext();
   // drawer has two phases: the cart list and the checkout form
   const [view, setView] = useState<"cart" | "checkout">("cart");
@@ -124,6 +126,50 @@ export function CartMenu() {
               {t("description")}
             </SheetDescription>
           </SheetHeader>
+
+          {/* F40: lo slot salvato vive SOPRA le righe correnti e sopravvive al
+              carrello vuoto — è da lì che si fa "Hent tilbake" dopo un
+              salvataggio (AC1/AC3). Nessun badge nuovo in header: il numerino
+              resta del solo carrello attivo. */}
+          {view === "cart" && saved.hydrated && (
+            <div className="flex flex-col gap-2 px-4 pt-4">
+              {saved.slot && (
+                <SavedCartRow
+                  saved={saved.slot}
+                  pending={saved.pending}
+                  onRestore={saved.requestRestore}
+                />
+              )}
+              <div aria-live="polite">
+                {(saved.report || saved.failed || saved.unsupported) && (
+                  <div
+                    data-testid="saved-cart-notice"
+                    className="rounded-sm border border-primary/40 bg-primary/5 p-2.5 text-xs"
+                  >
+                    {saved.unsupported && <p>{t("saved.unsupported")}</p>}
+                    {saved.failed && <p>{t("saved.failed")}</p>}
+                    {saved.report && saved.report.removed.length > 0 && (
+                      <p data-testid="saved-cart-removed">
+                        {t("saved.removed", { count: saved.report.removed.length })}
+                      </p>
+                    )}
+                    {saved.report && saved.report.adapted.length > 0 && (
+                      <p data-testid="saved-cart-adapted">
+                        {t("saved.adapted", { count: saved.report.adapted.length })}
+                      </p>
+                    )}
+                    <button
+                      type="button"
+                      onClick={saved.dismissNotice}
+                      className="mt-1 underline underline-offset-2"
+                    >
+                      {t("saved.dismiss")}
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           {count === 0 ? (
             <div
@@ -259,6 +305,15 @@ export function CartMenu() {
                     {totalSuffix}
                   </span>
                 </div>
+                {/* F40 (mockup 1): "Lagre til senere" sotto le righe e sopra
+                    "Send order". Resta dopo il blocco totali: il denaro non si
+                    spezza in due — il mockup schematizza il drawer senza la
+                    riga spedizione/totale, che qui esiste. */}
+                <SaveForLaterPill
+                  className="w-full"
+                  disabled={saved.pending}
+                  onClick={saved.requestSave}
+                />
                 {/* R-EXTRA AC8: stessa pillola dello stack step 3
                     (`docked-checkout` in ceramics-step.tsx) — il drawer era
                     rimasto l'ultimo punto d'invio ordine col bottone pieno
