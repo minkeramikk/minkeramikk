@@ -32,9 +32,7 @@ export function SaveForLaterPill({
       className={className}
       label={t("saved.cta")}
       disabled={disabled}
-      onClick={() => {
-        if (!disabled) onClick();
-      }}
+      onClick={onClick}
       icon={
         <PillIcon variant="secondary">
           <Bookmark className="size-5 text-primary/60" aria-hidden />
