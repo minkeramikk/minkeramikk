@@ -3,12 +3,14 @@ import type { Cart, CartLine } from "./cart";
 import {
   SAVED_CART_KEY,
   SAVED_CART_VERSION,
+  buildRestoredCart,
   needsSwapConfirm,
   parseSavedCart,
   savedPieces,
   serializeSavedCart,
   snapshotCart,
   swapCarts,
+  type ValidatedEntry,
 } from "./saved-cart";
 
 const NOW = new Date("2026-07-21T10:00:00.000Z");
@@ -128,4 +130,94 @@ describe("savedPieces", () => {
 
 it("storage key follows the existing naming", () => {
   expect(SAVED_CART_KEY).toBe("mk-saved-cart-v1");
+});
+
+/** Risposta "tutto ancora valido" per una riga: il server rimanda la riga viva. */
+function okEntry(l: CartLine, over: Partial<ValidatedEntry> = {}): ValidatedEntry {
+  const { id: _id, ...rest } = l;
+  return {
+    ok: true,
+    line: rest,
+    acceptsCustomNotes: true,
+    acceptsCustomText: true,
+    ...over,
+  } as ValidatedEntry;
+}
+
+describe("buildRestoredCart (AC4/AC5)", () => {
+  it("restores every field identically when nothing changed (AC4)", () => {
+    const saved = snapshotCart([line()], NOW);
+    const { cart, report } = buildRestoredCart(saved, [okEntry(saved.lines[0])]);
+    expect(cart).toEqual(saved.lines);
+    expect(report).toEqual({ removed: [], adapted: [] });
+  });
+
+  it("takes the live price/name from the server, the quantity from the slot", () => {
+    const saved = snapshotCart([line({ quantity: 3 })], NOW);
+    const fresh = { ...saved.lines[0], unitPriceCents: 99000, productNameNo: "Vietri sett 2026", quantity: 1 };
+    const { cart } = buildRestoredCart(saved, [okEntry(fresh)]);
+    expect(cart[0].unitPriceCents).toBe(99000);
+    expect(cart[0].productNameNo).toBe("Vietri sett 2026");
+    expect(cart[0].quantity).toBe(3);
+  });
+
+  it("reports a removed design and a removed product, never drops them silently (AC5)", () => {
+    const a = line({ id: "a", productId: "a", configCode: "MK-A-B" });
+    const b = line({ id: "b", productId: "b", configCode: "MK-C-D" });
+    const c = line({ id: "c", productId: "c", configCode: "MK-E-F" });
+    const saved = snapshotCart([a, b, c], NOW);
+    const { cart, report } = buildRestoredCart(saved, [
+      { ok: false, reason: "design" },
+      okEntry(saved.lines[1]),
+      { ok: false, reason: "product" },
+    ]);
+    expect(cart).toHaveLength(1);
+    expect(cart[0].productId).toBe("b");
+    expect(report.removed.map((r) => [r.line.productId, r.reason])).toEqual([
+      ["a", "design"],
+      ["c", "product"],
+    ]);
+  });
+
+  it("flags an options adaptation when the canonical code changed", () => {
+    const saved = snapshotCart([line()], NOW);
+    const fresh = { ...saved.lines[0], configCode: "MK-A-Z" };
+    const { cart, report } = buildRestoredCart(saved, [okEntry(fresh)]);
+    expect(report.adapted[0].changes).toEqual(["options"]);
+    expect(cart[0].configCode).toBe("MK-A-Z");
+    expect(cart[0].id).toBe("p1::MK-A-Z"); // identity recomputed from the fresh code
+  });
+
+  it("keeps note and inscription when still allowed, drops+reports them when not (AC5)", () => {
+    const saved = snapshotCart([line()], NOW);
+    const serverSnapshot = { ...saved.lines[0].configSnapshot!, customNote: undefined, customText: undefined };
+    const fresh = { ...saved.lines[0], configSnapshot: serverSnapshot };
+
+    const kept = buildRestoredCart(saved, [okEntry(fresh)]);
+    expect(kept.cart[0].configSnapshot?.customNote).toBe("litt mer blått");
+    expect(kept.cart[0].configSnapshot?.customText).toBe("Til Kari");
+    expect(kept.report.adapted).toEqual([]);
+
+    const dropped = buildRestoredCart(saved, [
+      okEntry(fresh, { acceptsCustomNotes: false, acceptsCustomText: false }),
+    ]);
+    expect(dropped.cart[0].configSnapshot?.customNote).toBeUndefined();
+    expect(dropped.cart[0].configSnapshot?.customText).toBeUndefined();
+    expect(dropped.report.adapted[0].changes).toEqual(["note", "text"]);
+  });
+
+  it("merges two saved lines that collapse onto the same identity", () => {
+    const saved = snapshotCart([line({ quantity: 1 }), line({ id: "other", quantity: 2 })], NOW);
+    const { cart } = buildRestoredCart(saved, [okEntry(saved.lines[0]), okEntry(saved.lines[0])]);
+    expect(cart).toHaveLength(1);
+    expect(cart[0].quantity).toBe(3);
+  });
+
+  it("treats a missing/short server answer as removed, not as a crash", () => {
+    const saved = snapshotCart([line()], NOW);
+    const { cart, report } = buildRestoredCart(saved, []);
+    expect(cart).toEqual([]);
+    expect(report.removed).toHaveLength(1);
+    expect(report.removed[0].reason).toBe("design");
+  });
 });
