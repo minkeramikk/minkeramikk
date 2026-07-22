@@ -211,6 +211,22 @@
       "ignore": "Ignore",
       "unavailable": "{count, plural, one {# item is no longer available} other {# items are no longer available}}"
     },
+    "saved": {
+      "cta": "Save for later",
+      "rowTitle": "Saved basket · {count, plural, one {# piece} other {# pieces}}",
+      "restore": "Bring it back",
+      "device": "Saved on this device",
+      "swapTitle": "Swap baskets?",
+      "swapBody": "The basket you have now will be saved, and the saved one will come back.",
+      "swapNothingLost": "Nothing is deleted.",
+      "swapCancel": "Cancel",
+      "swapConfirm": "Swap",
+      "removed": "{count, plural, one {# item could not be brought back: it no longer exists} other {# items could not be brought back: they no longer exist}}",
+      "adapted": "{count, plural, one {# item was adapted to today's catalogue} other {# items were adapted to today's catalogue}}",
+      "unsupported": "The saved basket was created by a newer version and cannot be brought back.",
+      "failed": "We could not check the saved basket. Nothing was deleted — please try again.",
+      "dismiss": "Dismiss"
+    },
     "line": {
       "expand": "Show details",
       "collapse": "Hide details",

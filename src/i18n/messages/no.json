@@ -210,6 +210,22 @@
       "ignore": "Ignorer",
       "unavailable": "{count, plural, one {# vare er ikke lenger tilgjengelig} other {# varer er ikke lenger tilgjengelige}}"
     },
+    "saved": {
+      "cta": "Lagre til senere",
+      "rowTitle": "Lagret handlekurv · {count, plural, one {# del} other {# deler}}",
+      "restore": "Hent tilbake",
+      "device": "Lagret på denne enheten",
+      "swapTitle": "Bytte handlekurv?",
+      "swapBody": "Kurven du har nå blir lagret, og den lagrede kurven hentes tilbake.",
+      "swapNothingLost": "Ingenting slettes.",
+      "swapCancel": "Avbryt",
+      "swapConfirm": "Bytt",
+      "removed": "{count, plural, one {# vare kunne ikke hentes tilbake: den finnes ikke lenger} other {# varer kunne ikke hentes tilbake: de finnes ikke lenger}}",
+      "adapted": "{count, plural, one {# vare ble tilpasset til dagens utvalg} other {# varer ble tilpasset til dagens utvalg}}",
+      "unsupported": "Den lagrede handlekurven ble laget i en nyere versjon og kan ikke hentes tilbake.",
+      "failed": "Vi fikk ikke sjekket den lagrede handlekurven. Ingenting er slettet — prøv igjen.",
+      "dismiss": "Lukk"
+    },
     "line": {
       "expand": "Vis detaljer",
       "collapse": "Skjul detaljer",
