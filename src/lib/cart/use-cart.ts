@@ -67,5 +67,13 @@ export function useCart() {
     }
   }, []);
 
-  return { cart, hydrated, add, setQuantity, remove, clear };
+  /**
+   * F40 — replaces the WHOLE cart (restoring a saved cart). No synchronous
+   * write like clear() needs: this doesn't precede a navigation.
+   */
+  const replace = useCallback((lines: Cart) => {
+    setCart(lines);
+  }, []);
+
+  return { cart, hydrated, add, setQuantity, remove, clear, replace };
 }

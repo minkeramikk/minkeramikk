@@ -2,6 +2,8 @@
 
 import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
 import { useCart } from "./use-cart";
+import { useSavedCart } from "./use-saved-cart";
+import { SwapCartDialog } from "@/components/ui-domain/swap-cart-dialog";
 
 /**
  * Shared cart view (F16). The cart STATE and persistence already live in
@@ -15,26 +17,38 @@ type CartApi = ReturnType<typeof useCart> & {
   setOpen: (open: boolean) => void;
   openCart: () => void;
   closeCart: () => void;
+  /** F40: lo slot unico del carrello salvato, condiviso come il carrello. */
+  saved: ReturnType<typeof useSavedCart>;
 };
 
 const CartContext = createContext<CartApi | null>(null);
 
 export function CartProvider({ children }: { children: ReactNode }) {
   const cart = useCart();
+  const saved = useSavedCart(cart.cart, cart.replace, cart.clear);
   const [open, setOpen] = useState(false);
 
   const value = useMemo<CartApi>(
     () => ({
       ...cart,
+      saved,
       open,
       setOpen,
       openCart: () => setOpen(true),
       closeCart: () => setOpen(false),
     }),
-    [cart, open]
+    [cart, saved, open]
   );
 
-  return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
+  return (
+    <CartContext.Provider value={value}>
+      {children}
+      {/* F40: UNA sola istanza del dialogo di scambio — i due punti di
+          "Lagre til senere" (drawer e step 3) e "Hent tilbake" condividono
+          lo stesso stato, quindi lo stesso dialogo. */}
+      <SwapCartDialog />
+    </CartContext.Provider>
+  );
 }
 
 export function useCartContext(): CartApi {
