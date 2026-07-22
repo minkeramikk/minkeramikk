@@ -37,19 +37,21 @@ async function forgeShareUrl(browser: Browser) {
   const panel = page.getByTestId("docked-cart-panel");
   await expect(panel.getByTestId("cart-line")).toHaveCount(2);
   const total = await panel.getByTestId("docked-total").innerText();
+  // how many ceramics THIS design offers — the landing must show the same list
+  const ceramicCount = await ceramics(page).count();
 
   await panel.getByTestId("share-set").click();
   const link = panel.getByTestId("share-feedback").locator("code");
   await expect(link).toBeVisible();
   const url = await link.innerText();
   await ctx.close();
-  return { url, total };
+  return { url, total, ceramicCount };
 }
 
 test("AC1/AC2/AC5: share 2 rows → clean context lands at step 3 → expand → edit", async ({
   browser,
 }) => {
-  const { url, total } = await forgeShareUrl(browser);
+  const { url, total, ceramicCount } = await forgeShareUrl(browser);
 
   // AC1: link carries only codes/slugs/qty — no prices, no internal ids
   expect(url).toContain("step=3");
@@ -70,6 +72,15 @@ test("AC1/AC2/AC5: share 2 rows → clean context lands at step 3 → expand →
   await expect(panel.getByTestId("cart-line")).toHaveCount(2);
   await expect(panel.getByTestId("docked-total")).toHaveText(total);
   await expect(page).not.toHaveURL(/set=/);
+
+  // Bug 4 (card R-EXTRA-step3-selection-e-badge-drawer): the shared design is
+  // the CURRENT design — the grid shows its ceramics, not the positional
+  // fallback's, and it survives `set=` being consumed (design pinned in the URL).
+  await expect(page).toHaveURL(/[?&]design=/);
+  await expect(page).toHaveURL(/[?&]origin=set/);
+  await expect(ceramics(page)).toHaveCount(ceramicCount);
+  // Bug 3: current design ≠ explicit colour choice — no "Your selection" box.
+  await expect(page.getByTestId("step3-your-selection")).toHaveCount(0);
 
   // AC5: expand the first row → big composition + the row's config code + edit
   await panel.getByTestId("cart-expand").first().click();

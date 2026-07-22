@@ -20,6 +20,16 @@ export interface ResolvedSharedSet {
   lines: SharedSetLine[];
   /** Rows dropped by the parser + rows whose design/product no longer resolves. */
   unavailable: number;
+  /**
+   * Design (+ its option ids) of the FIRST resolved row. A `set=` landing has
+   * no `?design=`, but a design IS there — this one — and the step-3 page has
+   * to treat it as the current design or it falls back to a positional default
+   * and shows another design's ceramics (bug 4, card R-EXTRA-step3-selection-e-
+   * badge-drawer). A multi-design set keeps its first row as the context: the
+   * grid can only scope to one design, and the rest of the set is in the cart
+   * either way. `null` when nothing resolved.
+   */
+  context: { designSlug: string; selections: Record<string, string> } | null;
 }
 
 /**
@@ -42,7 +52,8 @@ export async function resolveSharedSet(raw: string): Promise<ResolvedSharedSet> 
   const { entries, dropped } = decodeSetParam(raw);
   let unavailable = dropped;
   const lines: SharedSetLine[] = [];
-  if (entries.length === 0) return { lines, unavailable };
+  let context: ResolvedSharedSet["context"] = null;
+  if (entries.length === 0) return { lines, unavailable, context };
 
   const designs = await getActiveDesigns();
   const details = await Promise.all(designs.map((d) => getDesignDetail(d.slug)));
@@ -91,6 +102,8 @@ export async function resolveSharedSet(raw: string): Promise<ResolvedSharedSet> 
         detail,
         decoded.selections
       );
+      // first row that fully resolves = the landing's current design
+      context ??= { designSlug: design.slug, selections: decoded.selections };
       lines.push({
         productId: product.id,
         productNameNo: product.nameNo,
@@ -113,5 +126,5 @@ export async function resolveSharedSet(raw: string): Promise<ResolvedSharedSet> 
     }
   }
 
-  return { lines, unavailable };
+  return { lines, unavailable, context };
 }

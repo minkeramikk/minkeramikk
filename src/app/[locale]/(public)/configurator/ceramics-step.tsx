@@ -370,6 +370,7 @@ export function CeramicsStep({
   configCode,
   designLayers,
   hasExplicitDesign,
+  selections = {},
   sharedSet = null,
 }: {
   products: CeramicProduct[];
@@ -385,6 +386,12 @@ export function CeramicsStep({
    * selection".
    */
   hasExplicitDesign: boolean;
+  /**
+   * categorySlug → optionId of the config this step is rendering. Only used to
+   * pin the colours in the URL when a set landing consumes `set=`; the normal
+   * flow already carries them as `opt_*`.
+   */
+  selections?: Record<string, string>;
   /** CA-3: server-resolved `?set=` lines (live prices), or null when no set. */
   sharedSet?: ResolvedSharedSet | null;
 }) {
@@ -533,6 +540,23 @@ export function CeramicsStep({
   function consumeSetParam() {
     const params = new URLSearchParams(searchParams.toString());
     params.delete("set");
+    // Pin the landing's design before `set=` goes away, or the next server
+    // render falls back to the positional default design and the ceramics
+    // grid swaps to ANOTHER design's list (bug 4: the fix on the server side
+    // only survives while `set=` is in the URL).
+    // `origin=set` keeps this apart from a real colour choice: the design is
+    // current, but nothing was configured, so the "Your selection" box must
+    // stay away (bug 3). Two states, two params — one flag would trade one
+    // bug for the other.
+    if (!params.get("design")) {
+      params.set("design", design.slug);
+      params.set("origin", "set");
+      // ...with the set's own colours, not the design's defaults: a ceramic
+      // added right after the landing must match the set the customer opened.
+      for (const [slug, optionId] of Object.entries(selections)) {
+        params.set(`opt_${slug}`, optionId);
+      }
+    }
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
   }
 
