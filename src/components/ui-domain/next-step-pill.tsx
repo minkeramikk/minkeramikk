@@ -14,6 +14,13 @@ import { cn } from "@/lib/utils";
  */
 export type PillVariant = "primary" | "secondary" | "tertiary";
 
+/** Anello del cerchietto icona — segue la stessa scala di peso della superficie. */
+const ICON_RING: Record<PillVariant, string> = {
+  primary: "border-2 border-primary",
+  secondary: "border-[1.5px] border-primary/60",
+  tertiary: "border border-border",
+};
+
 /** Cerchietto che ospita l'icona. Da solo vale il touch target ≥44px (size-11). */
 export function PillIcon({
   children,
@@ -28,8 +35,8 @@ export function PillIcon({
     <span
       aria-hidden
       className={cn(
-        "flex size-11 shrink-0 items-center justify-center rounded-full border-2",
-        variant === "tertiary" ? "border-border" : "border-primary",
+        "flex size-11 shrink-0 items-center justify-center rounded-full",
+        ICON_RING[variant],
         className
       )}
     >
@@ -38,10 +45,23 @@ export function PillIcon({
   );
 }
 
-/** Superficie per variante — la gerarchia è riempimento vs outline, non dimensione. */
+/**
+ * Superficie per variante — la gerarchia è riempimento vs outline, non dimensione.
+ *
+ * R-EXTRA (card R-EXTRA-step3-gerarchia-bottoni): `secondary` = ruolo
+ * "navigazione secondaria" (Back, "Bygg et nytt design"). Outline ALLEGGERITO:
+ * a bordo pieno 2px competeva col primario che gli sta accanto/sopra. I valori
+ * del mockup (#C9B8D4 bordo, #A08BB0 cerchietto, #7A6689 testo) sono resi come
+ * opacità di `primary` + `--nav-secondary`, non come hex: il viola è editabile
+ * dal back-office (ADR 0008) e deve restare agganciato.
+ */
 const SURFACE: Record<PillVariant, string> = {
   primary: "border-2 border-primary bg-primary/10 hover:bg-primary/20",
-  secondary: "border-2 border-primary bg-card hover:bg-primary/5",
+  // Stesso fill del terziario (`--card`, il crema di "Del settet"): secondario
+  // e terziario si distinguono SOLO per intensità di bordo e testo, così il
+  // bottone è identico su qualunque sfondo. Trasparente no: prendeva il colore
+  // della superficie e cambiava faccia tra step 2 (rosa) e step 3 (card).
+  secondary: "border-[1.5px] border-primary/40 bg-card hover:bg-primary/5",
   tertiary: "border border-border bg-card hover:border-ring",
 };
 
@@ -95,6 +115,9 @@ export function NextStepPill({
         <span
           className={cn(
             "block truncate text-[15px] font-semibold",
+            // font-weight 500, NON bold: correzione card 2026-07-21 — il
+            // secondario alleggerito non deve pesare quanto il primario.
+            variant === "secondary" && "font-medium text-nav-secondary",
             variant === "tertiary" && "text-muted-foreground"
           )}
         >

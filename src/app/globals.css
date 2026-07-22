@@ -32,6 +32,7 @@
   --color-destructive: var(--destructive);
   --color-accent-foreground: var(--secondary-foreground);
   --color-accent: var(--secondary);
+  --color-nav-secondary: var(--nav-secondary);
   --color-muted-foreground: var(--muted-foreground);
   --color-muted: var(--muted);
   --color-secondary-foreground: var(--secondary-foreground);
@@ -85,6 +86,12 @@
   --secondary-foreground: var(--mk-dark);
   --muted: color-mix(in oklab, var(--mk-dark) 6%, var(--mk-light));
   --muted-foreground: color-mix(in oklab, var(--mk-dark), var(--mk-light) 38%);
+  /* R-EXTRA — testo del ruolo "navigazione secondaria" (Back step 2, "Bygg et
+     nytt design" step 3). Campionato dal mockup (#7A6689) e riderivato dai
+     token: viola smorzato, più tenue del foreground ma più marcato del
+     muted-foreground usato dal livello terziario. Bordi e cerchietto della
+     stessa famiglia stanno come opacità di `primary` sul componente. */
+  --nav-secondary: color-mix(in oklab, var(--mk-accent) 30%, var(--muted-foreground));
   --border: color-mix(in oklab, var(--mk-dark) 13%, var(--mk-light));
   --input: color-mix(in oklab, var(--mk-dark) 18%, var(--mk-light));
   --ring: var(--mk-accent);

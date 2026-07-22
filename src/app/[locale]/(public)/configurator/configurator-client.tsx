@@ -824,31 +824,42 @@ export function ConfiguratorClient({
                 R-EXTRA (bugfix mobile): questa riga è l'UNICO next-step dello
                 step 2 — la copia mobile in-flow (ex teaser CA-6) è stata
                 rimossa: su Pixel 8 erano due pillole identiche impilate.
-                `flex-wrap` + base 16rem sulla pillola invece di un breakpoint:
-                dove i due bottoni non ci stanno affiancati (390, ma anche 768,
-                dove la colonna torna stretta quanto a 390) la pillola va a capo
-                a piena larghezza. Mai troncare l'etichetta del CTA primario:
+                R-EXTRA (mockup-mobile-stacked-COMPARE.jpg): quando i due non ci
+                stanno affiancati NON basta mandare a capo — l'ordine visivo si
+                inverte, il Next va SOPRA a piena larghezza e il Back SOTTO,
+                alleggerito e centrato. Da qui `flex-col-reverse` + `@container`:
+                la soglia è la larghezza della COLONNA, non del viewport (a 768
+                la colonna torna stretta quanto a 390, un breakpoint di viewport
+                mancherebbe il caso). Mai troncare l'etichetta del CTA primario:
                 era il sintomo che AC10 deve chiudere, non una via d'uscita. */}
-            <div
-              ref={navRef}
-              className="flex flex-wrap items-stretch gap-3"
-              data-testid="step-nav-flow"
-            >
+            <div ref={navRef} className="@container" data-testid="step-nav-flow">
+            <div className="flex flex-col-reverse gap-3 @md:flex-row @md:items-stretch">
               <NextStepPill
                 variant="secondary"
                 data-testid="back-step"
-                className="shrink-0"
+                // Stacked (colonna stretta): piena larghezza e contenuto
+                // centrato come da mockup. Affiancato: torna largo il minimo
+                // e allineato a sinistra, così il Next si prende il resto.
+                className="justify-center [&>span]:flex-none @md:shrink-0 @md:justify-start"
                 label={t("back")}
                 icon={
                   <PillIcon variant="secondary">
-                    <ChevronLeft className="size-5 text-primary" />
+                    <ChevronLeft className="size-5 text-primary/60" />
                   </PillIcon>
                 }
                 onClick={() => goToStep(1)}
               />
               <NextStepPill
                 data-testid="next-step"
-                className="flex-[1_1_16rem]"
+                // `@md:` = affiancato: in colonna `flex-basis` sarebbe
+                // l'ALTEZZA (16rem di pillola), e stacked non serve comunque
+                // (`stretch` fa già piena larghezza).
+                // `@max-md:` = AC13, niente ellipsis a 360/390/412: a 360 in
+                // inglese l'etichetta chiedeva 144px in 124. Padding, gap
+                // interno e freccetta si comprimono SOLO in colonna e
+                // restituiscono 16px, le foto (sotto) altri 16 → 8px di
+                // margine sul caso peggiore. Comprimere, non troncare.
+                className="@max-md:gap-2.5 @max-md:p-2.5 @max-md:[&>span:last-child]:size-8 @md:flex-[1_1_16rem]"
                 caption={t("teaser.nextStep")}
                 label={t("teaser.ceramics")}
                 arrow
@@ -862,7 +873,7 @@ export function ConfiguratorClient({
                   // 1280 come a 768 l'etichetta "Velg keramikk" si troncava.
                   // L'etichetta del CTA primario non si tronca MAI (AC10).
                   ceramics.length > 0 ? (
-                    <span className="flex shrink-0 gap-1" aria-hidden>
+                    <span className="flex shrink-0 gap-0.5 @md:gap-1" aria-hidden>
                       {ceramics.map((img) => (
                         // eslint-disable-next-line @next/next/no-img-element -- catalog art from storage
                         <img
@@ -872,7 +883,12 @@ export function ConfiguratorClient({
                           loading="lazy"
                           decoding="async"
                           data-testid="next-step-ceramic-thumb"
-                          className="size-9 rounded-sm border border-border bg-card object-contain"
+                          // AC13: a colonna stretta i quadrati scendono a 28px
+                          // (e il loro gap a 2px) — 16px restituiti
+                          // all'etichetta, che a 360 in inglese ne mancava 20.
+                          // Restano leggibili: sono decorativi (aria-hidden),
+                          // il touch target è tutta la pillola.
+                          className="size-7 rounded-sm border border-border bg-card object-contain @md:size-9"
                         />
                       ))}
                     </span>
@@ -886,6 +902,7 @@ export function ConfiguratorClient({
                 }
                 onClick={() => goToStep(3)}
               />
+            </div>
             </div>
           </div>
         )}

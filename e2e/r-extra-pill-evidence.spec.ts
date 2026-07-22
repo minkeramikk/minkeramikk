@@ -70,12 +70,25 @@ for (const locale of ["no", "en"] as const) {
       await expect(back).toBeVisible();
       await expect(pill2).toBeVisible();
 
-      // AC2: stessa altezza, richiesta esplicita del cliente
-      const [hb, hp] = [
-        (await back.boundingBox())!.height,
-        (await pill2.boundingBox())!.height,
+      // AC2 + R-EXTRA (mockup-mobile-stacked-COMPARE.jpg): affiancati stessa
+      // altezza (richiesta cliente); impilati l'ordine si INVERTE — il Next
+      // sta sopra, il Back sotto, entrambi a piena larghezza.
+      const [bb, nb] = [
+        (await back.boundingBox())!,
+        (await pill2.boundingBox())!,
       ];
-      expect(Math.abs(hb - hp), `step 2 @${w}: altezze diverse`).toBeLessThanOrEqual(1);
+      if (Math.abs(bb.y - nb.y) < 1) {
+        expect(
+          Math.abs(bb.height - nb.height),
+          `step 2 @${w}: affiancati ma di altezza diversa`
+        ).toBeLessThanOrEqual(1);
+      } else {
+        expect(nb.y, `step 2 @${w}: il Back non sta SOTTO il Next`).toBeLessThan(bb.y);
+        expect(
+          Math.abs(bb.width - nb.width),
+          `step 2 @${w}: impilati ma non a piena larghezza`
+        ).toBeLessThanOrEqual(1);
+      }
 
       const clipped2 = await pill2
         .locator("span.truncate")
