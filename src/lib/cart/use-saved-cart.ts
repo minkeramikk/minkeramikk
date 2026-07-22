@@ -53,12 +53,24 @@ export function useSavedCart(
     return () => window.removeEventListener("storage", onStorage);
   }, [read]);
 
-  /** Scrive SUBITO: lo slot è l'unica copia di quelle righe, niente effetti differiti. */
-  const persist = useCallback((next: SavedCart | null) => {
+  /**
+   * Scrive SUBITO: lo slot è l'unica copia di quelle righe, niente effetti
+   * differiti. La scrittura durevole va PRIMA di setSlot: se setItem lancia
+   * (quota piena, Safari privato), il gesto deve fermarsi qui — se
+   * aggiornassimo lo stato prima, il chiamante crederebbe lo slot salvato e
+   * proseguirebbe (es. clearCart()), perdendo entrambe le copie. Ritorna
+   * false in quel caso così il chiamante può abortire e mostrare `failed`.
+   */
+  const persist = useCallback((next: SavedCart | null): boolean => {
+    try {
+      if (next) window.localStorage.setItem(SAVED_CART_KEY, serializeSavedCart(next));
+      else window.localStorage.removeItem(SAVED_CART_KEY);
+    } catch {
+      return false;
+    }
     setSlot(next);
     setUnsupported(false);
-    if (next) window.localStorage.setItem(SAVED_CART_KEY, serializeSavedCart(next));
-    else window.localStorage.removeItem(SAVED_CART_KEY);
+    return true;
   }, []);
 
   const performSwap = useCallback(async () => {
@@ -67,7 +79,10 @@ export function useSavedCart(
 
     // salvataggio puro: niente da validare, niente rete
     if (!slot) {
-      persist(snapshotCart(cart, new Date()));
+      if (!persist(snapshotCart(cart, new Date()))) {
+        setFailed(true);
+        return;
+      }
       clearCart();
       return;
     }
@@ -101,7 +116,10 @@ export function useSavedCart(
       );
       const { cart: restored, report: restoreReport } = buildRestoredCart(slot, aligned);
       const next = swapCarts(cart, restored, new Date());
-      persist(next.slot);
+      if (!persist(next.slot)) {
+        setFailed(true);
+        return;
+      }
       replaceCart(next.cart);
       if (restoreReport.removed.length || restoreReport.adapted.length) {
         setReport(restoreReport);
@@ -134,6 +152,7 @@ export function useSavedCart(
     requestSave: () => request("save"),
     requestRestore: () => request("restore"),
     confirmSwap: () => {
+      if (pending) return;
       setConfirming(null);
       void performSwap();
     },

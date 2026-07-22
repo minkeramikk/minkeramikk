@@ -68,11 +68,18 @@ export function useCart() {
   }, []);
 
   /**
-   * F40 — replaces the WHOLE cart (restoring a saved cart). No synchronous
-   * write like clear() needs: this doesn't precede a navigation.
+   * F40 — replaces the WHOLE cart (restoring a saved cart). Same reasoning as
+   * clear(): the caller writes the saved-cart slot synchronously and THEN
+   * calls this — if the tab closes between that slot write and this hook's
+   * deferred persistence effect, the restored lines would live in neither
+   * localStorage key. Write mk-cart-v1 synchronously too, so there's never a
+   * gap where both keys can be stale at once.
    */
   const replace = useCallback((lines: Cart) => {
     setCart(lines);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(lines));
+    }
   }, []);
 
   return { cart, hydrated, add, setQuantity, remove, clear, replace };

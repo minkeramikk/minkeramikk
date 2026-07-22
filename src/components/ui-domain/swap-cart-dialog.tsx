@@ -47,11 +47,17 @@ export function SwapCartDialog() {
             variant="outline"
             className="min-h-11"
             data-testid="swap-cancel"
+            disabled={saved.pending}
             onClick={saved.cancelSwap}
           >
             {t("saved.swapCancel")}
           </Button>
-          <Button className="min-h-11" data-testid="swap-confirm" onClick={saved.confirmSwap}>
+          <Button
+            className="min-h-11"
+            data-testid="swap-confirm"
+            disabled={saved.pending}
+            onClick={saved.confirmSwap}
+          >
             {t("saved.swapConfirm")}
           </Button>
         </DialogFooter>
