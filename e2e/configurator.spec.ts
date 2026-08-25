@@ -317,7 +317,9 @@ test("R-EXTRA: the next-step pills are real buttons and walk the funnel", async 
   const back = page.getByTestId("back-step");
   const pill2 = page.getByTestId("next-step");
   await expect(back).toBeVisible();
-  await expect(pill2).toHaveAccessibleName(/neste steg\s*velg keramikken din/i);
+  // a928bb5 accorciò teaser.ceramics a "Velg keramikk" (label lunga che non
+  // entrava nella riga Tilbake + pillola) senza aggiornare questa asserzione.
+  await expect(pill2).toHaveAccessibleName(/neste steg\s*velg keramikk/i);
   const backBox = await back.boundingBox();
   const pillBox = await pill2.boundingBox();
   expect(backBox).not.toBeNull();
