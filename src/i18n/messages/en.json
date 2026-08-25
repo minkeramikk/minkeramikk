@@ -65,12 +65,12 @@
     "pageTitle": "Build your design",
     "stepIndicator": "Step {step} of 3",
     "back": "Back",
-    "previewNote": "The configurator shows your design in a round pattern. Remember you can also order serving dishes, cups, oven dishes etc. in the same design – the final result is just not shown in the configurator.",
+    "previewNote": "This is an illustration of the hand-painted style. The motif is shown here on a plate, but can be made on any product. Each piece is hand-painted just for you, and is therefore unique.",
     "step1": {
       "title": "Choose design",
       "hero": {
-        "title": "Design your own ceramics in three steps",
-        "subtitle": "Choose a ready-made design, or make your own in three steps – pick a design, choose your colours and choose your pieces. We make each piece by hand."
+        "title": "Make your own ceramics in 3 steps",
+        "subtitle": "Choose a ready-made design, or design your own by adapting the motif, colours and pieces.\n\nEverything is painted by hand, which gives the ceramics a unique and charming character – so small variations in colour and motif may occur. All the ceramics are dishwasher safe."
       }
     },
     "step2": {
@@ -86,13 +86,13 @@
       "title": "Choose ceramics",
       "quantity": "Quantity",
       "total": "Total price",
-      "send": "Send your order to us",
+      "send": "Order",
       "disclaimer": "Since this is a custom order, we go through the design together before the order is considered confirmed. By sending the order via this form you are not committed to completing the purchase and no payment is required now. All prices include customs and VAT – no unexpected fees on delivery! Shipping is included in the price, but for smaller orders a small surcharge may apply."
     },
     "steps": {
-      "design": "Design",
-      "details": "Details",
-      "ceramics": "Ceramics"
+      "design": "1. Design",
+      "details": "2. Details",
+      "ceramics": "3. Ceramics"
     },
     "stepperLabel": "Progress",
     "lockColors": "Lock colours",
@@ -109,7 +109,7 @@
     },
     "teaser": {
       "nextStep": "Next step",
-      "colors": "Pick your colours",
+      "colors": "Choose details",
       "ceramics": "Pick your ceramics"
     },
     "setBadge": "Set · {count, plural, one {# piece} other {# pieces}}",
@@ -153,7 +153,7 @@
     "zipcode": "Postal code",
     "country": "Country",
     "message": "Message",
-    "submit": "Send your order to us",
+    "submit": "Order",
     "legal": "For more on our sales terms and privacy — including how we handle cookies and personal data — see our <terms>Terms of Sale</terms> and <privacy>Privacy Policy</privacy>."
   },
   "legal": {
@@ -224,7 +224,7 @@
     }
   },
   "order": {
-    "title": "Send order",
+    "title": "Order",
     "sending": "Sending…",
     "error": "Something went wrong. Please try again.",
     "success": "Order sent!",

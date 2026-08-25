@@ -1,5 +1,4 @@
 import { useTranslations } from "next-intl";
-import { Link } from "@/i18n/navigation";
 import { LocaleSwitcher } from "@/components/site/locale-switcher";
 import { CartMenu } from "@/components/site/cart-menu";
 import { PublicMobileNav } from "@/components/site/public-mobile-nav";
@@ -15,7 +14,14 @@ export function SiteHeader() {
     // drawer still layers correctly. Desktop chrome unchanged.
     <header className="bg-ink text-ink-foreground max-md:sticky max-md:top-0 z-40">
       <div className="mx-auto flex h-14 max-w-[1060px] items-center justify-between px-5">
-        <Link href="/" aria-label={t("common.siteName")} className="flex items-center">
+        {/* R4-COPY Ⓔ: the logo leaves the app for the client's marketing site
+            (the configurator is reached from there), so a plain <a> — not the
+            i18n <Link>, which would prefix the locale. */}
+        <a
+          href="https://www.minkeramikk.no"
+          aria-label={t("common.siteName")}
+          className="flex items-center"
+        >
           {/* white logo on the ink header — SVG scales crisply; height tuned to
               the 56px bar. Falls back to alt text if the asset is missing. */}
           {/* eslint-disable-next-line @next/next/no-img-element -- static brand asset in /public */}
@@ -26,18 +32,12 @@ export function SiteHeader() {
             height={36}
             className="h-9 w-auto"
           />
-        </Link>
+        </a>
         <nav className="flex items-center gap-3 text-sm sm:gap-5">
           <PublicMobileNav />
-          {/* Text links are desktop-only: the mobile baseline
-              (docs/theme/preview-frontoffice-mobile.png) shows brand + locale
-              switcher; the hamburger menu is tracked for F12. */}
-          <Link
-            href="/configurator"
-            className="hidden text-ink-muted transition-colors hover:text-white sm:inline"
-          >
-            {t("nav.configurator")}
-          </Link>
+          {/* R4-COPY Ⓔ: the desktop "Bygg din design" link is gone (client
+              request) — the header is brand + locale + cart. The mobile drawer
+              keeps it: below sm it is the only nav there is. */}
           <LocaleSwitcher />
           <CartMenu />
         </nav>

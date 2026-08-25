@@ -64,12 +64,12 @@
     "pageTitle": "Bygg din design",
     "stepIndicator": "Steg {step} av 3",
     "back": "Tilbake",
-    "previewNote": "Konfigurator viser designet ditt i et rundt mønster, husk at du kan også bestille serveringsfat, kopper, ildfastformer osv. i samme design, sluttresultatet bare ikke vises i konfigurator.",
+    "previewNote": "Dette er en illustrasjon av den håndmalte stilen. Motivet vises her på en tallerken, men kan lages på alle produkter. Hver del blir håndmalt kun for deg, og er derfor unik.",
     "step1": {
       "title": "Velg design",
       "hero": {
-        "title": "Lag din egen keramikk i tre steg",
-        "subtitle": "Velg et ferdig design, eller lag ditt eget i tre steg – velg design, velg farger og velg deler. Vi lager hver del for hånd."
+        "title": "Lag din egen keramikk i 3 steg",
+        "subtitle": "Velg et ferdig design, eller design ditt eget ved å tilpasse motiv, farger og deler.\n\nAlt males for hånd, noe som gir keramikken et unikt og sjarmerende preg – derfor kan små variasjoner i farge og motiv forekomme. All keramikk tåler oppvaskmaskin."
       }
     },
     "step2": {
@@ -85,13 +85,13 @@
       "title": "Velg keramikk",
       "quantity": "Antall",
       "total": "Totalpris",
-      "send": "Send din ordre til oss",
+      "send": "Bestill",
       "disclaimer": "Siden dette er en spesialbestilling, går vi gjennom designet sammen før ordren kan anses som bekreftet. Ved å sende ordren til oss via dette skjemaet er du ikke forpliktet til å fullføre kjøpet og ingen betaling kreves nå. Alle prisene inkluderer alt av toll og MVA – ingen uventede gebyrer ved levering! Frakt er inkludert i prisen, men ved mindre bestillinger et lite tillegg kan forekomme."
     },
     "steps": {
-      "design": "Design",
-      "details": "Detaljer",
-      "ceramics": "Keramikk"
+      "design": "1. Design",
+      "details": "2. Detaljer",
+      "ceramics": "3. Keramikk"
     },
     "stepperLabel": "Fremdrift",
     "lockColors": "Lås farger",
@@ -108,7 +108,7 @@
     },
     "teaser": {
       "nextStep": "Neste steg",
-      "colors": "Velg fargene dine",
+      "colors": "Velg detaljer",
       "ceramics": "Velg keramikk"
     },
     "setBadge": "Sett · {count, plural, one {# del} other {# deler}}",
@@ -152,7 +152,7 @@
     "zipcode": "Postnummer",
     "country": "Land",
     "message": "Melding",
-    "submit": "Send din ordre til oss",
+    "submit": "Bestill",
     "legal": "For mer om salgsvilkår og personvern — inkludert hvordan vi behandler informasjonskapsler og personopplysninger — se våre <terms>salgsvilkår</terms> og <privacy>personvernerklæring</privacy>."
   },
   "legal": {
@@ -223,7 +223,7 @@
     }
   },
   "order": {
-    "title": "Send bestilling",
+    "title": "Bestill",
     "sending": "Sender…",
     "error": "Noe gikk galt. Prøv igjen.",
     "success": "Bestilling sendt!",
