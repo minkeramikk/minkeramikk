@@ -102,6 +102,36 @@ export async function secondActiveDesignWithId(): Promise<DesignRefWithId | null
 }
 
 /**
+ * F36 AC4: the first active design with NO gallery photos and at least one
+ * option category with an active option — i.e. one that renders step 2 fully
+ * but no photo strip. Discovered, never pinned: the shared staging catalog is
+ * edited by the client, and photos landing on whatever `firstActiveDesign()`
+ * returns is exactly what broke the AC2 assertion. Null when every active
+ * design has photos.
+ */
+export async function firstActiveDesignWithoutPhotos(): Promise<DesignRef | null> {
+  const { data, error } = await adminClient()
+    .from("designs")
+    .select(
+      "slug, code, name, design_images(id), option_categories(id, options(id, active))"
+    )
+    .eq("active", true)
+    .order("sort_order");
+  if (error) throw error;
+
+  type Row = DesignRef & {
+    design_images: { id: string }[];
+    option_categories: { id: string; options: { active: boolean }[] }[];
+  };
+  const match = ((data ?? []) as Row[]).find(
+    (d) =>
+      d.design_images.length === 0 &&
+      d.option_categories.some((c) => c.options.some((o) => o.active))
+  );
+  return match ? { slug: match.slug, code: match.code, name: match.name } : null;
+}
+
+/**
  * A design that has a real config `code` AND is active — so its config code
  * decodes against the codec set (getCodecDesigns = active designs) and the
  * admin-order detail renders a clickable config-code link.

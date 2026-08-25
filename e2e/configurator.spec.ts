@@ -3,6 +3,7 @@ import {
   adminClient,
   firstActiveDesign,
   firstActiveDesignWithId,
+  firstActiveDesignWithoutPhotos,
   secondActiveDesignWithId,
   firstProductOfDesignSupplier,
   firstSupplier,
@@ -77,16 +78,17 @@ test("AC1: a design flipped to active=false does not render", async ({ page }) =
 test("AC2: step 2 shows the design's option categories; a choice updates the preview + URL and survives reload", async ({
   page,
 }) => {
-  const design = await firstActiveDesign();
-  await page.goto(`/no/configurator?design=${design.slug}&step=2`);
+  // F36 AC4: a design with no gallery photos renders NO strip at all — no
+  // container, no fades, no arrows, no empty gap (clean degrade to pre-F36).
+  // The comment this replaces already called it: `firstActiveDesign()` was
+  // photo-less only by accident of the seed, and the client has since added
+  // photos to it on staging. Discover a genuinely photo-less design instead.
+  const design = await firstActiveDesignWithoutPhotos();
+  test.skip(!design, "no active design without design_images in this catalog");
+  await page.goto(`/no/configurator?design=${design!.slug}&step=2`);
 
   const step = page.getByTestId("details-step");
   await expect(step).toBeVisible();
-  // F36 AC4: a design with no gallery photos renders NO strip at all — no
-  // container, no fades, no arrows, no empty gap (clean degrade to pre-F36).
-  // firstActiveDesign() is photo-less by AC4 (the 6 seeded designs have no
-  // design_images rows); if a future fixture adds photos to it, select an
-  // explicitly photo-less design here instead.
   await expect(page.getByTestId("design-photo-strip")).toHaveCount(0);
   // at least one option category with a radiogroup
   const firstGroup = step.getByRole("radiogroup").first();
