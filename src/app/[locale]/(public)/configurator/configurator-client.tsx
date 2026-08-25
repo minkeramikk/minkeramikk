@@ -423,7 +423,10 @@ export function ConfiguratorClient({
           <h2 className="text-xl font-semibold tracking-tight md:text-2xl">
             {t("step1.hero.title")}
           </h2>
-          <p className="mt-1.5 max-w-prose text-sm text-muted-foreground">
+          {/* R4-COPY Ⓑ: the intro is two paragraphs, kept in ONE dictionary key
+              split by a blank line — `whitespace-pre-line` renders it, no extra
+              key and no markup. */}
+          <p className="mt-1.5 max-w-prose whitespace-pre-line text-sm text-muted-foreground">
             {t("step1.hero.subtitle")}
           </p>
         </div>
