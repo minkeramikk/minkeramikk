@@ -105,7 +105,10 @@ export function DesignPhotoStrip({
           aria-describedby={undefined}
           onCloseAutoFocus={(e) => {
             e.preventDefault();
-            // preventScroll: the strip must be exactly where it was (AC4).
+            // preventScroll: closing must not move the strip (AC4). Tapping a
+            // half-visible thumb DOES scroll it flush first — the browser's own
+            // focus-into-view, behind the modal, and it leaves that photo in
+            // view on the way back; snap points make it land clean either way.
             thumbRefs.current[openedAt.current]?.focus({ preventScroll: true });
           }}
           className="top-0 left-0 flex h-dvh max-w-none! translate-x-0 translate-y-0 gap-0 rounded-none bg-black/90 p-0 ring-0 sm:max-w-none!"
