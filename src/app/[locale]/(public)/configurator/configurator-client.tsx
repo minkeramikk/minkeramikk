@@ -460,6 +460,9 @@ export function ConfiguratorClient({
             data-testid="preview-sticky"
             className="max-md:mx-auto max-md:w-full"
           >
+            {/* R4-COPY Ⓒ: the caption is a closed sentence for now — the
+                "inspirasjonsside ↗" link (new tab) lands once Alessio gives
+                us the URL. */}
             <PreviewCanvas
               alt={designName(selected)}
               caption={t("previewNote")}
