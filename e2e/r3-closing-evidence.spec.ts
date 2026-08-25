@@ -158,9 +158,10 @@ test("① fallback: design without description → name + CTA only", async ({ pa
     await page.goto(`/no/configurator?design=${design!.slug}`);
     const block = page.getByTestId("design-context-block");
     await expect(block).toBeVisible();
-    // R-EXTRA: la CTA è la pillola — "Neste steg" è la caption, "Velg fargene
-    // dine" la label (chiavi teaser.* riusate, nessuna stringa nuova).
-    await expect(block).toContainText("Velg fargene dine");
+    // R-EXTRA: la CTA è la pillola — "Neste steg" è la caption, "Velg
+    // detaljer" la label (chiavi teaser.* riusate, nessuna stringa nuova).
+    // R4-COPY Ⓓ: la label era "Velg fargene dine".
+    await expect(block).toContainText("Velg detaljer");
     await page.screenshot({ path: `${OUT}/08-step1-block-no-description-390.png`, fullPage: true });
   } finally {
     await setDescription(design!.description_no ?? "", design!.description_en ?? "");

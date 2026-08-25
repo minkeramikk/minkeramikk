@@ -108,7 +108,7 @@
     },
     "teaser": {
       "nextStep": "Neste steg",
-      "colors": "Velg fargene dine",
+      "colors": "Velg detaljer",
       "ceramics": "Velg keramikk"
     },
     "setBadge": "Sett · {count, plural, one {# del} other {# deler}}",
