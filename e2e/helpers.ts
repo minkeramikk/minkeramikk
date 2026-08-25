@@ -102,12 +102,13 @@ export async function secondActiveDesignWithId(): Promise<DesignRefWithId | null
 }
 
 /**
- * F36 AC4: the first active design with NO gallery photos and at least one
- * option category with an active option — i.e. one that renders step 2 fully
- * but no photo strip. Discovered, never pinned: the shared staging catalog is
- * edited by the client, and photos landing on whatever `firstActiveDesign()`
- * returns is exactly what broke the AC2 assertion. Null when every active
- * design has photos.
+ * F36 AC4: the first active design with NO gallery photos AND a real choice
+ * (>=2 active options in some category) — a single-option category renders no
+ * radiogroup, just an auto-picked group, so AC2 ("a choice updates preview and
+ * URL") would have nothing to click. Discovered, never pinned: the shared
+ * staging catalog is edited by the client, and photos landing on whatever
+ * `firstActiveDesign()` returns is exactly what broke the AC2 assertion. Null
+ * when every active design has photos.
  */
 export async function firstActiveDesignWithoutPhotos(): Promise<DesignRef | null> {
   const { data, error } = await adminClient()
@@ -126,7 +127,9 @@ export async function firstActiveDesignWithoutPhotos(): Promise<DesignRef | null
   const match = ((data ?? []) as Row[]).find(
     (d) =>
       d.design_images.length === 0 &&
-      d.option_categories.some((c) => c.options.some((o) => o.active))
+      d.option_categories.some(
+        (c) => c.options.filter((o) => o.active).length >= 2
+      )
   );
   return match ? { slug: match.slug, code: match.code, name: match.name } : null;
 }
