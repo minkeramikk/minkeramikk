@@ -287,7 +287,8 @@ test("R-EXTRA: the next-step pills are real buttons and walk the funnel", async 
   expect(await pill1.evaluate((el) => el.tagName)).toBe("BUTTON");
   // R-EXTRA fix: no more custom aria-label (WCAG 2.5.3 Label in Name) — the
   // accessible name is the concatenated caption + visible label.
-  await expect(pill1).toHaveAccessibleName(/neste steg\s*velg fargene dine/i);
+  // R4-COPY Ⓓ: la label era "Velg fargene dine".
+  await expect(pill1).toHaveAccessibleName(/neste steg\s*velg detaljer/i);
   // i CTA duplicati dello step 1 non esistono più
   await expect(page.getByTestId("next-step-teaser")).toHaveCount(0);
   await expect(page.getByTestId("next-step")).toHaveCount(0);
