@@ -86,7 +86,7 @@
       "title": "Choose ceramics",
       "quantity": "Quantity",
       "total": "Total price",
-      "send": "Send your order to us",
+      "send": "Order",
       "disclaimer": "Since this is a custom order, we go through the design together before the order is considered confirmed. By sending the order via this form you are not committed to completing the purchase and no payment is required now. All prices include customs and VAT – no unexpected fees on delivery! Shipping is included in the price, but for smaller orders a small surcharge may apply."
     },
     "steps": {
@@ -153,7 +153,7 @@
     "zipcode": "Postal code",
     "country": "Country",
     "message": "Message",
-    "submit": "Send your order to us",
+    "submit": "Order",
     "legal": "For more on our sales terms and privacy — including how we handle cookies and personal data — see our <terms>Terms of Sale</terms> and <privacy>Privacy Policy</privacy>."
   },
   "legal": {
@@ -224,7 +224,7 @@
     }
   },
   "order": {
-    "title": "Send order",
+    "title": "Order",
     "sending": "Sending…",
     "error": "Something went wrong. Please try again.",
     "success": "Order sent!",

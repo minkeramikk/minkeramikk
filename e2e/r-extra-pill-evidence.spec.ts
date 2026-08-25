@@ -114,8 +114,9 @@ for (const locale of ["no", "en"] as const) {
       const checkout = page.locator('[data-testid="docked-checkout"]:visible').first();
       await expect(checkout).toBeVisible();
 
-      // AC3: la freccetta sta SOLO su "Send bestilling". Le altre due non
-      // fanno avanzare il funnel — una riavvia, l'altra è collaterale.
+      // AC3: la freccetta sta SOLO su "Bestill" (era "Send bestilling",
+      // R4-COPY Ⓕ). Le altre due non fanno avanzare il funnel — una
+      // riavvia, l'altra è collaterale.
       for (const id of ["new-design-cta", "share-set"]) {
         const other = page.locator(`[data-testid="${id}"]:visible`).first();
         await expect(other).toBeVisible();

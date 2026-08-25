@@ -85,7 +85,7 @@
       "title": "Velg keramikk",
       "quantity": "Antall",
       "total": "Totalpris",
-      "send": "Send din ordre til oss",
+      "send": "Bestill",
       "disclaimer": "Siden dette er en spesialbestilling, går vi gjennom designet sammen før ordren kan anses som bekreftet. Ved å sende ordren til oss via dette skjemaet er du ikke forpliktet til å fullføre kjøpet og ingen betaling kreves nå. Alle prisene inkluderer alt av toll og MVA – ingen uventede gebyrer ved levering! Frakt er inkludert i prisen, men ved mindre bestillinger et lite tillegg kan forekomme."
     },
     "steps": {
@@ -152,7 +152,7 @@
     "zipcode": "Postnummer",
     "country": "Land",
     "message": "Melding",
-    "submit": "Send din ordre til oss",
+    "submit": "Bestill",
     "legal": "For mer om salgsvilkår og personvern — inkludert hvordan vi behandler informasjonskapsler og personopplysninger — se våre <terms>salgsvilkår</terms> og <privacy>personvernerklæring</privacy>."
   },
   "legal": {
@@ -223,7 +223,7 @@
     }
   },
   "order": {
-    "title": "Send bestilling",
+    "title": "Bestill",
     "sending": "Sender…",
     "error": "Noe gikk galt. Prøv igjen.",
     "success": "Bestilling sendt!",
