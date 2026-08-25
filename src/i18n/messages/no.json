@@ -89,9 +89,9 @@
       "disclaimer": "Siden dette er en spesialbestilling, går vi gjennom designet sammen før ordren kan anses som bekreftet. Ved å sende ordren til oss via dette skjemaet er du ikke forpliktet til å fullføre kjøpet og ingen betaling kreves nå. Alle prisene inkluderer alt av toll og MVA – ingen uventede gebyrer ved levering! Frakt er inkludert i prisen, men ved mindre bestillinger et lite tillegg kan forekomme."
     },
     "steps": {
-      "design": "Design",
-      "details": "Detaljer",
-      "ceramics": "Keramikk"
+      "design": "1. Design",
+      "details": "2. Detaljer",
+      "ceramics": "3. Keramikk"
     },
     "stepperLabel": "Fremdrift",
     "lockColors": "Lås farger",
