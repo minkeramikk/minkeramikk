@@ -96,6 +96,7 @@
     "productSheet": {
       "subtitle": "håndmalt med ditt design",
       "zoomHint": "Trykk for å forstørre",
+      "photoOf": "Foto av {name} — åpne større",
       "close": "Lukk"
     },
     "steps": {

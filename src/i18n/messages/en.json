@@ -96,6 +96,7 @@
     "productSheet": {
       "subtitle": "hand-painted with your design",
       "zoomHint": "Tap to enlarge",
+      "photoOf": "Photo of {name} — open larger",
       "close": "Close"
     },
     "steps": {

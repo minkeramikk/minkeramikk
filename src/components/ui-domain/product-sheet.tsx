@@ -152,7 +152,7 @@ export function ProductSheet({
                     key={img}
                     type="button"
                     onClick={() => setLightboxAt(i)}
-                    aria-label={`${name} — ${tCfg("productSheet.zoomHint")}`}
+                    aria-label={tCfg("productSheet.photoOf", { name })}
                     data-testid="product-photo"
                     className="relative aspect-square cursor-zoom-in overflow-hidden rounded-sm border border-border bg-muted outline-none transition-colors hover:border-primary focus-visible:ring-3 focus-visible:ring-ring/50"
                   >
