@@ -39,14 +39,14 @@ import {
   formatAttributeValue,
   publicAttributes,
   type TypedAttribute,
-  type AttributeKey,
 } from "@/lib/catalog/product-attributes";
 import { fullRowInsertIndex } from "@/lib/configurator/grid-rows";
 import { formatSelections } from "@/lib/configurator/readable-selections";
-import { Weight, Circle, Ruler, Tag, Check, MoveVertical, MoveHorizontal, Container, Truck, Plus, ArrowUpRight } from "lucide-react";
+import { Check, Truck, Plus, ArrowUpRight } from "lucide-react";
 import type { ResolvedSharedSet } from "./resolve-shared-set";
 import { cn } from "@/lib/utils";
 import { NextStepPill, PillIcon } from "@/components/ui-domain/next-step-pill";
+import { ATTR_ICON } from "@/components/ui-domain/product-sheet";
 
 export interface CeramicProduct {
   id: string;
@@ -79,16 +79,6 @@ export interface DesignRef {
 function thumbHex(line: CartLine): string | undefined {
   return line.configSnapshot?.selections.find((s) => s.hex)?.hex ?? undefined;
 }
-
-const ATTR_ICON: Record<AttributeKey, typeof Weight> = {
-  weight: Weight,
-  diameter: Circle,
-  dimensions: Ruler,
-  height: MoveVertical,
-  length: MoveHorizontal,
-  volume: Container,
-  custom: Tag,
-};
 
 /**
  * R2-3+R2-4 — compact step-3 ceramic card with the shared F13 hover/focus
