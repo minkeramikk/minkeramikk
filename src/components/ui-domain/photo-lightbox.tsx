@@ -79,7 +79,7 @@ export function PhotoLightbox({
             {Math.abs(i - current) <= 1 && (
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                src={assetUrl(img, { width: 1024 })}
+                src={assetUrl(img)}
                 alt={`${alt} ${i + 1}`}
                 className="max-h-full max-w-full object-contain"
               />

@@ -91,7 +91,7 @@
       "total": "Totalpris",
       "send": "Bestill",
       "disclaimer": "Siden dette er en spesialbestilling, går vi gjennom designet sammen før ordren kan anses som bekreftet. Ved å sende ordren til oss via dette skjemaet er du ikke forpliktet til å fullføre kjøpet og ingen betaling kreves nå. Alle prisene inkluderer alt av toll og MVA – ingen uventede gebyrer ved levering! Frakt er inkludert i prisen, men ved mindre bestillinger et lite tillegg kan forekomme.",
-      "seriesCount": "{n} produkter",
+      "seriesCount": "{n, plural, one {# produkt} other {# produkter}}",
       "handmadeSet": "håndmalt sett"
     },
     "productSheet": {
@@ -145,9 +145,6 @@
       "placeholder": "f.eks. Gratulerer med dagen bestemor",
       "helper": "Verkstedet bekrefter den endelige teksten før produksjon — endrer ikke forhåndsvisningen.",
       "counter": "{count}/100"
-    },
-    "productCard": {
-      "details": "Produktdetaljer"
     },
     "yourSelection": {
       "kicker": "Ditt valg",

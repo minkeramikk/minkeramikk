@@ -58,6 +58,7 @@ export function ProductSheet({
   /** F37: current config layers (empty → no composed pair rendered). */
   designLayers: CartLayer[];
 }) {
+  // TODO:nb-review NO copy: productSheet.close
   const tCfg = useTranslations("configurator");
   const tCart = useTranslations("cart");
   // which photo the lightbox shows (null = closed). Nested inside the sheet's
@@ -161,7 +162,7 @@ export function ProductSheet({
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element -- catalog art from storage */}
                     <img
-                      src={assetUrl(img, { width: 1024 })}
+                      src={assetUrl(img)}
                       alt=""
                       loading="lazy"
                       className="size-full object-cover"

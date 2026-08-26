@@ -93,7 +93,9 @@ function CeramicCard({
   const price = formatMoney(money(p.priceCents, p.currency), locale);
   // The real photo when the admin uploaded one, else the catalogue thumb.
   const cover = p.photos[0] ?? p.image;
-  const size = publicAttributes(p.attributes)[0];
+  // Dimensional attributes only — a `custom` one (e.g. colour) has no unit and
+  // would print as a bare, unlabelled value here.
+  const size = publicAttributes(p.attributes).find((a) => a.key !== "custom");
   // §3.18 meta: "measure · handmade set" — either half may be missing.
   const meta = [
     size ? formatAttributeValue(size, locale) : null,
@@ -106,7 +108,6 @@ function CeramicCard({
     <button
       type="button"
       aria-haspopup="dialog"
-      aria-label={`${name} — ${price}`}
       data-testid={`product-${p.slug}`}
       onClick={onOpen}
       className={[
@@ -115,9 +116,9 @@ function CeramicCard({
         "focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring",
       ].join(" ")}
     >
-      <span className="relative block aspect-square w-full overflow-hidden bg-muted">
-        {cover && (
-          // eslint-disable-next-line @next/next/no-img-element -- catalog art from storage
+      {cover && (
+        <span className="relative block aspect-square w-full overflow-hidden bg-muted">
+          {/* eslint-disable-next-line @next/next/no-img-element -- catalog art from storage */}
           <img
             src={assetUrl(cover)}
             alt=""
@@ -126,9 +127,9 @@ function CeramicCard({
             data-testid="product-thumb"
             className="absolute inset-0 size-full object-cover"
           />
-        )}
-        <SetBadge count={p.pieces} className="absolute left-2 top-2 z-10" />
-      </span>
+          <SetBadge count={p.pieces} className="absolute left-2 top-2 z-10" />
+        </span>
+      )}
       {/* §3.18: asymmetric info block (10px 12px 11px in the mockup) */}
       <span className="flex flex-col gap-0.5 px-3 pb-[11px] pt-2.5">
         <span className="text-sm font-semibold leading-tight">{name}</span>
@@ -185,6 +186,7 @@ export function CeramicsStep({
   sharedSet?: ResolvedSharedSet | null;
 }) {
   const t = useTranslations("cart");
+  // TODO:nb-review NO copy: step3.seriesCount
   const tc = useTranslations("configurator");
   const to = useTranslations("order");
   const ta = useTranslations("actions");
