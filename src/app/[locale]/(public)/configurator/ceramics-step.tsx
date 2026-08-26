@@ -1,11 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  HoverPreviewCard,
-  useHoverPreview,
-  useWarmupPreviews,
-} from "@/components/ui-domain/hover-preview";
 import { useLocale, useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
 import { usePathname, useRouter } from "@/i18n/navigation";
@@ -35,17 +30,15 @@ import {
   useShippingTotalSuffix,
 } from "@/components/ui-domain/cart-shipping-row";
 import {
-  ATTR_ICON,
-  attributeLabel,
   formatAttributeValue,
   publicAttributes,
   type TypedAttribute,
 } from "@/lib/catalog/product-attributes";
-import { fullRowInsertIndex } from "@/lib/configurator/grid-rows";
+import { groupBySeries } from "@/lib/configurator/product-series";
 import { formatSelections } from "@/lib/configurator/readable-selections";
-import { Check, Truck, Plus, ArrowUpRight } from "lucide-react";
+import { Truck, Plus, ArrowUpRight } from "lucide-react";
 import type { ResolvedSharedSet } from "./resolve-shared-set";
-import { cn } from "@/lib/utils";
+import { ProductSheet } from "@/components/ui-domain/product-sheet";
 import { NextStepPill, PillIcon } from "@/components/ui-domain/next-step-pill";
 
 export interface CeramicProduct {
@@ -81,267 +74,69 @@ function thumbHex(line: CartLine): string | undefined {
 }
 
 /**
- * R2-3+R2-4 — compact step-3 ceramic card with the shared F13 hover/focus
- * preview. Selecting a card opens the `ExpandedProductCard` full-row panel
- * below the row — no "i" button, no modal.
+ * §3.18 CeramicCard (R4-STEP3) — photo-led step-3 card. The whole card is one
+ * button: click/tap opens `ProductSheet` (§3.19). Replaces the R2-3-4 compact
+ * card that expanded in place, and drops the F13 hover preview with it — the
+ * card's own photo IS the preview.
  */
-function CeramicOptionCard({
+function CeramicCard({
   product: p,
-  selected,
   locale,
-  onSelect,
+  onOpen,
 }: {
   product: CeramicProduct;
-  selected: boolean;
   locale: "no" | "en";
-  onSelect: () => void;
+  /** Receives the card button itself, so the closing sheet can give focus back. */
+  onOpen: (trigger: HTMLElement) => void;
 }) {
-  const ref = useRef<HTMLButtonElement>(null);
-  const { show, hide, ...preview } = useHoverPreview(ref, Boolean(p.image));
+  const t = useTranslations("configurator");
   const name = locale === "no" ? p.nameNo : p.nameEn;
   const price = formatMoney(money(p.priceCents, p.currency), locale);
+  // The real photo when the admin uploaded one, else the catalogue thumb.
+  const cover = p.photos[0] ?? p.image;
+  const size = publicAttributes(p.attributes)[0];
+  // §3.18 meta: "measure · handmade set" — either half may be missing.
+  const meta = [
+    size ? formatAttributeValue(size, locale) : null,
+    p.pieces > 1 ? t("step3.handmadeSet") : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
   return (
-    <>
-      <button
-        ref={ref}
-        type="button"
-        role="radio"
-        aria-checked={selected}
-        data-testid={`product-${p.slug}`}
-        onClick={onSelect}
-        onMouseEnter={show}
-        onMouseLeave={hide}
-        onFocus={show}
-        onBlur={hide}
-        className={[
-          "relative flex min-h-11 w-full flex-col items-center gap-1 rounded-sm border-[1.5px] p-2 text-center transition-colors",
-          "focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring",
-          selected ? "border-primary bg-primary/5" : "border-border bg-card hover:border-ring",
-        ].join(" ")}
-      >
-        <SetBadge count={p.pieces} className="absolute right-1 top-1 z-10" />
-        {p.image && (
+    <button
+      type="button"
+      aria-haspopup="dialog"
+      aria-label={`${name} — ${price}`}
+      data-testid={`product-${p.slug}`}
+      onClick={(e) => onOpen(e.currentTarget)}
+      className={[
+        "group relative flex w-full flex-col overflow-hidden rounded-lg border-[1.5px] border-border bg-card text-left shadow-(--shadow-card)",
+        "transition-[border-color,transform] hover:-translate-y-px hover:border-primary",
+        "focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring",
+      ].join(" ")}
+    >
+      <span className="relative block aspect-square w-full overflow-hidden bg-muted">
+        {cover && (
           // eslint-disable-next-line @next/next/no-img-element -- catalog art from storage
           <img
-            src={assetUrl(p.image)}
+            src={assetUrl(cover, { width: 1024 })}
             alt=""
             loading="lazy"
             decoding="async"
             data-testid="product-thumb"
-            className="h-16 w-16 object-contain"
+            className="absolute inset-0 size-full object-cover"
           />
         )}
-        <span className="text-xs font-medium">{name}</span>
-        <span className="text-xs text-muted-foreground">{price}</span>
-      </button>
-
-      {p.image && (
-        <HoverPreviewCard state={{ show, hide, ...preview }} testId="product-preview">
-          {/* eslint-disable-next-line @next/next/no-img-element -- catalog art from storage */}
-          <img src={assetUrl(p.image)} alt={name} className="size-44 object-contain" />
-          <span className="mt-1 block text-center text-xs font-medium">{name}</span>
-          <span className="block text-center text-xs text-muted-foreground">{price}</span>
-          {p.pieces > 1 && (
-            <span className="mt-1 flex justify-center">
-              <SetBadge count={p.pieces} />
-            </span>
-          )}
-        </HoverPreviewCard>
-      )}
-    </>
-  );
-}
-
-/**
- * R2-3+R2-4 — full-row expanded panel rendered after the selected card's row.
- * Contains qty stepper + Add anchored at top, aria-live confirmation, the typed
- * spec chips ALWAYS visible, and the "Product details" description block, also
- * always visible (R3-VARIE-D — the R2-6 F toggle is gone).
- */
-function ExpandedProductCard({
-  product: p,
-  locale,
-  qty,
-  onQty,
-  onAdd,
-  tCart,
-  tCfg,
-  designLayers,
-}: {
-  product: CeramicProduct;
-  locale: "no" | "en";
-  qty: number;
-  onQty: (next: number) => void;
-  onAdd: () => void;
-  tCart: (k: string) => string;
-  tCfg: (k: string, values?: Record<string, string | number>) => string;
-  /** F37: current config layers (empty → no composed pair rendered). */
-  designLayers: CartLayer[];
-}) {
-  const ref = useRef<HTMLDivElement>(null);
-  // R2 fix: the "added" confirmation shows ONLY right after a successful add,
-  // then auto-dismisses (it used to render by default on every card).
-  const [showAdded, setShowAdded] = useState(false);
-  const addedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const description = locale === "no" ? p.descriptionNo : p.descriptionEn;
-  // Storefront shows only customer-facing attributes (weight is internal).
-  const attributes = publicAttributes(p.attributes);
-
-  function handleAdd() {
-    if (showAdded) return; // no-op while the "Added ✓" confirmation is showing
-    onAdd();
-    setShowAdded(true);
-    if (addedTimer.current) clearTimeout(addedTimer.current);
-    addedTimer.current = setTimeout(() => setShowAdded(false), 2000);
-  }
-
-  // Clear the dismiss timer on unmount — and thus on selection change, since
-  // the panel remounts per selected product (key=`exp-<id>`).
-  useEffect(() => {
-    return () => {
-      if (addedTimer.current) clearTimeout(addedTimer.current);
-    };
-  }, []);
-
-  // a11y: bring the panel into view on (re)selection, but never yank focus.
-  useEffect(() => {
-    ref.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
-  }, [p.id]);
-
-  return (
-    <div
-      ref={ref}
-      data-testid="expanded-card"
-      style={{ gridColumn: "1 / -1" }}
-      className="flex flex-col gap-2 rounded-md border border-primary/50 bg-primary/5 p-3"
-    >
-      {/* F37 ②: the current design shown NEXT TO the ceramic photo (never
-          composited onto it). Photo missing → only the design round, like the
-          cart rows. Self-gates on an empty config (AC4 / ?set= landing). */}
-      {designLayers.length > 0 && (
-        <div
-          data-testid="expanded-composed-preview"
-          className="flex items-center gap-3 border-b border-border/60 pb-3"
-        >
-          <div className="flex shrink-0 items-center gap-2">
-            {p.image && (
-              <>
-                {/* eslint-disable-next-line @next/next/no-img-element -- catalog art from storage */}
-                <img
-                  src={assetUrl(p.image)}
-                  alt=""
-                  aria-hidden
-                  className="size-20 rounded-md border border-border bg-card object-contain p-1"
-                />
-                <span aria-hidden className="text-lg font-semibold text-muted-foreground">
-                  +
-                </span>
-              </>
-            )}
-            <DesignRound layers={designLayers} className="size-20" />
-          </div>
-          <p className="min-w-0 text-xs font-medium text-primary">
-            {tCfg("yourSelection.pairCaption")}
-          </p>
-        </div>
-      )}
-
-      {/* Add — primary, anchored at the top so opening details never scrolls it away */}
-      <div className="flex items-center gap-3">
-        <div className="flex items-center rounded-sm border border-border bg-card">
-          <button
-            type="button"
-            aria-label="-"
-            data-testid="qty-dec"
-            onClick={() => onQty(Math.max(1, qty - 1))}
-            className="flex size-11 items-center justify-center text-lg"
-          >
-            −
-          </button>
-          <span data-testid="qty-value" className="w-10 text-center text-sm tabular-nums">
-            {qty}
-          </span>
-          <button
-            type="button"
-            aria-label="+"
-            data-testid="qty-inc"
-            onClick={() => onQty(qty + 1)}
-            className="flex size-11 items-center justify-center text-lg"
-          >
-            +
-          </button>
-        </div>
-        {/* On a successful add the button flips to an inverted "Added ✓" state
-            (white bg + accent text/border) and goes no-op for ~2s, then reverts.
-            No size change → no layout shift. */}
-        <Button
-          className={cn(
-            "min-h-11 flex-1",
-            showAdded && "pointer-events-none border-primary bg-card text-primary"
-          )}
-          size="lg"
-          data-testid="add-to-cart"
-          aria-disabled={showAdded}
-          onClick={handleAdd}
-        >
-          {showAdded ? (
-            <span
-              data-testid="add-feedback"
-              className="inline-flex items-center gap-1.5 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-200"
-            >
-              <Check className="size-4" aria-hidden />
-              {tCart("added")}
-            </span>
-          ) : (
-            tCart("add")
-          )}
-        </Button>
-      </div>
-
-      {/* The confirmation lives ON the Add button (no extra space, no layout
-          shift). This sr-only live region gives the screen reader the same
-          polite announcement while occupying zero layout. */}
-      <span className="sr-only" aria-live="polite">
-        {showAdded ? tCart("added") : ""}
+        <SetBadge count={p.pieces} className="absolute left-2 top-2 z-10" />
       </span>
-
-      {/* R2-6 F (rev 2): typed metadata is ALWAYS visible and sits above
-          "Product details". Weight stays internal (publicAttributes filters
-          it). Each section self-gates: no attributes → no chip row. */}
-      {attributes.length > 0 && (
-        <ul data-testid="spec-chips" className="flex flex-wrap gap-2">
-          {attributes.map((a, i) => {
-            const Icon = ATTR_ICON[a.key];
-            return (
-              <li
-                key={i}
-                data-testid="spec-chip"
-                className="flex items-center gap-1.5 rounded-sm border border-border bg-card px-2 py-1 text-xs"
-              >
-                <Icon className="size-3.5 text-muted-foreground" aria-hidden />
-                <span className="text-muted-foreground">{attributeLabel(a, locale)}</span>
-                <span className="font-medium">{formatAttributeValue(a, locale)}</span>
-              </li>
-            );
-          })}
-        </ul>
-      )}
-
-      {/* R3-VARIE-D: "Product details" is ALWAYS open — no chevron, no
-          aria-expanded (revises the AC of R2-3-4 / R2-6-F). The section still
-          self-gates: no description → nothing rendered. */}
-      {description && (
-        <div className="flex flex-col gap-1">
-          <p className="text-sm font-medium text-foreground">
-            {tCfg("productCard.details")}
-          </p>
-          <p data-testid="product-details" className="text-sm text-foreground">
-            {description}
-          </p>
-        </div>
-      )}
-    </div>
+      {/* §3.18: asymmetric info block (10px 12px 11px in the mockup) */}
+      <span className="flex flex-col gap-0.5 px-3 pb-[11px] pt-2.5">
+        <span className="text-sm font-semibold leading-tight">{name}</span>
+        {meta && <span className="text-xs text-muted-foreground">{meta}</span>}
+        <span className="mt-0.5 text-sm font-semibold tabular-nums">{price}</span>
+      </span>
+    </button>
   );
 }
 
@@ -401,9 +196,17 @@ export function CeramicsStep({
 
   const { cart, hydrated, add, setQuantity, remove, clear } = useCartContext();
 
-  const [selectedId, setSelectedId] = useState<string | null>(
-    products[0]?.id ?? null
-  );
+  /**
+   * R4-STEP3: id of the product whose `ProductSheet` is OPEN — no preselection
+   * any more (nothing is selected until the customer opens a card). It is not
+   * cleared on close: `sheetOpen` drives Radix, so the product lingers through
+   * the exit animation instead of unmounting mid-transition.
+   */
+  const [openId, setOpenId] = useState<string | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  /** §3.20: "added to basket" pill, auto-dismissed after ~1.8s. */
+  const [toast, setToast] = useState(false);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [qty, setQty] = useState(1);
   /** Desktop + mobile inline: expands the order form in the cart panel. */
   const [checkoutOpen, setCheckoutOpen] = useState(false);
@@ -424,17 +227,34 @@ export function CeramicsStep({
   >(null);
   const setConsumedRef = useRef(false);
 
-  // R2-3: live column count (2 under sm, 3 from sm) → where the full-row panel goes.
-  const [cols, setCols] = useState(2);
-  useEffect(() => {
-    const mq = window.matchMedia("(min-width: 640px)");
-    const apply = () => setCols(mq.matches ? 3 : 2);
-    apply();
-    mq.addEventListener("change", apply);
-    return () => mq.removeEventListener("change", apply);
-  }, []);
+  useEffect(
+    () => () => {
+      if (toastTimer.current) clearTimeout(toastTimer.current);
+    },
+    []
+  );
 
-  const selected = products.find((p) => p.id === selectedId) ?? null;
+  const opened = products.find((p) => p.id === openId) ?? null;
+
+  /**
+   * a11y (§3.19): focus must go back to the card that opened the sheet. Radix's
+   * modal Dialog preventDefaults the FocusScope restore and focuses its
+   * `DialogTrigger` instead — and this sheet is controlled, with no trigger, so
+   * without this the focus would land on <body>. Restored from an effect (not
+   * from `onOpenChange`) so it runs after the focus trap has been released.
+   */
+  const triggerRef = useRef<HTMLElement | null>(null);
+
+  function openProduct(id: string, trigger: HTMLElement) {
+    triggerRef.current = trigger;
+    setOpenId(id);
+    setSheetOpen(true);
+    setQty(1);
+  }
+
+  useEffect(() => {
+    if (!sheetOpen) triggerRef.current?.focus();
+  }, [sheetOpen]);
 
   // F37: current-config recap data (name + readable selections). Rendered only
   // when there are design layers (AC4: no config / ?set= landing → nothing).
@@ -444,19 +264,12 @@ export function CeramicsStep({
   const hasConfig = hasExplicitDesign && designLayers.length > 0;
   const designName = designLabel(snapshot, locale) ?? "";
 
-  // R1-FB2/FB4: warm the ceramic photos in idle (desktop) — covers the
-  // lazy-loaded below-the-fold thumbs so the hover popup is instant too.
-  const warmupUrls = useMemo(
-    () => products.map((p) => (p.image ? assetUrl(p.image) : null)),
-    [products]
-  );
-  useWarmupPreviews(warmupUrls);
-
   const count = hydrated ? itemCount(cart) : 0;
   const total = cartTotal(cart);
   const totalSuffix = useShippingTotalSuffix(total);
 
   function addSelected() {
+    const selected = opened;
     if (!selected) return;
     add({
       productId: selected.id,
@@ -475,6 +288,15 @@ export function CeramicsStep({
       pieces: selected.pieces,
     });
     setQty(1);
+  }
+
+  /** §3.20: add → close the sheet FIRST, then show the toast. */
+  function addOpened() {
+    addSelected();
+    setSheetOpen(false);
+    setToast(true);
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(false), 1800);
   }
 
   // ── CA-3 C: share the basket as a stateless link (?step=3&set=…) ──
@@ -595,42 +417,9 @@ export function CeramicsStep({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot apply on arrival
   }, [sharedSet, hydrated]);
 
-  const gridNodes = useMemo(() => {
-    const selectedIndex = products.findIndex((p) => p.id === selectedId);
-    const insertAfter = fullRowInsertIndex(selectedIndex, cols, products.length);
-    const nodes: React.ReactNode[] = [];
-    products.forEach((p, i) => {
-      nodes.push(
-        <CeramicOptionCard
-          key={p.id}
-          product={p}
-          selected={p.id === selectedId}
-          locale={locale}
-          onSelect={() => setSelectedId(p.id)}
-        />
-      );
-      if (i === insertAfter && selected) {
-        nodes.push(
-          <ExpandedProductCard
-            key={`exp-${selected.id}`}
-            product={selected}
-            locale={locale}
-            qty={qty}
-            onQty={setQty}
-            onAdd={addSelected}
-            tCart={t}
-            tCfg={tc}
-            designLayers={designLayers}
-          />
-        );
-      }
-    });
-    return nodes;
-    // addSelected/setQty/setSelectedId/t/tc are stable for the render; qty &
-    // selection drive the rebuild. designLayers/snapshot are stable per-render
-    // props from the server (F37).
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [products, selectedId, selected, cols, qty, locale]);
+  // §3.18: sections in the admin's own order; the ungrouped bucket comes last
+  // with NO heading.
+  const sections = useMemo(() => groupBySeries(products, locale), [products, locale]);
 
   // F18/F21: clickable stepper — jump to any step keeping design + opt_* in URL.
   function goToStep(target: 1 | 2 | 3) {
@@ -1061,16 +850,32 @@ export function CeramicsStep({
 
           {yourSelectionStrip}
 
-          <div
-            role="radiogroup"
-            aria-label={t("title")}
-            className="grid grid-cols-2 gap-2.5 sm:grid-cols-3"
-          >
-            {gridNodes}
+          {/* §3.18: one section per series, 22px apart; 2 cols / gap-2.5 under
+              960px, 3 cols / gap-3 from 960px. */}
+          <div className="flex flex-col gap-[22px]" data-testid="ceramics-grid">
+            {sections.map((s) => (
+              <section key={s.label ?? "__ungrouped"} data-testid="ceramics-series">
+                {s.label && (
+                  <h3 className="mb-2.5 flex items-baseline gap-2 text-sm font-semibold">
+                    {s.label}
+                    <small className="text-[11px] font-normal uppercase tracking-[0.06em] text-muted-foreground">
+                      {tc("step3.seriesCount", { n: s.items.length })}
+                    </small>
+                  </h3>
+                )}
+                <div className="grid grid-cols-2 gap-2.5 min-[960px]:grid-cols-3 min-[960px]:gap-3">
+                  {s.items.map((p) => (
+                    <CeramicCard
+                      key={p.id}
+                      product={p}
+                      locale={locale}
+                      onOpen={(el) => openProduct(p.id, el)}
+                    />
+                  ))}
+                </div>
+              </section>
+            ))}
           </div>
-
-          {/* R3-C-bis: the selector's "new design" CTA moved INTO the expanded
-              product card, directly under "Add to basket" (design critique). */}
 
           {/* Mobile: docked cart section (below selector, above sticky bar) */}
           <div className="mt-6 md:hidden" data-testid="mobile-cart-section">
@@ -1087,6 +892,32 @@ export function CeramicsStep({
           {cartPanel}
         </div>
       </div>
+
+      {/* §3.19: one Radix Dialog, centred ≥640px / bottom sheet below. The
+          product stays mounted while `sheetOpen` is false so the exit
+          animation can run. */}
+      <ProductSheet
+        product={opened}
+        open={sheetOpen}
+        onOpenChange={setSheetOpen}
+        locale={locale}
+        qty={qty}
+        onQty={setQty}
+        onAdd={addOpened}
+        designLayers={designLayers}
+      />
+
+      {/* §3.20: visible confirmation, replacing the old sr-only announcement. */}
+      {toast && (
+        <div
+          role="status"
+          aria-live="polite"
+          data-testid="add-toast"
+          className="pointer-events-none fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-full bg-ink px-5 py-2.5 text-sm font-semibold text-ink-foreground shadow-(--shadow-card) motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-5"
+        >
+          ✓ {t("added")}
+        </div>
+      )}
     </div>
   );
 }

@@ -92,7 +92,8 @@
       "total": "Total price",
       "send": "Order",
       "disclaimer": "Since this is a custom order, we go through the design together before the order is considered confirmed. By sending the order via this form you are not committed to completing the purchase and no payment is required now. All prices include customs and VAT – no unexpected fees on delivery! Shipping is included in the price, but for smaller orders a small surcharge may apply.",
-      "seriesCount": "{n} products"
+      "seriesCount": "{n} products",
+      "handmadeSet": "handmade set"
     },
     "productSheet": {
       "subtitle": "hand-painted with your design",

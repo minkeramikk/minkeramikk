@@ -91,7 +91,8 @@
       "total": "Totalpris",
       "send": "Bestill",
       "disclaimer": "Siden dette er en spesialbestilling, går vi gjennom designet sammen før ordren kan anses som bekreftet. Ved å sende ordren til oss via dette skjemaet er du ikke forpliktet til å fullføre kjøpet og ingen betaling kreves nå. Alle prisene inkluderer alt av toll og MVA – ingen uventede gebyrer ved levering! Frakt er inkludert i prisen, men ved mindre bestillinger et lite tillegg kan forekomme.",
-      "seriesCount": "{n} produkter"
+      "seriesCount": "{n} produkter",
+      "handmadeSet": "håndmalt sett"
     },
     "productSheet": {
       "subtitle": "håndmalt med ditt design",
