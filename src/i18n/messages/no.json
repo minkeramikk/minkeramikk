@@ -1,4 +1,5 @@
 {
+  "_review": "DRAFT — English translations pending client review (see AGENTS.md i18n rule 6)",
   "error": {
     "title": "Noe gikk galt",
     "body": "Beklager, noe gikk galt på vår side. Prøv igjen, eller gå tilbake til konfiguratoren.",
@@ -90,7 +91,13 @@
       "quantity": "Antall",
       "total": "Totalpris",
       "send": "Bestill",
-      "disclaimer": "Siden dette er en spesialbestilling, går vi gjennom designet sammen før ordren kan anses som bekreftet. Ved å sende ordren til oss via dette skjemaet er du ikke forpliktet til å fullføre kjøpet og ingen betaling kreves nå. Alle prisene inkluderer alt av toll og MVA – ingen uventede gebyrer ved levering! Frakt er inkludert i prisen, men ved mindre bestillinger et lite tillegg kan forekomme."
+      "disclaimer": "Siden dette er en spesialbestilling, går vi gjennom designet sammen før ordren kan anses som bekreftet. Ved å sende ordren til oss via dette skjemaet er du ikke forpliktet til å fullføre kjøpet og ingen betaling kreves nå. Alle prisene inkluderer alt av toll og MVA – ingen uventede gebyrer ved levering! Frakt er inkludert i prisen, men ved mindre bestillinger et lite tillegg kan forekomme.",
+      "seriesCount": "{n} produkter"
+    },
+    "productSheet": {
+      "subtitle": "håndmalt med ditt design",
+      "zoomHint": "Trykk for å forstørre",
+      "close": "Lukk"
     },
     "steps": {
       "design": "1. Design",
