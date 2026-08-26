@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { mkdirSync } from "node:fs";
+import { addFirstCeramic } from "./helpers";
 
 /**
  * R-EXTRA — evidenza visiva delle CTA a pillola sui 3 step, 390/768/1280, NO+EN.
@@ -110,7 +111,9 @@ for (const locale of ["no", "en"] as const) {
 
       // Lo stack delle 3 pillole esiste solo a carrello NON vuoto: senza una
       // riga dentro, lo screenshot proverebbe il contrario di ciò che serve.
-      await page.getByTestId("add-to-cart").first().click();
+      // R4-STEP3: apre lo sheet della prima card e aggiunge da lì (add-to-cart
+      // non esiste finché nulla è aperto).
+      await addFirstCeramic(page);
       const checkout = page.locator('[data-testid="docked-checkout"]:visible').first();
       await expect(checkout).toBeVisible();
 

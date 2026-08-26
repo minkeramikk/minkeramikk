@@ -6,6 +6,7 @@ import { money, type Money } from "@/lib/money/money";
 import type { Currency } from "@/lib/money/money";
 import { mapTypedAttributes, type TypedAttribute } from "@/lib/catalog/product-attributes";
 import { effectiveProducts } from "@/lib/catalog/design-products";
+import { orderedProductPhotos } from "@/lib/catalog/product-photos";
 
 /** A ceramic the customer can pick at step 3 (ADR 0007: scoped to a supplier). */
 export interface SupplierProduct {
@@ -23,6 +24,11 @@ export interface SupplierProduct {
   descriptionEn: string | null;
   /** R2-3+R2-4: ordered typed attributes (weight/diameter/dimensions/custom); [] when none. */
   attributes: TypedAttribute[];
+  /** R4-STEP3: up to 2 gallery photos (ADR 0020); [] until admin uploads them. */
+  photos: string[];
+  /** R4-STEP3: step-3 grid group heading; null = ungrouped. */
+  seriesNo: string | null;
+  seriesEn: string | null;
 }
 
 /**
@@ -51,7 +57,7 @@ async function loadSupplierProducts(
   const { data, error } = await supabase
     .from("products")
     .select(
-      "id, slug, name_no, name_en, description_no, description_en, price_cents, currency, image, pieces, product_attributes(key, label_no, label_en, value, value_num, sort_order)"
+      "id, slug, name_no, name_en, description_no, description_en, price_cents, currency, image, pieces, product_attributes(key, label_no, label_en, value, value_num, sort_order), series_no, series_en, product_images(image, sort_order)"
     )
     .eq("supplier_id", supplierId)
     .eq("visible", true)
@@ -69,6 +75,9 @@ async function loadSupplierProducts(
     descriptionNo: p.description_no,
     descriptionEn: p.description_en,
     attributes: mapTypedAttributes(p.product_attributes),
+    photos: orderedProductPhotos(p.product_images),
+    seriesNo: p.series_no,
+    seriesEn: p.series_en,
   }));
 }
 

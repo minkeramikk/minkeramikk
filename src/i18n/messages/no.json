@@ -76,7 +76,9 @@
       "titleDetails": "Velg detaljer",
       "titleBorders": "Velg kanter",
       "showMore": "Vis mer",
-      "showLess": "Vis mindre",
+      "showLess": "Vis mindre"
+    },
+    "photos": {
       "photosLabel": "Bilder av designet",
       "previousPhoto": "Forrige bilde",
       "nextPhoto": "Neste bilde",
@@ -84,11 +86,14 @@
       "photoCounter": "{n} / {total}"
     },
     "step3": {
-      "title": "Velg keramikk",
-      "quantity": "Antall",
-      "total": "Totalpris",
-      "send": "Bestill",
-      "disclaimer": "Siden dette er en spesialbestilling, går vi gjennom designet sammen før ordren kan anses som bekreftet. Ved å sende ordren til oss via dette skjemaet er du ikke forpliktet til å fullføre kjøpet og ingen betaling kreves nå. Alle prisene inkluderer alt av toll og MVA – ingen uventede gebyrer ved levering! Frakt er inkludert i prisen, men ved mindre bestillinger et lite tillegg kan forekomme."
+      "seriesCount": "{n, plural, one {# produkt} other {# produkter}}",
+      "handmadeSet": "håndmalt sett"
+    },
+    "productSheet": {
+      "subtitle": "håndmalt med ditt design",
+      "zoomHint": "Trykk for å forstørre",
+      "photoOf": "Foto av {name} — åpne større",
+      "close": "Lukk"
     },
     "steps": {
       "design": "1. Design",
@@ -136,9 +141,6 @@
       "helper": "Verkstedet bekrefter den endelige teksten før produksjon — endrer ikke forhåndsvisningen.",
       "counter": "{count}/100"
     },
-    "productCard": {
-      "details": "Produktdetaljer"
-    },
     "yourSelection": {
       "kicker": "Ditt valg",
       "edit": "Endre farger",
@@ -170,6 +172,8 @@
   "cart": {
     "title": "Velg keramikk",
     "quantity": "Antall",
+    "decreaseQty": "Færre",
+    "increaseQty": "Flere",
     "add": "Legg i handlekurv",
     "added": "Lagt i handlekurven",
     "cartTitle": "Handlekurv",

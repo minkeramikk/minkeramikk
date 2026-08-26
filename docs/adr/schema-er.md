@@ -18,6 +18,7 @@ erDiagram
     designs ||--o{ design_products : "whitelisted on"
     products ||--o{ design_products : "allows"
     designs ||--o{ design_images : "lifestyle photos"
+    products ||--o{ product_images : "gallery photos"
     suppliers ||--o{ supplier_colors : "glaze palette"
     supplier_colors ||--o{ options : "colours (kind=color)"
 
@@ -116,6 +117,8 @@ erDiagram
         bool visible
         int sort_order
         int pieces "F29: pezzi del prodotto, default 1; >1 = set (badge Sett N deler)"
+        text series_no "R4-STEP3: intestazione gruppo griglia step 3 (NO). NULL = ungrouped"
+        text series_en "R4-STEP3: intestazione gruppo griglia step 3 (EN). NULL = ungrouped"
     }
 
     design_products {
@@ -127,6 +130,13 @@ erDiagram
         uuid id PK
         uuid design_id FK "→ designs(id) ON DELETE CASCADE"
         text image "Storage path, bucket assets (design-photos/<slug>/<uuid>.<ext>, F26)"
+        int sort_order
+    }
+
+    product_images {
+        uuid id PK
+        uuid product_id FK "→ products(id) ON DELETE CASCADE"
+        text image "Storage path, bucket assets (product-photos/<slug>/<uuid>.<ext>, ADR 0020)"
         int sort_order
     }
 

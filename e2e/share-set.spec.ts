@@ -1,5 +1,5 @@
 import { test, expect, type Browser, type Page } from "@playwright/test";
-import { designWithCode } from "./helpers";
+import { designWithCode, ceramicCards } from "./helpers";
 
 /**
  * Journey 8 — Share your set (CA-3). ACCEPTANCE.md §8 · ADR 0016.
@@ -15,12 +15,19 @@ test.beforeAll(async () => {
   step3 = `/no/configurator?design=${design.slug}&step=3`;
 });
 
-const ceramics = (page: Page) =>
-  page.getByTestId("ceramics-step").getByRole("radio");
+const ceramics = (page: Page) => ceramicCards(page);
 
+/**
+ * R4-STEP3: nothing is preselected — click the card, then add from inside
+ * the sheet (Radix-portalled to document.body, OUTSIDE ceramics-step, so the
+ * sheet locator must be page-level, never scoped under ceramics-step).
+ */
 async function addNthCeramic(page: Page, n: number) {
   await ceramics(page).nth(n).click();
-  await page.getByTestId("add-to-cart").click();
+  const sheet = page.getByTestId("product-sheet");
+  await expect(sheet).toBeVisible();
+  await sheet.getByTestId("add-to-cart").click();
+  await expect(sheet).toBeHidden();
 }
 
 /** Compose a 2-row basket in a throwaway context and return its share link. */

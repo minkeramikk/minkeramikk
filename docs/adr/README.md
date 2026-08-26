@@ -32,5 +32,6 @@ aggiornamento delle regole in `../../AGENTS.md`.
 | [0017](0017-design-product-whitelist.md) | Supporti per design: whitelist design→prodotti (estende 0007) | Accepted |
 | [0018](0018-supplier-colour-palette.md) | Palette glasse per fornitore: opzioni colore normalizzate su `supplier_colors` (revisiona in parte 0012) | Accepted |
 | [0019](0019-design-photos-gallery.md) | Galleria foto lifestyle per design: tabella `design_images` + Storage `design-photos/` (F36) | Accepted |
+| [0020](0020-product-photos-and-series.md) | Foto prodotto (cap 2) + serie di raggruppamento allo step 3 | Accepted |
 
 Diagramma del modello dati e indici: [schema-er.md](schema-er.md) (deriva da ADR 0004–0008).

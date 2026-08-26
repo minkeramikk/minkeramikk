@@ -7,7 +7,7 @@ import {
   secondActiveDesignWithId,
   firstProductOfDesignSupplier,
   firstSupplier,
-  ceramicRadios,
+  ceramicCards,
   horizontalOverflow,
   loginAdmin,
   ADMIN_READY,
@@ -119,7 +119,7 @@ test("AC3: step 3 shows the supplier's ceramics with NOK-formatted prices", asyn
   const design = await firstActiveDesign();
   await page.goto(`/no/configurator?design=${design.slug}&step=3`);
   await expect(page.getByTestId("ceramics-step")).toBeVisible();
-  await expect(ceramicRadios(page).first()).toBeVisible();
+  await expect(ceramicCards(page).first()).toBeVisible();
   // at least one price in Norwegian style ("… kr", grouped thousands, no decimals)
   await expect(
     page.getByTestId("ceramics-step").getByText(/\d[\d\s]*\s*kr/).first()
@@ -376,13 +376,14 @@ test.describe("R2-3+R2-4 expandable card", () => {
       await page.getByTestId("product-save").click();
       await expect(page).toHaveURL(/\/admin\/products$/);
 
-      // Public step 3: select → card expands in place.
+      // Public step 3: select → the product sheet opens (R4-STEP3: Radix
+      // portals it to document.body, OUTSIDE ceramics-step — page-level locator).
       await page.goto(`/no/configurator?design=${design.slug}&step=3`);
       await page.getByTestId("ceramics-step").waitFor();
       await page.getByTestId(`product-${product!.slug}`).click();
 
-      const expanded = page.getByTestId("expanded-card");
-      await expect(expanded).toBeVisible();
+      const sheet = page.getByTestId("product-sheet");
+      await expect(sheet).toBeVisible();
 
       // F37: current config still visible at step 3 — desktop box on the
       // `desktop` project, mobile strip on `mobile` (mutually exclusive via
@@ -394,9 +395,9 @@ test.describe("R2-3+R2-4 expandable card", () => {
       // Absent recap = the AC4 degrade path: layer-less design → none of the
       // three blocks render, gracefully (nothing to assert beyond that).
       const isMobile = testInfo.project.name === "mobile";
-      const hasRecap = (await page.getByTestId("expanded-composed-preview").count()) > 0;
+      const hasRecap = (await sheet.getByTestId("expanded-composed-preview").count()) > 0;
       if (hasRecap) {
-        await expect(page.getByTestId("expanded-composed-preview")).toBeVisible();
+        await expect(sheet.getByTestId("expanded-composed-preview")).toBeVisible();
         if (isMobile) {
           await expect(page.getByTestId("step3-your-selection-strip")).toBeVisible();
         } else {
@@ -411,7 +412,7 @@ test.describe("R2-3+R2-4 expandable card", () => {
 
       // R2-6 F (rev 2): typed spec chips are ALWAYS visible above "Product
       // details"; the chips carry the attributes.
-      const chips = page.getByTestId("spec-chips");
+      const chips = sheet.getByTestId("spec-chips");
       await expect(chips).toBeVisible();
       await expect(chips).toContainText("Ø 22");
       await expect(chips).toContainText("Farge");
@@ -419,8 +420,8 @@ test.describe("R2-3+R2-4 expandable card", () => {
 
       // R3-VARIE-D: "Product details" is always open — no toggle to click and
       // no orphan aria-expanded control left behind.
-      await expect(page.getByTestId("product-details")).toBeVisible();
-      await expect(expanded.getByTestId("details-toggle")).toHaveCount(0);
+      await expect(sheet.getByTestId("product-details")).toBeVisible();
+      await expect(sheet.getByTestId("details-toggle")).toHaveCount(0);
 
       // Inline add → docked cart gains a line (robust: docked cart, not header badge).
       // Note: cart-line renders in BOTH the desktop panel and the mobile section
@@ -428,14 +429,16 @@ test.describe("R2-3+R2-4 expandable card", () => {
       // then assert exactly 2 more after (one per panel = one cart line added).
       const allCartLines = page.getByTestId("cart-line");
       const linesBefore = await allCartLines.count();
-      await expanded.getByTestId("add-to-cart").click();
+      await sheet.getByTestId("add-to-cart").click();
       await expect(allCartLines).toHaveCount(linesBefore + 2);
 
-      // R2 fix: the "added" confirmation appears right after the add, then
-      // auto-dismisses (~2.5s) — it must NOT be a permanent default.
-      const feedback = expanded.getByTestId("add-feedback");
-      await expect(feedback).toBeVisible();
-      await expect(feedback).toBeHidden({ timeout: 4000 });
+      // §3.20: adding closes the sheet FIRST, then raises a toast — replaces
+      // the old inline "added" confirmation (add-feedback is gone). The toast
+      // still auto-dismisses (~1.8s) — it must NOT be a permanent default.
+      await expect(sheet).toBeHidden();
+      const toast = page.getByTestId("add-toast");
+      await expect(toast).toBeVisible();
+      await expect(toast).toBeHidden({ timeout: 4000 });
 
       // F37: "Endre farger" (edit) returns to step 2, keeping the design in
       // the URL. Clicked LAST — it navigates away, so it must not run before
@@ -672,11 +675,14 @@ test.describe("R2-7 bilingual design name", () => {
       // Assert per-locale via the step-3 cart-line subtitle (designLabel → snapshot.designNameEn).
       await page.goto(`/en/configurator?design=${design.slug}&step=3`);
       await page.getByTestId("ceramics-step").waitFor();
-      const productRadios = ceramicRadios(page);
-      const productCount = await productRadios.count();
+      const productCards = ceramicCards(page);
+      const productCount = await productCards.count();
       if (productCount > 0) {
-        await productRadios.first().click();
-        await page.getByTestId("add-to-cart").click();
+        await productCards.first().click();
+        const sheet = page.getByTestId("product-sheet");
+        await expect(sheet).toBeVisible();
+        await sheet.getByTestId("add-to-cart").click();
+        await expect(sheet).toBeHidden();
         // cart-line subtitle: designLabel(snapshot, "en") → snapshot.designNameEn = enName.
         // The cart-line renders twice (desktop panel + mobile section, one hidden via
         // CSS per breakpoint), so scope to the VISIBLE copy — `.first()` alone can land

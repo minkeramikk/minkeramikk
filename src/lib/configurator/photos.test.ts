@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { hasPhotos, photoIndexAt } from "./design-photos";
+import { hasPhotos, photoIndexAt } from "./photos";
 
 describe("hasPhotos (F36 step-2 strip guard)", () => {
   it("is false for a MISSING images field (stale pre-F36 cache DTO) — no crash", () => {

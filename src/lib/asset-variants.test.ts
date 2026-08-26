@@ -56,6 +56,16 @@ describe("assetClass", () => {
     expect(assetClass("swatches/a3759f@96.webp")).toBeNull();
     expect(assetClass("misc/whatever.png")).toBeNull();
   });
+
+  it("classifies product gallery photos at 1024 (R4-STEP3)", () => {
+    expect(assetClass("product-photos/vietri-flat/abc.jpg")).toBe("product-photos");
+    expect(variantWidth("product-photos/vietri-flat/abc.jpg")).toBe(1024);
+  });
+
+  it("keeps the legacy product thumb class at 256", () => {
+    expect(assetClass("products/vietri-flat.png")).toBe("products");
+    expect(variantWidth("products/vietri-flat.png")).toBe(256);
+  });
 });
 
 describe("variantWidth", () => {

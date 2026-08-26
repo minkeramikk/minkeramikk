@@ -59,12 +59,19 @@ test("④ step 3 — product details open with no click", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto("/no/configurator?step=3&design=blomster-2");
   await page.getByTestId("ceramics-step").waitFor();
-  await page.locator('[data-testid^="product-"]').first().click();
-  const expanded = page.getByTestId("expanded-card");
-  await expect(expanded).toBeVisible();
-  await expect(page.getByTestId("product-details")).toBeVisible();
-  await expect(expanded.getByTestId("details-toggle")).toHaveCount(0);
-  await expanded.screenshot({ path: `${OUT}/04-step3-details-open.png` });
+  // Explicit `ceramics-step`-scoped card locator (not a bare `[data-testid^=]`)
+  // so it can never pick up `product-details` once the sheet is open — R4-STEP3
+  // portals the sheet to document.body, OUTSIDE ceramics-step.
+  await page
+    .getByTestId("ceramics-step")
+    .locator('button[data-testid^="product-"]')
+    .first()
+    .click();
+  const sheet = page.getByTestId("product-sheet");
+  await expect(sheet).toBeVisible();
+  await expect(sheet.getByTestId("product-details")).toBeVisible();
+  await expect(sheet.getByTestId("details-toggle")).toHaveCount(0);
+  await sheet.screenshot({ path: `${OUT}/04-step3-details-open.png` });
   await page.screenshot({ path: `${OUT}/04-step3-full.png`, fullPage: true });
 });
 
@@ -102,16 +109,19 @@ test("③ length: admin editor → public spec chip", async ({ page }) => {
     await page.goto("/no/configurator?step=3&design=blomster-2");
     await page.getByTestId("ceramics-step").waitFor();
     await page.getByTestId(`product-${product!.slug}`).click();
-    const expanded = page.getByTestId("expanded-card");
-    await expect(expanded.getByTestId("spec-chips")).toContainText("Lengde");
-    await expect(expanded.getByTestId("spec-chips")).toContainText("40 cm");
-    await expanded.screenshot({ path: `${OUT}/06-public-length-chip-no.png` });
+    const sheetNo = page.getByTestId("product-sheet");
+    await expect(sheetNo).toBeVisible();
+    await expect(sheetNo.getByTestId("spec-chips")).toContainText("Lengde");
+    await expect(sheetNo.getByTestId("spec-chips")).toContainText("40 cm");
+    await sheetNo.screenshot({ path: `${OUT}/06-public-length-chip-no.png` });
 
     await page.goto("/en/configurator?step=3&design=blomster-2");
     await page.getByTestId("ceramics-step").waitFor();
     await page.getByTestId(`product-${product!.slug}`).click();
-    await expect(page.getByTestId("expanded-card").getByTestId("spec-chips")).toContainText("Length");
-    await page.getByTestId("expanded-card").screenshot({
+    const sheetEn = page.getByTestId("product-sheet");
+    await expect(sheetEn).toBeVisible();
+    await expect(sheetEn.getByTestId("spec-chips")).toContainText("Length");
+    await sheetEn.screenshot({
       path: `${OUT}/07-public-length-chip-en.png`,
     });
   } finally {

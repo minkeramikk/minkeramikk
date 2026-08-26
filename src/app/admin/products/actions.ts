@@ -21,6 +21,10 @@ const productSchema = z.object({
   nameEn: z.string().trim().min(1, "English name is required"),
   descriptionNo: z.string().trim().max(2000, "Description (NO) is too long (max 2000 characters).").optional().or(z.literal("")),
   descriptionEn: z.string().trim().max(2000, "Description (EN) is too long (max 2000 characters).").optional().or(z.literal("")),
+  // R4-STEP3: step-3 grid group heading. Trimmed so a stray " " normalises to
+  // null the same as "" — the public grouping only treats blank as ungrouped.
+  seriesNo: z.string().trim().optional().or(z.literal("")),
+  seriesEn: z.string().trim().optional().or(z.literal("")),
   supplierId: z.string().uuid("Pick a supplier"),
   sortOrder: z.coerce.number().int().min(0).default(0),
   // F29: 1 = single item; >1 = set ("Sett · N deler"). Does not affect price.
@@ -39,6 +43,8 @@ export async function saveProduct(
     nameEn: formData.get("nameEn") ?? "",
     descriptionNo: formData.get("descriptionNo") ?? "",
     descriptionEn: formData.get("descriptionEn") ?? "",
+    seriesNo: formData.get("seriesNo") ?? "",
+    seriesEn: formData.get("seriesEn") ?? "",
     supplierId: formData.get("supplierId") ?? "",
     sortOrder: formData.get("sortOrder") ?? 0,
     pieces: formData.get("pieces") ?? 1,
@@ -89,6 +95,8 @@ export async function saveProduct(
     name_en: p.nameEn,
     description_no: p.descriptionNo || null,
     description_en: p.descriptionEn || null,
+    series_no: p.seriesNo || null,
+    series_en: p.seriesEn || null,
     price_cents: priceCents,
     supplier_id: p.supplierId,
     sort_order: p.sortOrder,

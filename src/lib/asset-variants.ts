@@ -25,7 +25,8 @@ export type AssetClass =
   | "animal"
   | "products"
   | "designs"
-  | "design-photos";
+  | "design-photos"
+  | "product-photos";
 
 /** Display width per class (Lighthouse: largest real display size, ×2 for DPR). */
 export const VARIANT_WIDTHS: Record<AssetClass, number> = {
@@ -35,6 +36,9 @@ export const VARIANT_WIDTHS: Record<AssetClass, number> = {
   designs: 512, // was 800 — hero compositing layers + design previews, flat
   // tints displayed at 312px (mobile) / 417px (desktop) (F26.1)
   "design-photos": 1024, // F36 lifestyle gallery strip (~350px × DPR2 + headroom)
+  // R4-STEP3: gallery photos of a ceramic (modal ~420px, lightbox full-screen),
+  // same budget as the F36 design gallery. NOT the 256px catalog thumb above.
+  "product-photos": 1024,
 };
 
 /** Compositing layers inside an animal category folder: `-layer` is the admin
@@ -56,6 +60,7 @@ export function assetClass(path: string): AssetClass | null {
   // F35: per-supplier glaze swatches — same 96px class as the shared swatches lib.
   if (/^suppliers\/[^/]+\/colors\//.test(path)) return "swatches";
   if (path.startsWith("design-photos/")) return "design-photos";
+  if (path.startsWith("product-photos/")) return "product-photos";
   if (path.startsWith("products/")) return "products";
   if (/^designs\/[^/]+\/(animal|dyr)\//.test(path)) {
     return ANIMAL_LAYER_RE.test(path) ? "designs" : "animal";

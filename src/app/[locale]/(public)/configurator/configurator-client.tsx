@@ -8,7 +8,7 @@ import { OptionCard } from "@/components/ui-domain/option-card";
 import { useWarmupPreviews } from "@/components/ui-domain/hover-preview";
 import { DesignDescription } from "./design-description";
 import { DesignPhotoStrip } from "./design-photo-strip";
-import { hasPhotos } from "./design-photos";
+import { hasPhotos } from "@/lib/configurator/photos";
 import { FloatingPreview } from "./floating-preview";
 import { PreviewCanvas } from "@/components/ui-domain/preview-canvas";
 import { Stepper } from "@/components/ui-domain/stepper";

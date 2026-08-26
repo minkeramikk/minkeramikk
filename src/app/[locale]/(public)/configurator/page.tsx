@@ -140,6 +140,9 @@ export default async function ConfiguratorPage({
                 descriptionNo: p.descriptionNo,
                 descriptionEn: p.descriptionEn,
                 attributes: p.attributes,
+                photos: p.photos,
+                seriesNo: p.seriesNo,
+                seriesEn: p.seriesEn,
               }))}
               design={{
                 slug: currentDesign.slug,
