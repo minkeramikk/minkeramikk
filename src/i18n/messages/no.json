@@ -76,7 +76,9 @@
       "titleDetails": "Velg detaljer",
       "titleBorders": "Velg kanter",
       "showMore": "Vis mer",
-      "showLess": "Vis mindre",
+      "showLess": "Vis mindre"
+    },
+    "photos": {
       "photosLabel": "Bilder av designet",
       "previousPhoto": "Forrige bilde",
       "nextPhoto": "Neste bilde",
