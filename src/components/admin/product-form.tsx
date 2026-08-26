@@ -27,6 +27,8 @@ export interface ProductValues {
   sortOrder: number;
   pieces: number;
   attributes: TypedAttribute[];
+  seriesNo: string | null;
+  seriesEn: string | null;
 }
 
 const initial: ProductFormState = { error: null };
@@ -40,9 +42,13 @@ function centsToInput(cents: number): string {
 export function ProductForm({
   product,
   suppliers,
+  seriesOptions = [],
 }: {
   product?: ProductValues;
   suppliers: { id: string; name: string }[];
+  /** Distinct series values already in use, for the datalist (R4-STEP3) — a
+   *  typo here would silently create a second section on the public grid. */
+  seriesOptions?: string[];
 }) {
   const [state, formAction, pending] = useActionState(saveProduct, initial);
   const [delState, delAction, delPending] = useActionState(deleteProduct, initial);
@@ -61,6 +67,39 @@ export function ProductForm({
             <Label htmlFor="nameEn">Name (EN)</Label>
             <Input id="nameEn" name="nameEn" required defaultValue={product?.nameEn ?? ""} data-testid="product-name-en" />
           </div>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="seriesNo">Series (NO)</Label>
+            <Input
+              id="seriesNo"
+              name="seriesNo"
+              list="series-options"
+              defaultValue={product?.seriesNo ?? ""}
+              data-testid="product-series-no"
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="seriesEn">Series (EN)</Label>
+            <Input
+              id="seriesEn"
+              name="seriesEn"
+              list="series-options"
+              defaultValue={product?.seriesEn ?? ""}
+              data-testid="product-series-en"
+            />
+          </div>
+          <p className="col-span-full text-xs text-muted-foreground">
+            Groups this ceramic under a heading in the step-3 grid. Leave both empty to
+            keep it ungrouped. Pick an existing value from the list to avoid a typo
+            creating a duplicate section.
+          </p>
+          <datalist id="series-options">
+            {seriesOptions.map((s) => (
+              <option key={s} value={s} />
+            ))}
+          </datalist>
         </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

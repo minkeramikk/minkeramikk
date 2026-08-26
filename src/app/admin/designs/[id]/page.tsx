@@ -5,7 +5,12 @@ import { DesignForm } from "@/components/admin/design-form";
 import { DesignTree, type CategorySlot, type OptionSlot } from "@/components/admin/design-tree";
 import { DeleteDesignButton } from "@/components/admin/delete-design-button";
 import { DesignProductsEditor, type EditorProduct } from "@/components/admin/design-products-editor";
-import { DesignPhotosEditor } from "@/components/admin/design-photos-editor";
+import { PhotosEditor } from "@/components/admin/photos-editor";
+import {
+  uploadDesignPhoto,
+  reorderDesignPhoto,
+  deleteDesignPhoto,
+} from "@/app/admin/designs/photo-actions";
 import { formatMoney, money, type Currency } from "@/lib/money/money";
 import { PreviewCanvas } from "@/components/ui-domain/preview-canvas";
 import { createClient } from "@/lib/supabase/server";
@@ -229,7 +234,17 @@ export default async function EditDesignPage({
           {/* F36: gallery photos */}
           <section>
             <h2 className="mb-3 text-base font-semibold">Photos</h2>
-            <DesignPhotosEditor designId={design.id} slug={design.slug} photos={photos ?? []} />
+            <PhotosEditor
+              ownerId={design.id}
+              slug={design.slug}
+              photos={photos ?? []}
+              max={8}
+              testIdPrefix="design-photo"
+              hint="Gallery photos shown on the design’s public page. PNG/JPG/WebP, up to 4 MB each, 8 max."
+              upload={uploadDesignPhoto}
+              reorder={reorderDesignPhoto}
+              remove={deleteDesignPhoto}
+            />
           </section>
 
           {/* Danger zone */}
