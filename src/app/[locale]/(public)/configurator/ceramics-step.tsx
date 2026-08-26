@@ -61,6 +61,11 @@ export interface CeramicProduct {
   descriptionNo: string | null;
   descriptionEn: string | null;
   attributes: TypedAttribute[];
+  /** R4-STEP3: up to 2 gallery photos (ADR 0020); [] until admin uploads them. */
+  photos: string[];
+  /** R4-STEP3: step-3 grid group heading; null = ungrouped. */
+  seriesNo: string | null;
+  seriesEn: string | null;
 }
 
 export interface DesignRef {
