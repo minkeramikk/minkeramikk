@@ -86,8 +86,7 @@ function CeramicCard({
 }: {
   product: CeramicProduct;
   locale: "no" | "en";
-  /** Receives the card button itself, so the closing sheet can give focus back. */
-  onOpen: (trigger: HTMLElement) => void;
+  onOpen: () => void;
 }) {
   const t = useTranslations("configurator");
   const name = locale === "no" ? p.nameNo : p.nameEn;
@@ -109,7 +108,7 @@ function CeramicCard({
       aria-haspopup="dialog"
       aria-label={`${name} — ${price}`}
       data-testid={`product-${p.slug}`}
-      onClick={(e) => onOpen(e.currentTarget)}
+      onClick={onOpen}
       className={[
         "group relative flex w-full flex-col overflow-hidden rounded-lg border-[1.5px] border-border bg-card text-left shadow-(--shadow-card)",
         "transition-[border-color,transform] hover:-translate-y-px hover:border-primary",
@@ -120,7 +119,7 @@ function CeramicCard({
         {cover && (
           // eslint-disable-next-line @next/next/no-img-element -- catalog art from storage
           <img
-            src={assetUrl(cover, { width: 1024 })}
+            src={assetUrl(cover)}
             alt=""
             loading="lazy"
             decoding="async"
@@ -204,6 +203,16 @@ export function CeramicsStep({
    */
   const [openId, setOpenId] = useState<string | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+  /**
+   * Same value, readable synchronously. `addOpened` guards on it because state
+   * does not update inside a React batch: clicks fired in one tick would all
+   * still see `sheetOpen === true`. Always written through `setSheet`.
+   */
+  const sheetOpenRef = useRef(false);
+  function setSheet(open: boolean) {
+    sheetOpenRef.current = open;
+    setSheetOpen(open);
+  }
   /** §3.20: "added to basket" pill, auto-dismissed after ~1.8s. */
   const [toast, setToast] = useState(false);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -236,25 +245,13 @@ export function CeramicsStep({
 
   const opened = products.find((p) => p.id === openId) ?? null;
 
-  /**
-   * a11y (§3.19): focus must go back to the card that opened the sheet. Radix's
-   * modal Dialog preventDefaults the FocusScope restore and focuses its
-   * `DialogTrigger` instead — and this sheet is controlled, with no trigger, so
-   * without this the focus would land on <body>. Restored from an effect (not
-   * from `onOpenChange`) so it runs after the focus trap has been released.
-   */
-  const triggerRef = useRef<HTMLElement | null>(null);
+  // Focus restore on close lives in `ProductSheet` (§3.19 is its contract).
 
-  function openProduct(id: string, trigger: HTMLElement) {
-    triggerRef.current = trigger;
+  function openProduct(id: string) {
     setOpenId(id);
-    setSheetOpen(true);
+    setSheet(true);
     setQty(1);
   }
-
-  useEffect(() => {
-    if (!sheetOpen) triggerRef.current?.focus();
-  }, [sheetOpen]);
 
   // F37: current-config recap data (name + readable selections). Rendered only
   // when there are design layers (AC4: no config / ?set= landing → nothing).
@@ -292,8 +289,11 @@ export function CeramicsStep({
 
   /** §3.20: add → close the sheet FIRST, then show the toast. */
   function addOpened() {
+    // The sheet stays mounted (and its CTA clickable) through the 180-220ms
+    // exit animation: without this a double-tap would add the product twice.
+    if (!sheetOpenRef.current) return;
     addSelected();
-    setSheetOpen(false);
+    setSheet(false);
     setToast(true);
     if (toastTimer.current) clearTimeout(toastTimer.current);
     toastTimer.current = setTimeout(() => setToast(false), 1800);
@@ -856,9 +856,9 @@ export function CeramicsStep({
             {sections.map((s) => (
               <section key={s.label ?? "__ungrouped"} data-testid="ceramics-series">
                 {s.label && (
-                  <h3 className="mb-2.5 flex items-baseline gap-2 text-sm font-semibold">
-                    {s.label}
-                    <small className="text-[11px] font-normal uppercase tracking-[0.06em] text-muted-foreground">
+                  <h3 className="mb-2.5 flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-sm font-semibold">
+                    <span className="min-w-0 break-words">{s.label}</span>
+                    <small className="whitespace-nowrap text-[11px] font-normal uppercase tracking-[0.06em] text-muted-foreground">
                       {tc("step3.seriesCount", { n: s.items.length })}
                     </small>
                   </h3>
@@ -869,7 +869,7 @@ export function CeramicsStep({
                       key={p.id}
                       product={p}
                       locale={locale}
-                      onOpen={(el) => openProduct(p.id, el)}
+                      onOpen={() => openProduct(p.id)}
                     />
                   ))}
                 </div>
@@ -899,7 +899,7 @@ export function CeramicsStep({
       <ProductSheet
         product={opened}
         open={sheetOpen}
-        onOpenChange={setSheetOpen}
+        onOpenChange={setSheet}
         locale={locale}
         qty={qty}
         onQty={setQty}
@@ -907,17 +907,26 @@ export function CeramicsStep({
         designLayers={designLayers}
       />
 
-      {/* §3.20: visible confirmation, replacing the old sr-only announcement. */}
-      {toast && (
-        <div
-          role="status"
-          aria-live="polite"
-          data-testid="add-toast"
-          className="pointer-events-none fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-full bg-ink px-5 py-2.5 text-sm font-semibold text-ink-foreground shadow-(--shadow-card) motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-5"
-        >
-          ✓ {t("added")}
-        </div>
-      )}
+      {/* §3.20: visible confirmation, replacing the old sr-only announcement.
+          The live region is mounted for good and only its content toggles — a
+          role="status" that appears together with its text is announced
+          unreliably (same reason the old sr-only span was always there). */}
+      <div
+        role="status"
+        aria-live="polite"
+        className="pointer-events-none fixed bottom-6 left-1/2 z-50 -translate-x-1/2"
+      >
+        {toast && (
+          <span
+            data-testid="add-toast"
+            className="flex items-center gap-1.5 rounded-full bg-ink px-5 py-2.5 text-sm font-semibold text-ink-foreground shadow-(--shadow-card) motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-5"
+          >
+            {/* decorative: screen readers would read it as "check mark" */}
+            <span aria-hidden>✓</span>
+            {t("added")}
+          </span>
+        )}
+      </div>
     </div>
   );
 }

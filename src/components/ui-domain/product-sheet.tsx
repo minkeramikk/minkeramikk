@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { ZoomIn } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
@@ -68,6 +68,17 @@ export function ProductSheet({
   // lightbox left open onto the previous ceramic's photos would be a bad bug
   // for one line of insurance.
   useEffect(() => setLightboxAt(null), [p?.id]);
+  /**
+   * a11y (§3.19): focus goes back to whatever opened the sheet. Radix's modal
+   * DialogContent preventDefaults FocusScope's own restore and focuses its
+   * `DialogTrigger` instead — this sheet is controlled and has no trigger, so
+   * without this the focus falls to <body>. `onCloseAutoFocus` fires at unmount,
+   * as `hideOthers()` is undone, so screen readers actually announce the move.
+   */
+  const trigger = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    if (open) trigger.current = document.activeElement as HTMLElement | null;
+  }, [open]);
 
   if (!p) return null;
 
@@ -87,6 +98,10 @@ export function ProductSheet({
         showCloseButton={false}
         aria-describedby={undefined}
         data-testid="product-sheet"
+        onCloseAutoFocus={(e) => {
+          e.preventDefault();
+          trigger.current?.focus();
+        }}
         // Mockup `.pm`: color-mix(in oklab, var(--mk-dark), transparent 30%).
         // `--foreground` IS `--mk-dark`, and `/70` compiles to the same
         // color-mix. No blur: the mockup has none, and it muddies the scrim.
