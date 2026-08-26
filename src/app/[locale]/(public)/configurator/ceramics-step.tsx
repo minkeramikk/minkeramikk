@@ -885,9 +885,15 @@ export function CeramicsStep({
           </div>
         </div>
 
-        {/* RIGHT (desktop only): docked cart always visible */}
+        {/* RIGHT (desktop only): docked cart always visible.
+            mockup v5 `.cols`: the rail's top edge sits level with the catalog
+            column's first series heading. Here the left column carries the
+            kicker + <h2> above the grid, so the rail is nudged down by their
+            combined height (measured 64.5px at md and above — both are
+            fixed-size text blocks, so one constant covers every breakpoint).
+            Update this if that heading block changes. */}
         <div
-          className="hidden min-w-0 rounded-sm border border-border bg-card p-5 md:block md:sticky md:top-4 md:self-start"
+          className="hidden min-w-0 rounded-sm border border-border bg-card p-5 md:mt-16 md:block md:sticky md:top-4 md:self-start"
           data-testid="docked-cart-panel"
         >
           {yourSelectionBox}
