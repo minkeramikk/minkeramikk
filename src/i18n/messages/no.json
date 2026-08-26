@@ -95,6 +95,10 @@
       "photoOf": "Foto av {name} — åpne større",
       "close": "Lukk"
     },
+    "stickyBar": {
+      "title": "Din bestilling",
+      "pieces": "{count, plural, one {# del} other {# deler}}"
+    },
     "steps": {
       "design": "1. Design",
       "details": "2. Detaljer",

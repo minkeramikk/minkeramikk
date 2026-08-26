@@ -150,6 +150,17 @@ export function itemCount(cart: Cart): number {
 }
 
 /**
+ * R4-CTA-STICKY — physical pieces in the basket, not lines: the mobile order
+ * bar says «Din bestilling · N deler», and one line can be a set (F29).
+ *
+ * `pieces` is optional on the line, so rows saved before F29 (and any legacy
+ * `?set=` payload) count as the single item they were.
+ */
+export function cartPieces(cart: Cart): number {
+  return cart.reduce((n, l) => n + (l.pieces ?? 1) * l.quantity, 0);
+}
+
+/**
  * R2-7 — resolve a snapshot's design name for the given locale, falling back to
  * the legacy single `designName` so historic orders (saved before the bilingual
  * split) stay readable. Returns null when no name is present at all; callers
