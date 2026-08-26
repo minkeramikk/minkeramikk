@@ -51,7 +51,14 @@ export function groupBySeries<T extends HasSeries>(
     });
   }
 
-  const sections = [...byKey.values()];
+  // A series whose localised label is missing on EVERY row still needs a
+  // heading: fall back to the grouping key (the NO value). Resolved HERE and
+  // not at insert time, so a later row can still supply the localised label —
+  // and so `label: null` stays the exclusive marker of the ungrouped bucket.
+  const sections: SeriesGrouped<T>[] = [...byKey.entries()].map(([key, s]) => ({
+    label: s.label ?? key,
+    items: s.items,
+  }));
   if (ungrouped.length) sections.push({ label: null, items: ungrouped });
   return sections;
 }

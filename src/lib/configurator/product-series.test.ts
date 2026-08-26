@@ -43,4 +43,9 @@ describe("groupBySeries", () => {
     expect(out[0].label).toBeNull();
     expect(out[0].items).toHaveLength(2);
   });
+
+  it("falls back to the NO label when no row carries the localised one", () => {
+    const out = groupBySeries([p("1", "Sett", null), p("2", null, null)], "en");
+    expect(out.map((s) => s.label)).toEqual(["Sett", null]);
+  });
 });
