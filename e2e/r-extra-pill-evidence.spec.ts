@@ -140,6 +140,11 @@ for (const locale of ["no", "en"] as const) {
       // esiste e il conto torna a uno.
       const stickyPill = page.locator('[data-testid="sticky-bar-checkout"]:visible');
       if (w < 768) {
+        // Giro garanzia: la barra si nasconde quando il blocco ordine è a
+        // schermo, quindi il punto di osservazione va fissato — in cima, dove
+        // il blocco ordine sta sotto la piega ed è esattamente lì che la barra
+        // serve.
+        await page.evaluate(() => window.scrollTo(0, 0));
         await expect(stickyPill).toHaveCount(1);
         expect(
           await stickyPill.evaluate((el) => el.textContent?.includes("›") ?? false),
@@ -153,6 +158,24 @@ for (const locale of ["no", "en"] as const) {
         path: `${OUT}/04-step3-${locale}-${w}.png`,
         fullPage: true,
       });
+
+      // R4-CTA-STICKY, giro garanzia (ruling designer 26/8). Il tap sulla barra
+      // non "scrolla verso il carrello": APRE il form ordine e ci atterra
+      // dentro col campo nome già a fuoco (il tap è user gesture → tastiera
+      // aperta al primo tocco), e la barra sparisce perché ora il blocco ordine
+      // è a schermo — mai due «Bestill» insieme.
+      if (w < 768) {
+        await stickyPill.click();
+        // `cartPanel` è renderizzato due volte (sezione mobile + rail
+        // desktop nascosto): il locator va scoped, altrimenti strict mode.
+        await expect(
+          page.getByTestId("mobile-cart-section").getByTestId("order-name")
+        ).toBeFocused();
+        await expect(
+          page.locator('[data-testid="step3-sticky-bar"]'),
+          "la barra deve sparire quando il blocco ordine è in viewport"
+        ).toHaveCount(0);
+      }
     });
   }
 }

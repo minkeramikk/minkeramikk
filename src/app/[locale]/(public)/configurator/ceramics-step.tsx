@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { useLocale, useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
 import { usePathname, useRouter } from "@/i18n/navigation";
@@ -269,8 +270,40 @@ export function CeramicsStep({
   const count = hydrated ? itemCount(cart) : 0;
   /** R4-CTA-STICKY: the bar counts PIECES, not lines — a set is N deler. */
   const pieces = hydrated ? cartPieces(cart) : 0;
-  /** Scroll target of the sticky bar's CTA (the mobile order block). */
+  /** The mobile order block — the sticky bar's CTA queries the form inside it. */
   const orderBlockRef = useRef<HTMLDivElement>(null);
+  /**
+   * R4-CTA-STICKY (giro garanzia): zero-height marker at the END of the mobile
+   * order block. Watching the block ITSELF would be wrong — it is ~500px tall
+   * and its top edge arrives long before the order CTA does, so the bar would
+   * vanish while the button it duplicates is still half a screen down. The end
+   * marker fires exactly when that button is on screen, which is the real rule:
+   * never two «Bestill» at once.
+   */
+  const orderEndRef = useRef<HTMLDivElement>(null);
+  const [orderCtaInView, setOrderCtaInView] = useState(false);
+  useEffect(() => {
+    const el = orderEndRef.current;
+    if (!el || typeof IntersectionObserver === "undefined") return;
+    // Two observers, not one: the show boundary sits 80px BELOW the hide
+    // boundary, so a pixel of scroll jitter at the edge cannot flip the bar on
+    // and off. `when` is the edge each observer owns — the -120px one only ever
+    // hides, the -40px one only ever shows; between them nothing changes.
+    // Room stays reserved either way (`showStickyBar` keeps the padding), so
+    // toggling the bar never reflows the page — the other, worse flicker source.
+    const watch = (inset: number, when: boolean) => {
+      const io = new IntersectionObserver(
+        ([e]) => {
+          if (e.isIntersecting === when) setOrderCtaInView(when);
+        },
+        { rootMargin: `0px 0px -${inset}px 0px` }
+      );
+      io.observe(el);
+      return io;
+    };
+    const ios = [watch(120, true), watch(40, false)];
+    return () => ios.forEach((io) => io.disconnect());
+  }, []);
   const total = cartTotal(cart);
   const totalSuffix = useShippingTotalSuffix(total);
 
@@ -579,7 +612,9 @@ export function CeramicsStep({
             </div>
 
             {checkoutOpen ? (
-              <div data-testid="docked-checkout-form">
+              // scroll-mt: the mobile header is sticky and 56px tall, so a
+              // bare scrollIntoView would park the form's first rows under it.
+              <div data-testid="docked-checkout-form" className="scroll-mt-[4.5rem]">
                 <button
                   type="button"
                   data-testid="docked-back-to-cart"
@@ -750,8 +785,12 @@ export function CeramicsStep({
   // (`md:hidden`), a non-empty basket, and no product sheet open — two fixed
   // layers at the bottom edge would stack. `count` already folds in `hydrated`,
   // so the bar never flashes in before the cart is read from localStorage.
+  // Giro garanzia adds two more reasons to stand down, both the same rule —
+  // never a second order CTA on screen: the form is open (the bar's own
+  // destination, and a fixed bar sitting on the fields while the keyboard is up
+  // is worse than useless), or the panel's CTA has scrolled into view.
   const showStickyBar = count > 0 && !sheetOpen;
-  const stickyBar = showStickyBar && (
+  const stickyBar = showStickyBar && !checkoutOpen && !orderCtaInView && (
     <div
       data-testid="step3-sticky-bar"
       // z-40: under Radix's overlay/content (z-50), so the sheet and the
@@ -786,9 +825,26 @@ export function CeramicsStep({
         className="shrink-0"
         label={to("title")}
         arrow
-        onClick={() =>
-          orderBlockRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
-        }
+        onClick={() => {
+          // Giro garanzia: one tap must land the customer IN the form with the
+          // keyboard already up — scrolling to a collapsed cart and making them
+          // hunt for a second CTA was the complaint. `flushSync` renders the
+          // form INSIDE this click's own user gesture: a focus() one React tick
+          // later is no longer a gesture and iOS keeps the keyboard shut.
+          // No modal: a Cloudflare Turnstile inside a Dialog is risk for
+          // nothing, and mobile checkout gets rethought in R-PAY.
+          flushSync(() => setCheckoutOpen(true));
+          // Scoped to the mobile block on purpose: `cartPanel` is rendered
+          // twice (mobile section + desktop rail), so an unscoped query would
+          // just as happily find the hidden desktop copy.
+          const form = orderBlockRef.current?.querySelector<HTMLElement>(
+            '[data-testid="docked-checkout-form"]'
+          );
+          form?.scrollIntoView({ behavior: "smooth", block: "start" });
+          form
+            ?.querySelector<HTMLInputElement>('[data-testid="order-name"]')
+            ?.focus({ preventScroll: true });
+        }}
         icon={
           <PillIcon>
             <Truck className="size-5 text-primary" />
@@ -958,6 +1014,9 @@ export function CeramicsStep({
             data-testid="mobile-cart-section"
           >
             {cartPanel}
+            {/* Zero-height end marker: what the sticky bar watches to know the
+                order CTA has arrived (see `orderEndRef`). */}
+            <div ref={orderEndRef} aria-hidden />
           </div>
         </div>
 
