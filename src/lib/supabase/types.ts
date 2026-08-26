@@ -93,6 +93,35 @@ export type Database = {
           },
         ]
       }
+      product_images: {
+        Row: {
+          id: string
+          image: string
+          product_id: string
+          sort_order: number
+        }
+        Insert: {
+          id?: string
+          image: string
+          product_id: string
+          sort_order?: number
+        }
+        Update: {
+          id?: string
+          image?: string
+          product_id?: string
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_images_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       designs: {
         Row: {
           accepts_custom_notes: boolean
@@ -476,6 +505,8 @@ export type Database = {
           name_no: string
           pieces: number
           price_cents: number
+          series_en: string | null
+          series_no: string | null
           slug: string
           sort_order: number
           supplier_id: string
@@ -491,6 +522,8 @@ export type Database = {
           name_no: string
           pieces?: number
           price_cents: number
+          series_en?: string | null
+          series_no?: string | null
           slug: string
           sort_order?: number
           supplier_id: string
@@ -506,6 +539,8 @@ export type Database = {
           name_no?: string
           pieces?: number
           price_cents?: number
+          series_en?: string | null
+          series_no?: string | null
           slug?: string
           sort_order?: number
           supplier_id?: string
