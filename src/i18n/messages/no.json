@@ -79,7 +79,9 @@
       "showLess": "Vis mindre",
       "photosLabel": "Bilder av designet",
       "previousPhoto": "Forrige bilde",
-      "nextPhoto": "Neste bilde"
+      "nextPhoto": "Neste bilde",
+      "closePhoto": "Lukk bilde",
+      "photoCounter": "{n} / {total}"
     },
     "step3": {
       "title": "Velg keramikk",

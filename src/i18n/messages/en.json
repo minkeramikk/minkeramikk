@@ -80,7 +80,9 @@
       "showLess": "Show less",
       "photosLabel": "Photos of the design",
       "previousPhoto": "Previous photo",
-      "nextPhoto": "Next photo"
+      "nextPhoto": "Next photo",
+      "closePhoto": "Close photo",
+      "photoCounter": "{n} / {total}"
     },
     "step3": {
       "title": "Choose ceramics",
