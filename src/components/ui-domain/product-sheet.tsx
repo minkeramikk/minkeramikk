@@ -11,8 +11,8 @@ import { PhotoLightbox } from "@/components/ui-domain/photo-lightbox";
 import { assetUrl } from "@/lib/storage";
 import { formatMoney, money } from "@/lib/money/money";
 import { displayPhotos } from "@/lib/catalog/product-photos";
+import { ATTR_ICON } from "@/components/ui-domain/attribute-icons";
 import {
-  ATTR_ICON,
   attributeLabel,
   formatAttributeValue,
   publicAttributes,
