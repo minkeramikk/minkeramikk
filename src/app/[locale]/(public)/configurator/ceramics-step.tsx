@@ -35,6 +35,7 @@ import {
   useShippingTotalSuffix,
 } from "@/components/ui-domain/cart-shipping-row";
 import {
+  ATTR_ICON,
   attributeLabel,
   formatAttributeValue,
   publicAttributes,
@@ -46,7 +47,6 @@ import { Check, Truck, Plus, ArrowUpRight } from "lucide-react";
 import type { ResolvedSharedSet } from "./resolve-shared-set";
 import { cn } from "@/lib/utils";
 import { NextStepPill, PillIcon } from "@/components/ui-domain/next-step-pill";
-import { ATTR_ICON } from "@/components/ui-domain/product-sheet";
 
 export interface CeramicProduct {
   id: string;

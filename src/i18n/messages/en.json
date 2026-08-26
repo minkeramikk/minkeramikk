@@ -1,4 +1,5 @@
 {
+  "_review": "DRAFT — English translations pending client review (see AGENTS.md i18n rule 6)",
   "error": {
     "title": "Something went wrong",
     "body": "Sorry, something went wrong on our end. Please try again, or go back to the configurator.",
@@ -179,6 +180,8 @@
   "cart": {
     "title": "Choose ceramics",
     "quantity": "Quantity",
+    "decreaseQty": "Fewer",
+    "increaseQty": "More",
     "add": "Add to basket",
     "added": "Added to basket",
     "cartTitle": "Basket",

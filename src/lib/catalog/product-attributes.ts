@@ -1,7 +1,17 @@
 import { z } from "zod";
+import {
+  Weight,
+  Circle,
+  Ruler,
+  Tag,
+  MoveVertical,
+  MoveHorizontal,
+  Container,
+} from "lucide-react";
 
 /**
- * R2-3+R2-4 — TYPED product attributes, in one pure place (no React, no DB).
+ * R2-3+R2-4 — TYPED product attributes, in one place (no DB). Pure apart from
+ * `ATTR_ICON`, the registry's icon-name → lucide-component map at the bottom.
  * Known property types live in a code REGISTRY (extensible without a migration);
  * `custom` keeps a per-product bilingual label. Numeric types carry `valueNum`
  * (weight in grams, diameter in mm) and format via the registry; text types
@@ -207,3 +217,18 @@ export function mapTypedAttributes(
       value: r.value,
     }));
 }
+
+/**
+ * The `icon` name of `ATTRIBUTE_REGISTRY` resolved to its lucide component —
+ * the one React-touching export here, kept next to the registry it mirrors so
+ * a new attribute key cannot be added without its icon.
+ */
+export const ATTR_ICON: Record<AttributeKey, typeof Weight> = {
+  weight: Weight,
+  diameter: Circle,
+  dimensions: Ruler,
+  height: MoveVertical,
+  length: MoveHorizontal,
+  volume: Container,
+  custom: Tag,
+};

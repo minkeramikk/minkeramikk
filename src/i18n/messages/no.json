@@ -179,6 +179,8 @@
   "cart": {
     "title": "Velg keramikk",
     "quantity": "Antall",
+    "decreaseQty": "Færre",
+    "increaseQty": "Flere",
     "add": "Legg i handlekurv",
     "added": "Lagt i handlekurven",
     "cartTitle": "Handlekurv",

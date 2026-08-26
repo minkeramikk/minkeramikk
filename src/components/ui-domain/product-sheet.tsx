@@ -1,17 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
-import {
-  Weight,
-  Circle,
-  Ruler,
-  Tag,
-  MoveVertical,
-  MoveHorizontal,
-  Container,
-  ZoomIn,
-} from "lucide-react";
+import { ZoomIn } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { DesignRound } from "@/components/ui-domain/design-round";
@@ -21,25 +12,14 @@ import { assetUrl } from "@/lib/storage";
 import { formatMoney, money } from "@/lib/money/money";
 import { displayPhotos } from "@/lib/catalog/product-photos";
 import {
+  ATTR_ICON,
   attributeLabel,
   formatAttributeValue,
   publicAttributes,
-  type AttributeKey,
 } from "@/lib/catalog/product-attributes";
 import type { CartLayer } from "@/lib/cart/cart";
 import type { CeramicProduct } from "@/app/[locale]/(public)/configurator/ceramics-step";
 import { cn } from "@/lib/utils";
-
-/** Icon per typed attribute key (R2-6-F spec chips). Shared with step 3. */
-export const ATTR_ICON: Record<AttributeKey, typeof Weight> = {
-  weight: Weight,
-  diameter: Circle,
-  dimensions: Ruler,
-  height: MoveVertical,
-  length: MoveHorizontal,
-  volume: Container,
-  custom: Tag,
-};
 
 /**
  * R4-STEP3 — product detail sheet (DESIGN-SYSTEM §3.19 / §3.19-bis).
@@ -84,6 +64,10 @@ export function ProductSheet({
   // content, so Radix's dismissable-layer stack gives us §3.19's "Esc closes the
   // lightbox first, then the sheet" for free.
   const [lightboxAt, setLightboxAt] = useState<number | null>(null);
+  // Unreachable while the caller closes the sheet between products, but a
+  // lightbox left open onto the previous ceramic's photos would be a bad bug
+  // for one line of insurance.
+  useEffect(() => setLightboxAt(null), [p?.id]);
 
   if (!p) return null;
 
@@ -103,6 +87,10 @@ export function ProductSheet({
         showCloseButton={false}
         aria-describedby={undefined}
         data-testid="product-sheet"
+        // Mockup `.pm`: color-mix(in oklab, var(--mk-dark), transparent 30%).
+        // `--foreground` IS `--mk-dark`, and `/70` compiles to the same
+        // color-mix. No blur: the mockup has none, and it muddies the scrim.
+        overlayClassName="bg-foreground/70 supports-backdrop-filter:backdrop-blur-none"
         className={cn(
           // mobile: bottom sheet, anchored to the bottom edge, full width
           "top-auto bottom-0 left-1/2 w-full max-w-none! -translate-x-1/2 translate-y-0",
@@ -149,7 +137,7 @@ export function ProductSheet({
               <div className={cn("grid gap-2.5", photos.length > 1 && "grid-cols-2")}>
                 {photos.map((img, i) => (
                   <button
-                    key={img}
+                    key={img + i}
                     type="button"
                     onClick={() => setLightboxAt(i)}
                     aria-label={tCfg("productSheet.photoOf", { name })}
@@ -261,7 +249,7 @@ export function ProductSheet({
               <div className="flex items-center rounded-full border border-border bg-background">
                 <button
                   type="button"
-                  aria-label="-"
+                  aria-label={tCart("decreaseQty")}
                   data-testid="qty-dec"
                   onClick={() => onQty(Math.max(1, qty - 1))}
                   className="flex h-11 w-10 items-center justify-center rounded-l-full text-lg text-muted-foreground outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
@@ -276,7 +264,7 @@ export function ProductSheet({
                 </span>
                 <button
                   type="button"
-                  aria-label="+"
+                  aria-label={tCart("increaseQty")}
                   data-testid="qty-inc"
                   onClick={() => onQty(qty + 1)}
                   className="flex h-11 w-10 items-center justify-center rounded-r-full text-lg text-muted-foreground outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
