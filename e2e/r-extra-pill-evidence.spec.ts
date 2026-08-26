@@ -117,9 +117,9 @@ for (const locale of ["no", "en"] as const) {
       const checkout = page.locator('[data-testid="docked-checkout"]:visible').first();
       await expect(checkout).toBeVisible();
 
-      // AC3: la freccetta sta SOLO su "Bestill" (era "Send bestilling",
-      // R4-COPY Ⓕ). Le altre due non fanno avanzare il funnel — una
-      // riavvia, l'altra è collaterale.
+      // AC3: la freccetta marca ciò che FA AVANZARE il funnel, non "un solo
+      // bottone". Le altre due pillole dello stack non avanzano — una riavvia
+      // il flusso, l'altra è collaterale — quindi restano senza.
       for (const id of ["new-design-cta", "share-set"]) {
         const other = page.locator(`[data-testid="${id}"]:visible`).first();
         await expect(other).toBeVisible();
@@ -131,6 +131,23 @@ for (const locale of ["no", "en"] as const) {
       expect(
         await checkout.evaluate((el) => el.textContent?.includes("›") ?? false)
       ).toBe(true);
+
+      // R4-CTA-STICKY (card `docs/revision4/R4-CTA-STICKY.md`): su mobile i
+      // "Bestill" con freccetta sono DUE e sono entrambi legittimi — la barra
+      // ordine fissa in basso e la CTA del pannello carrello. Portano allo
+      // stesso posto, quindi la gerarchia regge: l'invariante non è "una sola
+      // freccetta" ma "la freccetta solo dove si avanza". Sotto md la barra non
+      // esiste e il conto torna a uno.
+      const stickyPill = page.locator('[data-testid="sticky-bar-checkout"]:visible');
+      if (w < 768) {
+        await expect(stickyPill).toHaveCount(1);
+        expect(
+          await stickyPill.evaluate((el) => el.textContent?.includes("›") ?? false),
+          "la pillola della barra ordine deve avere la freccetta: fa avanzare il funnel"
+        ).toBe(true);
+      } else {
+        await expect(stickyPill).toHaveCount(0);
+      }
 
       await page.screenshot({
         path: `${OUT}/04-step3-${locale}-${w}.png`,

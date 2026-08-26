@@ -96,6 +96,10 @@
       "photoOf": "Photo of {name} — open larger",
       "close": "Close"
     },
+    "stickyBar": {
+      "title": "Your order",
+      "pieces": "{count, plural, one {# piece} other {# pieces}}"
+    },
     "steps": {
       "design": "1. Design",
       "details": "2. Details",

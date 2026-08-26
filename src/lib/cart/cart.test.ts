@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   addToCart,
+  cartPieces,
   cartTotal,
   itemCount,
   lineSubtotal,
@@ -104,6 +105,28 @@ describe("cart store", () => {
   it("empty cart totals to zero", () => {
     expect(cartTotal([]).amountCents).toBe(0);
     expect(itemCount([])).toBe(0);
+  });
+});
+
+describe("cartPieces (R4-CTA-STICKY)", () => {
+  it("counts physical pieces, not lines: a set of 4 taken twice is 8", () => {
+    const cart = addToCart([], { ...vietriFlat, pieces: 4, quantity: 2 });
+    expect(cartPieces(cart)).toBe(8);
+    // itemCount still counts units — the two must not be confused
+    expect(itemCount(cart)).toBe(2);
+  });
+
+  it("treats a line saved before F29 (no `pieces`) as one piece each", () => {
+    const cart = addToCart([], { ...vietriFlat, quantity: 3 });
+    expect(cart[0].pieces).toBeUndefined();
+    expect(cartPieces(cart)).toBe(3);
+  });
+
+  it("sums across mixed lines and is zero on an empty cart", () => {
+    let cart: Cart = addToCart([], { ...vietriFlat, pieces: 4, quantity: 1 });
+    cart = addToCart(cart, { ...servering, quantity: 2 });
+    expect(cartPieces(cart)).toBe(6);
+    expect(cartPieces([])).toBe(0);
   });
 });
 

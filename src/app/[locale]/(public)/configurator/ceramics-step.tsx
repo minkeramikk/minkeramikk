@@ -14,6 +14,7 @@ import { formatMoney, money } from "@/lib/money/money";
 import type { Currency } from "@/lib/money/money";
 import { useCartContext } from "@/lib/cart/cart-context";
 import {
+  cartPieces,
   cartTotal,
   designLabel,
   itemCount,
@@ -147,8 +148,10 @@ function CeramicCard({
  * visible (NOT the Sheet overlay). Adding a product appends a row in the right
  * panel with no overlay interruption.
  *
- * Mobile: stacked — selector first, then cart rows, then a sticky summary bar
- * at the bottom (N pcs · total · Send) that expands the inline checkout form.
+ * Mobile: stacked — selector first, then the cart rows. R4-CTA-STICKY adds a
+ * fixed order bar at the bottom edge («Din bestilling · N deler» + total +
+ * «Bestill»), shown only with a non-empty basket and no product sheet open; its
+ * CTA scrolls to that cart block rather than opening the form itself.
  *
  * The CartDrawer Sheet (F16) remains active on steps 1–2 only, triggered from
  * the header icon — it is NOT opened here.
@@ -186,7 +189,7 @@ export function CeramicsStep({
   sharedSet?: ResolvedSharedSet | null;
 }) {
   const t = useTranslations("cart");
-  // TODO:nb-review NO copy: step3.seriesCount
+  // TODO:nb-review NO copy: step3.seriesCount · stickyBar.title · stickyBar.pieces
   const tc = useTranslations("configurator");
   const to = useTranslations("order");
   const ta = useTranslations("actions");
@@ -264,6 +267,10 @@ export function CeramicsStep({
   const designName = designLabel(snapshot, locale) ?? "";
 
   const count = hydrated ? itemCount(cart) : 0;
+  /** R4-CTA-STICKY: the bar counts PIECES, not lines — a set is N deler. */
+  const pieces = hydrated ? cartPieces(cart) : 0;
+  /** Scroll target of the sticky bar's CTA (the mobile order block). */
+  const orderBlockRef = useRef<HTMLDivElement>(null);
   const total = cartTotal(cart);
   const totalSuffix = useShippingTotalSuffix(total);
 
@@ -738,8 +745,66 @@ export function CeramicsStep({
     </div>
   );
 
+  // ── R4-CTA-STICKY: mobile order bar ──────────────────────────────────────
+  // Self-gates on THREE things, all required by the card: mobile only
+  // (`md:hidden`), a non-empty basket, and no product sheet open — two fixed
+  // layers at the bottom edge would stack. `count` already folds in `hydrated`,
+  // so the bar never flashes in before the cart is read from localStorage.
+  const showStickyBar = count > 0 && !sheetOpen;
+  const stickyBar = showStickyBar && (
+    <div
+      data-testid="step3-sticky-bar"
+      // z-40: under Radix's overlay/content (z-50), so the sheet and the
+      // lightbox always win. bg + border from tokens (ADR 0008), and the
+      // bottom padding clears the home indicator on iOS.
+      className="fixed inset-x-0 bottom-0 z-40 flex items-center gap-3 border-t border-border bg-card px-4 pt-2.5 pb-[calc(0.625rem+env(safe-area-inset-bottom))] md:hidden"
+    >
+      <div className="min-w-0 flex-1">
+        {/* At 360px a long basket ("100 deler") overflows this line. The COUNT
+            is the half worth keeping, so it never shrinks and the title
+            truncates instead — the reverse loses exactly the information the
+            bar exists to show. */}
+        <p className="flex items-baseline gap-1 text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
+          <span className="truncate">{tc("stickyBar.title")}</span>
+          <span className="shrink-0 whitespace-nowrap">
+            · {tc("stickyBar.pieces", { count: pieces })}
+          </span>
+        </p>
+        <p
+          data-testid="sticky-bar-total"
+          className="truncate text-base font-semibold tabular-nums"
+        >
+          {formatMoney(total, locale)}
+          {totalSuffix}
+        </p>
+      </div>
+      {/* Same pill as the cart panel's CTA (§3.16) and the same label key, so
+          R-PAY reskins both from one place. It carries the arrow because it
+          DOES advance the funnel — see the e2e note in r-extra-pill. */}
+      <NextStepPill
+        data-testid="sticky-bar-checkout"
+        className="shrink-0"
+        label={to("title")}
+        arrow
+        onClick={() =>
+          orderBlockRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+        }
+        icon={
+          <PillIcon>
+            <Truck className="size-5 text-primary" />
+          </PillIcon>
+        }
+      />
+    </div>
+  );
+
   return (
-    <div data-testid="ceramics-step">
+    <div
+      data-testid="ceramics-step"
+      // The bar is `fixed`, so it sits ON the page: without this the last rows
+      // of the order block stay under it and the CTA is unreachable.
+      className={showStickyBar ? "pb-24 md:pb-0" : undefined}
+    >
       {/* F21: nav cluster — stepper always; Back active; Next disabled at step 3 */}
       <div className="mb-4 flex items-center gap-2" data-testid="step-nav">
         <Button
@@ -836,10 +901,17 @@ export function CeramicsStep({
         </div>
       )}
 
-      {/* No fixed mobile action bar on step 3 (per client UX feedback): the
-          inline cart panel below already carries the total + Send + share,
-          and the stepper above handles navigation. The old sticky summary
-          bar read as a stray "action footer" on mobile. */}
+      {/* R4-CTA-STICKY — fixed order bar, MOBILE ONLY.
+          A sticky summary bar was removed here in a past round ("stray action
+          footer"); this one is back on the client's own request (Alessio 26/8:
+          the order CTA sat too far down and read as hidden), styled after the
+          italianinoslo reference. What makes it different from the one that was
+          removed: it only exists once the basket has something in it, and it
+          steps aside for the product sheet instead of stacking under it.
+
+          Desktop keeps NOTHING: the right rail is already the answer there, and
+          a second CTA would compete with it. */}
+      {stickyBar}
 
       {/* F21: two-column grid on desktop; single column + stacked cart on mobile */}
       <div className="grid grid-cols-1 items-start gap-7 md:grid-cols-2">
@@ -880,7 +952,11 @@ export function CeramicsStep({
           </div>
 
           {/* Mobile: docked cart section (below selector, above sticky bar) */}
-          <div className="mt-6 md:hidden" data-testid="mobile-cart-section">
+          <div
+            ref={orderBlockRef}
+            className="mt-6 md:hidden"
+            data-testid="mobile-cart-section"
+          >
             {cartPanel}
           </div>
         </div>
@@ -922,7 +998,11 @@ export function CeramicsStep({
       <div
         role="status"
         aria-live="polite"
-        className="pointer-events-none fixed bottom-6 left-1/2 z-50 -translate-x-1/2"
+        // R4-CTA-STICKY: on mobile the toast fires exactly when the order bar
+        // appears, so at `bottom-6` it landed ON the bar. Clear it: the bar is
+        // 10px + 72px pill + 10px + safe-area tall, plus 12px of breathing room.
+        // Desktop has no bar and keeps the original offset.
+        className="pointer-events-none fixed bottom-[calc(104px+env(safe-area-inset-bottom))] left-1/2 z-50 -translate-x-1/2 md:bottom-6"
       >
         {toast && (
           <span
