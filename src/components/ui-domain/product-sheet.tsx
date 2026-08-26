@@ -182,11 +182,14 @@ export function ProductSheet({
             {/* F37 ②: the current design shown NEXT TO the ceramic photo (never
                 composited onto it). Photo missing → only the design round, like the
                 cart rows. Self-gates on an empty config (AC4 / ?set= landing).
-                Copied unchanged from ExpandedProductCard — §3.19 says "invariata". */}
+                §3.19: the muted-card `.pair` variant of mockup v5 — bg `--muted`,
+                `--radius-sm`, 10px/12px padding, 10px gap and 10px off the photo
+                frames above, 44px thumb and design round centred with the label.
+                The two images stay SEPARATE: never composited (F37's rule). */}
             {designLayers.length > 0 && (
               <div
                 data-testid="expanded-composed-preview"
-                className="flex items-center gap-3 border-b border-border/60 pb-3"
+                className="mt-2.5 flex items-center gap-2.5 rounded-sm bg-muted px-3 py-2.5 text-[12.5px]"
               >
                 <div className="flex shrink-0 items-center gap-2">
                   {p.image && (
@@ -196,16 +199,16 @@ export function ProductSheet({
                         src={assetUrl(p.image)}
                         alt=""
                         aria-hidden
-                        className="size-20 rounded-md border border-border bg-card object-contain p-1"
+                        className="size-11 shrink-0 rounded-full object-cover"
                       />
-                      <span aria-hidden className="text-lg font-semibold text-muted-foreground">
+                      <span aria-hidden className="font-semibold text-muted-foreground">
                         +
                       </span>
                     </>
                   )}
-                  <DesignRound layers={designLayers} className="size-20" />
+                  <DesignRound layers={designLayers} className="size-11" />
                 </div>
-                <p className="min-w-0 text-xs font-medium text-primary">
+                <p className="min-w-0 font-medium text-primary">
                   {tCfg("yourSelection.pairCaption")}
                 </p>
               </div>
