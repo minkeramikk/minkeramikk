@@ -30,7 +30,7 @@ make run-e2e-grep G=cart   # una spec singola
 
 1. **Scoprire le entità a runtime, mai hardcodare.** Niente slug prodotto né
    conteggi fissi: il catalogo è un DB vivo e condiviso. Si usano gli helper
-   `firstActiveDesign`, `addFirstCeramic`, `ceramicRadios`, e si legge dal DB
+   `firstActiveDesign`, `addFirstCeramic`, `ceramicCards`, e si legge dal DB
    (service role) ciò che serve. La vecchia suite asseriva "8 prodotti" e
    `product-vietri-flat`: si è rotta quando il catalogo è cambiato.
 2. **Selettori stabili = contratto.** Gli e2e dipendono solo dai `data-testid`

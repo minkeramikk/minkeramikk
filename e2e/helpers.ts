@@ -205,21 +205,34 @@ export async function firstSupplier(): Promise<{ id: string; name: string }> {
   return data as { id: string; name: string };
 }
 
-/** Step-3 product radios for the current design (resilient locator). */
-export const ceramicRadios = (page: Page) =>
-  page.getByTestId("ceramics-step").getByRole("radio");
+/**
+ * Step-3 product cards for the current design (resilient locator).
+ * R4-STEP3: cards are plain `<button data-testid="product-<slug>">`, not
+ * `role="radio"` any more. Scoped `button[...]` (not just `[data-testid^=]`)
+ * so it never picks up the child `product-thumb` <img> inside each card.
+ */
+export const ceramicCards = (page: Page) =>
+  page.getByTestId("ceramics-step").locator('button[data-testid^="product-"]');
 
 /**
- * Select the first available ceramic and add it to the cart.
+ * Open the first available ceramic's sheet and add it to the cart.
  * Returns the product's visible name so callers can assert on the cart line.
+ *
+ * R4-STEP3: nothing is preselected any more — the qty stepper and "Add" live
+ * inside `ProductSheet` (Radix-portalled to `document.body`, OUTSIDE
+ * `ceramics-step`), so the card click is not optional and the sheet locator
+ * must be page-level.
  */
 export async function addFirstCeramic(page: Page): Promise<string> {
   await page.getByTestId("ceramics-step").waitFor();
-  const first = ceramicRadios(page).first();
+  const first = ceramicCards(page).first();
   await expect(first).toBeVisible();
   const name = (await first.innerText()).split("\n")[0].trim();
   await first.click();
-  await page.getByTestId("add-to-cart").click();
+  const sheet = page.getByTestId("product-sheet");
+  await expect(sheet).toBeVisible();
+  await sheet.getByTestId("add-to-cart").click();
+  await expect(sheet).toBeHidden();
   return name;
 }
 

@@ -2,7 +2,7 @@ import { test, expect, type Page } from "@playwright/test";
 import {
   firstActiveDesign,
   addFirstCeramic,
-  ceramicRadios,
+  ceramicCards,
   horizontalOverflow,
 } from "./helpers";
 
@@ -76,13 +76,18 @@ test("AC4: two different products → two lines, total is their sum", async ({
 }) => {
   await page.goto(step3);
   await page.getByTestId("ceramics-step").waitFor();
-  const radios = ceramicRadios(page);
-  test.skip((await radios.count()) < 2, "needs at least two ceramics");
+  const cards = ceramicCards(page);
+  test.skip((await cards.count()) < 2, "needs at least two ceramics");
 
-  await radios.nth(0).click();
-  await page.getByTestId("add-to-cart").click();
-  await radios.nth(1).click();
-  await page.getByTestId("add-to-cart").click();
+  // Sheet closes on add (§3.20), so the second product needs the card
+  // reopened — one card click → one sheet open/add/close cycle each.
+  for (const n of [0, 1]) {
+    await cards.nth(n).click();
+    const sheet = page.getByTestId("product-sheet");
+    await expect(sheet).toBeVisible();
+    await sheet.getByTestId("add-to-cart").click();
+    await expect(sheet).toBeHidden();
+  }
 
   await openCart(page);
   await expect(drawer(page).getByTestId("cart-line")).toHaveCount(2);
