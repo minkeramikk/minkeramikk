@@ -90,6 +90,12 @@ export function ProductSheet({
   // §3.19-bis: 2 photos → two square frames; 1 → one full-width frame; 0 → the
   // catalog thumb in that same wide frame; nothing at all → no photo block.
   const photos = displayPhotos(p.photos, p.image);
+  // The lightbox is for REAL photos only. `displayPhotos` degrades to the
+  // catalog thumb — that is the same tiny art already on the grid card, so
+  // enlarging it shows nothing new: the fallback frame stays a still image
+  // (no zoom hint, no click, no zoom cursor). Step 2 is unaffected: the design
+  // filmstrip only ever renders real photos.
+  const zoomable = (p.photos?.length ?? 0) > 0;
   // Storefront shows only customer-facing attributes (weight is internal).
   const attributes = publicAttributes(p.attributes);
 
@@ -151,31 +157,46 @@ export function ProductSheet({
                 sheet stays single-column and purely informational. */}
             {photos.length > 0 && (
               <div className={cn("grid gap-2.5", photos.length > 1 && "grid-cols-2")}>
-                {photos.map((img, i) => (
-                  <button
-                    key={img + i}
-                    type="button"
-                    onClick={() => setLightboxAt(i)}
-                    aria-label={tCfg("productSheet.photoOf", { name })}
-                    data-testid="product-photo"
-                    className="relative aspect-square cursor-zoom-in overflow-hidden rounded-sm border border-border bg-muted outline-none transition-colors hover:border-primary focus-visible:ring-3 focus-visible:ring-ring/50"
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element -- catalog art from storage */}
-                    <img
-                      src={assetUrl(img)}
-                      alt=""
-                      loading="lazy"
-                      className="size-full object-cover"
-                    />
-                    {/* zoom pill on the first frame only (mockup) */}
-                    {i === 0 && (
-                      <span className="pointer-events-none absolute bottom-2 left-2 inline-flex items-center gap-1 rounded-full bg-ink px-[9px] py-[3px] text-[10.5px] tracking-[0.04em] text-ink-foreground">
-                        <ZoomIn className="size-3" aria-hidden />
-                        {tCfg("productSheet.zoomHint")}
-                      </span>
-                    )}
-                  </button>
-                ))}
+                {photos.map((img, i) => {
+                  const frame = (
+                    <>
+                      {/* eslint-disable-next-line @next/next/no-img-element -- catalog art from storage */}
+                      <img
+                        src={assetUrl(img)}
+                        alt={zoomable ? "" : tCfg("productSheet.photoOf", { name })}
+                        loading="lazy"
+                        className="size-full object-cover"
+                      />
+                      {/* zoom pill on the first frame only (mockup) */}
+                      {zoomable && i === 0 && (
+                        <span className="pointer-events-none absolute bottom-2 left-2 inline-flex items-center gap-1 rounded-full bg-ink px-[9px] py-[3px] text-[10.5px] tracking-[0.04em] text-ink-foreground">
+                          <ZoomIn className="size-3" aria-hidden />
+                          {tCfg("productSheet.zoomHint")}
+                        </span>
+                      )}
+                    </>
+                  );
+                  const box = "relative aspect-square overflow-hidden rounded-sm border border-border bg-muted";
+                  return zoomable ? (
+                    <button
+                      key={img + i}
+                      type="button"
+                      onClick={() => setLightboxAt(i)}
+                      aria-label={tCfg("productSheet.photoOf", { name })}
+                      data-testid="product-photo"
+                      className={cn(
+                        box,
+                        "cursor-zoom-in outline-none transition-colors hover:border-primary focus-visible:ring-3 focus-visible:ring-ring/50"
+                      )}
+                    >
+                      {frame}
+                    </button>
+                  ) : (
+                    <div key={img + i} data-testid="product-thumb-frame" className={box}>
+                      {frame}
+                    </div>
+                  );
+                })}
               </div>
             )}
 
