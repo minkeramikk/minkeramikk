@@ -1190,7 +1190,9 @@ function CategoryLane({
   t: ReturnType<typeof useTranslations>;
 }) {
   const laneRef = useRef<HTMLDivElement>(null);
-  const fades = useLaneFades(laneRef, cat.id);
+  // dep con `active`: al cambio tab la corsia passa da display:none a visibile e
+  // le fade vanno ricalcolate SUBITO, non per il rimbalzo del ResizeObserver.
+  const fades = useLaneFades(laneRef, `${active}:${cat.id}`);
   const single = cat.options.length === 1;
   // R1-FB1: the selected COLOUR's name doubles the swatch as text (manager +
   // ceramist double check). Catalog proper noun, no i18n. Derived from
@@ -1262,7 +1264,12 @@ function CategoryLane({
       {single ? (
         // con una sola opzione non c'è corsia: sotto md la legend è sr-only, e
         // un pannello vuoto sembrerebbe rotto — la nota torna visibile qui.
-        <p className="hidden text-sm text-muted-foreground max-md:block max-md:px-3 max-md:py-3">
+        <p
+          // la legend `sr-only` annuncia già label + `singleOption`: questa è la
+          // sua copia visibile, non un secondo contenuto.
+          aria-hidden
+          className="hidden text-sm text-muted-foreground max-md:block max-md:px-3 max-md:py-3"
+        >
           {label} · {t("singleOption")}
         </p>
       ) : cat.kind === "color" ? (
