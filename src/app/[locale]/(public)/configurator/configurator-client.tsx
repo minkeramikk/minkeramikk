@@ -530,8 +530,13 @@ export function ConfiguratorClient({
           // R4-STEP2: at step 2 under md this grid IS the editor — a full-height
           // flex column, canvas on top and panel below, zero gap (the panel has
           // its own border). From md up NOTHING changes.
+          // `items-stretch` cancels the grid's `items-start` ONLY here: as a
+          // flex column that would shrink-to-fit both children, so a horizontal
+          // lane's max-content (a long tab row, a wide option lane) blew the
+          // panel out to 1524px inside a 390px viewport — invisible only
+          // because `html` is `overflow:hidden` in the editor.
           step === 2 &&
-            "max-md:flex max-md:min-h-0 max-md:flex-1 max-md:flex-col max-md:gap-0"
+            "max-md:flex max-md:min-h-0 max-md:flex-1 max-md:flex-col max-md:items-stretch max-md:gap-0"
         )}
       >
         {/* LEFT: the persistent preview — never remounts across steps (AC2).
@@ -1285,7 +1290,7 @@ function CategoryLane({
             // desktop (F15): invariato
             "flex flex-wrap gap-2.5",
             // mobile (mockup `.opts`): corsia orizzontale con snap e peek
-            "max-md:min-h-0 max-md:flex-1 max-md:items-start max-md:overflow-x-auto max-md:scroll-pl-3 max-md:px-3 max-md:py-3 max-md:snap-x max-md:snap-proximity max-md:[scrollbar-width:none] max-md:[&::-webkit-scrollbar]:hidden",
+            "max-md:min-h-0 max-md:min-w-0 max-md:flex-1 max-md:items-start max-md:overflow-x-auto max-md:scroll-pl-3 max-md:px-3 max-md:py-3 max-md:snap-x max-md:snap-proximity max-md:[scrollbar-width:none] max-md:[&::-webkit-scrollbar]:hidden",
             dense
               ? // mockup `.opts.dense`: due righe che scorrono insieme
                 "max-md:grid max-md:grid-flow-col max-md:grid-rows-2 max-md:justify-start max-md:gap-x-3 max-md:gap-y-2.5"
@@ -1338,7 +1343,7 @@ function CategoryLane({
             // desktop: invariato
             "grid grid-cols-3 gap-2.5 sm:grid-cols-4",
             // mobile: stessa corsia orizzontale delle opzioni colore
-            "max-md:flex max-md:min-h-0 max-md:flex-1 max-md:items-start max-md:gap-3 max-md:overflow-x-auto max-md:scroll-pl-3 max-md:px-3 max-md:py-3 max-md:snap-x max-md:snap-proximity max-md:[scrollbar-width:none] max-md:[&::-webkit-scrollbar]:hidden"
+            "max-md:flex max-md:min-h-0 max-md:min-w-0 max-md:flex-1 max-md:items-start max-md:gap-3 max-md:overflow-x-auto max-md:scroll-pl-3 max-md:px-3 max-md:py-3 max-md:snap-x max-md:snap-proximity max-md:[scrollbar-width:none] max-md:[&::-webkit-scrollbar]:hidden"
           )}
         >
           {cat.options.map((o) => (
