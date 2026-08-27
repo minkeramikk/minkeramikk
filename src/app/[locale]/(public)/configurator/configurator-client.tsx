@@ -1097,15 +1097,18 @@ export function ConfiguratorClient({
                 // restituiscono 16px, le foto (sotto) altri 16 → 8px di
                 // margine sul caso peggiore. Comprimere, non troncare.
                 // R4-STEP2 / AC10: affiancato al Back sotto md il Next ha
-                // ~190px a 360 — con caption e tre foto l'etichetta ne
-                // riceveva 5 e si troncava. Nell'editor la pillola si
-                // ALLEGGERISCE come nel mockup (.navB: solo «Neste steg ›»):
-                // via la caption (`data-pill-caption`, display:none → non
-                // occupa più larghezza) e via le foto. Restano ~113px per
-                // «Velg keramikk» (99px) e ~129 per «Choose ceramics» (118).
-                // Le varianti `@container` sono ora `md:`-prefissate: sotto md
-                // non competono più con queste.
-                className="md:@max-md:gap-2.5 md:@max-md:p-2.5 md:@max-md:[&>span:last-child]:size-8 md:@md:flex-[1_1_16rem] max-md:flex-1 max-md:[&_[data-pill-caption]]:hidden"
+                // ~190px a 360 — con caption, etichetta lunga e tre foto
+                // «Choose ceramics» si troncava (misurato in Chromium: EN@360
+                // labelClipped=true). Nell'editor la pillola diventa quella del
+                // mockup (.navB): SOLO «Neste steg ›». Quindi sotto md sparisce
+                // l'ETICHETTA lunga (`data-pill-label`) e resta la CAPTION, che
+                // prende la taglia da CTA (15px semibold, niente maiuscoletto).
+                // display:none, non opacity: i nodi nascosti non occupano più
+                // larghezza né generano gap. Da md in su non cambia nulla:
+                // caption sopra, etichetta lunga sotto, foto, freccetta.
+                // Le varianti `@container` sono `md:`-prefissate: sotto md non
+                // competono più con queste.
+                className="md:@max-md:gap-2.5 md:@max-md:p-2.5 md:@max-md:[&>span:last-child]:size-8 md:@md:flex-[1_1_16rem] max-md:flex-1 max-md:[&_[data-pill-label]]:hidden max-md:[&_[data-pill-caption]]:text-[15px] max-md:[&_[data-pill-caption]]:font-semibold max-md:[&_[data-pill-caption]]:normal-case max-md:[&_[data-pill-caption]]:tracking-normal max-md:[&_[data-pill-caption]]:text-foreground"
                 caption={t("teaser.nextStep")}
                 label={t("teaser.ceramics")}
                 arrow

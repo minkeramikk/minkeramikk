@@ -120,6 +120,10 @@ export function NextStepPill({
           </span>
         )}
         <span
+          // `data-pill-label`: twin of `data-pill-caption` above — R4-STEP2
+          // hides THIS one under md on the step-2 pill, where the mockup's
+          // button is the short caption alone («Neste steg ›»).
+          data-pill-label
           className={cn(
             "block truncate text-[15px] font-semibold",
             // font-weight 500, NON bold: correzione card 2026-07-21 — il
