@@ -77,7 +77,11 @@
       "titleDetails": "Choose details",
       "titleBorders": "Choose borders",
       "showMore": "Show more",
-      "showLess": "Show less"
+      "showLess": "Show less",
+      "tabsLabel": "Categories",
+      "tabCount": "{name} ({count})",
+      "extrasTab": "Details",
+      "optionsLabel": "Colours and motifs"
     },
     "photos": {
       "photosLabel": "Photos of the design",
@@ -124,7 +128,6 @@
       "ceramics": "Pick your ceramics"
     },
     "setBadge": "Set · {count, plural, one {# piece} other {# pieces}}",
-    "backToPreview": "Back to the preview",
     "featured": {
       "title": "Popular designs",
       "curated": "curated by the shop",

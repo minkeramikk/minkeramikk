@@ -71,14 +71,28 @@ for (const locale of ["no", "en"] as const) {
       await expect(back).toBeVisible();
       await expect(pill2).toBeVisible();
 
-      // AC2 + R-EXTRA (mockup-mobile-stacked-COMPARE.jpg): affiancati stessa
-      // altezza (richiesta cliente); impilati l'ordine si INVERTE — il Next
-      // sta sopra, il Back sotto, entrambi a piena larghezza.
       const [bb, nb] = [
         (await back.boundingBox())!,
         (await pill2.boundingBox())!,
       ];
-      if (Math.abs(bb.y - nb.y) < 1) {
+      if (w < 768) {
+        // R4-STEP2 (mockup .navB, configurator-client.tsx#1073
+        // `max-md:flex-row`): sotto md l'editor mette SEMPRE i due bottoni
+        // affiancati in fondo al pannello — non dipende più dalla larghezza
+        // del container come sopra md. Stessa altezza di sempre (default
+        // flex `align-items: stretch`, nessun override sotto md).
+        expect(Math.abs(bb.y - nb.y), `step 2 @${w}: non affiancati`).toBeLessThan(2);
+        expect(
+          Math.abs(bb.height - nb.height),
+          `step 2 @${w}: affiancati ma di altezza diversa`
+        ).toBeLessThanOrEqual(2);
+        expect(nb.x, `step 2 @${w}: il Next non sta a destra del Back`).toBeGreaterThan(bb.x);
+      } else if (Math.abs(bb.y - nb.y) < 1) {
+        // AC2 + R-EXTRA (mockup-mobile-stacked-COMPARE.jpg): affiancati stessa
+        // altezza (richiesta cliente); impilati l'ordine si INVERTE — il Next
+        // sta sopra, il Back sotto, entrambi a piena larghezza. Da md in su
+        // (>= 768) questo dipende ancora dalla larghezza del container
+        // `.navB`, invariata da R4-STEP2 (che tocca solo `max-md:`).
         expect(
           Math.abs(bb.height - nb.height),
           `step 2 @${w}: affiancati ma di altezza diversa`
@@ -91,13 +105,32 @@ for (const locale of ["no", "en"] as const) {
         ).toBeLessThanOrEqual(1);
       }
 
-      const clipped2 = await pill2
-        .locator("span.truncate")
-        .evaluate((el) => el.scrollWidth > el.clientWidth);
-      expect(
-        clipped2,
-        `step 2 @${w} ${locale}: l'etichetta è troncata`
-      ).toBe(false);
+      // AC6 / R4-STEP2 (configurator-client.tsx#1111
+      // `max-md:[&_[data-pill-label]]:sr-only`): sotto md l'etichetta lunga
+      // sparisce visivamente (resta per lo screen reader) e resta visibile
+      // solo la caption («Neste steg ›», mockup .navB) — va misurato quel
+      // nodo.
+      const label2 = w < 768
+        ? pill2.locator("[data-pill-caption]")
+        : pill2.locator("span.truncate");
+      await expect(label2).toBeVisible();
+      if (w < 768) {
+        // La caption sotto md è `block`, non `truncate` (nessun overflow-x da
+        // misurare: andrebbe a capo, non troncherebbe — `scrollWidth >
+        // clientWidth` sarebbe strutturalmente sempre falso, una tautologia).
+        // L'invariante AC10 qui è "una riga sola" (mockup .navB): si conta
+        // `getClientRects()`, che torna >1 se il testo va a capo.
+        const lines = await label2.evaluate((el) => el.getClientRects().length);
+        expect(lines, `step 2 @${w} ${locale}: la caption va a capo`).toBe(1);
+      } else {
+        const clipped2 = await label2.evaluate(
+          (el) => el.scrollWidth > el.clientWidth
+        );
+        expect(
+          clipped2,
+          `step 2 @${w} ${locale}: l'etichetta è troncata`
+        ).toBe(false);
+      }
 
       await page.screenshot({
         path: `${OUT}/03-step2-${locale}-${w}.png`,

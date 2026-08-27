@@ -146,7 +146,15 @@ export function PreviewCanvas({
 
   return (
     <div className={className} data-testid="preview-canvas">
-      <div className="relative mx-auto flex aspect-square max-w-[520px] items-center justify-center rounded-lg bg-card shadow-(--shadow-card)">
+      <div
+        // R4-STEP2: stable hook for callers styling the inner frame (the
+        // mobile editor canvas, configurator-client.tsx) — an attribute
+        // selector survives a refactor of this component's nesting; a
+        // structural one (`[&>div>div]`) would silently break. Purely a
+        // selector target, no rendering change.
+        data-canvas-frame
+        className="relative mx-auto flex aspect-square max-w-[520px] items-center justify-center rounded-lg bg-card shadow-(--shadow-card)"
+      >
         {nothingToShow && (
           <div
             data-testid="preview-skeleton"
