@@ -20,14 +20,16 @@ export function useLaneFades(
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const update = () =>
-      setFades(
-        laneFades({
-          scrollLeft: el.scrollLeft,
-          scrollWidth: el.scrollWidth,
-          clientWidth: el.clientWidth,
-        })
+    const update = () => {
+      const next = laneFades({
+        scrollLeft: el.scrollLeft,
+        scrollWidth: el.scrollWidth,
+        clientWidth: el.clientWidth,
+      });
+      setFades((prev) =>
+        prev.left === next.left && prev.right === next.right ? prev : next
       );
+    };
     update();
     el.addEventListener("scroll", update, { passive: true });
     const ro = new ResizeObserver(update);
