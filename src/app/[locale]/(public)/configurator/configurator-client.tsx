@@ -9,7 +9,6 @@ import { useWarmupPreviews } from "@/components/ui-domain/hover-preview";
 import { DesignDescription } from "./design-description";
 import { DesignPhotoStrip } from "./design-photo-strip";
 import { hasPhotos } from "@/lib/configurator/photos";
-import { FloatingPreview } from "./floating-preview";
 import { PreviewCanvas } from "@/components/ui-domain/preview-canvas";
 import { Stepper } from "@/components/ui-domain/stepper";
 import { Swatch } from "@/components/ui-domain/swatch";
@@ -92,9 +91,6 @@ export function ConfiguratorClient({
   const searchParams = useSearchParams();
   /** F31: the big preview's container — observed by the mobile floating bubble */
   const previewRef = useRef<HTMLDivElement>(null);
-  // R-EXTRA: la riga CTA di fine colonna — osservata da FloatingPreview, che si
-  // spegne quando questa entra in viewport (la bolla ci finiva sopra).
-  const navRef = useRef<HTMLDivElement>(null);
   // R3-B23: live column count (2 under sm, 3 from sm) — same grid as step 3, so
   // the contextual block lands after the LAST card of the selected card's row.
   const [cols, setCols] = useState(2);
@@ -158,10 +154,10 @@ export function ConfiguratorClient({
   }, [selected.slug]);
 
   // Focus the textarea when "I'll choose" is selected (AC3, also for SR users).
-  // R3-A: preventScroll — the textarea is at the page bottom; the default
-  // scroll-into-view shifts the IntersectionObserver ratio behind the step-2
-  // FloatingPreview, which makes the mini-plate flip (cross-browser, Android +
-  // iOS). Focus still lands for SR/keyboard; the keyboard still opens on mobile.
+  // preventScroll resta: su mobile la textarea vive nella tab «Detaljer» del
+  // pannello, e lo scroll-into-view del browser sposterebbe la corsia sotto le
+  // dita. (La ragione storica — il flip del mini-piatto F31 — è decaduta con
+  // la rimozione del FAB, R4-STEP2.)
   useEffect(() => {
     if (noteMode === "custom")
       noteTextareaRef.current?.focus({ preventScroll: true });
@@ -841,7 +837,7 @@ export function ConfiguratorClient({
                 la colonna torna stretta quanto a 390, un breakpoint di viewport
                 mancherebbe il caso). Mai troncare l'etichetta del CTA primario:
                 era il sintomo che AC10 deve chiudere, non una via d'uscita. */}
-            <div ref={navRef} className="@container" data-testid="step-nav-flow">
+            <div className="@container" data-testid="step-nav-flow">
             <div className="flex flex-col-reverse gap-3 @md:flex-row @md:items-stretch">
               <NextStepPill
                 variant="secondary"
@@ -916,17 +912,6 @@ export function ConfiguratorClient({
           </div>
         )}
       </div>
-
-      {/* F31: mobile-only floating mini-plate, step 2 only (step 1 has the
-          design grid previews, step 3 the cart panel). Fixed OVERLAY sibling
-          of the layout — its visibility can never reflow the page. */}
-      {step === 2 && (
-        <FloatingPreview
-          targetRef={previewRef}
-          layers={previewLayers}
-          hideNearRef={navRef}
-        />
-      )}
     </div>
   );
 }
