@@ -91,25 +91,32 @@ test("AC2: step 2 shows the design's option categories; a choice updates the pre
   const step = page.getByTestId("details-step");
   await expect(step).toBeVisible();
   await expect(page.getByTestId("design-photo-strip")).toHaveCount(0);
-  // at least one option category with a radiogroup. R4-STEP2: sotto md solo
-  // la corsia della tab attiva è visibile (le altre sono `max-md:hidden`,
-  // configurator-client.tsx CategoryLane) — `.first()` continua a puntare
-  // alla prima categoria (tab di default), ma la scoping esplicita evita di
-  // prendere una corsia nascosta se in futuro cambia l'ordine.
-  const firstGroup = step.getByRole("radiogroup").filter({ visible: true }).first();
+  // at least one option surface. R4-STEP2: sotto md solo la corsia della tab
+  // attiva è visibile (le altre sono `max-md:hidden`, configurator-client.tsx
+  // CategoryLane) — `.filter({visible:true}).first()` continua a puntare alla
+  // prima categoria (tab di default). Il testid `option-grid` (non il ruolo
+  // radiogroup): le categorie kind=image sono griglie di OptionCard senza
+  // alcun ruolo ARIA di gruppo (configurator-client.tsx CategoryLane, ramo
+  // else) — un design con la PRIMA categoria a immagine faceva restare
+  // `getByRole("radiogroup")` a zero risultati e appendeva il test.
+  const firstGroup = step.getByTestId("option-grid").filter({ visible: true }).first();
   await expect(firstGroup).toBeVisible();
 
-  // choose the first option → preview composes a multiply layer, no reload
-  await firstGroup.getByRole("radio").first().click();
+  // choose the first option → preview composes a multiply layer, no reload.
+  // Locator CSS `button` (non getByRole): le Swatch (kind=color) sono
+  // role="radio", le OptionCard (kind=image) restano bottoni nativi — un
+  // unico locator che prende il primo controllo di entrambi i kind.
+  await firstGroup.locator("button").first().click();
   await expect(page).toHaveURL(/opt_/);
   await expect(
     page.locator('[data-testid="preview-canvas"] img[style*="multiply"]').first()
   ).toBeVisible();
 
-  // selection reconstructs after reload
+  // selection reconstructs after reload — "checked" state is aria-checked on
+  // a Swatch radio, aria-pressed on an OptionCard button.
   await page.reload();
   await expect(
-    step.getByRole("radio", { checked: true }).first()
+    step.locator('[aria-checked="true"], [aria-pressed="true"]').first()
   ).toBeVisible();
 });
 
@@ -150,6 +157,17 @@ test("AC5 (mobile): no horizontal overflow, touch targets ≥44px", async ({
   const box = await card.boundingBox();
   expect(box!.height).toBeGreaterThanOrEqual(44);
   expect(await horizontalOverflow(page)).toBeLessThanOrEqual(0);
+
+  // R4-STEP2: `html{overflow:hidden}` under md at step 2 (globals.css) blinds
+  // `horizontalOverflow()` above — a panel wider than the viewport is silently
+  // clipped, no scrollbar, no visible overflow. Assert the panel's own box
+  // instead: this is exactly the check that would have caught the 1524px
+  // panel blow-out found by hand during this branch's review.
+  await page.goto("/no/configurator?step=2");
+  const panel = page.getByTestId("details-step");
+  await expect(panel).toBeVisible();
+  const panelBox = await panel.boundingBox();
+  expect(panelBox!.width).toBeLessThanOrEqual(page.viewportSize()!.width);
 });
 
 test("R2-1a: changing the cover default in F10 changes the step-1 cover", async ({

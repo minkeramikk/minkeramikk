@@ -106,20 +106,31 @@ for (const locale of ["no", "en"] as const) {
       }
 
       // AC6 / R4-STEP2 (configurator-client.tsx#1111
-      // `max-md:[&_[data-pill-label]]:hidden`): sotto md l'etichetta lunga
-      // sparisce e resta solo la caption («Neste steg ›», mockup .navB) — va
-      // misurato quel nodo, non l'etichetta ora `display:none`.
+      // `max-md:[&_[data-pill-label]]:sr-only`): sotto md l'etichetta lunga
+      // sparisce visivamente (resta per lo screen reader) e resta visibile
+      // solo la caption («Neste steg ›», mockup .navB) — va misurato quel
+      // nodo.
       const label2 = w < 768
         ? pill2.locator("[data-pill-caption]")
         : pill2.locator("span.truncate");
       await expect(label2).toBeVisible();
-      const clipped2 = await label2.evaluate(
-        (el) => el.scrollWidth > el.clientWidth
-      );
-      expect(
-        clipped2,
-        `step 2 @${w} ${locale}: l'etichetta è troncata`
-      ).toBe(false);
+      if (w < 768) {
+        // La caption sotto md è `block`, non `truncate` (nessun overflow-x da
+        // misurare: andrebbe a capo, non troncherebbe — `scrollWidth >
+        // clientWidth` sarebbe strutturalmente sempre falso, una tautologia).
+        // L'invariante AC10 qui è "una riga sola" (mockup .navB): si conta
+        // `getClientRects()`, che torna >1 se il testo va a capo.
+        const lines = await label2.evaluate((el) => el.getClientRects().length);
+        expect(lines, `step 2 @${w} ${locale}: la caption va a capo`).toBe(1);
+      } else {
+        const clipped2 = await label2.evaluate(
+          (el) => el.scrollWidth > el.clientWidth
+        );
+        expect(
+          clipped2,
+          `step 2 @${w} ${locale}: l'etichetta è troncata`
+        ).toBe(false);
+      }
 
       await page.screenshot({
         path: `${OUT}/03-step2-${locale}-${w}.png`,

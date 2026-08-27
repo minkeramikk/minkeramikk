@@ -351,14 +351,26 @@ test("F02: capture 390/768/1280 with selections + composed preview", async ({
       const n = await tabs.count();
       for (let i = 0; i < n; i++) {
         await tabs.nth(i).click();
-        const group = page.getByTestId("details-step").getByRole("radiogroup");
-        await group.getByRole("radio").nth(2 + i).click();
+        // R4-STEP2: `option-grid` (non il ruolo radiogroup) — le categorie
+        // kind=image sono griglie di OptionCard senza alcun ruolo ARIA di
+        // gruppo (configurator-client.tsx CategoryLane), quindi contarne
+        // uno per tab assumendo il ruolo radiogroup andava a vuoto su quel
+        // kind. `button` prende il primo controllo di entrambi i kind.
+        const group = page
+          .getByTestId("details-step")
+          .getByTestId("option-grid")
+          .filter({ visible: true });
+        const buttons = group.locator("button");
+        const count = await buttons.count();
+        await buttons.nth(Math.min(2 + i, count - 1)).click();
       }
     } else {
-      const groups = page.getByTestId("details-step").getByRole("radiogroup");
+      const groups = page.getByTestId("details-step").getByTestId("option-grid");
       const n = await groups.count();
       for (let i = 0; i < n; i++) {
-        await groups.nth(i).getByRole("radio").nth(2 + i).click();
+        const buttons = groups.nth(i).locator("button");
+        const count = await buttons.count();
+        await buttons.nth(Math.min(2 + i, count - 1)).click();
       }
     }
     await page.waitForTimeout(900); // layer paint
