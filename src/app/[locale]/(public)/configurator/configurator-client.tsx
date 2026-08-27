@@ -698,7 +698,7 @@ export function ConfiguratorClient({
               // R4-STEP2 — tool panel (mockup .panelB): edge to edge, rounded
               // top corners, border and shadow from the tokens. It is the ONLY
               // scroll port of the editor (the page itself does not scroll).
-              "max-md:-mx-5 max-md:min-h-0 max-md:flex-1 max-md:gap-0 max-md:overflow-y-auto max-md:scroll-pb-[45vh] max-md:rounded-t-[var(--radius)] max-md:border-t-[1.5px] max-md:border-border max-md:bg-card max-md:px-3 max-md:shadow-[0_-6px_18px_color-mix(in_oklab,var(--mk-dark)_8%,transparent)]"
+              "max-md:-mx-5 max-md:min-h-0 max-md:flex-1 max-md:gap-0 max-md:overflow-y-auto max-md:scroll-pb-[45vh] max-md:scroll-pt-14 max-md:rounded-t-[var(--radius)] max-md:border-t-[1.5px] max-md:border-border max-md:bg-card max-md:px-3 max-md:shadow-[0_-6px_18px_color-mix(in_oklab,var(--mk-dark)_8%,transparent)]"
             )}
             data-testid="details-step"
             data-color-lock={colorLock ? "1" : "0"}
@@ -714,7 +714,8 @@ export function ConfiguratorClient({
                 `sticky top-0`: il pannello È la porta di scorrimento (Task 3),
                 senza questo la corsia — unico indice del pannello — scorrerebbe
                 via insieme al contenuto.
-                // TODO:nb-review — step2.tabsLabel / step2.tabCount / step2.extrasTab */}
+                // TODO:nb-review — step2.tabsLabel / step2.tabCount / step2.extrasTab /
+                step2.optionsLabel */}
             <div className="sticky top-0 z-10 -mx-3 flex-none bg-card px-3 md:hidden">
               <div
                 ref={tabsRef}
@@ -744,7 +745,7 @@ export function ConfiguratorClient({
                         "flex min-h-11 flex-none snap-start items-center gap-2 rounded-full px-3.5 text-[12.5px]",
                         "focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring",
                         on
-                          ? "bg-[color-mix(in_oklab,var(--primary)_14%,var(--background))] font-semibold text-primary"
+                          ? "bg-secondary font-semibold text-primary"
                           : "text-muted-foreground"
                       )}
                     >
@@ -771,8 +772,13 @@ export function ConfiguratorClient({
                     id={tabId(EXTRAS_TAB)}
                     role={isDesktop ? undefined : "tab"}
                     aria-selected={isDesktop ? undefined : activeTab === EXTRAS_TAB}
+                    // la tab «Detaljer» ha DUE contenitori (il DOM desktop
+                    // vuole note+scritta in fondo): `aria-controls` prende una
+                    // lista di id, quindi li annuncia entrambi.
                     aria-controls={
-                      isDesktop ? undefined : tabPanelId(EXTRAS_TAB)
+                      isDesktop
+                        ? undefined
+                        : `${tabPanelId(EXTRAS_TAB)} ${tabPanelId(EXTRAS_TAB)}-more`
                     }
                     tabIndex={activeTab === EXTRAS_TAB ? 0 : -1}
                     data-testid="category-tab-extras"
@@ -781,7 +787,7 @@ export function ConfiguratorClient({
                       "flex min-h-11 flex-none snap-start items-center rounded-full px-3.5 text-[12.5px]",
                       "focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring",
                       activeTab === EXTRAS_TAB
-                        ? "bg-[color-mix(in_oklab,var(--primary)_14%,var(--background))] font-semibold text-primary"
+                        ? "bg-secondary font-semibold text-primary"
                         : "text-muted-foreground"
                     )}
                   >
@@ -789,18 +795,20 @@ export function ConfiguratorClient({
                   </button>
                 )}
               </div>
-              {/* fade: accese solo finché c'è corsa (mockup fades()) */}
+              {/* fade: accese solo finché c'è corsa (mockup fades()).
+                  `left-3`/`right-3` = il `px-3` del wrapper: la sfumatura sta
+                  TUTTA sopra la corsia, non metà nella gronda del pannello. */}
               <span
                 aria-hidden
                 className={cn(
-                  "pointer-events-none absolute inset-y-0 left-0 w-6 bg-gradient-to-r from-card to-transparent transition-opacity",
+                  "pointer-events-none absolute inset-y-0 left-3 w-6 bg-gradient-to-r from-card to-transparent transition-opacity",
                   tabFades.left ? "opacity-100" : "opacity-0"
                 )}
               />
               <span
                 aria-hidden
                 className={cn(
-                  "pointer-events-none absolute inset-y-0 right-0 w-6 bg-gradient-to-l from-card to-transparent transition-opacity",
+                  "pointer-events-none absolute inset-y-0 right-3 w-6 bg-gradient-to-l from-card to-transparent transition-opacity",
                   tabFades.right ? "opacity-100" : "opacity-0"
                 )}
               />
@@ -961,6 +969,7 @@ export function ConfiguratorClient({
                 `md:contents`; NON ripete id/role — un id è unico e il tabpanel è
                 uno solo, questo ne è la continuazione visiva sotto md. */}
             <div
+              id={`${tabPanelId(EXTRAS_TAB)}-more`}
               data-testid="step2-extras-more"
               className={cn(
                 "md:contents",
