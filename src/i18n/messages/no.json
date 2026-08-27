@@ -76,7 +76,11 @@
       "titleDetails": "Velg detaljer",
       "titleBorders": "Velg kanter",
       "showMore": "Vis mer",
-      "showLess": "Vis mindre"
+      "showLess": "Vis mindre",
+      "tabsLabel": "Kategorier",
+      "tabCount": "{name} ({count})",
+      "extrasTab": "Detaljer",
+      "optionsLabel": "Farger og motiv"
     },
     "photos": {
       "photosLabel": "Bilder av designet",
@@ -123,7 +127,6 @@
       "ceramics": "Velg keramikk"
     },
     "setBadge": "Sett · {count, plural, one {# del} other {# deler}}",
-    "backToPreview": "Tilbake til forhåndsvisningen",
     "featured": {
       "title": "Populære design",
       "curated": "utvalgt av butikken",

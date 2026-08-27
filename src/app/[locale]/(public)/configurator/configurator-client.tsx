@@ -9,6 +9,7 @@ import { useWarmupPreviews } from "@/components/ui-domain/hover-preview";
 import { DesignDescription } from "./design-description";
 import { DesignPhotoStrip } from "./design-photo-strip";
 import { hasPhotos } from "@/lib/configurator/photos";
+import { useLaneFades } from "@/lib/configurator/use-lane-fades";
 import { PreviewCanvas } from "@/components/ui-domain/preview-canvas";
 import { Stepper } from "@/components/ui-domain/stepper";
 import { Swatch } from "@/components/ui-domain/swatch";
@@ -241,6 +242,24 @@ export function ConfiguratorClient({
   );
   const hasSyncGroup = detail.categories.some((c) => c.syncGroup);
 
+  // ── R4-STEP2: corsia tab del pannello mobile ──────────────────────────────
+  const tabsRef = useRef<HTMLDivElement>(null);
+  const tabFades = useLaneFades(
+    tabsRef,
+    `${selected.slug}:${detail.categories.length}`
+  );
+  const tabId = (key: string) => `step2-tab-${key}`;
+  const tabPanelId = (key: string) => `step2-panel-${key}`;
+  /** C'è qualcosa da mettere nella tab «Detaljer»? */
+  const hasExtras =
+    Boolean(
+      locale === "no" ? detail.descriptionStep2No : detail.descriptionStep2En
+    ) ||
+    hasPhotos(detail.images) ||
+    hasSyncGroup ||
+    detail.acceptsCustomNotes ||
+    detail.acceptsCustomText;
+
   // R1-FB2: warm the hover-popup images (colour options' layerImage) in idle,
   // desktop-only — first hover shows instantly. Same assetUrl the Swatch
   // popup uses, so the cache hit is guaranteed. Design switch → new URLs
@@ -411,6 +430,28 @@ export function ConfiguratorClient({
     radios[next]?.focus();
     const optId = cat.options[next]?.id;
     if (optId) selectOption(cat.slug, optId);
+  }
+
+  // R4-STEP2: frecce ←/→ (e Home/End) muovono E attivano la tab, come il
+  // radiogroup delle opzioni. Stessa mano, stessa aspettativa.
+  function onTabsKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
+    const keys = ["ArrowRight", "ArrowLeft", "Home", "End"];
+    if (!keys.includes(e.key)) return;
+    e.preventDefault();
+    const tabs = Array.from(
+      e.currentTarget.querySelectorAll<HTMLElement>(
+        "[data-testid^='category-tab-']"
+      )
+    );
+    if (tabs.length === 0) return;
+    const curr = tabs.indexOf(document.activeElement as HTMLElement);
+    let next = curr < 0 ? 0 : curr;
+    if (e.key === "ArrowRight") next = (curr + 1) % tabs.length;
+    else if (e.key === "ArrowLeft") next = (curr - 1 + tabs.length) % tabs.length;
+    else if (e.key === "Home") next = 0;
+    else next = tabs.length - 1;
+    tabs[next]?.focus();
+    tabs[next]?.click();
   }
 
   // AC3 / F13: two-way note toggle as a radiogroup (arrows/Home/End move + select).
@@ -657,19 +698,113 @@ export function ConfiguratorClient({
               // R4-STEP2 — tool panel (mockup .panelB): edge to edge, rounded
               // top corners, border and shadow from the tokens. It is the ONLY
               // scroll port of the editor (the page itself does not scroll).
-              "max-md:-mx-5 max-md:min-h-0 max-md:flex-1 max-md:overflow-y-auto max-md:scroll-pb-[45vh] max-md:rounded-t-[var(--radius)] max-md:border-t-[1.5px] max-md:border-border max-md:bg-card max-md:px-3 max-md:shadow-[0_-6px_18px_color-mix(in_oklab,var(--mk-dark)_8%,transparent)]"
+              "max-md:-mx-5 max-md:min-h-0 max-md:flex-1 max-md:gap-0 max-md:overflow-y-auto max-md:scroll-pb-[45vh] max-md:rounded-t-[var(--radius)] max-md:border-t-[1.5px] max-md:border-border max-md:bg-card max-md:px-3 max-md:shadow-[0_-6px_18px_color-mix(in_oklab,var(--mk-dark)_8%,transparent)]"
             )}
             data-testid="details-step"
             data-color-lock={colorLock ? "1" : "0"}
           >
-            {/* mockup .grab — panel affordance, decorative. `-mb-3` swallows
-                half of the panel's `gap-6`, which is there only for today's
-                vertical fieldsets: when Task 5 puts the horizontal lanes in and
-                the panel goes `max-md:gap-0`, drop this `-mb-3` with it. */}
+            {/* mockup .grab — panel affordance, decorative. */}
             <span
               aria-hidden
-              className="mx-auto hidden h-1 w-10 flex-none rounded-full bg-border max-md:-mb-3 max-md:mt-[7px] max-md:block"
+              className="mx-auto hidden h-1 w-10 flex-none rounded-full bg-border max-md:mt-[7px] max-md:block"
             />
+            {/* R4-STEP2 (mockup .cats): corsia tab orizzontale — solo mobile.
+                Dot = colore selezionato della categoria, conteggio = opzioni.
+                I ruoli tab esistono solo dove esiste la corsia (isDesktop).
+                `sticky top-0`: il pannello È la porta di scorrimento (Task 3),
+                senza questo la corsia — unico indice del pannello — scorrerebbe
+                via insieme al contenuto.
+                // TODO:nb-review — step2.tabsLabel / step2.tabCount / step2.extrasTab */}
+            <div className="sticky top-0 z-10 -mx-3 flex-none bg-card px-3 md:hidden">
+              <div
+                ref={tabsRef}
+                role={isDesktop ? undefined : "tablist"}
+                aria-label={t("step2.tabsLabel")}
+                aria-orientation="horizontal"
+                onKeyDown={onTabsKeyDown}
+                data-testid="category-tabs"
+                className="flex snap-x snap-proximity gap-1 overflow-x-auto scroll-smooth px-1 pb-0.5 pt-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+              >
+                {detail.categories.map((cat) => {
+                  const sel = selections[cat.slug];
+                  const selOpt = cat.options.find((o) => o.id === sel);
+                  const on = activeTab === cat.slug;
+                  return (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      id={tabId(cat.slug)}
+                      role={isDesktop ? undefined : "tab"}
+                      aria-selected={isDesktop ? undefined : on}
+                      aria-controls={isDesktop ? undefined : tabPanelId(cat.slug)}
+                      tabIndex={on ? 0 : -1}
+                      data-testid={`category-tab-${cat.slug}`}
+                      onClick={() => setActiveTab(cat.slug)}
+                      className={cn(
+                        "flex min-h-11 flex-none snap-start items-center gap-2 rounded-full px-3.5 text-[12.5px]",
+                        "focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring",
+                        on
+                          ? "bg-[color-mix(in_oklab,var(--primary)_14%,var(--background))] font-semibold text-primary"
+                          : "text-muted-foreground"
+                      )}
+                    >
+                      {/* dot = colore attualmente scelto (solo categorie colore) */}
+                      {cat.kind === "color" && (
+                        <span
+                          aria-hidden
+                          className="size-3.5 flex-none rounded-full border-[1.5px] border-border"
+                          style={{ backgroundColor: selOpt?.hex ?? "transparent" }}
+                        />
+                      )}
+                      {t("step2.tabCount", {
+                        name: label(cat),
+                        count: cat.options.length,
+                      })}
+                    </button>
+                  );
+                })}
+
+                {/* tab in coda: tutto ciò che non è una categoria */}
+                {hasExtras && (
+                  <button
+                    type="button"
+                    id={tabId(EXTRAS_TAB)}
+                    role={isDesktop ? undefined : "tab"}
+                    aria-selected={isDesktop ? undefined : activeTab === EXTRAS_TAB}
+                    aria-controls={
+                      isDesktop ? undefined : tabPanelId(EXTRAS_TAB)
+                    }
+                    tabIndex={activeTab === EXTRAS_TAB ? 0 : -1}
+                    data-testid="category-tab-extras"
+                    onClick={() => setActiveTab(EXTRAS_TAB)}
+                    className={cn(
+                      "flex min-h-11 flex-none snap-start items-center rounded-full px-3.5 text-[12.5px]",
+                      "focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring",
+                      activeTab === EXTRAS_TAB
+                        ? "bg-[color-mix(in_oklab,var(--primary)_14%,var(--background))] font-semibold text-primary"
+                        : "text-muted-foreground"
+                    )}
+                  >
+                    {t("step2.extrasTab")}
+                  </button>
+                )}
+              </div>
+              {/* fade: accese solo finché c'è corsa (mockup fades()) */}
+              <span
+                aria-hidden
+                className={cn(
+                  "pointer-events-none absolute inset-y-0 left-0 w-6 bg-gradient-to-r from-card to-transparent transition-opacity",
+                  tabFades.left ? "opacity-100" : "opacity-0"
+                )}
+              />
+              <span
+                aria-hidden
+                className={cn(
+                  "pointer-events-none absolute inset-y-0 right-0 w-6 bg-gradient-to-l from-card to-transparent transition-opacity",
+                  tabFades.right ? "opacity-100" : "opacity-0"
+                )}
+              />
+            </div>
             {/* the design name lives in the canvas summary in the editor */}
             <div className="max-md:hidden">
               <p className="text-[11px] uppercase tracking-[0.06em] text-muted-foreground">
@@ -678,6 +813,24 @@ export function ConfiguratorClient({
               <h2 className="mt-1 text-xl font-semibold">{designName(selected)}</h2>
             </div>
 
+            {/* R4-STEP2: su desktop `md:contents` rende questo wrapper invisibile
+                al layout — i figli restano esattamente dove sono oggi, nello
+                stesso ordine e con lo stesso `gap-6` del pannello. Sotto md è la
+                prima metà del pannello della tab «Detaljer» (la seconda — note e
+                scritta — sta in fondo, dove il DOM desktop la vuole). Un solo
+                scroller: quello del pannello (Task 3), quindi le due metà
+                scorrono insieme, di seguito. */}
+            <div
+              id={tabPanelId(EXTRAS_TAB)}
+              role={isDesktop ? undefined : "tabpanel"}
+              aria-labelledby={isDesktop ? undefined : tabId(EXTRAS_TAB)}
+              data-testid="step2-extras"
+              className={cn(
+                "md:contents",
+                "max-md:flex max-md:flex-col max-md:gap-4 max-md:px-1 max-md:py-3",
+                activeTab !== EXTRAS_TAB && "max-md:hidden"
+              )}
+            >
             {/* F36: design description (per-locale) — no text, no block */}
             {(() => {
               const desc =
@@ -709,6 +862,7 @@ export function ConfiguratorClient({
                 </span>
               </label>
             )}
+            </div>
 
             {detail.categories.map((cat) => {
               const sel = selections[cat.slug];
@@ -724,8 +878,20 @@ export function ConfiguratorClient({
               return (
                 <fieldset
                   key={cat.id}
+                  // R4-STEP2: sotto md il fieldset È il pannello della sua tab —
+                  // senza id/role l'`aria-controls` della corsia punterebbe nel
+                  // vuoto e tutte le categorie resterebbero visibili insieme.
+                  // Da md in su resta il fieldset di sempre (attributi ARIA
+                  // spenti da `isDesktop`, classi tutte `max-md:`).
+                  id={tabPanelId(cat.slug)}
+                  role={isDesktop ? undefined : "tabpanel"}
+                  aria-labelledby={isDesktop ? undefined : tabId(cat.slug)}
                   data-testid={`category-${cat.slug}`}
-                  className="min-w-0"
+                  className={cn(
+                    "min-w-0",
+                    "max-md:px-1 max-md:py-3",
+                    activeTab !== cat.slug && "max-md:hidden"
+                  )}
                 >
                   <legend className="mb-2 text-[11px] font-semibold uppercase tracking-[0.06em]">
                     {label(cat)}
@@ -791,6 +957,17 @@ export function ConfiguratorClient({
               );
             })}
 
+            {/* R4-STEP2: seconda metà della tab «Detaljer». Stessa tecnica
+                `md:contents`; NON ripete id/role — un id è unico e il tabpanel è
+                uno solo, questo ne è la continuazione visiva sotto md. */}
+            <div
+              data-testid="step2-extras-more"
+              className={cn(
+                "md:contents",
+                "max-md:flex max-md:flex-col max-md:gap-4 max-md:px-1 max-md:pb-3",
+                activeTab !== EXTRAS_TAB && "max-md:hidden"
+              )}
+            >
             {/* R2-2b: custom colour note block — only when the design supports it (AC2).
                 The note lives in state + URL param only; it never enters selections or
                 previewLayers (AC3, no-preview-mutation invariant). */}
@@ -921,6 +1098,7 @@ export function ConfiguratorClient({
                 </div>
               </section>
             )}
+            </div>
 
             {/* CA-2: Back + advance close the options column (last in DOM →
                 natural tab order: options → CTA).
