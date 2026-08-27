@@ -38,6 +38,9 @@ import type { PreviewLayer } from "@/lib/configurator/preview";
  *  esportata: identità stabile fra i render, vive solo in questo file. */
 const EXTRAS_TAB = "__extras";
 
+/** Pagina di ispirazione del cliente (fuori sito, apre in nuova scheda). */
+const INSPIRATION_URL = "https://www.minkeramikk.no/inspirasjon";
+
 export interface DesignChoice {
   id: string;
   slug: string;
@@ -580,12 +583,25 @@ export function ConfiguratorClient({
                 "max-md:flex max-md:min-h-0 max-md:flex-1 max-md:items-center max-md:justify-center max-md:[&_[data-canvas-frame]]:h-full max-md:[&_[data-canvas-frame]]:w-full max-md:[&_[data-canvas-frame]]:max-w-none max-md:[&_[data-canvas-frame]]:bg-transparent max-md:[&_[data-canvas-frame]]:shadow-none max-md:[&_p]:hidden"
             )}
           >
-            {/* R4-COPY Ⓒ: the caption is a closed sentence for now — the
-                "inspirasjonsside ↗" link (new tab) lands once Alessio gives
-                us the URL. */}
+            {/* R4-COPY Ⓒ (chiusa): la didascalia ora porta il link alla
+                inspirasjonsside. `t.rich` rende il tag <link> del dizionario —
+                nessun HTML crudo nei JSON. Nuova scheda: dal configuratore non
+                si esce mai. */}
             <PreviewCanvas
               alt={designName(selected)}
-              caption={t("previewNote")}
+              caption={t.rich("previewNote", {
+                link: (chunks) => (
+                  <a
+                    href={INSPIRATION_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    data-testid="preview-note-link"
+                    className="rounded-sm text-primary underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                  >
+                    {chunks}
+                  </a>
+                ),
+              })}
               className={cn(step === 2 && "max-md:contents")}
               layers={previewLayers}
             />

@@ -77,7 +77,8 @@ export function PreviewCanvas({
   className,
 }: {
   layers: PreviewLayer[];
-  caption?: string;
+  /** Rich node, not just text: the configurator caption carries a link. */
+  caption?: React.ReactNode;
   alt: string;
   className?: string;
 }) {
