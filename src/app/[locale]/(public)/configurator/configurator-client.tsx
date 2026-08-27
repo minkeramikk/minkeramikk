@@ -839,37 +839,37 @@ export function ConfiguratorClient({
                 activeTab !== EXTRAS_TAB && "max-md:hidden"
               )}
             >
-            {/* F36: design description (per-locale) — no text, no block */}
-            {(() => {
-              const desc =
-                locale === "no" ? detail.descriptionStep2No : detail.descriptionStep2En;
-              return desc ? <DesignDescription text={desc} /> : null;
-            })()}
-            {/* F36: real-photo filmstrip — no images, no strip, no placeholder */}
-            {hasPhotos(detail.images) && (
-              <DesignPhotoStrip
-                images={detail.images}
-                alt={designName(selected)}
-              />
-            )}
-
-            {hasSyncGroup && (
-              <label className="flex items-center gap-2.5 text-sm">
-                <input
-                  type="checkbox"
-                  checked={colorLock}
-                  onChange={(e) => toggleLock(e.target.checked)}
-                  className="size-4 accent-[var(--mk-accent)]"
-                  data-testid="color-lock"
+              {/* F36: design description (per-locale) — no text, no block */}
+              {(() => {
+                const desc =
+                  locale === "no" ? detail.descriptionStep2No : detail.descriptionStep2En;
+                return desc ? <DesignDescription text={desc} /> : null;
+              })()}
+              {/* F36: real-photo filmstrip — no images, no strip, no placeholder */}
+              {hasPhotos(detail.images) && (
+                <DesignPhotoStrip
+                  images={detail.images}
+                  alt={designName(selected)}
                 />
-                <span>
-                  <span className="font-medium">{t("lockColors")}</span>
-                  <span className="ml-2 text-muted-foreground">
-                    {t("lockColorsHint")}
+              )}
+
+              {hasSyncGroup && (
+                <label className="flex items-center gap-2.5 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={colorLock}
+                    onChange={(e) => toggleLock(e.target.checked)}
+                    className="size-4 accent-[var(--mk-accent)]"
+                    data-testid="color-lock"
+                  />
+                  <span>
+                    <span className="font-medium">{t("lockColors")}</span>
+                    <span className="ml-2 text-muted-foreground">
+                      {t("lockColorsHint")}
+                    </span>
                   </span>
-                </span>
-              </label>
-            )}
+                </label>
+              )}
             </div>
 
             {detail.categories.map((cat) => {
@@ -977,136 +977,136 @@ export function ConfiguratorClient({
                 activeTab !== EXTRAS_TAB && "max-md:hidden"
               )}
             >
-            {/* R2-2b: custom colour note block — only when the design supports it (AC2).
-                The note lives in state + URL param only; it never enters selections or
-                previewLayers (AC3, no-preview-mutation invariant). */}
-            {detail.acceptsCustomNotes && (
-              <section
-                data-testid="custom-notes"
-                className="rounded-sm border border-border bg-card/40 p-4"
-              >
-                <h3 className="mb-1 text-[11px] font-semibold uppercase tracking-[0.06em]">
-                  {t("customNotes.title")}
-                </h3>
-                <div className="mt-2 flex flex-col-reverse gap-3 sm:flex-row sm:items-start">
-                  <div
-                    role="radiogroup"
-                    aria-label={t("customNotes.title")}
-                    onKeyDown={onNoteKeyDown}
-                    data-testid="custom-notes-toggle"
-                    className="flex flex-1 flex-col gap-2"
-                  >
-                    {(["default", "custom"] as const).map((mode) => (
-                      <button
-                        key={mode}
-                        type="button"
-                        role="radio"
-                        aria-checked={noteMode === mode}
-                        tabIndex={noteMode === mode ? 0 : -1}
-                        data-testid={`custom-notes-${mode}`}
-                        onClick={() => setNoteMode(mode)}
-                        className={[
-                          "flex min-h-11 items-center gap-2 rounded-sm border-[1.5px] px-3 text-left text-sm transition-colors",
-                          "focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring",
-                          noteMode === mode
-                            ? "border-primary bg-primary/5"
-                            : "border-border bg-card hover:border-ring",
-                        ].join(" ")}
+              {/* R2-2b: custom colour note block — only when the design supports it (AC2).
+                  The note lives in state + URL param only; it never enters selections or
+                  previewLayers (AC3, no-preview-mutation invariant). */}
+              {detail.acceptsCustomNotes && (
+                <section
+                  data-testid="custom-notes"
+                  className="rounded-sm border border-border bg-card/40 p-4"
+                >
+                  <h3 className="mb-1 text-[11px] font-semibold uppercase tracking-[0.06em]">
+                    {t("customNotes.title")}
+                  </h3>
+                  <div className="mt-2 flex flex-col-reverse gap-3 sm:flex-row sm:items-start">
+                    <div
+                      role="radiogroup"
+                      aria-label={t("customNotes.title")}
+                      onKeyDown={onNoteKeyDown}
+                      data-testid="custom-notes-toggle"
+                      className="flex flex-1 flex-col gap-2"
+                    >
+                      {(["default", "custom"] as const).map((mode) => (
+                        <button
+                          key={mode}
+                          type="button"
+                          role="radio"
+                          aria-checked={noteMode === mode}
+                          tabIndex={noteMode === mode ? 0 : -1}
+                          data-testid={`custom-notes-${mode}`}
+                          onClick={() => setNoteMode(mode)}
+                          className={[
+                            "flex min-h-11 items-center gap-2 rounded-sm border-[1.5px] px-3 text-left text-sm transition-colors",
+                            "focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring",
+                            noteMode === mode
+                              ? "border-primary bg-primary/5"
+                              : "border-border bg-card hover:border-ring",
+                          ].join(" ")}
+                        >
+                          {mode === "default"
+                            ? t("customNotes.optionDefault")
+                            : t("customNotes.optionCustom")}
+                        </button>
+                      ))}
+                    </div>
+
+                    {selectedFigure && (
+                      <div
+                        data-testid="colour-notes-figure"
+                        className="flex shrink-0 flex-col items-center gap-1 rounded-sm border border-border bg-muted/40 p-2 sm:w-28"
                       >
-                        {mode === "default"
-                          ? t("customNotes.optionDefault")
-                          : t("customNotes.optionCustom")}
-                      </button>
-                    ))}
+                        <span className="text-center text-[10px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                          {t("customNotes.selectedFigure")}
+                        </span>
+                        {/* eslint-disable-next-line @next/next/no-img-element -- catalog art from storage */}
+                        <img
+                          src={assetUrl(selectedFigure.art)}
+                          alt={selectedFigure.name}
+                          className="size-16 object-contain"
+                        />
+                        <span className="text-center text-xs text-muted-foreground">
+                          {selectedFigure.name}
+                        </span>
+                      </div>
+                    )}
                   </div>
 
-                  {selectedFigure && (
-                    <div
-                      data-testid="colour-notes-figure"
-                      className="flex shrink-0 flex-col items-center gap-1 rounded-sm border border-border bg-muted/40 p-2 sm:w-28"
-                    >
-                      <span className="text-center text-[10px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
-                        {t("customNotes.selectedFigure")}
-                      </span>
-                      {/* eslint-disable-next-line @next/next/no-img-element -- catalog art from storage */}
-                      <img
-                        src={assetUrl(selectedFigure.art)}
-                        alt={selectedFigure.name}
-                        className="size-16 object-contain"
+                  {noteMode === "custom" && (
+                    <div className="mt-3">
+                      <textarea
+                        ref={noteTextareaRef}
+                        data-testid="custom-notes-text"
+                        value={noteText}
+                        maxLength={250}
+                        rows={3}
+                        onChange={(e) => setNoteText(e.target.value)}
+                        placeholder={t("customNotes.placeholder")}
+                        aria-describedby="custom-notes-helper"
+                        className="w-full rounded-sm border border-input bg-card p-2 text-base focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring md:text-sm"
                       />
-                      <span className="text-center text-xs text-muted-foreground">
-                        {selectedFigure.name}
-                      </span>
+                      <div className="mt-1 flex items-start justify-between gap-3">
+                        <p
+                          id="custom-notes-helper"
+                          data-testid="custom-notes-helper"
+                          className="text-xs text-muted-foreground"
+                        >
+                          {t("customNotes.helper")}
+                        </p>
+                        <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+                          {t("customNotes.counter", { count: noteText.length })}
+                        </span>
+                      </div>
                     </div>
                   )}
-                </div>
+                </section>
+              )}
 
-                {noteMode === "custom" && (
-                  <div className="mt-3">
-                    <textarea
-                      ref={noteTextareaRef}
-                      data-testid="custom-notes-text"
-                      value={noteText}
-                      maxLength={250}
-                      rows={3}
-                      onChange={(e) => setNoteText(e.target.value)}
-                      placeholder={t("customNotes.placeholder")}
-                      aria-describedby="custom-notes-helper"
-                      className="w-full rounded-sm border border-input bg-card p-2 text-base focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring md:text-sm"
-                    />
-                    <div className="mt-1 flex items-start justify-between gap-3">
-                      <p
-                        id="custom-notes-helper"
-                        data-testid="custom-notes-helper"
-                        className="text-xs text-muted-foreground"
-                      >
-                        {t("customNotes.helper")}
-                      </p>
-                      <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
-                        {t("customNotes.counter", { count: noteText.length })}
-                      </span>
-                    </div>
+              {/* F38: custom inscription — only when the design supports it.
+                  Plain optional input (no default/custom toggle, unlike the note);
+                  lives in state + text= URL param only, never the code/preview. */}
+              {detail.acceptsCustomText && (
+                <section
+                  data-testid="custom-text"
+                  className="rounded-sm border border-border bg-card/40 p-4"
+                >
+                  <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-[0.06em]">
+                    {t("customText.title")}
+                  </h3>
+                  <input
+                    type="text"
+                    data-testid="custom-text-input"
+                    value={customText}
+                    maxLength={100}
+                    onChange={(e) => setCustomText(e.target.value)}
+                    placeholder={t("customText.placeholder")}
+                    aria-label={t("customText.title")}
+                    aria-describedby="custom-text-helper"
+                    className="w-full rounded-sm border border-input bg-card p-2 text-base focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring md:text-sm"
+                  />
+                  <div className="mt-1 flex items-start justify-between gap-3">
+                    <p
+                      id="custom-text-helper"
+                      data-testid="custom-text-helper"
+                      className="text-xs text-muted-foreground"
+                    >
+                      {t("customText.helper")}
+                    </p>
+                    <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+                      {t("customText.counter", { count: customText.length })}
+                    </span>
                   </div>
-                )}
-              </section>
-            )}
-
-            {/* F38: custom inscription — only when the design supports it.
-                Plain optional input (no default/custom toggle, unlike the note);
-                lives in state + text= URL param only, never the code/preview. */}
-            {detail.acceptsCustomText && (
-              <section
-                data-testid="custom-text"
-                className="rounded-sm border border-border bg-card/40 p-4"
-              >
-                <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-[0.06em]">
-                  {t("customText.title")}
-                </h3>
-                <input
-                  type="text"
-                  data-testid="custom-text-input"
-                  value={customText}
-                  maxLength={100}
-                  onChange={(e) => setCustomText(e.target.value)}
-                  placeholder={t("customText.placeholder")}
-                  aria-label={t("customText.title")}
-                  aria-describedby="custom-text-helper"
-                  className="w-full rounded-sm border border-input bg-card p-2 text-base focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring md:text-sm"
-                />
-                <div className="mt-1 flex items-start justify-between gap-3">
-                  <p
-                    id="custom-text-helper"
-                    data-testid="custom-text-helper"
-                    className="text-xs text-muted-foreground"
-                  >
-                    {t("customText.helper")}
-                  </p>
-                  <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
-                    {t("customText.counter", { count: customText.length })}
-                  </span>
-                </div>
-              </section>
-            )}
+                </section>
+              )}
             </div>
 
             {/* CA-2: Back + advance close the options column (last in DOM →
