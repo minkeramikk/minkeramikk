@@ -32,6 +32,11 @@ import { cn } from "@/lib/utils";
 import type { DesignDetail } from "@/lib/catalog/design-options";
 import type { PreviewLayer } from "@/lib/configurator/preview";
 
+/** R4-STEP2: tab del pannello mobile che raccoglie ciò che non è una categoria
+ *  (descrizione, foto, lås farger, note, scritta). Costante di modulo, non
+ *  esportata: identità stabile fra i render, vive solo in questo file. */
+const EXTRAS_TAB = "__extras";
+
 export interface DesignChoice {
   id: string;
   slug: string;
@@ -102,11 +107,32 @@ export function ConfiguratorClient({
     return () => mq.removeEventListener("change", apply);
   }, []);
 
+  // R4-STEP2: l'editor mobile è < md (768). Serve SOLO per i ruoli ARIA
+  // (tablist/tab/tabpanel esistono solo dove esiste la corsia tab): il layout è
+  // tutto CSS `max-md:`, quindi il primo paint non sfarfalla.
+  const [isDesktop, setIsDesktop] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 768px)");
+    const apply = () => setIsDesktop(mq.matches);
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, []);
+
   const step = searchParams.get("step") === "2" ? 2 : 1;
   const urlSlug = searchParams.get("design");
   const selected =
     designs.find((d) => d.slug === urlSlug) ?? designs[0]; // sort_order=1 default (AC1)
   const detail = detailsBySlug[selected.slug];
+  /** Tab attiva del pannello mobile: slug di categoria, oppure `EXTRAS_TAB`. */
+  const [activeTab, setActiveTab] = useState<string>(
+    detail.categories[0]?.slug ?? EXTRAS_TAB
+  );
+  // design nuovo = categorie nuove: la tab attiva torna alla prima.
+  useEffect(() => {
+    setActiveTab(detail.categories[0]?.slug ?? EXTRAS_TAB);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- key on design only
+  }, [selected.slug]);
   const colorLock = searchParams.get("lock") === "1";
   // R3-B23: the block describes the SELECTION, so it takes name/description from
   // `selected` and is injected after the last card of the selected card's row.
