@@ -339,10 +339,27 @@ test("F02: capture 390/768/1280 with selections + composed preview", async ({
     await page.goto("/no/configurator?design=blomster-1&step=2");
     await page.getByTestId("details-step").waitFor({ state: "visible" });
     // make a colour choice in each category so the preview composes
-    const groups = page.getByTestId("details-step").getByRole("radiogroup");
-    const n = await groups.count();
-    for (let i = 0; i < n; i++) {
-      await groups.nth(i).getByRole("radio").nth(2 + i).click();
+    if (width < 768) {
+      // R4-STEP2: sotto md solo la corsia della tab categoria ATTIVA è nel
+      // DOM accessibile (le altre sono `max-md:hidden`, configurator-client
+      // .tsx `!active && "max-md:hidden"` sul fieldset di CategoryLane) — va
+      // aperta ogni tab prima di poterne selezionare l'opzione. La tab
+      // «Detaljer» (in coda, se presente) non è una categoria: si salta.
+      const tabs = page.locator(
+        '[data-testid^="category-tab-"]:not([data-testid="category-tab-extras"])'
+      );
+      const n = await tabs.count();
+      for (let i = 0; i < n; i++) {
+        await tabs.nth(i).click();
+        const group = page.getByTestId("details-step").getByRole("radiogroup");
+        await group.getByRole("radio").nth(2 + i).click();
+      }
+    } else {
+      const groups = page.getByTestId("details-step").getByRole("radiogroup");
+      const n = await groups.count();
+      for (let i = 0; i < n; i++) {
+        await groups.nth(i).getByRole("radio").nth(2 + i).click();
+      }
     }
     await page.waitForTimeout(900); // layer paint
     await page.screenshot({ path: `${OUT2}/f02-${width}.png`, fullPage: true });

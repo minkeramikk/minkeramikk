@@ -10,6 +10,7 @@ import {
   ceramicCards,
   horizontalOverflow,
   loginAdmin,
+  openStep2Extras,
   ADMIN_READY,
 } from "./helpers";
 
@@ -90,8 +91,12 @@ test("AC2: step 2 shows the design's option categories; a choice updates the pre
   const step = page.getByTestId("details-step");
   await expect(step).toBeVisible();
   await expect(page.getByTestId("design-photo-strip")).toHaveCount(0);
-  // at least one option category with a radiogroup
-  const firstGroup = step.getByRole("radiogroup").first();
+  // at least one option category with a radiogroup. R4-STEP2: sotto md solo
+  // la corsia della tab attiva è visibile (le altre sono `max-md:hidden`,
+  // configurator-client.tsx CategoryLane) — `.first()` continua a puntare
+  // alla prima categoria (tab di default), ma la scoping esplicita evita di
+  // prendere una corsia nascosta se in futuro cambia l'ordine.
+  const firstGroup = step.getByRole("radiogroup").filter({ visible: true }).first();
   await expect(firstGroup).toBeVisible();
 
   // choose the first option → preview composes a multiply layer, no reload
@@ -502,6 +507,8 @@ test.describe("R2-2b custom notes", () => {
     try {
       // (c) Public configurator — step 2 with the flagged design.
       await page.goto(`/no/configurator?design=${design.slug}&step=2`);
+      // R4-STEP2: sotto md il blocco vive nella tab «Detaljer» (no-op su desktop).
+      await openStep2Extras(page);
 
       // AC2: custom-notes block is visible when flag is set.
       const block = page.getByTestId("custom-notes");
@@ -587,6 +594,8 @@ test.describe("R2-2b custom notes", () => {
     try {
       // (c) Public configurator — step 2 with the flagged design.
       await page.goto(`/no/configurator?design=${design.slug}&step=2`);
+      // R4-STEP2: sotto md il blocco vive nella tab «Detaljer» (no-op su desktop).
+      await openStep2Extras(page);
 
       // AC: custom-text block is visible when flag is set.
       const block = page.getByTestId("custom-text");

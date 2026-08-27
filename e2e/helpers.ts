@@ -376,3 +376,13 @@ export const horizontalOverflow = (page: Page) =>
   page.evaluate(
     () => document.documentElement.scrollWidth - window.innerWidth
   );
+
+/**
+ * R4-STEP2: sotto md lo step 2 è un editor a tab — descrizione, foto,
+ * «Lås farger», note colore e scritta vivono nella tab «Detaljer». Su desktop
+ * la tab non esiste e i blocchi sono già in pagina: no-op.
+ */
+export async function openStep2Extras(page: Page): Promise<void> {
+  const tab = page.getByTestId("category-tab-extras");
+  if (await tab.isVisible().catch(() => false)) await tab.click();
+}
