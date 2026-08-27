@@ -95,8 +95,6 @@ export function ConfiguratorClient({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  /** Wrapper of the big preview — the editor canvas on mobile step 2 (R4-STEP2). */
-  const previewRef = useRef<HTMLDivElement>(null);
   // R3-B23: live column count (2 under sm, 3 from sm) — same grid as step 3, so
   // the contextual block lands after the LAST card of the selected card's row.
   const [cols, setCols] = useState(2);
@@ -564,7 +562,6 @@ export function ConfiguratorClient({
           )}
         >
           <div
-            ref={previewRef}
             data-testid="preview-sticky"
             className={cn(
               "max-md:mx-auto max-md:w-full",
@@ -573,10 +570,14 @@ export function ConfiguratorClient({
               // transparent full-size area and the plate — already object-contain
               // — fits whichever side is shorter. No change to the shared
               // component: `contents` on its root plus child variants from here.
+              // `[&_[data-canvas-frame]]` targets the inner frame via its
+              // stable data hook (preview-canvas.tsx), a descendant selector —
+              // survives `PreviewCanvas` changing its internal nesting, unlike
+              // the structural `[&>div>div]` this replaces.
               // `[&_p]:hidden` kills the long caption (its only <p>); the summary
               // line below sits OUTSIDE this wrapper and is untouched.
               step === 2 &&
-                "max-md:flex max-md:min-h-0 max-md:flex-1 max-md:items-center max-md:justify-center max-md:[&>div>div]:h-full max-md:[&>div>div]:w-full max-md:[&>div>div]:max-w-none max-md:[&>div>div]:bg-transparent max-md:[&>div>div]:shadow-none max-md:[&_p]:hidden"
+                "max-md:flex max-md:min-h-0 max-md:flex-1 max-md:items-center max-md:justify-center max-md:[&_[data-canvas-frame]]:h-full max-md:[&_[data-canvas-frame]]:w-full max-md:[&_[data-canvas-frame]]:max-w-none max-md:[&_[data-canvas-frame]]:bg-transparent max-md:[&_[data-canvas-frame]]:shadow-none max-md:[&_p]:hidden"
             )}
           >
             {/* R4-COPY Ⓒ: the caption is a closed sentence for now — the
@@ -725,8 +726,8 @@ export function ConfiguratorClient({
               <div
                 ref={tabsRef}
                 role={isDesktop ? undefined : "tablist"}
-                aria-label={t("step2.tabsLabel")}
-                aria-orientation="horizontal"
+                aria-label={isDesktop ? undefined : t("step2.tabsLabel")}
+                aria-orientation={isDesktop ? undefined : "horizontal"}
                 onKeyDown={onTabsKeyDown}
                 data-testid="category-tabs"
                 className="flex snap-x snap-proximity gap-1 overflow-x-auto scroll-smooth px-1 pb-0.5 pt-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
@@ -834,9 +835,14 @@ export function ConfiguratorClient({
                 scroller: quello del pannello (Task 3), quindi le due metà
                 scorrono insieme, di seguito. */}
             <div
-              id={tabPanelId(EXTRAS_TAB)}
-              role={isDesktop ? undefined : "tabpanel"}
-              aria-labelledby={isDesktop ? undefined : tabId(EXTRAS_TAB)}
+              // hasExtras=false → nessuna tab «Detaljer» esiste (gated sopra
+              // sullo stesso flag): id/role/aria-labelledby penzolerebbero su
+              // una tab mai renderizzata. Il wrapper resta (i suoi figli sono
+              // comunque tutti vuoti in quel caso), solo il plumbing ARIA è
+              // gated.
+              id={hasExtras ? tabPanelId(EXTRAS_TAB) : undefined}
+              role={hasExtras && !isDesktop ? "tabpanel" : undefined}
+              aria-labelledby={hasExtras && !isDesktop ? tabId(EXTRAS_TAB) : undefined}
               data-testid="step2-extras"
               className={cn(
                 "md:contents",
@@ -894,10 +900,14 @@ export function ConfiguratorClient({
             ))}
 
             {/* R4-STEP2: seconda metà della tab «Detaljer». Stessa tecnica
-                `md:contents`; NON ripete id/role — un id è unico e il tabpanel è
-                uno solo, questo ne è la continuazione visiva sotto md. */}
+                `md:contents`; l'id non si ripete (resta unico), ma il ruolo
+                tabpanel SÌ — `aria-controls` sulla tab elenca ENTRAMBI questi
+                id (sopra), quindi entrambi vanno annunciati come contenuto
+                della tab, non solo il primo. */}
             <div
-              id={`${tabPanelId(EXTRAS_TAB)}-more`}
+              id={hasExtras ? `${tabPanelId(EXTRAS_TAB)}-more` : undefined}
+              role={hasExtras && !isDesktop ? "tabpanel" : undefined}
+              aria-labelledby={hasExtras && !isDesktop ? tabId(EXTRAS_TAB) : undefined}
               data-testid="step2-extras-more"
               className={cn(
                 "md:contents",
@@ -1101,14 +1111,19 @@ export function ConfiguratorClient({
                 // «Choose ceramics» si troncava (misurato in Chromium: EN@360
                 // labelClipped=true). Nell'editor la pillola diventa quella del
                 // mockup (.navB): SOLO «Neste steg ›». Quindi sotto md sparisce
-                // l'ETICHETTA lunga (`data-pill-label`) e resta la CAPTION, che
-                // prende la taglia da CTA (15px semibold, niente maiuscoletto).
-                // display:none, non opacity: i nodi nascosti non occupano più
-                // larghezza né generano gap. Da md in su non cambia nulla:
-                // caption sopra, etichetta lunga sotto, foto, freccetta.
+                // VISIVAMENTE l'ETICHETTA lunga (`data-pill-label`) e resta la
+                // CAPTION, che prende la taglia da CTA (15px semibold, niente
+                // maiuscoletto).
+                // Ruling finale (rivede quello precedente): `sr-only`, non
+                // `hidden` — così il nome accessibile resta «Choose ceramics»/
+                // «Velg keramikk» (la destinazione vera) invece di ridursi a
+                // «Next step». `sr-only` è `position:absolute`: come `hidden`
+                // non occupa larghezza né genera gap nel flex, quindi il costo
+                // visivo è zero. Da md in su non cambia nulla: caption sopra,
+                // etichetta lunga sotto, foto, freccetta.
                 // Le varianti `@container` sono `md:`-prefissate: sotto md non
                 // competono più con queste.
-                className="md:@max-md:gap-2.5 md:@max-md:p-2.5 md:@max-md:[&>span:last-child]:size-8 md:@md:flex-[1_1_16rem] max-md:flex-1 max-md:[&_[data-pill-label]]:hidden max-md:[&_[data-pill-caption]]:text-[15px] max-md:[&_[data-pill-caption]]:font-semibold max-md:[&_[data-pill-caption]]:normal-case max-md:[&_[data-pill-caption]]:tracking-normal max-md:[&_[data-pill-caption]]:text-foreground"
+                className="md:@max-md:gap-2.5 md:@max-md:p-2.5 md:@max-md:[&>span:last-child]:size-8 md:@md:flex-[1_1_16rem] max-md:flex-1 max-md:[&_[data-pill-label]]:sr-only max-md:[&_[data-pill-caption]]:text-[15px] max-md:[&_[data-pill-caption]]:font-semibold max-md:[&_[data-pill-caption]]:normal-case max-md:[&_[data-pill-caption]]:tracking-normal max-md:[&_[data-pill-caption]]:text-foreground"
                 caption={t("teaser.nextStep")}
                 label={t("teaser.ceramics")}
                 arrow
