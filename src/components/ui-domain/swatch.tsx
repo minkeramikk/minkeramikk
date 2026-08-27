@@ -42,6 +42,7 @@ export function Swatch({
   previewSrc,
   previewAlt,
   tabIndex,
+  compact = false,
 }: {
   hex: string;
   name: string;
@@ -57,6 +58,14 @@ export function Swatch({
   previewSrc?: string;
   previewAlt?: string;
   tabIndex?: number;
+  /**
+   * R4-FIX 5: corsia densa dell'editor mobile (gruppi > 9 opzioni). Su un
+   * iPhone reale il pannello lascia ~110px per DUE righe: con il cerchio da
+   * 44px le righe non ci stanno e le etichette finivano sopra gli swatch. Qui
+   * il cerchio scende a 40px — decisione PM «riduci, non tagliare» — e resta
+   * l'unico posto del sito sotto i 44px di target.
+   */
+  compact?: boolean;
 }) {
   const ref = useRef<HTMLButtonElement>(null);
   // R1-FB4: popup mechanics extracted to the shared hover-preview — same
@@ -80,7 +89,7 @@ export function Swatch({
         onBlur={hide}
         style={{ backgroundColor: hex }}
         className={cn(
-          "relative size-11 overflow-hidden rounded-full border-2 border-card transition-shadow",
+          compact ? "relative size-10 overflow-hidden rounded-full border-2 border-card transition-shadow" : "relative size-11 overflow-hidden rounded-full border-2 border-card transition-shadow",
           "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
           // R1-FB3: hover ring sits between idle and selected so the circle
           // itself signals "selectable" (before, only the popup reacted)

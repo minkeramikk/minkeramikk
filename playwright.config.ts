@@ -72,6 +72,14 @@ export default defineConfig({
       use: { ...devices["Desktop Chrome"] },
     },
     {
+      // R4-FIX: geometria dell'editor mobile step 2 su un telefono CORTO
+      // (iPhone con le barre di Chrome). Progetto a sé perché è l'altezza —
+      // non solo la larghezza — a far uscire i difetti.
+      name: "editor",
+      testMatch: /step2-editor\.spec\.ts$/,
+      use: { ...devices["Desktop Chrome"], viewport: { width: 390, height: 660 } },
+    },
+    {
       // Client-evidence screenshots (tooling, not a gate).
       name: "evidence",
       testMatch: /evidence\.spec\.ts$/,

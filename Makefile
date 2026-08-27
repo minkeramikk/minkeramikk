@@ -47,7 +47,7 @@ run-e2e-core: build
 
 # suite intera (no email, no evidence) — gate manuale prima di `preview` / go-live
 run-e2e: build
-	npx playwright test --project=desktop --project=mobile
+	npx playwright test --project=desktop --project=mobile --project=editor
 
 # OPT-IN: un solo ordine invia email reali alla casella dedicata
 test-email: build

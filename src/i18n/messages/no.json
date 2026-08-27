@@ -80,6 +80,7 @@
       "tabsLabel": "Kategorier",
       "tabCount": "{name} ({count})",
       "extrasTab": "Detaljer",
+      "photosTab": "Bilder",
       "optionsLabel": "Farger og motiv"
     },
     "photos": {
@@ -144,7 +145,6 @@
     },
     "customText": {
       "title": "Tekst på keramikken",
-      "placeholder": "f.eks. Gratulerer med dagen bestemor",
       "helper": "Verkstedet bekrefter den endelige teksten før produksjon — endrer ikke forhåndsvisningen.",
       "counter": "{count}/100"
     },

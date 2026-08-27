@@ -81,6 +81,7 @@
       "tabsLabel": "Categories",
       "tabCount": "{name} ({count})",
       "extrasTab": "Details",
+      "photosTab": "Photos",
       "optionsLabel": "Colours and motifs"
     },
     "photos": {
@@ -145,7 +146,6 @@
     },
     "customText": {
       "title": "Text on the ceramic",
-      "placeholder": "e.g. Happy Birthday Grandma",
       "helper": "The workshop confirms the final wording before production — it doesn't change the preview.",
       "counter": "{count}/100"
     },
