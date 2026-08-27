@@ -89,7 +89,7 @@ export function ConfiguratorClient({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  /** F31: the big preview's container — observed by the mobile floating bubble */
+  /** Wrapper of the big preview — the editor canvas on mobile step 2 (R4-STEP2). */
   const previewRef = useRef<HTMLDivElement>(null);
   // R3-B23: live column count (2 under sm, 3 from sm) — same grid as step 3, so
   // the contextual block lands after the LAST card of the selected card's row.
@@ -176,6 +176,18 @@ export function ConfiguratorClient({
       recolor: l.blend === "multiply",
     }));
   }, [detail, selections]);
+
+  // R4-STEP2 (mockup .sum): the summary line under the mobile editor canvas —
+  // design name + one «category: option» pair per category. Derived from
+  // `selections` (URL), so it follows taps, keyboard, ?code= and the lock.
+  const summaryLine = useMemo(() => {
+    const parts = detail.categories.map((c) => {
+      const opt = c.options.find((o) => o.id === selections[c.slug]);
+      return `${label(c)}: ${opt?.name ?? "—"}`;
+    });
+    return [designName(selected), ...parts].join(" · ");
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- label/designName are pure locale helpers
+  }, [detail, selections, selected, locale]);
 
   // E (R2): the selected figure (kind=image option) shown read-only beside the
   // colour-notes toggle — pure reference, never a picker. Reactive on selection.
@@ -390,13 +402,23 @@ export function ConfiguratorClient({
   }
 
   return (
-    <div data-testid="configurator">
+    <div
+      data-testid="configurator"
+      // R4-STEP2: hook for the :has() rules in globals.css — step 2 only, under
+      // md only (the media query lives in the CSS). On desktop and on steps 1/3
+      // the attribute is absent and the page scrolls as always.
+      data-editor={step === 2 ? "mobile" : undefined}
+      className={cn(step === 2 && "max-md:flex max-md:min-h-0 max-md:flex-1 max-md:flex-col")}
+    >
       {/* CA-2: the top cluster holds ONLY the stepper (orientation + step
           jumps, F18). The advance/back CTAs moved in-flow to the END of the
           options column — no fixed bottom bar on mobile (thumb-tap issue),
           no climb back to the top on desktop. Decision closed with the
           client's written ok (mockup-ca2-next-button.html). */}
-      <div className="mb-4" data-testid="step-nav">
+      <div
+        className={cn("mb-4", step === 2 && "max-md:mb-2 max-md:flex-none")}
+        data-testid="step-nav"
+      >
         <Stepper
           ariaLabel={t("stepperLabel")}
           current={step - 1}
@@ -431,7 +453,16 @@ export function ConfiguratorClient({
       {/* F28: featured strip between the intro and the design grid, home only */}
       {step === 1 && featuredSlot}
 
-      <div className="grid grid-cols-1 items-start gap-7 md:grid-cols-2">
+      <div
+        className={cn(
+          "grid grid-cols-1 items-start gap-7 md:grid-cols-2",
+          // R4-STEP2: at step 2 under md this grid IS the editor — a full-height
+          // flex column, canvas on top and panel below, zero gap (the panel has
+          // its own border). From md up NOTHING changes.
+          step === 2 &&
+            "max-md:flex max-md:min-h-0 max-md:flex-1 max-md:flex-col max-md:gap-0"
+        )}
+      >
         {/* LEFT: the persistent preview — never remounts across steps (AC2).
             F15: sticky so it stays visible while the option list scrolls; on
             mobile it pins to the top.
@@ -448,13 +479,29 @@ export function ConfiguratorClient({
             // MOUNTED (display:none only) so the same PreviewCanvas instance
             // comes back full-size from step 2 with no remount (F14). Desktop
             // and steps 2–3 are unchanged.
-            step === 1 && "max-md:hidden"
+            step === 1 && "max-md:hidden",
+            // R4-STEP2: the editor canvas — takes ~55% of the height (mockup:
+            // .canvasB{flex:1.15} against .panelB{flex:1}), centres the plate and
+            // carries the mockup's soft radial ground (tokens only).
+            step === 2 &&
+              "max-md:min-h-0 max-md:flex-[1.15] max-md:items-center max-md:justify-center max-md:gap-1 max-md:bg-[radial-gradient(circle_at_50%_42%,color-mix(in_oklab,var(--mk-light),white_55%),var(--background)_78%)]"
           )}
         >
           <div
             ref={previewRef}
             data-testid="preview-sticky"
-            className="max-md:mx-auto max-md:w-full"
+            className={cn(
+              "max-md:mx-auto max-md:w-full",
+              // R4-STEP2: in the editor the height is the constraint, so the
+              // PreviewCanvas box (aspect-square card by default) becomes a
+              // transparent full-size area and the plate — already object-contain
+              // — fits whichever side is shorter. No change to the shared
+              // component: `contents` on its root plus child variants from here.
+              // `[&_p]:hidden` kills the long caption (its only <p>); the summary
+              // line below sits OUTSIDE this wrapper and is untouched.
+              step === 2 &&
+                "max-md:flex max-md:min-h-0 max-md:flex-1 max-md:items-center max-md:justify-center max-md:[&>div>div]:h-full max-md:[&>div>div]:w-full max-md:[&>div>div]:max-w-none max-md:[&>div>div]:bg-transparent max-md:[&>div>div]:shadow-none max-md:[&_p]:hidden"
+            )}
           >
             {/* R4-COPY Ⓒ: the caption is a closed sentence for now — the
                 "inspirasjonsside ↗" link (new tab) lands once Alessio gives
@@ -462,9 +509,20 @@ export function ConfiguratorClient({
             <PreviewCanvas
               alt={designName(selected)}
               caption={t("previewNote")}
+              className={cn(step === 2 && "max-md:contents")}
               layers={previewLayers}
             />
           </div>
+          {step === 2 && (
+            // mockup .sum — one line only, ellipsis when it does not fit. Carries
+            // the design name too (the step-2 <h2> is hidden in the editor).
+            <p
+              data-testid="canvas-summary"
+              className="hidden truncate px-3 text-center text-[10.5px] text-muted-foreground max-md:block max-md:w-full max-md:flex-none"
+            >
+              {summaryLine}
+            </p>
+          )}
         </div>
 
         {/* RIGHT: panel swaps with the step */}
@@ -564,11 +622,23 @@ export function ConfiguratorClient({
           </div>
         ) : (
           <div
-            className="flex min-w-0 flex-col gap-6"
+            className={cn(
+              "flex min-w-0 flex-col gap-6",
+              // R4-STEP2 — tool panel (mockup .panelB): edge to edge, rounded
+              // top corners, border and shadow from the tokens. It is the ONLY
+              // scroll port of the editor (the page itself does not scroll).
+              "max-md:-mx-5 max-md:min-h-0 max-md:flex-1 max-md:overflow-y-auto max-md:rounded-t-[var(--radius)] max-md:border-t-[1.5px] max-md:border-border max-md:bg-card max-md:px-3 max-md:shadow-[0_-6px_18px_color-mix(in_oklab,var(--mk-dark)_8%,transparent)]"
+            )}
             data-testid="details-step"
             data-color-lock={colorLock ? "1" : "0"}
           >
-            <div>
+            {/* mockup .grab — panel affordance, decorative */}
+            <span
+              aria-hidden
+              className="mx-auto hidden h-1 w-10 flex-none rounded-full bg-border max-md:-mb-3 max-md:mt-[7px] max-md:block"
+            />
+            {/* the design name lives in the canvas summary in the editor */}
+            <div className="max-md:hidden">
               <p className="text-[11px] uppercase tracking-[0.06em] text-muted-foreground">
                 {t("stepIndicator", { step: 2 })}
               </p>
@@ -837,15 +907,22 @@ export function ConfiguratorClient({
                 la colonna torna stretta quanto a 390, un breakpoint di viewport
                 mancherebbe il caso). Mai troncare l'etichetta del CTA primario:
                 era il sintomo che AC10 deve chiudere, non una via d'uscita. */}
-            <div className="@container" data-testid="step-nav-flow">
-            <div className="flex flex-col-reverse gap-3 @md:flex-row @md:items-stretch">
+            {/* R4-STEP2 (mockup .navB): in the editor the two CTAs sit SIDE BY
+                SIDE at the foot of the panel and never scroll away — sticky to
+                the bottom of the panel's own scroll port, on the panel's card
+                background, with the safe-area inset in its padding. */}
+            <div
+              className="@container max-md:sticky max-md:bottom-0 max-md:z-10 max-md:-mx-3 max-md:mt-auto max-md:flex-none max-md:bg-card max-md:px-3 max-md:pb-[calc(0.5rem+env(safe-area-inset-bottom))] max-md:pt-2"
+              data-testid="step-nav-flow"
+            >
+            <div className="flex flex-col-reverse gap-3 @md:flex-row @md:items-stretch max-md:flex-row max-md:items-center max-md:gap-2.5">
               <NextStepPill
                 variant="secondary"
                 data-testid="back-step"
                 // Stacked (colonna stretta): piena larghezza e contenuto
                 // centrato come da mockup. Affiancato: torna largo il minimo
                 // e allineato a sinistra, così il Next si prende il resto.
-                className="justify-center [&>span]:flex-none @md:shrink-0 @md:justify-start"
+                className="justify-center [&>span]:flex-none @md:shrink-0 @md:justify-start max-md:shrink-0"
                 label={t("back")}
                 icon={
                   <PillIcon variant="secondary">
@@ -864,7 +941,7 @@ export function ConfiguratorClient({
                 // interno e freccetta si comprimono SOLO in colonna e
                 // restituiscono 16px, le foto (sotto) altri 16 → 8px di
                 // margine sul caso peggiore. Comprimere, non troncare.
-                className="@max-md:gap-2.5 @max-md:p-2.5 @max-md:[&>span:last-child]:size-8 @md:flex-[1_1_16rem]"
+                className="@max-md:gap-2.5 @max-md:p-2.5 @max-md:[&>span:last-child]:size-8 @md:flex-[1_1_16rem] max-md:flex-1"
                 caption={t("teaser.nextStep")}
                 label={t("teaser.ceramics")}
                 arrow
