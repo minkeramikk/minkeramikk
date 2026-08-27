@@ -411,10 +411,14 @@ export function ConfiguratorClient({
       className={cn(step === 2 && "max-md:flex max-md:min-h-0 max-md:flex-1 max-md:flex-col")}
     >
       {/* CA-2: the top cluster holds ONLY the stepper (orientation + step
-          jumps, F18). The advance/back CTAs moved in-flow to the END of the
-          options column — no fixed bottom bar on mobile (thumb-tap issue),
-          no climb back to the top on desktop. Decision closed with the
-          client's written ok (mockup-ca2-next-button.html). */}
+          jumps, F18). The advance/back CTAs live in-flow at the END of the
+          options column — no climb back to the top on desktop. Decision closed
+          with the client's written ok (mockup-ca2-next-button.html).
+          R4-STEP2: under md at step 2 that same row is pinned to the foot of
+          the tool panel (sticky inside the panel's scroll port). It is still
+          NOT a fixed bottom bar over the page — the old thumb-tap problem was
+          a bar floating over scrolling content; here the panel IS the surface
+          and the row is its last, always-visible element (mockup .navB). */}
       <div
         className={cn("mb-4", step === 2 && "max-md:mb-2 max-md:flex-none")}
         data-testid="step-nav"
@@ -627,12 +631,15 @@ export function ConfiguratorClient({
               // R4-STEP2 — tool panel (mockup .panelB): edge to edge, rounded
               // top corners, border and shadow from the tokens. It is the ONLY
               // scroll port of the editor (the page itself does not scroll).
-              "max-md:-mx-5 max-md:min-h-0 max-md:flex-1 max-md:overflow-y-auto max-md:rounded-t-[var(--radius)] max-md:border-t-[1.5px] max-md:border-border max-md:bg-card max-md:px-3 max-md:shadow-[0_-6px_18px_color-mix(in_oklab,var(--mk-dark)_8%,transparent)]"
+              "max-md:-mx-5 max-md:min-h-0 max-md:flex-1 max-md:overflow-y-auto max-md:scroll-pb-[45vh] max-md:rounded-t-[var(--radius)] max-md:border-t-[1.5px] max-md:border-border max-md:bg-card max-md:px-3 max-md:shadow-[0_-6px_18px_color-mix(in_oklab,var(--mk-dark)_8%,transparent)]"
             )}
             data-testid="details-step"
             data-color-lock={colorLock ? "1" : "0"}
           >
-            {/* mockup .grab — panel affordance, decorative */}
+            {/* mockup .grab — panel affordance, decorative. `-mb-3` swallows
+                half of the panel's `gap-6`, which is there only for today's
+                vertical fieldsets: when Task 5 puts the horizontal lanes in and
+                the panel goes `max-md:gap-0`, drop this `-mb-3` with it. */}
             <span
               aria-hidden
               className="mx-auto hidden h-1 w-10 flex-none rounded-full bg-border max-md:-mb-3 max-md:mt-[7px] max-md:block"
@@ -906,23 +913,30 @@ export function ConfiguratorClient({
                 la soglia è la larghezza della COLONNA, non del viewport (a 768
                 la colonna torna stretta quanto a 390, un breakpoint di viewport
                 mancherebbe il caso). Mai troncare l'etichetta del CTA primario:
-                era il sintomo che AC10 deve chiudere, non una via d'uscita. */}
+                era il sintomo che AC10 deve chiudere, non una via d'uscita.
+                R4-STEP2: quel ripiegamento in colonna vale ORA SOLO da md in su —
+                le varianti `@container` sono prefissate `md:` apposta. Sotto md
+                l'editor mette i due affiancati (mockup .navB) e AC10 la chiude
+                alleggerendo il Next, non troncandolo (vedi sotto). */}
             {/* R4-STEP2 (mockup .navB): in the editor the two CTAs sit SIDE BY
                 SIDE at the foot of the panel and never scroll away — sticky to
                 the bottom of the panel's own scroll port, on the panel's card
-                background, with the safe-area inset in its padding. */}
+                background. NB: `env(safe-area-inset-bottom)` reads 0 today (the
+                app declares no `viewport-fit=cover`, so there is no safe area to
+                read) — it is in the padding so the row is already correct the
+                day that lands, not because it does something now. */}
             <div
               className="@container max-md:sticky max-md:bottom-0 max-md:z-10 max-md:-mx-3 max-md:mt-auto max-md:flex-none max-md:bg-card max-md:px-3 max-md:pb-[calc(0.5rem+env(safe-area-inset-bottom))] max-md:pt-2"
               data-testid="step-nav-flow"
             >
-            <div className="flex flex-col-reverse gap-3 @md:flex-row @md:items-stretch max-md:flex-row max-md:items-center max-md:gap-2.5">
+            <div className="flex flex-col-reverse gap-3 md:@md:flex-row md:@md:items-stretch max-md:flex-row max-md:gap-2.5">
               <NextStepPill
                 variant="secondary"
                 data-testid="back-step"
                 // Stacked (colonna stretta): piena larghezza e contenuto
                 // centrato come da mockup. Affiancato: torna largo il minimo
                 // e allineato a sinistra, così il Next si prende il resto.
-                className="justify-center [&>span]:flex-none @md:shrink-0 @md:justify-start max-md:shrink-0"
+                className="justify-center [&>span]:flex-none md:@md:shrink-0 md:@md:justify-start max-md:shrink-0"
                 label={t("back")}
                 icon={
                   <PillIcon variant="secondary">
@@ -941,7 +955,16 @@ export function ConfiguratorClient({
                 // interno e freccetta si comprimono SOLO in colonna e
                 // restituiscono 16px, le foto (sotto) altri 16 → 8px di
                 // margine sul caso peggiore. Comprimere, non troncare.
-                className="@max-md:gap-2.5 @max-md:p-2.5 @max-md:[&>span:last-child]:size-8 @md:flex-[1_1_16rem] max-md:flex-1"
+                // R4-STEP2 / AC10: affiancato al Back sotto md il Next ha
+                // ~190px a 360 — con caption e tre foto l'etichetta ne
+                // riceveva 5 e si troncava. Nell'editor la pillola si
+                // ALLEGGERISCE come nel mockup (.navB: solo «Neste steg ›»):
+                // via la caption (`data-pill-caption`, display:none → non
+                // occupa più larghezza) e via le foto. Restano ~113px per
+                // «Velg keramikk» (99px) e ~129 per «Choose ceramics» (118).
+                // Le varianti `@container` sono ora `md:`-prefissate: sotto md
+                // non competono più con queste.
+                className="md:@max-md:gap-2.5 md:@max-md:p-2.5 md:@max-md:[&>span:last-child]:size-8 md:@md:flex-[1_1_16rem] max-md:flex-1 max-md:[&_[data-pill-caption]]:hidden"
                 caption={t("teaser.nextStep")}
                 label={t("teaser.ceramics")}
                 arrow
@@ -955,7 +978,10 @@ export function ConfiguratorClient({
                   // 1280 come a 768 l'etichetta "Velg keramikk" si troncava.
                   // L'etichetta del CTA primario non si tronca MAI (AC10).
                   ceramics.length > 0 ? (
-                    <span className="flex shrink-0 gap-0.5 @md:gap-1" aria-hidden>
+                    <span
+                      className="flex shrink-0 gap-0.5 max-md:hidden @md:gap-1"
+                      aria-hidden
+                    >
                       {ceramics.map((img) => (
                         // eslint-disable-next-line @next/next/no-img-element -- catalog art from storage
                         <img
@@ -977,7 +1003,9 @@ export function ConfiguratorClient({
                   ) : (
                     // Fornitore senza foto prodotto: si ricade sull'icona neutra
                     // invece di lasciare la pillola monca.
-                    <PillIcon>
+                    // R4-STEP2: come le foto, il cerchietto di ripiego sparisce
+                    // sotto md — l'editor vuole la pillola nuda del mockup.
+                    <PillIcon className="max-md:hidden">
                       <Circle className="size-5 fill-muted stroke-muted-foreground/50" />
                     </PillIcon>
                   )

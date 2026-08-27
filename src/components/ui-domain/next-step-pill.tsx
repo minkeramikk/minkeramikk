@@ -108,7 +108,14 @@ export function NextStepPill({
       {icon}
       <span className="min-w-0 flex-1">
         {caption && (
-          <span className="block text-[11px] uppercase tracking-[0.08em] text-foreground/75">
+          // `data-pill-caption`: hook for the callers that need to drop the
+          // caption in a specific layout (R4-STEP2 hides it under md in the
+          // step-2 editor row) — an attribute, never a Tailwind class as a
+          // selector. Nothing else changes here.
+          <span
+            data-pill-caption
+            className="block text-[11px] uppercase tracking-[0.08em] text-foreground/75"
+          >
             {caption}
           </span>
         )}

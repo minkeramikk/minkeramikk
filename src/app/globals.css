@@ -145,7 +145,6 @@
   }
 }
 
-
 /* ── R4-STEP2 — mobile editor for step 2 (fixed canvas + tool panel) ──────────
    Under md the page does not scroll: the height is exactly the viewport and the
    content shares it with flexbox. No JS measuring: the shell is already a column
