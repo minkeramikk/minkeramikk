@@ -154,7 +154,12 @@
    ponytail: native `:has()` instead of a JS class-toggle on the <body>. */
 @media (max-width: 767px) {
   html:has([data-editor="mobile"]) {
-    height: 100dvh;
+    /* B4 (iPhone, Chrome iOS): `dvh` follows the toolbars, so a collapse or
+       expansion mid-gesture reflows the whole editor under the finger. `svh` is
+       the SMALLEST viewport — the toolbars-expanded case — so the layout is
+       computed once for the worst case and never moves; when the bars collapse
+       the extra strip is simply unused. */
+    height: 100svh;
     overflow: hidden;
   }
   html:has([data-editor="mobile"]) body {

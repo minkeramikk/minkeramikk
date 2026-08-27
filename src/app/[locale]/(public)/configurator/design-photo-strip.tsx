@@ -18,9 +18,14 @@ import { PhotoLightbox } from "@/components/ui-domain/photo-lightbox";
 export function DesignPhotoStrip({
   images,
   alt,
+  compact = false,
 }: {
   images: string[];
   alt: string;
+  /** R4-FIX 11: variante del tab «Bilder» nell'editor mobile — miniature
+   *  ~104×78 al posto della striscia a piena altezza, che nel pannello non ci
+   *  starebbe. Stessi asset, stesso lightbox. */
+  compact?: boolean;
 }) {
   // TODO:nb-review NO copy: photosLabel / previousPhoto / nextPhoto / closePhoto
   const t = useTranslations("configurator.photos");
@@ -73,7 +78,11 @@ export function DesignPhotoStrip({
               src={assetUrl(img)}
               alt={`${alt} ${i + 1}`}
               loading="lazy"
-              className="block h-[120px] w-auto rounded-lg md:h-[190px]"
+              className={
+                compact
+                  ? "block h-[78px] w-[104px] rounded-lg object-cover"
+                  : "block h-[120px] w-auto rounded-lg md:h-[190px]"
+              }
             />
           </button>
         ))}

@@ -65,7 +65,7 @@
     "pageTitle": "Build your design",
     "stepIndicator": "Step {step} of 3",
     "back": "Back",
-    "previewNote": "This is an illustration of the hand-painted style. The motif is shown here on a plate, but can be made on any product. Each piece is hand-painted just for you, and is therefore unique.",
+    "previewNote": "This is an illustration of the hand-painted style. The motif is shown here on a plate, but can be made on any product. Each piece is hand-painted just for you, and is therefore unique (<link>see finished products on our inspiration page ↗</link>).",
     "step1": {
       "title": "Choose design",
       "hero": {
@@ -81,6 +81,7 @@
       "tabsLabel": "Categories",
       "tabCount": "{name} ({count})",
       "extrasTab": "Details",
+      "photosTab": "Photos",
       "optionsLabel": "Colours and motifs"
     },
     "photos": {
@@ -145,7 +146,6 @@
     },
     "customText": {
       "title": "Text on the ceramic",
-      "placeholder": "e.g. Happy Birthday Grandma",
       "helper": "The workshop confirms the final wording before production — it doesn't change the preview.",
       "counter": "{count}/100"
     },
