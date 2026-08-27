@@ -872,98 +872,21 @@ export function ConfiguratorClient({
               )}
             </div>
 
-            {detail.categories.map((cat) => {
-              const sel = selections[cat.slug];
-              const single = cat.options.length === 1;
-              // R1-FB1: the selected COLOUR's name doubles the swatch as text
-              // (manager+ceramist double check). Catalog proper noun, no i18n.
-              // Derived from `selections` (URL params), so click, keyboard,
-              // ?code= reloads and sync_group (color-lock) all update it.
-              const selectedName =
-                cat.kind === "color"
-                  ? cat.options.find((o) => o.id === sel)?.name
-                  : undefined;
-              return (
-                <fieldset
-                  key={cat.id}
-                  // R4-STEP2: sotto md il fieldset È il pannello della sua tab —
-                  // senza id/role l'`aria-controls` della corsia punterebbe nel
-                  // vuoto e tutte le categorie resterebbero visibili insieme.
-                  // Da md in su resta il fieldset di sempre (attributi ARIA
-                  // spenti da `isDesktop`, classi tutte `max-md:`).
-                  id={tabPanelId(cat.slug)}
-                  role={isDesktop ? undefined : "tabpanel"}
-                  aria-labelledby={isDesktop ? undefined : tabId(cat.slug)}
-                  data-testid={`category-${cat.slug}`}
-                  className={cn(
-                    "min-w-0",
-                    "max-md:px-1 max-md:py-3",
-                    activeTab !== cat.slug && "max-md:hidden"
-                  )}
-                >
-                  <legend className="mb-2 text-[11px] font-semibold uppercase tracking-[0.06em]">
-                    {label(cat)}
-                    {selectedName && (
-                      <span
-                        data-testid="legend-selected"
-                        className="ml-1.5 font-medium normal-case tracking-normal text-muted-foreground"
-                      >
-                        <span className="sr-only">{t("selectedLabel")} </span>
-                        · {selectedName}
-                      </span>
-                    )}
-                    {single && (
-                      <span className="ml-2 font-normal text-muted-foreground">
-                        {t("singleOption")}
-                      </span>
-                    )}
-                  </legend>
-
-                  {single ? null : cat.kind === "color" ? (
-                    // F15: full vertical grid that wraps — every option visible,
-                    // no horizontal scroller (supersedes the F02 embla carousel).
-                    <div
-                      role="radiogroup"
-                      aria-label={label(cat)}
-                      onKeyDown={(e) => onRadioKeyDown(e, cat)}
-                      data-testid="option-grid"
-                      className="flex flex-wrap gap-2.5"
-                    >
-                      {cat.options.map((o) => (
-                        <Swatch
-                          key={o.id}
-                          hex={o.hex ?? "#000"}
-                          name={o.name}
-                          selected={sel === o.id}
-                          tabIndex={sel === o.id ? 0 : -1}
-                          imageSrc={o.image ? assetUrl(o.image) : undefined}
-                          previewSrc={
-                            o.layerImage ? assetUrl(o.layerImage) : undefined
-                          }
-                          previewAlt={o.name}
-                          onSelect={() => selectOption(cat.slug, o.id)}
-                        />
-                      ))}
-                    </div>
-                  ) : (
-                    <div
-                      data-testid="option-grid"
-                      className="grid grid-cols-3 gap-2.5 sm:grid-cols-4"
-                    >
-                      {cat.options.map((o) => (
-                        <OptionCard
-                          key={o.id}
-                          label={o.name}
-                          imageUrl={o.image ? assetUrl(o.image) : undefined}
-                          selected={sel === o.id}
-                          onSelect={() => selectOption(cat.slug, o.id)}
-                        />
-                      ))}
-                    </div>
-                  )}
-                </fieldset>
-              );
-            })}
+            {detail.categories.map((cat) => (
+              <CategoryLane
+                key={cat.id}
+                cat={cat}
+                label={label(cat)}
+                selectedId={selections[cat.slug]}
+                active={activeTab === cat.slug}
+                isDesktop={isDesktop}
+                tabId={tabId(cat.slug)}
+                panelId={tabPanelId(cat.slug)}
+                onSelect={(optionId) => selectOption(cat.slug, optionId)}
+                onKeyDown={(e) => onRadioKeyDown(e, cat)}
+                t={t}
+              />
+            ))}
 
             {/* R4-STEP2: seconda metà della tab «Detaljer». Stessa tecnica
                 `md:contents`; NON ripete id/role — un id è unico e il tabpanel è
@@ -1231,5 +1154,214 @@ export function ConfiguratorClient({
         )}
       </div>
     </div>
+  );
+}
+
+/**
+ * R4-STEP2 — una categoria dello step 2. Da md in su è il fieldset di sempre
+ * (griglia che va a capo, F15: tutte le opzioni a colpo d'occhio). Sotto md è
+ * la corsia orizzontale del mockup variante B — snap, peek, numerazione e fade
+ * laterali — ed è il tabpanel della sua tab (plumbing ARIA di Task 5, invariato).
+ *
+ * Vive fuori da `ConfiguratorClient` perché ogni corsia ha il suo `useLaneFades`:
+ * un hook non può stare dentro un `.map`.
+ */
+function CategoryLane({
+  cat,
+  label,
+  selectedId,
+  active,
+  isDesktop,
+  tabId,
+  panelId,
+  onSelect,
+  onKeyDown,
+  t,
+}: {
+  cat: DesignDetail["categories"][number];
+  label: string;
+  selectedId: string | undefined;
+  active: boolean;
+  isDesktop: boolean;
+  tabId: string;
+  panelId: string;
+  onSelect: (optionId: string) => void;
+  onKeyDown: (e: React.KeyboardEvent<HTMLDivElement>) => void;
+  t: ReturnType<typeof useTranslations>;
+}) {
+  const laneRef = useRef<HTMLDivElement>(null);
+  const fades = useLaneFades(laneRef, cat.id);
+  const single = cat.options.length === 1;
+  // R1-FB1: the selected COLOUR's name doubles the swatch as text (manager +
+  // ceramist double check). Catalog proper noun, no i18n. Derived from
+  // `selections` (URL params), so click, keyboard, ?code= reloads and
+  // sync_group (color-lock) all update it.
+  const selectedName =
+    cat.kind === "color"
+      ? cat.options.find((o) => o.id === selectedId)?.name
+      : undefined;
+  // mockup `.opts.dense`: oltre le 9 opzioni la corsia va a 2 righe che
+  // scorrono insieme, invece di diventare una maratona a una riga sola.
+  const dense = cat.options.length > 9;
+
+  // Tab aperta → la scelta corrente dev'essere visibile, altrimenti la corsia
+  // riparte da sinistra e sembra che non ci sia nessuna selezione. Solo se la
+  // corsia scorre davvero: su desktop (griglia che va a capo) non scorre, quindi
+  // qui non succede nulla e la pagina non si muove.
+  useEffect(() => {
+    const lane = laneRef.current;
+    if (!active || !lane || lane.scrollWidth <= lane.clientWidth) return;
+    lane
+      .querySelector<HTMLElement>('[aria-checked="true"]')
+      ?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }, [active, selectedId]);
+
+  return (
+    <fieldset
+      // R4-STEP2: sotto md il fieldset È il pannello della sua tab — senza
+      // id/role l'`aria-controls` della corsia tab punterebbe nel vuoto e tutte
+      // le categorie resterebbero visibili insieme. Da md in su resta il
+      // fieldset di sempre (attributi ARIA spenti da `isDesktop`, classi tutte
+      // `max-md:`).
+      id={panelId}
+      role={isDesktop ? undefined : "tabpanel"}
+      aria-labelledby={isDesktop ? undefined : tabId}
+      data-testid={`category-${cat.slug}`}
+      className={cn(
+        "min-w-0",
+        // colonna a tutta altezza del pannello; `-mx-3` annulla la gronda del
+        // pannello così la corsia scorre da bordo a bordo (mockup: `.opts` sta
+        // dentro `.panelB`, senza padding intorno) e le fade la coprono tutta.
+        // `relative` = riferimento delle fade.
+        "max-md:relative max-md:-mx-3 max-md:flex max-md:min-h-0 max-md:flex-1 max-md:flex-col",
+        !active && "max-md:hidden"
+      )}
+    >
+      {/* sotto md il nome della categoria è già nella tab attiva e nel riepilogo
+          sopra il canvas, e il nome dell'opzione scelta sta sotto il suo
+          swatch: la legend diventa `sr-only` ma RESTA nel DOM (screen reader +
+          testid `legend-selected`). */}
+      <legend className="mb-2 text-[11px] font-semibold uppercase tracking-[0.06em] max-md:sr-only">
+        {label}
+        {selectedName && (
+          <span
+            data-testid="legend-selected"
+            className="ml-1.5 font-medium normal-case tracking-normal text-muted-foreground"
+          >
+            <span className="sr-only">{t("selectedLabel")} </span>
+            · {selectedName}
+          </span>
+        )}
+        {single && (
+          <span className="ml-2 font-normal text-muted-foreground">
+            {t("singleOption")}
+          </span>
+        )}
+      </legend>
+
+      {single ? (
+        // con una sola opzione non c'è corsia: sotto md la legend è sr-only, e
+        // un pannello vuoto sembrerebbe rotto — la nota torna visibile qui.
+        <p className="hidden text-sm text-muted-foreground max-md:block max-md:px-3 max-md:py-3">
+          {label} · {t("singleOption")}
+        </p>
+      ) : cat.kind === "color" ? (
+        // F15: da md in su griglia verticale che va a capo — ogni opzione
+        // visibile, nessuno scroller orizzontale (supera il carosello F02).
+        <div
+          ref={laneRef}
+          role="radiogroup"
+          aria-label={label}
+          onKeyDown={onKeyDown}
+          data-testid="option-grid"
+          className={cn(
+            // desktop (F15): invariato
+            "flex flex-wrap gap-2.5",
+            // mobile (mockup `.opts`): corsia orizzontale con snap e peek
+            "max-md:min-h-0 max-md:flex-1 max-md:items-start max-md:overflow-x-auto max-md:scroll-pl-3 max-md:px-3 max-md:py-3 max-md:snap-x max-md:snap-proximity max-md:[scrollbar-width:none] max-md:[&::-webkit-scrollbar]:hidden",
+            dense
+              ? // mockup `.opts.dense`: due righe che scorrono insieme
+                "max-md:grid max-md:grid-flow-col max-md:grid-rows-2 max-md:justify-start max-md:gap-x-3 max-md:gap-y-2.5"
+              : "max-md:flex-nowrap max-md:gap-3"
+          )}
+        >
+          {cat.options.map((o, i) => (
+            <div
+              key={o.id}
+              // `md:contents` = da md in su questo wrapper sparisce dal layout e
+              // lo Swatch torna a essere figlio diretto della griglia, esattamente
+              // come oggi (desktop invariato al pixel).
+              className="md:contents max-md:flex max-md:w-16 max-md:flex-none max-md:snap-start max-md:flex-col max-md:items-center max-md:gap-1"
+            >
+              <Swatch
+                hex={o.hex ?? "#000"}
+                name={o.name}
+                selected={selectedId === o.id}
+                tabIndex={selectedId === o.id ? 0 : -1}
+                imageSrc={o.image ? assetUrl(o.image) : undefined}
+                previewSrc={o.layerImage ? assetUrl(o.layerImage) : undefined}
+                previewAlt={o.name}
+                onSelect={() => onSelect(o.id)}
+              />
+              {/* mockup: «1 · Nome». L'indice è la POSIZIONE 1-based nell'ordine
+                  corrente: in catalogo non esiste un codice colore fornitore
+                  (`supplier_colors` non ha una colonna codice e `options.code` è
+                  il segmento del config-code, ADR 0011, non un codice da
+                  mostrare). `aria-hidden`: il nome è già nell'`aria-label` dello
+                  Swatch, senza questo lo screen reader lo leggerebbe due volte. */}
+              <span
+                aria-hidden
+                className={cn(
+                  "hidden text-center text-[10px] leading-[1.25] max-md:block",
+                  selectedId === o.id
+                    ? "font-semibold text-foreground"
+                    : "text-muted-foreground"
+                )}
+              >
+                <b>{i + 1}</b> · {o.name}
+              </span>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div
+          ref={laneRef}
+          data-testid="option-grid"
+          className={cn(
+            // desktop: invariato
+            "grid grid-cols-3 gap-2.5 sm:grid-cols-4",
+            // mobile: stessa corsia orizzontale delle opzioni colore
+            "max-md:flex max-md:min-h-0 max-md:flex-1 max-md:items-start max-md:gap-3 max-md:overflow-x-auto max-md:scroll-pl-3 max-md:px-3 max-md:py-3 max-md:snap-x max-md:snap-proximity max-md:[scrollbar-width:none] max-md:[&::-webkit-scrollbar]:hidden"
+          )}
+        >
+          {cat.options.map((o) => (
+            <OptionCard
+              key={o.id}
+              label={o.name}
+              imageUrl={o.image ? assetUrl(o.image) : undefined}
+              selected={selectedId === o.id}
+              onSelect={() => onSelect(o.id)}
+              className="max-md:w-24 max-md:flex-none max-md:snap-start"
+            />
+          ))}
+        </div>
+      )}
+
+      {/* mockup `.lane.can-l`/`.can-r` — solo mobile, solo finché c'è corsa. */}
+      <span
+        aria-hidden
+        className={cn(
+          "pointer-events-none absolute inset-y-0 left-0 z-[2] hidden w-6 bg-gradient-to-r from-card to-transparent transition-opacity max-md:block",
+          fades.left ? "opacity-100" : "opacity-0"
+        )}
+      />
+      <span
+        aria-hidden
+        className={cn(
+          "pointer-events-none absolute inset-y-0 right-0 z-[2] hidden w-6 bg-gradient-to-l from-card to-transparent transition-opacity max-md:block",
+          fades.right ? "opacity-100" : "opacity-0"
+        )}
+      />
+    </fieldset>
   );
 }

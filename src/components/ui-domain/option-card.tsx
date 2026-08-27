@@ -14,6 +14,7 @@ export function OptionCard({
   layers,
   selected = false,
   onSelect,
+  className,
 }: {
   label: string;
   supplierName?: string;
@@ -26,6 +27,8 @@ export function OptionCard({
   layers?: { src: string; recolor?: boolean }[];
   selected?: boolean;
   onSelect?: () => void;
+  /** Extra classes merged into the card root (R4-STEP2: mobile lane sizing). */
+  className?: string;
 }) {
   return (
     <button
@@ -38,6 +41,7 @@ export function OptionCard({
         selected
           ? "border-primary bg-primary font-semibold text-primary-foreground"
           : "border-border bg-card text-foreground hover:border-ring",
+        className,
       )}
     >
       {layers && layers.length > 0 ? (
