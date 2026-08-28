@@ -34,6 +34,7 @@ import {
 } from "@/lib/configurator/config-code";
 import { pickDefaultOption } from "@/lib/configurator/default-option";
 import { fullRowInsertIndex } from "@/lib/configurator/grid-rows";
+import { keyboardSafeScrollDelta } from "@/lib/configurator/keyboard-safe-scroll";
 import { cn } from "@/lib/utils";
 import type { DesignDetail } from "@/lib/catalog/design-options";
 import type { PreviewLayer } from "@/lib/configurator/preview";
@@ -75,6 +76,46 @@ function resolveSelections(
     out[cat.slug] = valid?.id ?? pickDefaultOption(cat.options)?.id ?? "";
   }
   return out;
+}
+
+/**
+ * R4-POLISH voci 2+8 — porta il campo sopra la tastiera. `visualViewport` è
+ * l'unica fonte che sa quanto schermo resta libero; il suo evento `resize`
+ * arriva quando la tastiera ha finito di salire, quindi si aspetta quello (con
+ * un fallback a timer per i browser che non lo emettono). L'aritmetica sta in
+ * lib/configurator/keyboard-safe-scroll, con i suoi unit.
+ */
+function keepClearOfKeyboard(field: HTMLElement) {
+  const vv = window.visualViewport;
+  const run = () => {
+    const box = field.getBoundingClientRect();
+    const styles = getComputedStyle(field);
+    const delta = keyboardSafeScrollDelta({
+      fieldTop: box.top,
+      fieldBottom: box.bottom,
+      viewportTop: vv?.offsetTop ?? 0,
+      viewportHeight: vv?.height ?? window.innerHeight,
+      // il canvas ha già mollato lo sticky (`data-typing`), quindi in alto
+      // resta solo l'header ink: lo `scroll-margin-top` del campo lo riflette
+      marginTop: parseFloat(styles.scrollMarginTop) || 0,
+      marginBottom: 12,
+    });
+    if (delta !== 0) window.scrollBy({ top: delta, behavior: "smooth" });
+  };
+  if (!vv) {
+    run();
+    return;
+  }
+  // la tastiera anima: si agisce sul primo resize, o dopo 350ms se non arriva
+  const timer = window.setTimeout(run, 350);
+  vv.addEventListener(
+    "resize",
+    () => {
+      window.clearTimeout(timer);
+      run();
+    },
+    { once: true }
+  );
 }
 
 /**
@@ -187,6 +228,12 @@ export function ConfiguratorClient({
   // never the config code nor the set= link (privacy/lean, like the note).
   const [customText, setCustomText] = useState(searchParams.get("text") ?? "");
 
+  /** R4-POLISH voce 8: mentre si scrive, il canvas molla lo `sticky`. Con la
+   *  tastiera aperta il viewport visuale scende a ~300px e header + canvas ne
+   *  occupano ~293: senza questo il campo non ha DOVE stare, e nessuno scroll
+   *  può rimediare. Chi digita sta leggendo ciò che scrive, non il piatto. */
+  const [typing, setTyping] = useState(false);
+
   // Reset when the selected design changes (per-design field).
   useEffect(() => {
     setCustomText(new URLSearchParams(searchParams.toString()).get("text") ?? "");
@@ -286,12 +333,10 @@ export function ConfiguratorClient({
   });
 
   /* F38 — campo scritta. R4-FIX 10: niente placeholder (titolo + helper
-     bastano). R4-FIX 3: sul focus il campo si porta al centro del suo
-     scroller — scelta esplicita al posto di uno scroller sempre attivo o di
-     uno sblocco su :focus-within, che sotto la tastiera di iOS rimette in
-     gioco lo scroll verticale del pannello (il bug B1). Lo `scrollIntoView`
-     agisce sull'antenato scrollabile più vicino: il pane Detaljer se il campo
-     è lì, altrimenti nessuno (il pannello non scorre più). */
+     bastano). R4-POLISH voci 2+8: sul focus il campo si porta sopra la
+     tastiera con `keepClearOfKeyboard` (viewport visuale, non di layout) e il
+     canvas molla lo `sticky` (`typing`), altrimenti non c'è striscia libera in
+     cui stare — vedi Controller Ruling 3 nel task. */
   const customTextField = (
     <section
       data-testid="custom-text"
@@ -306,12 +351,14 @@ export function ConfiguratorClient({
         value={customText}
         maxLength={100}
         onChange={(e) => setCustomText(e.target.value)}
-        onFocus={(e) =>
-          e.currentTarget.scrollIntoView({ block: "center", behavior: "smooth" })
-        }
+        onFocus={(e) => {
+          setTyping(true);
+          keepClearOfKeyboard(e.currentTarget);
+        }}
+        onBlur={() => setTyping(false)}
         aria-label={t("customText.title")}
         aria-describedby="custom-text-helper"
-        className="w-full rounded-sm border border-input bg-card p-2 text-base focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring md:text-sm"
+        className="w-full rounded-sm border border-input bg-card p-2 text-base focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring md:text-sm max-md:scroll-mt-14"
       />
       <div className="mt-1 flex items-start justify-between gap-3">
         <p
@@ -627,8 +674,21 @@ export function ConfiguratorClient({
           // flex column that would shrink-to-fit every child, so a horizontal
           // lane's max-content (a long tab row, a wide option lane) blew the
           // panel out to 1524px inside a 390px viewport.
-          step === 2 && "max-md:flex max-md:flex-col max-md:items-stretch max-md:gap-0"
+          // R4-POLISH voce 8: `data-typing` (set while the inscription field
+          // has focus) releases the preview column's sticky positioning —
+          // see Controller Ruling 3 in the task brief: with the keyboard up
+          // the visual viewport is ~300px and header+canvas already occupy
+          // ~293 of it, so there is nowhere left to scroll the field into
+          // unless the canvas stops being sticky.
+          step === 2 &&
+            "max-md:flex max-md:flex-col max-md:items-stretch max-md:gap-0 max-md:data-[typing=1]:[&>[data-preview-column]]:static"
         )}
+        data-typing={step === 2 && typing ? "1" : undefined}
+        style={
+          step === 2
+            ? ({ "--mk-canvas-h": "clamp(180px,36svh,280px)" } as React.CSSProperties)
+            : undefined
+        }
       >
         {/* R4-RESTYLE (a): la descrizione del design apre la pagina, SOPRA il
             canvas — scorre via com'è nello sketch del cliente. Su desktop resta
@@ -649,6 +709,7 @@ export function ConfiguratorClient({
             PreviewCanvas instance, toggled purely via CSS (order + width), never
             remounted. Desktop and steps 2–3 are unchanged. */}
         <div
+          data-preview-column
           className={cn(
             "z-30 flex min-w-0 flex-col gap-3 md:sticky md:top-4 md:self-start",
             // CA-7 (variant B): design-first on mobile step 1 — the hero is
@@ -669,8 +730,11 @@ export function ConfiguratorClient({
             // ground so the text scrolling underneath never peeks at the gutters.
             // `top-14` = the ink header's `h-14`, which is itself `max-md:sticky
             // top-0` (site-header.tsx): the canvas parks UNDER it, not behind it.
+            // R4-POLISH: l'altezza è pubblicata come `--mk-canvas-h` sul
+            // contenitore, così il campo scritta può ricavarne il proprio
+            // `scroll-margin-top` invece di ripetere il clamp a mano.
             step === 2 &&
-              "max-md:sticky max-md:top-14 max-md:-mx-5 max-md:h-[clamp(180px,36svh,280px)] max-md:flex-none max-md:items-center max-md:justify-center max-md:gap-1 max-md:px-5 max-md:pt-2 max-md:bg-[radial-gradient(circle_at_50%_42%,color-mix(in_oklab,var(--mk-light),white_55%),var(--background)_78%)]"
+              "max-md:sticky max-md:top-14 max-md:-mx-5 max-md:h-[var(--mk-canvas-h)] max-md:flex-none max-md:items-center max-md:justify-center max-md:gap-1 max-md:px-5 max-md:pt-2 max-md:bg-[radial-gradient(circle_at_50%_42%,color-mix(in_oklab,var(--mk-light),white_55%),var(--background)_78%)]"
           )}
         >
           <div
