@@ -41,6 +41,12 @@ import type { PreviewLayer } from "@/lib/configurator/preview";
 /** Pagina di ispirazione del cliente (fuori sito, apre in nuova scheda). */
 const INSPIRATION_URL = "https://www.minkeramikk.no/inspirasjon";
 
+/** R4-POLISH voce 3: tab dei «Fargeønsker» — valgt figur, complementære /
+ *  jeg velger selv, note, e (senza gruppo «Tekst») il campo scritta. Non è una
+ *  categoria di catalogo, quindi ha una chiave sintetica; costante di modulo,
+ *  identità stabile fra i render. */
+const WISHES_TAB = "__wishes";
+
 export interface DesignChoice {
   id: string;
   slug: string;
@@ -931,6 +937,31 @@ export function ConfiguratorClient({
                     </button>
                   );
                 })}
+                {/* R4-POLISH voce 3: in coda, e SOLO se il design ha davvero
+                    qualcosa da metterci. Senza contatore (richiesta cliente):
+                    non sono opzioni da contare. */}
+                {hasPanelExtras && (
+                  <button
+                    type="button"
+                    id={tabId(WISHES_TAB)}
+                    role={isDesktop ? undefined : "tab"}
+                    aria-selected={isDesktop ? undefined : activeTab === WISHES_TAB}
+                    aria-controls={isDesktop ? undefined : tabPanelId(WISHES_TAB)}
+                    tabIndex={activeTab === WISHES_TAB ? 0 : -1}
+                    data-testid="category-tab-wishes"
+                    onClick={() => setActiveTab(WISHES_TAB)}
+                    className={cn(
+                      "flex min-h-11 flex-none snap-start items-center rounded-full px-3.5 text-[12.5px]",
+                      "focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring",
+                      activeTab === WISHES_TAB
+                        ? "bg-secondary font-semibold text-primary"
+                        : "text-muted-foreground"
+                    )}
+                  >
+                    {/* TODO:nb-review — step2.wishesTab */}
+                    {t("step2.wishesTab")}
+                  </button>
+                )}
               </div>
               {/* fade: accese solo finché c'è corsa (mockup fades()).
                   `left-3`/`right-3` = il `px-3` del wrapper: la sfumatura sta
@@ -1005,21 +1036,25 @@ export function ConfiguratorClient({
               />
             ))}
 
-            {/* R4-RESTYLE: non è più un tabpanel — la tab «Detaljer» non esiste
-                (i suoi contenuti stanno in pagina, sopra il pannello). Resta un
-                contenitore di servizio: su desktop `md:contents` lo toglie dal
-                layout e i figli tornano figli diretti del pannello col suo
-                `gap-6` e l'ordine di sempre (`md:order-*`); sotto md tiene
-                insieme ciò che NON è un gruppo-opzione — lås farger, note colore
-                e (senza gruppo «Tekst») il campo scritta — sotto le corsie e
-                sopra la nav. Niente `overflow`: il pannello non scorre, scorre
-                la pagina (B1). */}
+            {/* R4-POLISH voce 3: il pannello del tab «Fargeønsker». Su desktop
+                `md:contents` lo toglie dal layout e i figli tornano figli
+                diretti del pannello col suo `gap-6` e l'ordine di sempre
+                (`md:order-*`) — desktop invariato. Sotto md raccoglie ciò che
+                non è un gruppo-opzione: lås farger, note colore con «valgt
+                figur», e — senza gruppo «Tekst» — il campo scritta.
+                Niente `overflow`: il pannello non scorre, scorre la pagina (B1). */}
             <div
+              id={tabPanelId(WISHES_TAB)}
+              role={isDesktop ? undefined : "tabpanel"}
+              aria-labelledby={isDesktop ? undefined : tabId(WISHES_TAB)}
               data-testid="step2-extras"
               className={cn(
                 "md:contents",
                 "max-md:flex max-md:flex-col max-md:gap-4 max-md:px-1 max-md:pt-3",
-                !hasPanelExtras && "max-md:hidden"
+                // R4-POLISH voce 3: sotto md non è più in fondo al pannello ma
+                // DIETRO il suo tab. Doppia guardia: niente contenuti → niente
+                // tab e niente pannello; tab non attiva → nascosto.
+                (!hasPanelExtras || activeTab !== WISHES_TAB) && "max-md:hidden"
               )}
             >
               {/* F36: design description (per-locale) — no text, no block.

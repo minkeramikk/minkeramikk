@@ -409,3 +409,42 @@ test("CA5: le corsie opzioni hanno le frecce ‹ ›, e un tap su un'opzione non
   await page.waitForTimeout(400);
   expect(await scrollY(), "selezionare un'opzione non scrolla la pagina").toBe(y0);
 });
+
+test("CA3: «Fargeønsker» è un tab, esiste solo dove serve, e non lascia form sotto il pannello", async ({
+  page,
+}) => {
+  // DIPENDENZA DAI DATI VIVI (richiesta TL 28/8): questo test sceglie due design
+  // REALI per le loro proprietà di catalogo — `krabbe` ha
+  // accepts_custom_notes=true e un sync_group, `striper` non ha né note né sync
+  // né accepts_custom_text. Se qualcuno le cambia in admin questo test diventa
+  // rosso: è un DATO cambiato, non il codice rotto.
+  // Verificato 2026-08-28: krabbe notes=true sync=crab · striper tutto false.
+  // krabbe: note colore + figura + lås farger → il tab esiste
+  await page.goto("/no/configurator?design=krabbe&step=2");
+  await page.getByTestId("details-step").waitFor({ state: "visible" });
+  const tab = page.getByTestId("category-tab-wishes");
+  await expect(tab).toBeVisible();
+  await expect(tab, "senza contatore").toHaveText("Fargeønsker");
+
+  // finché non è attivo, il suo contenuto non è in pagina
+  await expect(page.getByTestId("custom-notes")).toBeHidden();
+  await tab.click();
+  await expect(page.getByTestId("custom-notes")).toBeVisible();
+  await expect(page.getByTestId("colour-notes-figure")).toBeVisible();
+  await expect(tab).toHaveAttribute("aria-selected", "true");
+
+  // aprendo il tab, le corsie opzioni spariscono: un solo pannello per volta
+  await expect(page.getByTestId("option-grid").filter({ visible: true })).toHaveCount(0);
+
+  // niente residui sotto il pannello: l'ultimo figlio è la nav
+  const lastId = await page.getByTestId("details-step").evaluate(
+    (el) => (el.lastElementChild as HTMLElement).dataset.testid
+  );
+  expect(lastId).toBe("step-nav-flow");
+
+  // striper: niente note, niente sync, niente testo → nessun tab
+  await page.goto("/no/configurator?design=striper&step=2");
+  await page.getByTestId("details-step").waitFor({ state: "visible" });
+  await expect(page.getByTestId("category-tab-wishes")).toHaveCount(0);
+  await expect(page.getByTestId("step2-extras")).toBeHidden();
+});
