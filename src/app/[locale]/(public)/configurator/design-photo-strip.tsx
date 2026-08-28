@@ -5,12 +5,19 @@ import { useTranslations } from "next-intl";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { assetUrl } from "@/lib/storage";
 import { hasPhotos } from "@/lib/configurator/photos";
+import { useLaneFades } from "@/lib/configurator/use-lane-fades";
 import { PhotoLightbox } from "@/components/ui-domain/photo-lightbox";
+import { cn } from "@/lib/utils";
 
 /**
  * F36 step-2: real-photo filmstrip. Fixed height / natural width (no crop),
- * horizontal snap scroll, edge fades, desktop-only ‹ › arrows.
+ * horizontal snap scroll, edge fades, ‹ › arrows.
  * F41: each photo is a button that opens the full-screen lightbox below.
+ *
+ * R4-RESTYLE: the strip is now the «Inspirasjonsbilder» carousel of the mobile
+ * step 2 too, so the arrows are no longer desktop-only — and both they and the
+ * fades follow the SAME can-scroll state as the option lanes (`useLaneFades`,
+ * mockup `can-l`/`can-r`): lit only while there is road left in that direction.
  *
  * ponytail: native overflow-x-auto + scrollBy covers snap/fades/arrows —
  * no carousel/embla needed for this, in the strip OR in the lightbox.
@@ -18,18 +25,14 @@ import { PhotoLightbox } from "@/components/ui-domain/photo-lightbox";
 export function DesignPhotoStrip({
   images,
   alt,
-  compact = false,
 }: {
   images: string[];
   alt: string;
-  /** R4-FIX 11: variante del tab «Bilder» nell'editor mobile — miniature
-   *  ~104×78 al posto della striscia a piena altezza, che nel pannello non ci
-   *  starebbe. Stessi asset, stesso lightbox. */
-  compact?: boolean;
 }) {
   // TODO:nb-review NO copy: photosLabel / previousPhoto / nextPhoto / closePhoto
   const t = useTranslations("configurator.photos");
   const stripRef = useRef<HTMLDivElement>(null);
+  const fades = useLaneFades(stripRef, images.length);
   const scroll = (dir: -1 | 1) => {
     const el = stripRef.current;
     if (el) el.scrollBy({ left: dir * el.clientWidth * 0.7, behavior: "smooth" });
@@ -50,6 +53,10 @@ export function DesignPhotoStrip({
   // Belt-and-suspenders with the parent guard, and resilient to a stale DTO.
   if (!hasPhotos(images)) return null;
 
+  /** 36px disc + `after:-inset-1` = a 44px touch target (§5), visual unchanged. */
+  const arrow =
+    "absolute top-1/2 z-2 flex size-9 -translate-y-1/2 items-center justify-center rounded-full bg-background text-sm ring-1 ring-border transition-opacity after:absolute after:-inset-1 after:content-[''] outline-none focus-visible:ring-3 focus-visible:ring-ring/50";
+
   return (
     <div
       className="relative"
@@ -59,7 +66,9 @@ export function DesignPhotoStrip({
     >
       <div
         ref={stripRef}
-        className="flex gap-2.5 overflow-x-auto scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden snap-x snap-mandatory"
+        // same gesture contract as the option lanes: the swipe here is
+        // horizontal, and its end of travel must not scroll the page.
+        className="flex touch-pan-x snap-x snap-mandatory gap-2.5 overflow-x-auto overscroll-x-contain scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         {images.map((img, i) => (
           // F41: the <img> is unchanged, it just gained a button wrapper that
@@ -71,6 +80,7 @@ export function DesignPhotoStrip({
               thumbRefs.current[i] = el;
             }}
             onClick={() => open(i)}
+            data-testid="design-photo"
             className="flex-none snap-start cursor-zoom-in rounded-lg ring-1 ring-border outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -78,25 +88,35 @@ export function DesignPhotoStrip({
               src={assetUrl(img)}
               alt={`${alt} ${i + 1}`}
               loading="lazy"
-              className={
-                compact
-                  ? "block h-[78px] w-[104px] rounded-lg object-cover"
-                  : "block h-[120px] w-auto rounded-lg md:h-[190px]"
-              }
+              className="block h-[120px] w-auto rounded-lg object-cover md:h-[190px]"
             />
           </button>
         ))}
       </div>
       {/* edge fades — narrow + DS `background` token (matches the site's pink
           page bg, not white); just a hint of "more", never covering the photo */}
-      <div className="pointer-events-none absolute inset-y-0 left-0 w-5 bg-gradient-to-r from-background to-transparent" />
-      <div className="pointer-events-none absolute inset-y-0 right-0 w-5 bg-gradient-to-l from-background to-transparent" />
-      {/* arrows: desktop only */}
+      <div
+        aria-hidden
+        className={cn(
+          "pointer-events-none absolute inset-y-0 left-0 w-5 bg-gradient-to-r from-background to-transparent transition-opacity",
+          fades.left ? "opacity-100" : "opacity-0"
+        )}
+      />
+      <div
+        aria-hidden
+        className={cn(
+          "pointer-events-none absolute inset-y-0 right-0 w-5 bg-gradient-to-l from-background to-transparent transition-opacity",
+          fades.right ? "opacity-100" : "opacity-0"
+        )}
+      />
+      {/* arrows: hidden (and untabbable) when there is nothing to scroll to */}
       <button
         type="button"
         onClick={() => scroll(-1)}
         aria-label={t("previousPhoto")}
-        className="absolute left-0 top-1/2 hidden size-8 -translate-y-1/2 items-center justify-center rounded-full bg-background ring-1 ring-border md:flex"
+        data-testid="design-photo-prev"
+        hidden={!fades.left}
+        className={cn(arrow, "left-0")}
       >
         ‹
       </button>
@@ -104,7 +124,9 @@ export function DesignPhotoStrip({
         type="button"
         onClick={() => scroll(1)}
         aria-label={t("nextPhoto")}
-        className="absolute right-0 top-1/2 hidden size-8 -translate-y-1/2 items-center justify-center rounded-full bg-background ring-1 ring-border md:flex"
+        data-testid="design-photo-next"
+        hidden={!fades.right}
+        className={cn(arrow, "right-0")}
       >
         ›
       </button>

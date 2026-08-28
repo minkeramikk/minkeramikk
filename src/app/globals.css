@@ -145,46 +145,11 @@
   }
 }
 
-/* ── R4-STEP2 — mobile editor for step 2 (fixed canvas + tool panel) ──────────
-   Under md the page does not scroll: the height is exactly the viewport and the
-   content shares it with flexbox. No JS measuring: the shell is already a column
-   (html.h-full → body.min-h-full.flex-col → main.flex-1), it is enough to make
-   `main` a flex column and take the footer out of the way.
-   The hook is `[data-editor="mobile"]`, set by the configurator at step 2 only.
-   ponytail: native `:has()` instead of a JS class-toggle on the <body>. */
-@media (max-width: 767px) {
-  html:has([data-editor="mobile"]) {
-    /* B4 (iPhone, Chrome iOS): `dvh` follows the toolbars, so a collapse or
-       expansion mid-gesture reflows the whole editor under the finger. `svh` is
-       the SMALLEST viewport — the toolbars-expanded case — so the layout is
-       computed once for the worst case and never moves; when the bars collapse
-       the extra strip is simply unused. */
-    height: 100svh;
-    overflow: hidden;
-  }
-  html:has([data-editor="mobile"]) body {
-    height: 100%;
-  }
-  html:has([data-editor="mobile"]) main {
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
-    padding-top: 0.75rem;
-    padding-bottom: 0;
-    overflow: hidden;
-  }
-  /* the page wraps the configurator in a plain <section> (page.tsx): without
-     this the height chain stops there and `flex-1` on the editor is inert */
-  html:has([data-editor="mobile"]) main > section:has([data-editor="mobile"]) {
-    display: flex;
-    flex: 1;
-    flex-direction: column;
-    min-height: 0;
-  }
-  /* the minimal footer has no place in a full-height editor
-     (`data-site-footer` is already on SiteFooter's <footer> — never a Tailwind
-     class as a selector) */
-  html:has([data-editor="mobile"]) [data-site-footer] {
-    display: none;
-  }
-}
+/* ── R4-RESTYLE — mobile step 2 ──────────────────────────────────────────────
+   The locked-viewport editor is GONE (client sketch 2026-08-28): under md the
+   step-2 page is ONE ordinary vertical scroller — description, canvas, caption,
+   inspiration photos, tool panel — and the canvas holds its place with plain
+   `position: sticky` (configurator-client.tsx). So there is nothing to pin
+   here any more: no `html{overflow:hidden}`, no flex height chain, no hidden
+   footer. ponytail: the whole `[data-editor="mobile"]` :has() block was deleted
+   rather than rewritten — native page scroll + one sticky is the feature. */

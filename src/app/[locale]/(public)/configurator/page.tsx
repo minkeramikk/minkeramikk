@@ -208,10 +208,9 @@ export default async function ConfiguratorPage({
     step !== "2" ? (await getFeaturedConfigs()).filter((f) => f.valid) : [];
 
   return (
-    // R4-STEP2: this bare <section> is part of the mobile editor's height chain
-    // — globals.css targets `main > section:has([data-editor="mobile"])` to make
-    // it a full-height flex column. Replacing/removing it breaks the fixed
-    // canvas (the page would scroll again).
+    // R4-RESTYLE: plain section again — the mobile editor's height chain (and
+    // the globals.css `:has([data-editor="mobile"])` block that drove it) is
+    // gone; step 2 is an ordinary page scroller with a sticky canvas.
     <section>
       <h1 className="sr-only">{t("pageTitle")}</h1>
       {/* no <Suspense>: see the step-3 note above */}

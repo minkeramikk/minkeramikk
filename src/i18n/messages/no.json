@@ -79,8 +79,10 @@
       "showLess": "Vis mindre",
       "tabsLabel": "Kategorier",
       "tabCount": "{name} ({count})",
-      "extrasTab": "Detaljer",
-      "photosTab": "Bilder",
+      "inspirationPhotos": "Inspirasjonsbilder",
+      "configureHeading": "Konfigurer ditt design",
+      "scrollTabsBack": "Bla kategorier bakover",
+      "scrollTabsForward": "Bla kategorier fremover",
       "optionsLabel": "Farger og motiv"
     },
     "photos": {

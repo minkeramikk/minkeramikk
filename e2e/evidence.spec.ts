@@ -1,6 +1,11 @@
 import { test } from "@playwright/test";
 import { mkdirSync, writeFileSync } from "node:fs";
-import { loadEnvLocal, adminClient } from "./helpers";
+import {
+  loadEnvLocal,
+  adminClient,
+  activeDesignSlugs,
+  ceramicCards,
+} from "./helpers";
 
 loadEnvLocal();
 const OUT08 = "docs/evidence/f08";
@@ -343,11 +348,10 @@ test("F02: capture 390/768/1280 with selections + composed preview", async ({
       // R4-STEP2: sotto md solo la corsia della tab categoria ATTIVA è nel
       // DOM accessibile (le altre sono `max-md:hidden`, configurator-client
       // .tsx `!active && "max-md:hidden"` sul fieldset di CategoryLane) — va
-      // aperta ogni tab prima di poterne selezionare l'opzione. La tab
-      // «Detaljer» (in coda, se presente) non è una categoria: si salta.
-      const tabs = page.locator(
-        '[data-testid^="category-tab-"]:not([data-testid="category-tab-extras"])'
-      );
+      // aperta ogni tab prima di poterne selezionare l'opzione.
+      // R4-RESTYLE: la corsia tab è fatta SOLO di gruppi-opzione, quindi non
+      // c'è più nessuna tab non-categoria da saltare.
+      const tabs = page.locator('[data-testid^="category-tab-"]');
       const n = await tabs.count();
       for (let i = 0; i < n; i++) {
         await tabs.nth(i).click();
@@ -375,5 +379,64 @@ test("F02: capture 390/768/1280 with selections + composed preview", async ({
     }
     await page.waitForTimeout(900); // layer paint
     await page.screenshot({ path: `${OUT2}/f02-${width}.png`, fullPage: true });
+  }
+});
+
+const OUT_R4 = "docs/evidence/r4-step2-restyle";
+
+/**
+ * R4-RESTYLE — evidenza cliente del restyle step 2 mobile (sketch 2026-08-28)
+ * e delle rifiniture della scheda prodotto step 3.
+ *   step2-<locale>-390-top       ordine dei blocchi: descrizione → canvas →
+ *                                didascalia → Inspirasjonsbilder → «Konfigurer
+ *                                ditt design» → pannello
+ *   step2-<locale>-390-scrolled  il canvas è ancora lì: sticky sotto l'header
+ *   step2-<locale>-390-lightbox  tap su una foto → PhotoLightbox condiviso
+ *   step3-sheet-<locale>-390     ✕ di contrasto, testi neri, nessun trattino
+ */
+test("R4-RESTYLE: step 2 @390 NO/EN + scheda prodotto step 3", async ({ page }) => {
+  mkdirSync(OUT_R4, { recursive: true });
+  await page.setViewportSize({ width: 390, height: 844 });
+
+  // Serve un design con foto REALI, altrimenti la sezione non esiste (by
+  // design). Lo si cerca guardando la PAGINA, non la tabella `design_images`:
+  // ciò che conta è che il configuratore renda davvero la sezione.
+  let slug = "";
+  for (const candidate of await activeDesignSlugs()) {
+    await page.goto(`/no/configurator?design=${candidate}&step=2`);
+    await page.getByTestId("details-step").waitFor({ state: "visible" });
+    if ((await page.getByTestId("step2-inspiration").count()) > 0) {
+      slug = candidate;
+      break;
+    }
+  }
+  test.skip(slug === "", "nessun design attivo con foto reali in catalogo");
+
+  for (const locale of ["no", "en"] as const) {
+    await page.goto(`/${locale}/configurator?design=${slug}&step=2`);
+    await page.getByTestId("details-step").waitFor({ state: "visible" });
+    await page.waitForTimeout(400);
+    await page.screenshot({ path: `${OUT_R4}/step2-${locale}-390-top.png`, fullPage: true });
+
+    await page.getByTestId("step-nav-flow").scrollIntoViewIfNeeded();
+    await page.waitForTimeout(400);
+    await page.screenshot({ path: `${OUT_R4}/step2-${locale}-390-scrolled.png` });
+
+    await page.getByTestId("step2-inspiration").scrollIntoViewIfNeeded();
+    await page.getByTestId("step2-inspiration").getByTestId("design-photo").first().click();
+    await page.getByTestId("design-photo-lightbox").waitFor({ state: "visible" });
+    await page.waitForTimeout(400);
+    await page.screenshot({ path: `${OUT_R4}/step2-${locale}-390-lightbox.png` });
+    await page.keyboard.press("Escape");
+  }
+
+  for (const locale of ["no", "en"] as const) {
+    await page.goto(`/${locale}/configurator?design=${slug}&step=3`);
+    await page.getByTestId("ceramics-step").waitFor({ state: "visible" });
+    await ceramicCards(page).first().click();
+    await page.getByTestId("product-sheet").waitFor({ state: "visible" });
+    await page.waitForTimeout(400);
+    await page.screenshot({ path: `${OUT_R4}/step3-sheet-${locale}-390.png` });
+    await page.keyboard.press("Escape");
   }
 });

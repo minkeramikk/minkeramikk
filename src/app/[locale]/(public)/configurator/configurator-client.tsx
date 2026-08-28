@@ -37,16 +37,8 @@ import { cn } from "@/lib/utils";
 import type { DesignDetail } from "@/lib/catalog/design-options";
 import type { PreviewLayer } from "@/lib/configurator/preview";
 
-/** R4-STEP2: tab del pannello mobile che raccoglie ciò che non è una categoria
- *  (descrizione, foto, lås farger, note, scritta). Costante di modulo, non
- *  esportata: identità stabile fra i render, vive solo in questo file. */
-const EXTRAS_TAB = "__extras";
-
 /** Pagina di ispirazione del cliente (fuori sito, apre in nuova scheda). */
 const INSPIRATION_URL = "https://www.minkeramikk.no/inspirasjon";
-
-/** R4-FIX 11: tab delle foto del design, primo della corsia. */
-const PHOTOS_TAB = "__photos";
 
 export interface DesignChoice {
   id: string;
@@ -133,13 +125,15 @@ export function ConfiguratorClient({
   const selected =
     designs.find((d) => d.slug === urlSlug) ?? designs[0]; // sort_order=1 default (AC1)
   const detail = detailsBySlug[selected.slug];
-  /** Tab attiva del pannello mobile: slug di categoria, oppure `EXTRAS_TAB`. */
+  /** R4-RESTYLE: la corsia tab è fatta SOLO di gruppi-opzione — «Detaljer» e
+   *  «Bilder» non esistono più (i loro contenuti sono in pagina, sopra il
+   *  pannello). Quindi la tab attiva è sempre lo slug di una categoria. */
   const [activeTab, setActiveTab] = useState<string>(
-    detail.categories[0]?.slug ?? EXTRAS_TAB
+    detail.categories[0]?.slug ?? ""
   );
   // design nuovo = categorie nuove: la tab attiva torna alla prima.
   useEffect(() => {
-    setActiveTab(detail.categories[0]?.slug ?? EXTRAS_TAB);
+    setActiveTab(detail.categories[0]?.slug ?? "");
     // eslint-disable-next-line react-hooks/exhaustive-deps -- key on design only
   }, [selected.slug]);
   const colorLock = searchParams.get("lock") === "1";
@@ -152,6 +146,10 @@ export function ConfiguratorClient({
   );
   const selectedDescription =
     locale === "no" ? selected.descriptionNo : selected.descriptionEn;
+  /** F36: testo descrittivo dello step 2. R4-RESTYLE: sotto md sta SOPRA il
+   *  canvas (scorre via), su desktop resta in cima al pannello. */
+  const step2Description =
+    locale === "no" ? detail.descriptionStep2No : detail.descriptionStep2En;
 
   const selections = useMemo(
     () => resolveSelections(detail, new URLSearchParams(searchParams.toString())),
@@ -189,10 +187,9 @@ export function ConfiguratorClient({
   }, [selected.slug]);
 
   // Focus the textarea when "I'll choose" is selected (AC3, also for SR users).
-  // preventScroll resta: su mobile la textarea vive nella tab «Detaljer» del
-  // pannello, e lo scroll-into-view del browser sposterebbe la corsia sotto le
-  // dita. (La ragione storica — il flip del mini-piatto F31 — è decaduta con
-  // la rimozione del FAB, R4-STEP2.)
+  // preventScroll resta: il blocco note sta in fondo al pannello e uno
+  // scroll-into-view del browser porterebbe via il canvas sticky senza che
+  // l'utente abbia chiesto niente.
   useEffect(() => {
     if (noteMode === "custom")
       noteTextareaRef.current?.focus({ preventScroll: true });
@@ -332,10 +329,20 @@ export function ConfiguratorClient({
   );
   const tabId = (key: string) => `step2-tab-${key}`;
   const tabPanelId = (key: string) => `step2-panel-${key}`;
-  /** Foto reali del design: R4-FIX 11 le porta nel proprio tab «Bilder (N)». */
+  /** R4-FIX 9 (giro precedente): frecce ‹ › sulla barra tab, stesso gesto delle
+   *  corsie foto — 70% della corsia per tocco. */
+  const scrollTabs = (dir: -1 | 1) => {
+    const el = tabsRef.current;
+    if (el) el.scrollBy({ left: dir * el.clientWidth * 0.7, behavior: "smooth" });
+  };
+  /** Foto reali del design: R4-RESTYLE le porta nella sezione
+   *  «Inspirasjonsbilder», in pagina sotto la didascalia del canvas. */
   const hasImages = hasPhotos(detail.images);
-  /** La tab «Detaljer» esiste sempre: in coda ospita la didascalia col link
-   *  alla inspirasjonsside, che non dipende dal design (R4-FIX 7). */
+  /** Blocchi che restano nel pannello anche sotto md (il tab «Detaljer» non
+   *  esiste più): lås farger, note colore e — senza gruppo «Tekst» — il campo
+   *  scritta. Nessuno dei tre attivo → niente blocco, niente gronda vuota. */
+  const hasPanelExtras =
+    hasSyncGroup || detail.acceptsCustomNotes || (!textCategory && showCustomText);
 
   // R1-FB2: warm the hover-popup images (colour options' layerImage) in idle,
   // desktop-only — first hover shows instantly. Same assetUrl the Swatch
@@ -548,14 +555,10 @@ export function ConfiguratorClient({
   }
 
   return (
-    <div
-      data-testid="configurator"
-      // R4-STEP2: hook for the :has() rules in globals.css — step 2 only, under
-      // md only (the media query lives in the CSS). On desktop and on steps 1/3
-      // the attribute is absent and the page scrolls as always.
-      data-editor={step === 2 ? "mobile" : undefined}
-      className={cn(step === 2 && "max-md:flex max-md:min-h-0 max-md:flex-1 max-md:flex-col")}
-    >
+    // R4-RESTYLE: no `data-editor` hook and no height chain — the globals.css
+    // block that locked the viewport is gone. Under md step 2 is an ordinary
+    // page scroller whose canvas is `position: sticky`.
+    <div data-testid="configurator">
       {/* CA-2: the top cluster holds ONLY the stepper (orientation + step
           jumps, F18). The advance/back CTAs live in-flow at the END of the
           options column — no climb back to the top on desktop. Decision closed
@@ -566,7 +569,7 @@ export function ConfiguratorClient({
           a bar floating over scrolling content; here the panel IS the surface
           and the row is its last, always-visible element (mockup .navB). */}
       <div
-        className={cn("mb-4", step === 2 && "max-md:mb-2 max-md:flex-none")}
+        className={cn("mb-4", step === 2 && "max-md:mb-3")}
         data-testid="step-nav"
       >
         <Stepper
@@ -606,18 +609,30 @@ export function ConfiguratorClient({
       <div
         className={cn(
           "grid grid-cols-1 items-start gap-7 md:grid-cols-2",
-          // R4-STEP2: at step 2 under md this grid IS the editor — a full-height
-          // flex column, canvas on top and panel below, zero gap (the panel has
-          // its own border). From md up NOTHING changes.
+          // R4-RESTYLE: at step 2 under md this container is the vertical
+          // scroller of the client's sketch — description, canvas (sticky),
+          // caption, inspiration photos, heading, tool panel — a plain flex
+          // column with zero gap (each block carries its own margin) and the
+          // sticky canvas's containing block, so the canvas stays put for the
+          // WHOLE column. From md up NOTHING changes: the mobile-only blocks
+          // are `md:hidden`, so they are not grid items at all.
           // `items-stretch` cancels the grid's `items-start` ONLY here: as a
-          // flex column that would shrink-to-fit both children, so a horizontal
+          // flex column that would shrink-to-fit every child, so a horizontal
           // lane's max-content (a long tab row, a wide option lane) blew the
-          // panel out to 1524px inside a 390px viewport — invisible only
-          // because `html` is `overflow:hidden` in the editor.
-          step === 2 &&
-            "max-md:flex max-md:min-h-0 max-md:flex-1 max-md:flex-col max-md:items-stretch max-md:gap-0"
+          // panel out to 1524px inside a 390px viewport.
+          step === 2 && "max-md:flex max-md:flex-col max-md:items-stretch max-md:gap-0"
         )}
       >
+        {/* R4-RESTYLE (a): la descrizione del design apre la pagina, SOPRA il
+            canvas — scorre via com'è nello sketch del cliente. Su desktop resta
+            dov'era, in cima al pannello (`md:hidden` qui, `max-md:hidden` là):
+            un solo nodo visibile per volta, mai due. */}
+        {step === 2 && step2Description && (
+          <div data-testid="step2-description" className="mb-3 md:hidden">
+            <DesignDescription text={step2Description} />
+          </div>
+        )}
+
         {/* LEFT: the persistent preview — never remounts across steps (AC2).
             F15: sticky so it stays visible while the option list scrolls; on
             mobile it pins to the top.
@@ -635,11 +650,20 @@ export function ConfiguratorClient({
             // comes back full-size from step 2 with no remount (F14). Desktop
             // and steps 2–3 are unchanged.
             step === 1 && "max-md:hidden",
-            // R4-STEP2: the editor canvas — takes ~55% of the height (mockup:
-            // .canvasB{flex:1.15} against .panelB{flex:1}), centres the plate and
-            // carries the mockup's soft radial ground (tokens only).
+            // R4-RESTYLE (b) — the NON-NEGOTIABLE of the client's sketch: the
+            // canvas is STICKY, everything else scrolls under it. Plain
+            // `position: sticky` inside the step-2 column (which spans
+            // description → panel), so it holds for the whole page: no JS, no
+            // IntersectionObserver, no locked viewport.
+            // Height: a clamp, not a flex ratio — there is no shared height to
+            // divide any more. `svh` is the SMALLEST viewport (mobile toolbars
+            // expanded), so the box never reflows when they collapse (B4).
+            // Full-bleed (`-mx-5` against `main`'s `px-5`) + the mockup's radial
+            // ground so the text scrolling underneath never peeks at the gutters.
+            // `top-14` = the ink header's `h-14`, which is itself `max-md:sticky
+            // top-0` (site-header.tsx): the canvas parks UNDER it, not behind it.
             step === 2 &&
-              "max-md:min-h-0 max-md:flex-[1.15] max-md:items-center max-md:justify-center max-md:gap-1 max-md:bg-[radial-gradient(circle_at_50%_42%,color-mix(in_oklab,var(--mk-light),white_55%),var(--background)_78%)]"
+              "max-md:sticky max-md:top-14 max-md:-mx-5 max-md:h-[clamp(180px,36svh,280px)] max-md:flex-none max-md:items-center max-md:justify-center max-md:gap-1 max-md:px-5 max-md:pt-2 max-md:bg-[radial-gradient(circle_at_50%_42%,color-mix(in_oklab,var(--mk-light),white_55%),var(--background)_78%)]"
           )}
         >
           <div
@@ -683,6 +707,50 @@ export function ConfiguratorClient({
             </p>
           )}
         </div>
+
+        {/* R4-RESTYLE (c): la didascalia col link alla inspirasjonsside — sotto
+            il canvas e SCORRE VIA (il canvas resta). Stesso nodo `t.rich` della
+            caption desktop, che sotto md è spenta dentro `PreviewCanvas`. */}
+        {step === 2 && (
+          <p
+            data-testid="preview-note-mobile"
+            className="mt-2.5 text-xs italic text-muted-foreground md:hidden"
+          >
+            {previewNote}
+          </p>
+        )}
+
+        {/* R4-RESTYLE (d): «Inspirasjonsbilder» — le foto REALI del design, in
+            carosello orizzontale con frecce ‹ › ai bordi (stesso stato
+            can-l/can-r delle fade) e lightbox condiviso. Design senza foto →
+            sezione assente, non un riquadro vuoto. */}
+        {step === 2 && hasImages && (
+          <section
+            data-testid="step2-inspiration"
+            aria-labelledby="step2-inspiration-heading"
+            className="mt-5 md:hidden"
+          >
+            <h2
+              id="step2-inspiration-heading"
+              className="mb-2 text-[11px] font-semibold uppercase tracking-[0.06em]"
+            >
+              {/* TODO:nb-review — step2.inspirationPhotos */}
+              {t("step2.inspirationPhotos")}
+            </h2>
+            <DesignPhotoStrip images={detail.images} alt={designName(selected)} />
+          </section>
+        )}
+
+        {/* R4-RESTYLE (e): il titolo che apre la sezione strumenti. */}
+        {step === 2 && (
+          <h2
+            data-testid="step2-configure-heading"
+            className="mt-6 mb-2 text-base font-semibold md:hidden"
+          >
+            {/* TODO:nb-review — step2.configureHeading */}
+            {t("step2.configureHeading")}
+          </h2>
+        )}
 
         {/* RIGHT: panel swaps with the step */}
         {step === 1 ? (
@@ -785,36 +853,33 @@ export function ConfiguratorClient({
               "flex min-w-0 flex-col gap-6",
               // R4-STEP2 — tool panel (mockup .panelB): edge to edge, rounded
               // top corners, border and shadow from the tokens.
-              // B1 (iPhone): the panel used to be the editor's scroll port, so a
-              // horizontal swipe dragged the whole panel vertically and cut the
-              // cards under the tab lane. Ownership is inverted: the panel is a
-              // RIGID flex column (tab lane flex-none · active pane flex-1 with
-              // its own overflow · nav flex-none) and vertical scrolling exists
-              // only inside the «Detaljer» pane.
-              // R4-FIX 5: pavimento d'altezza del pannello. Su un telefono corto
-              // (iPhone con le barre di Chrome, ~660px utili) il rapporto del
-              // mockup lasciava al pannello 252px e la corsia densa a due righe
-              // non ci stava. Con questo pavimento è il CANVAS a cedere qualche
-              // pixel dove serve davvero; sui telefoni alti il rapporto resta
-              // quello del mockup, perché 1/2.15 dell'altezza è già di più.
-              "max-md:-mx-5 max-md:min-h-[17.5rem] max-md:flex-1 max-md:gap-0 max-md:overflow-hidden max-md:rounded-t-[var(--radius)] max-md:border-t-[1.5px] max-md:border-border max-md:bg-card max-md:px-3 max-md:shadow-[0_-6px_18px_color-mix(in_oklab,var(--mk-dark)_8%,transparent)]"
+              // B1 stays law: the panel is NEVER a vertical scroller — a
+              // horizontal swipe on a lane must not drag it. R4-RESTYLE makes
+              // that trivial: the panel is now a plain content-height block in
+              // the page's own scroller, so there is no height to divide, no
+              // `flex-1` and no `overflow` anywhere on it.
+              "max-md:-mx-5 max-md:gap-0 max-md:rounded-t-[var(--radius)] max-md:border-t-[1.5px] max-md:border-border max-md:bg-card max-md:px-3 max-md:pt-1 max-md:shadow-[0_-6px_18px_color-mix(in_oklab,var(--mk-dark)_8%,transparent)]"
             )}
             data-testid="details-step"
             data-color-lock={colorLock ? "1" : "0"}
           >
-            {/* mockup .grab — panel affordance, decorative. */}
-            <span
-              aria-hidden
-              className="mx-auto hidden h-1 w-10 flex-none rounded-full bg-border max-md:mt-[7px] max-md:block"
-            />
+            {/* R4-FIX 1: nessun trattino in testa al pannello. Non trascinava
+                niente — affordance falsa, rimossa. */}
             {/* R4-STEP2 (mockup .cats): corsia tab orizzontale — solo mobile.
                 Dot = colore selezionato della categoria, conteggio = opzioni.
                 I ruoli tab esistono solo dove esiste la corsia (isDesktop).
                 B1: il pannello non scorre più (colonna rigida), quindi la corsia
                 non ha più bisogno di `sticky`: le basta `flex-none`.
-                // TODO:nb-review — step2.tabsLabel / step2.tabCount / step2.extrasTab /
-                step2.optionsLabel / step2.photosTab */}
-            <div className="z-10 -mx-3 flex-none bg-card px-3 md:hidden">
+                R4-RESTYLE: la corsia è fatta SOLO di gruppi-opzione (Tekst
+                compreso) — «Bilder» e «Detaljer» non sono più tab.
+                // TODO:nb-review — step2.tabsLabel / step2.tabCount /
+                step2.scrollTabsBack / step2.scrollTabsForward */}
+            {/* R4-FIX 5 (causa vera): senza `relative` le fade qui sotto sono
+                `absolute inset-y-0` contro il BLOCCO CONTENITORE INIZIALE — cioè
+                due colonne sfumate alte quanto la pagina, sopra il testo: le
+                prime lettere delle frasi a sinistra risultavano sbiadite. Il
+                riferimento è questo wrapper, e nient'altro. */}
+            <div className="relative z-10 -mx-3 flex-none bg-card px-3 md:hidden">
               <div
                 ref={tabsRef}
                 role={isDesktop ? undefined : "tablist"}
@@ -827,35 +892,6 @@ export function ConfiguratorClient({
                 // impedisce che il fine corsa si propaghi all'antenato.
                 className="flex touch-pan-x snap-x snap-proximity gap-1 overflow-x-auto overscroll-x-contain scroll-smooth px-1 pb-0.5 pt-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
               >
-                {/* R4-FIX 11: le foto del design sono il PRIMO tab, prima dei
-                    gruppi di opzioni. Design senza foto → nessun tab (e nessun
-                    pannello). Non è mai il tab attivo all'apertura: quello resta
-                    il primo gruppo di opzioni. */}
-                {hasImages && (
-                  <button
-                    type="button"
-                    id={tabId(PHOTOS_TAB)}
-                    role={isDesktop ? undefined : "tab"}
-                    aria-selected={isDesktop ? undefined : activeTab === PHOTOS_TAB}
-                    aria-controls={isDesktop ? undefined : tabPanelId(PHOTOS_TAB)}
-                    tabIndex={activeTab === PHOTOS_TAB ? 0 : -1}
-                    data-testid="category-tab-photos"
-                    onClick={() => setActiveTab(PHOTOS_TAB)}
-                    className={cn(
-                      "flex min-h-11 flex-none snap-start items-center rounded-full px-3.5 text-[12.5px]",
-                      "focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring",
-                      activeTab === PHOTOS_TAB
-                        ? "bg-secondary font-semibold text-primary"
-                        : "text-muted-foreground"
-                    )}
-                  >
-                    {t("step2.tabCount", {
-                      name: t("step2.photosTab"),
-                      count: detail.images.length,
-                    })}
-                  </button>
-                )}
-
                 {detail.categories.map((cat) => {
                   const sel = selections[cat.slug];
                   const selOpt = cat.options.find((o) => o.id === sel);
@@ -894,35 +930,6 @@ export function ConfiguratorClient({
                     </button>
                   );
                 })}
-
-                {/* tab in coda: tutto ciò che non è un gruppo di opzioni. Esiste
-                    sempre — se non altro ospita la didascalia col link (R4-FIX 7). */}
-                <button
-                    type="button"
-                    id={tabId(EXTRAS_TAB)}
-                    role={isDesktop ? undefined : "tab"}
-                    aria-selected={isDesktop ? undefined : activeTab === EXTRAS_TAB}
-                    // la tab «Detaljer» ha DUE contenitori (il DOM desktop
-                    // vuole note+scritta in fondo): `aria-controls` prende una
-                    // lista di id, quindi li annuncia entrambi.
-                    aria-controls={
-                      isDesktop
-                        ? undefined
-                        : `${tabPanelId(EXTRAS_TAB)} ${tabPanelId(EXTRAS_TAB)}-more`
-                    }
-                    tabIndex={activeTab === EXTRAS_TAB ? 0 : -1}
-                    data-testid="category-tab-extras"
-                    onClick={() => setActiveTab(EXTRAS_TAB)}
-                    className={cn(
-                      "flex min-h-11 flex-none snap-start items-center rounded-full px-3.5 text-[12.5px]",
-                      "focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring",
-                      activeTab === EXTRAS_TAB
-                        ? "bg-secondary font-semibold text-primary"
-                        : "text-muted-foreground"
-                    )}
-                  >
-                  {t("step2.extrasTab")}
-                </button>
               </div>
               {/* fade: accese solo finché c'è corsa (mockup fades()).
                   `left-3`/`right-3` = il `px-3` del wrapper: la sfumatura sta
@@ -941,6 +948,30 @@ export function ConfiguratorClient({
                   tabFades.right ? "opacity-100" : "opacity-0"
                 )}
               />
+              {/* frecce ‹ ›: stesso stato can-scroll delle fade, quindi appaiono
+                  solo quando c'è davvero corsa. `hidden` (l'attributo, non la
+                  classe) le toglie anche dal tab order. Disco 36px + il pseudo
+                  `after` (2×4px) = 44px di area toccabile (§5). */}
+              <button
+                type="button"
+                onClick={() => scrollTabs(-1)}
+                aria-label={t("step2.scrollTabsBack")}
+                data-testid="category-tabs-prev"
+                hidden={!tabFades.left}
+                className="absolute top-1/2 left-1 z-2 flex size-9 -translate-y-1/2 items-center justify-center rounded-full bg-card text-sm ring-1 ring-border after:absolute after:-inset-1 after:content-[''] outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+              >
+                ‹
+              </button>
+              <button
+                type="button"
+                onClick={() => scrollTabs(1)}
+                aria-label={t("step2.scrollTabsForward")}
+                data-testid="category-tabs-next"
+                hidden={!tabFades.right}
+                className="absolute top-1/2 right-1 z-2 flex size-9 -translate-y-1/2 items-center justify-center rounded-full bg-card text-sm ring-1 ring-border after:absolute after:-inset-1 after:content-[''] outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+              >
+                ›
+              </button>
             </div>
             {/* the design name lives in the canvas summary in the editor */}
             <div className="max-md:hidden">
@@ -950,39 +981,58 @@ export function ConfiguratorClient({
               <h2 className="mt-1 text-xl font-semibold">{designName(selected)}</h2>
             </div>
 
-            {/* R4-STEP2 / R4-FIX 1-2: pane «Detaljer». Su desktop `md:contents`
-                lo toglie dal layout — i figli tornano figli diretti del pannello
-                col suo `gap-6`; l'ordine di sempre (descrizione → foto → lås
-                farger → categorie → note) lo tengono le utility `md:order-*`,
-                visto che sotto md il DOM li raccoglie tutti qui.
-                Sotto md questo è l'UNICO scroller verticale dell'editor (il
-                pannello è rigido, B1): `overscroll-contain` non lascia propagare
-                il fine corsa, e `scroll-pt`/`scroll-pb` tengono titolo e helper
-                lontani dai bordi quando il focus li porta in vista (B3). */}
+            {detail.categories.map((cat) => (
+              <CategoryLane
+                key={cat.id}
+                cat={cat}
+                label={label(cat)}
+                selectedId={selections[cat.slug]}
+                active={activeTab === cat.slug}
+                isDesktop={isDesktop}
+                tabId={tabId(cat.slug)}
+                panelId={tabPanelId(cat.slug)}
+                onSelect={(optionId) => selectOption(cat.slug, optionId)}
+                onKeyDown={(e) => onRadioKeyDown(e, cat)}
+                t={t}
+                // R4-FIX 9: il campo scritta vive SOTTO il suo gruppo — dentro
+                // il tab Tekst su mobile, sotto il fieldset Tekst su desktop.
+                footer={
+                  textCategory?.id === cat.id && showCustomText
+                    ? customTextField
+                    : null
+                }
+              />
+            ))}
+
+            {/* R4-RESTYLE: non è più un tabpanel — la tab «Detaljer» non esiste
+                (i suoi contenuti stanno in pagina, sopra il pannello). Resta un
+                contenitore di servizio: su desktop `md:contents` lo toglie dal
+                layout e i figli tornano figli diretti del pannello col suo
+                `gap-6` e l'ordine di sempre (`md:order-*`); sotto md tiene
+                insieme ciò che NON è un gruppo-opzione — lås farger, note colore
+                e (senza gruppo «Tekst») il campo scritta — sotto le corsie e
+                sopra la nav. Niente `overflow`: il pannello non scorre, scorre
+                la pagina (B1). */}
             <div
-              id={tabPanelId(EXTRAS_TAB)}
-              role={isDesktop ? undefined : "tabpanel"}
-              aria-labelledby={isDesktop ? undefined : tabId(EXTRAS_TAB)}
               data-testid="step2-extras"
               className={cn(
                 "md:contents",
-                "max-md:flex max-md:min-h-0 max-md:flex-1 max-md:flex-col max-md:gap-4 max-md:overflow-y-auto max-md:overscroll-contain max-md:scroll-pt-3 max-md:scroll-pb-6 max-md:px-1 max-md:py-3",
-                activeTab !== EXTRAS_TAB && "max-md:hidden"
+                "max-md:flex max-md:flex-col max-md:gap-4 max-md:px-1 max-md:pt-3",
+                !hasPanelExtras && "max-md:hidden"
               )}
             >
-              {/* F36: design description (per-locale) — no text, no block */}
-              {(() => {
-                const desc =
-                  locale === "no" ? detail.descriptionStep2No : detail.descriptionStep2En;
-                return desc ? (
-                  <div className="md:order-1">
-                    <DesignDescription text={desc} />
-                  </div>
-                ) : null;
-              })()}
+              {/* F36: design description (per-locale) — no text, no block.
+                  R4-RESTYLE: sotto md la descrizione apre la PAGINA, sopra il
+                  canvas; qui resta il solo nodo desktop. */}
+              {step2Description && (
+                <div className="max-md:hidden md:order-1">
+                  <DesignDescription text={step2Description} />
+                </div>
+              )}
               {/* F36: real-photo filmstrip — no images, no strip, no placeholder.
-                  R4-FIX 11: sotto md le foto hanno il loro tab «Bilder», quindi
-                  qui la striscia è desktop-only e non si duplica. */}
+                  R4-RESTYLE: sotto md le foto sono la sezione
+                  «Inspirasjonsbilder» in pagina, quindi qui è desktop-only e non
+                  si duplica. */}
               {hasImages && (
                 <div className="max-md:hidden md:order-1">
                   <DesignPhotoStrip
@@ -1109,60 +1159,7 @@ export function ConfiguratorClient({
               {!textCategory && showCustomText && (
                 <div className="md:order-3">{customTextField}</div>
               )}
-
-              {/* R4-FIX 7: nell'editor mobile la caption lunga resta spenta sotto
-                  il canvas (l'altezza è la risorsa scarsa) — la didascalia INTERA,
-                  col link alla inspirasjonsside, vive qui in coda al pane. */}
-              <p className="text-xs italic text-muted-foreground md:hidden">
-                {previewNote}
-              </p>
             </div>
-
-            {/* R4-FIX 11: pannello del tab «Bilder» — solo mobile (su desktop la
-                striscia sta al suo posto nel pane, sopra). Riusa `DesignPhotoStrip`
-                in variante compatta: stesso PhotoLightbox condiviso di F41, zero
-                componenti nuovi. */}
-            {hasImages && (
-              <div
-                id={tabPanelId(PHOTOS_TAB)}
-                role={isDesktop ? undefined : "tabpanel"}
-                aria-labelledby={isDesktop ? undefined : tabId(PHOTOS_TAB)}
-                data-testid="step2-photos"
-                className={cn(
-                  "flex min-h-0 flex-col justify-center px-1 py-3 md:hidden",
-                  activeTab !== PHOTOS_TAB && "hidden"
-                )}
-              >
-                <DesignPhotoStrip
-                  images={detail.images}
-                  alt={designName(selected)}
-                  compact
-                />
-              </div>
-            )}
-
-            {detail.categories.map((cat) => (
-              <CategoryLane
-                key={cat.id}
-                cat={cat}
-                label={label(cat)}
-                selectedId={selections[cat.slug]}
-                active={activeTab === cat.slug}
-                isDesktop={isDesktop}
-                tabId={tabId(cat.slug)}
-                panelId={tabPanelId(cat.slug)}
-                onSelect={(optionId) => selectOption(cat.slug, optionId)}
-                onKeyDown={(e) => onRadioKeyDown(e, cat)}
-                t={t}
-                // R4-FIX 9: il campo scritta vive SOTTO il suo gruppo — dentro
-                // il tab Tekst su mobile, sotto il fieldset Tekst su desktop.
-                footer={
-                  textCategory?.id === cat.id && showCustomText
-                    ? customTextField
-                    : null
-                }
-              />
-            ))}
 
 
             {/* CA-2: Back + advance close the options column (last in DOM →
@@ -1187,18 +1184,22 @@ export function ConfiguratorClient({
                 le varianti `@container` sono prefissate `md:` apposta. Sotto md
                 l'editor mette i due affiancati (mockup .navB) e AC10 la chiude
                 alleggerendo il Next, non troncandolo (vedi sotto). */}
-            {/* R4-STEP2 (mockup .navB): in the editor the two CTAs sit SIDE BY
-                SIDE at the foot of the panel and never scroll away — sticky to
-                the bottom of the panel's own scroll port, on the panel's card
-                background. NB: `env(safe-area-inset-bottom)` reads 0 today (the
-                app declares no `viewport-fit=cover`, so there is no safe area to
-                read) — it is in the padding so the row is already correct the
-                day that lands, not because it does something now. */}
+            {/* R4-STEP2 (mockup .navB): under md the two CTAs sit SIDE BY SIDE
+                at the foot of the panel, on the panel's card background.
+                R4-RESTYLE: NOT sticky. It was tried and reverted with evidence:
+                a `sticky bottom-0` row is a fixed bar until it reaches its flow
+                position, so with the page continuing below the fold it sat ON
+                TOP of the option lane and hid the swatches at first paint
+                (docs/evidence/r4-step2-restyle). There is no CSS that keeps a
+                bottom-sticky bar off the content above it. Since the panel is
+                the LAST block of the page, the row in normal flow is one short
+                scroll away and never covers anything.
+                NB: `env(safe-area-inset-bottom)` reads 0 today (the app declares
+                no `viewport-fit=cover`, so there is no safe area to read) — it
+                is in the padding so the row is already correct the day that
+                lands, not because it does something now. */}
             <div
-              // B1: il pannello non è più uno scroller, quindi la riga non ha
-              // più bisogno di `sticky` per restare a schermo: le basta essere
-              // l'ultimo elemento rigido della colonna.
-              className="@container md:order-4 max-md:z-10 max-md:-mx-3 max-md:mt-auto max-md:flex-none max-md:bg-card max-md:px-3 max-md:pb-[calc(0.5rem+env(safe-area-inset-bottom))] max-md:pt-2"
+              className="@container md:order-4 max-md:z-10 max-md:-mx-3 max-md:mt-3 max-md:bg-card max-md:px-3 max-md:pb-[calc(0.75rem+env(safe-area-inset-bottom))] max-md:pt-2"
               data-testid="step-nav-flow"
             >
             <div className="flex flex-col-reverse gap-3 md:@md:flex-row md:@md:items-stretch max-md:flex-row max-md:gap-2.5">
@@ -1380,12 +1381,16 @@ function CategoryLane({
       data-testid={`category-${cat.slug}`}
       className={cn(
         "min-w-0",
-        // colonna a tutta altezza del pannello; `-mx-3` annulla la gronda del
-        // pannello così la corsia scorre da bordo a bordo (mockup: `.opts` sta
-        // dentro `.panelB`, senza padding intorno) e le fade la coprono tutta.
-        // `relative` = riferimento delle fade.
+        // `-mx-3` annulla la gronda del pannello, così la corsia scorre da bordo
+        // a bordo (mockup: `.opts` sta dentro `.panelB`, senza padding intorno).
+        // R4-FIX 6: niente `flex-1`/`min-h-0`. Con la pagina che scorre non c'è
+        // più un'altezza da spartire, e un'altezza IMPOSTA più bassa delle card
+        // le tagliava: `overflow-x:auto` fa calcolare `overflow-y:auto`, quindi
+        // ciò che sporgeva finiva sotto il bordo della corsia invece di allargarla.
+        // Ora la corsia è alta quanto le sue card. `relative` sta sul wrapper
+        // della corsia, non qui: le fade non devono coprire legend, testo o footer.
         "md:order-2",
-        "max-md:relative max-md:-mx-3 max-md:flex max-md:min-h-0 max-md:flex-1 max-md:flex-col",
+        "max-md:-mx-3 max-md:flex max-md:flex-col",
         !active && "max-md:hidden"
       )}
     >
@@ -1411,6 +1416,13 @@ function CategoryLane({
         )}
       </legend>
 
+      {/* R4-FIX 5: le fade vivono QUI, in un wrapper che abbraccia SOLO la
+          corsia scrollabile. Prima erano figlie del fieldset e coprivano tutto
+          quello che ci stava dentro — la nota «una sola opzione», il campo
+          scritta del footer — sbiadendo le prime lettere sul lato sinistro.
+          `md:contents` = da md in su il wrapper sparisce dal layout e la corsia
+          torna figlia diretta del fieldset (desktop invariato al pixel). */}
+      <div className="md:contents max-md:relative max-md:min-w-0">
       {single ? (
         // con una sola opzione non c'è corsia: sotto md la legend è sr-only, e
         // un pannello vuoto sembrerebbe rotto — la nota torna visibile qui.
@@ -1435,10 +1447,14 @@ function CategoryLane({
             // desktop (F15): invariato
             "flex flex-wrap gap-2.5",
             // mobile (mockup `.opts`): corsia orizzontale con snap e peek
-            "max-md:min-h-0 max-md:min-w-0 max-md:flex-1 max-md:items-start max-md:touch-pan-x max-md:overflow-x-auto max-md:overscroll-x-contain max-md:scroll-pl-3 max-md:px-3 max-md:py-3 max-md:snap-x max-md:snap-proximity max-md:[scrollbar-width:none] max-md:[&::-webkit-scrollbar]:hidden",
+            // R4-FIX 6: `scroll-px-3` (non solo `-pl-`) — con lo snap, l'ULTIMA
+            // card si fermava incollata al bordo destro. Niente `flex-1`: la
+            // corsia è alta quanto le sue card, così nessuna sborda (vedi il
+            // fieldset).
+            "max-md:min-w-0 max-md:items-start max-md:touch-pan-x max-md:overflow-x-auto max-md:overscroll-x-contain max-md:scroll-px-3 max-md:px-3 max-md:py-3 max-md:snap-x max-md:snap-proximity max-md:[scrollbar-width:none] max-md:[&::-webkit-scrollbar]:hidden",
             dense
               ? // mockup `.opts.dense`: due righe che scorrono insieme
-                "max-md:grid max-md:grid-flow-col max-md:content-center max-md:justify-start max-md:gap-x-2.5 max-md:gap-y-1 max-md:py-1 max-md:[grid-template-rows:auto_auto]"
+                "max-md:grid max-md:grid-flow-col max-md:justify-start max-md:gap-x-2.5 max-md:gap-y-1 max-md:py-2 max-md:[grid-template-rows:auto_auto]"
               : "max-md:flex-nowrap max-md:gap-3"
           )}
         >
@@ -1502,8 +1518,18 @@ function CategoryLane({
           className={cn(
             // desktop: invariato
             "grid grid-cols-3 gap-2.5 sm:grid-cols-4",
-            // mobile: stessa corsia orizzontale delle opzioni colore
-            "max-md:flex max-md:min-h-0 max-md:min-w-0 max-md:flex-1 max-md:items-start max-md:gap-3 max-md:touch-pan-x max-md:overflow-x-auto max-md:overscroll-x-contain max-md:scroll-pl-3 max-md:px-3 max-md:py-2 max-md:snap-x max-md:snap-proximity max-md:[scrollbar-width:none] max-md:[&::-webkit-scrollbar]:hidden"
+            // mobile: stessa corsia orizzontale delle opzioni colore.
+            // R4-FIX 6 (corsia «Dyr»): erano queste tre utility a far sbordare
+            // le card. `flex-1` + `min-h-0` davano alla corsia l'altezza che
+            // AVANZAVA nel pannello, non quella che le card CHIEDEVANO; con
+            // `overflow-x:auto` il browser calcola `overflow-y:auto`, quindi le
+            // card più alte finivano tagliate dal bordo invece di allargarlo, e
+            // `items-start` impediva anche solo di pareggiarle. Ora: altezza dal
+            // contenuto, `items-stretch` (default) e `scroll-px-3` simmetrico —
+            // ogni card interamente dentro la corsia, la prima interamente
+            // visibile all'apertura (lo scrollIntoView della corsia si attiva
+            // solo sui gruppi colore, che espongono `aria-checked`).
+            "max-md:flex max-md:min-w-0 max-md:gap-3 max-md:touch-pan-x max-md:overflow-x-auto max-md:overscroll-x-contain max-md:scroll-px-3 max-md:px-3 max-md:py-3 max-md:snap-x max-md:snap-proximity max-md:[scrollbar-width:none] max-md:[&::-webkit-scrollbar]:hidden"
           )}
         >
           {cat.options.map((o) => (
@@ -1521,30 +1547,34 @@ function CategoryLane({
         </div>
       )}
 
-      {/* R4-FIX 9: sotto la corsia — il campo scritta del gruppo Tekst. Sotto md
-          è dentro il pannello della tab, quindi `flex-none`: la corsia si
-          restringe, il campo non viene tagliato. */}
-      {footer && (
-        <div className="mt-3 max-md:mt-0 max-md:flex-none max-md:px-3 max-md:pb-3">
-          {footer}
-        </div>
+      {/* mockup `.lane.can-l`/`.can-r` — solo mobile, solo finché c'è corsa, e
+          SOLO sopra una corsia: con una sola opzione qui non c'è uno scroller
+          ma una frase, e una frase non si sfuma (R4-FIX 5). */}
+      {!single && (
+        <>
+          <span
+            aria-hidden
+            className={cn(
+              "pointer-events-none absolute inset-y-0 left-0 z-[2] hidden w-6 bg-gradient-to-r from-card to-transparent transition-opacity max-md:block",
+              fades.left ? "opacity-100" : "opacity-0"
+            )}
+          />
+          <span
+            aria-hidden
+            className={cn(
+              "pointer-events-none absolute inset-y-0 right-0 z-[2] hidden w-6 bg-gradient-to-l from-card to-transparent transition-opacity max-md:block",
+              fades.right ? "opacity-100" : "opacity-0"
+            )}
+          />
+        </>
       )}
+      </div>
 
-      {/* mockup `.lane.can-l`/`.can-r` — solo mobile, solo finché c'è corsa. */}
-      <span
-        aria-hidden
-        className={cn(
-          "pointer-events-none absolute inset-y-0 left-0 z-[2] hidden w-6 bg-gradient-to-r from-card to-transparent transition-opacity max-md:block",
-          fades.left ? "opacity-100" : "opacity-0"
-        )}
-      />
-      <span
-        aria-hidden
-        className={cn(
-          "pointer-events-none absolute inset-y-0 right-0 z-[2] hidden w-6 bg-gradient-to-l from-card to-transparent transition-opacity max-md:block",
-          fades.right ? "opacity-100" : "opacity-0"
-        )}
-      />
+      {/* R4-FIX 9: sotto la corsia — il campo scritta del gruppo Tekst. Fuori dal
+          wrapper delle fade: è testo, non deve sbiadire (R4-FIX 5). */}
+      {footer && (
+        <div className="mt-3 max-md:mt-0 max-md:px-3 max-md:pb-3">{footer}</div>
+      )}
     </fieldset>
   );
 }

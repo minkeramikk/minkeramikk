@@ -29,8 +29,8 @@ import { cn } from "@/lib/utils";
  * lose qty, scroll and focus mid-interaction (§3.19).
  *
  * - `<640px`: bottom sheet — anchored bottom, full width, `rounded-t-lg`,
- *   grab handle, safe-area padding, sticky buy row. The ✕ stays (closing is
- *   never swipe/backdrop-only).
+ *   safe-area padding, sticky buy row. NO grab handle (R4-FIX: a false
+ *   affordance — nothing drags) and no swipe-to-dismiss: the ✕ closes.
  * - `≥640px`: centred dialog, `min(860px,96vw)`, 2 internal columns 1.05fr/1fr.
  *
  * ponytail: the photo/thumb degrade lives in `displayPhotos`, the lightbox body
@@ -134,19 +134,22 @@ export function ProductSheet({
           "motion-reduce:animate-none!"
         )}
       >
-        {/* grab handle — mobile only (42×4.5px, §3.19) */}
-        <span
-          aria-hidden
-          className="absolute top-2 left-1/2 h-[4.5px] w-[42px] -translate-x-1/2 rounded-full bg-border sm:hidden"
-        />
+        {/* R4-FIX: no grab handle. It read as "drag me to dismiss" and nothing
+            here drags — swipe-down-to-close is deliberately NOT in this round.
+            Closing is the ✕ (and Esc / backdrop), as it always was. */}
         <button
           type="button"
           onClick={() => onOpenChange(false)}
           aria-label={tCfg("productSheet.close")}
           data-testid="product-sheet-close"
+          // R4-FIX: `bg-muted` on the sheet's light card was a light disc on a
+          // light ground — invisible on a phone. Inverted onto the ink pair
+          // (`--ink` / `--ink-foreground`, the same tokens the zoom pill uses):
+          // dark disc, light glyph, no hardcoded colour.
           // 36px disc like the mockup; `after` stretches the hit area to 44px
-          // so the touch target rule (§5) holds without changing the visual.
-          className="absolute top-2.5 right-3 z-2 flex size-9 items-center justify-center rounded-full bg-muted text-base outline-none after:absolute after:-inset-1 after:content-[''] focus-visible:ring-3 focus-visible:ring-ring/50"
+          // (36 + 2×4) so the touch target rule (§5) holds without changing the
+          // visual.
+          className="absolute top-2.5 right-3 z-2 flex size-9 items-center justify-center rounded-full bg-ink text-base text-ink-foreground outline-none after:absolute after:-inset-1 after:content-[''] focus-visible:ring-3 focus-visible:ring-ring/50"
         >
           ✕
         </button>
@@ -229,7 +232,9 @@ export function ProductSheet({
                   )}
                   <DesignRound layers={designLayers} className="size-11" />
                 </div>
-                <p className="min-w-0 font-medium text-primary">
+                {/* R4-FIX: was `text-primary` (the violet) — same ruling as the
+                    subtitle above: this line is body copy, so it is the DS black. */}
+                <p className="min-w-0 font-medium text-foreground">
                   {tCfg("yourSelection.pairCaption")}
                 </p>
               </div>
@@ -241,7 +246,10 @@ export function ProductSheet({
               {/* The dialog's accessible name IS the product name — one node,
                   no sr-only duplicate for the screen reader to read twice. */}
               <DialogTitle className="text-lg leading-snug font-semibold">{name}</DialogTitle>
-              <p className="text-xs text-muted-foreground">
+              {/* R4-FIX: `text-foreground` (= `--mk-dark`, the design-system
+                  black — never a literal #000). The muted grey was unreadable
+                  next to the title on a phone. */}
+              <p className="text-xs text-foreground">
                 {series ? `${series} · ${subtitle}` : subtitle}
               </p>
             </div>

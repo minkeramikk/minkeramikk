@@ -80,8 +80,10 @@
       "showLess": "Show less",
       "tabsLabel": "Categories",
       "tabCount": "{name} ({count})",
-      "extrasTab": "Details",
-      "photosTab": "Photos",
+      "inspirationPhotos": "Inspiration photos",
+      "configureHeading": "Configure your design",
+      "scrollTabsBack": "Scroll categories back",
+      "scrollTabsForward": "Scroll categories forward",
       "optionsLabel": "Colours and motifs"
     },
     "photos": {
