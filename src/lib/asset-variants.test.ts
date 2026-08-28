@@ -2,8 +2,10 @@ import { describe, it, expect } from "vitest";
 import {
   assetClass,
   isVariantPath,
+  PRODUCT_THUMB_WIDTH,
   variantPath,
   variantWidth,
+  variantWidths,
 } from "./asset-variants";
 
 describe("assetClass", () => {
@@ -62,9 +64,10 @@ describe("assetClass", () => {
     expect(variantWidth("product-photos/vietri-flat/abc.jpg")).toBe(1024);
   });
 
-  it("keeps the legacy product thumb class at 256", () => {
+  it("serves product photos big enough for the step-3 card / sheet", () => {
     expect(assetClass("products/vietri-flat.png")).toBe("products");
-    expect(variantWidth("products/vietri-flat.png")).toBe(256);
+    // R4-STEP3-FIX: 256 was the pre-STEP3 64px thumb budget → soft cards
+    expect(variantWidth("products/vietri-flat.png")).toBeGreaterThanOrEqual(768);
   });
 });
 
@@ -72,7 +75,7 @@ describe("variantWidth", () => {
   it("maps each class to its display-derived width", () => {
     expect(variantWidth("swatches/a3759f.png")).toBe(96);
     expect(variantWidth("designs/amalfi/dyr/elg.png")).toBe(128);
-    expect(variantWidth("products/krus.png")).toBe(256);
+    expect(variantWidth("products/krus.png")).toBe(1024);
     expect(variantWidth("designs/amalfi/dots/lilla.png")).toBe(512); // F26.1: was 800
     expect(variantWidth("misc/x.png")).toBeNull();
   });
@@ -102,5 +105,17 @@ describe("isVariantPath", () => {
     expect(isVariantPath("swatches/a3759f@96.webp")).toBe(true);
     expect(isVariantPath("swatches/a3759f.png")).toBe(false);
     expect(isVariantPath("designs/a/b/c@800.webp")).toBe(true);
+  });
+});
+
+describe("variantWidths", () => {
+  it("also pre-generates the small thumb for product photos", () => {
+    expect(variantWidths("products/krus.png")).toEqual([1024, PRODUCT_THUMB_WIDTH]);
+  });
+
+  it("is a single width for every other class", () => {
+    expect(variantWidths("swatches/a3759f.png")).toEqual([96]);
+    expect(variantWidths("designs/amalfi/dots/lilla.png")).toEqual([512]);
+    expect(variantWidths("misc/x.png")).toEqual([]);
   });
 });

@@ -4,6 +4,7 @@ import { getActiveDesigns } from "@/lib/catalog/designs";
 import { getDesignDetail } from "@/lib/catalog/design-options";
 import { getProductsBySlug } from "@/lib/catalog/products";
 import { assetUrl } from "@/lib/storage";
+import { PRODUCT_THUMB_WIDTH } from "@/lib/asset-variants";
 import { decodeSetParam } from "@/lib/cart/set-code";
 import {
   decodeConfigCode,
@@ -88,7 +89,9 @@ export async function resolveSetPreviews(
       productName: locale === "no" ? product.nameNo : product.nameEn,
       qty: entry.qty,
       layers,
-      plateImage: product.image ? assetUrl(product.image) : null,
+      plateImage: product.image
+        ? assetUrl(product.image, { width: PRODUCT_THUMB_WIDTH })
+        : null,
     });
   }
   return lines;

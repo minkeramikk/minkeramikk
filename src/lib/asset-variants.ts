@@ -32,14 +32,25 @@ export type AssetClass =
 export const VARIANT_WIDTHS: Record<AssetClass, number> = {
   swatches: 96, // 40px swatch circles, shared library (F15)
   animal: 128, // 56px animal icons
-  products: 256, // 64px product/supplier thumbs (photos)
+  // R4-STEP3-FIX: the step-3 card cover and the product-sheet main frame show
+  // this photo at ~200px / ~420px × DPR2 — 256 (the old 64px thumb budget) was
+  // visibly soft. Same order as `product-photos` below. The small thumbs
+  // (48px cart plate, admin lists) ask for PRODUCT_THUMB_WIDTH explicitly.
+  products: 1024,
   designs: 512, // was 800 — hero compositing layers + design previews, flat
   // tints displayed at 312px (mobile) / 417px (desktop) (F26.1)
   "design-photos": 1024, // F36 lifestyle gallery strip (~350px × DPR2 + headroom)
   // R4-STEP3: gallery photos of a ceramic (modal ~420px, lightbox full-screen),
-  // same budget as the F36 design gallery. NOT the 256px catalog thumb above.
+  // same budget as the F36 design gallery.
   "product-photos": 1024,
 };
+
+/**
+ * Small product thumb: cart plate (48px), admin lists (36-80px). Passed as an
+ * explicit `width` to assetUrl — the `products` class width itself serves the
+ * big step-3 card / sheet image.
+ */
+export const PRODUCT_THUMB_WIDTH = 256;
 
 /** Compositing layers inside an animal category folder: `-layer` is the admin
  *  upload convention (options-actions.ts), `-shape` the legacy import naming. */
@@ -82,4 +93,15 @@ export function variantWidth(path: string): number | null {
 export function variantPath(path: string, width: number): string | null {
   if (!/\.(png|jpe?g|webp)$/i.test(path)) return null;
   return path.replace(/\.(png|jpe?g|webp)$/i, `@${width}.webp`);
+}
+
+/**
+ * Every width to pre-generate for a master. One per class, plus the small
+ * thumb for product photos: the 48px cart plate and the admin lists request
+ * PRODUCT_THUMB_WIDTH explicitly, so it must exist alongside the class width.
+ */
+export function variantWidths(path: string): number[] {
+  const width = variantWidth(path);
+  if (!width) return [];
+  return assetClass(path) === "products" ? [width, PRODUCT_THUMB_WIDTH] : [width];
 }

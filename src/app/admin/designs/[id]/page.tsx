@@ -15,6 +15,7 @@ import { formatMoney, money, type Currency } from "@/lib/money/money";
 import { PreviewCanvas } from "@/components/ui-domain/preview-canvas";
 import { createClient } from "@/lib/supabase/server";
 import { assetUrl } from "@/lib/storage";
+import { PRODUCT_THUMB_WIDTH } from "@/lib/asset-variants";
 import {
   getPreviewLayers,
   type LayerSlot,
@@ -59,7 +60,7 @@ export default async function EditDesignPage({
     nameNo: p.name_no,
     nameEn: p.name_en,
     price: formatMoney(money(p.price_cents, p.currency as Currency), "en"),
-    image: p.image ? assetUrl(p.image) : null,
+    image: p.image ? assetUrl(p.image, { width: PRODUCT_THUMB_WIDTH }) : null,
     visible: p.visible,
   }));
   const selectedProductIds = (whitelistRows ?? []).map((r) => r.product_id);

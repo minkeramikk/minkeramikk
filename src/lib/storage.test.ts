@@ -15,13 +15,20 @@ describe("assetUrl", () => {
   it("resolves each class to its own width", () => {
     expect(assetUrl("swatches/a3759f.png")).toContain("swatches/a3759f@96.webp");
     expect(assetUrl("products/middagstallerken.png")).toContain(
-      "products/middagstallerken@256.webp"
+      "products/middagstallerken@1024.webp"
     );
     expect(assetUrl("designs/amalfi/dyr/elg.png")).toContain(
       "designs/amalfi/dyr/elg@128.webp"
     );
     expect(assetUrl("designs/amalfi/animal/elg.png")).toContain(
       "designs/amalfi/animal/elg@128.webp"
+    );
+  });
+
+  it("keeps the small product thumb on its own 256 variant", () => {
+    // cart plate / admin lists — see PRODUCT_THUMB_WIDTH
+    expect(assetUrl("products/middagstallerken.png", { width: 256 })).toContain(
+      "products/middagstallerken@256.webp"
     );
   });
 

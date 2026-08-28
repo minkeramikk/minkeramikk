@@ -4,6 +4,7 @@ import { getActiveDesigns } from "@/lib/catalog/designs";
 import { getDesignDetail } from "@/lib/catalog/design-options";
 import { getDesignProducts } from "@/lib/catalog/products";
 import { assetUrl } from "@/lib/storage";
+import { PRODUCT_THUMB_WIDTH } from "@/lib/asset-variants";
 import {
   decodeConfigCode,
   toCodecDesign,
@@ -116,7 +117,9 @@ export async function resolveSharedSet(raw: string): Promise<ResolvedSharedSet> 
         configCode,
         configSnapshot: snapshot,
         layers: designLayers,
-        plateImage: product.image ? assetUrl(product.image) : undefined,
+        plateImage: product.image
+          ? assetUrl(product.image, { width: PRODUCT_THUMB_WIDTH })
+          : undefined,
         productSlug: product.slug,
         pieces: product.pieces,
       });

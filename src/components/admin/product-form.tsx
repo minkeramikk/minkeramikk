@@ -7,6 +7,7 @@ import {
   type ProductFormState,
 } from "@/app/admin/products/actions";
 import { assetUrl } from "@/lib/storage";
+import { PRODUCT_THUMB_WIDTH } from "@/lib/asset-variants";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -152,7 +153,7 @@ export function ProductForm({
           <Label htmlFor="image">Image (PNG/JPG/WebP)</Label>
           {product?.image && (
             // eslint-disable-next-line @next/next/no-img-element -- catalog art from storage
-            <img src={assetUrl(product.image)} alt="" className="mb-1 size-20 rounded-sm border object-contain" />
+            <img src={assetUrl(product.image, { width: PRODUCT_THUMB_WIDTH })} alt="" className="mb-1 size-20 rounded-sm border object-contain" />
           )}
           <Input id="image" name="image" type="file" accept="image/png,image/jpeg,image/webp" data-testid="product-image" />
           {product && <p className="text-xs text-muted-foreground">Leave empty to keep the current image.</p>}

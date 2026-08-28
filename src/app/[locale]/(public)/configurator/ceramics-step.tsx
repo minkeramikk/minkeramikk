@@ -11,6 +11,7 @@ import { CartLineThumb } from "@/components/ui-domain/cart-line-thumb";
 import { OrderForm } from "@/components/ui-domain/order-form";
 import { Button } from "@/components/ui/button";
 import { assetUrl } from "@/lib/storage";
+import { PRODUCT_THUMB_WIDTH } from "@/lib/asset-variants";
 import { formatMoney, money } from "@/lib/money/money";
 import type { Currency } from "@/lib/money/money";
 import { useCartContext } from "@/lib/cart/cart-context";
@@ -80,6 +81,9 @@ function thumbHex(line: CartLine): string | undefined {
  * button: click/tap opens `ProductSheet` (§3.19). Replaces the R2-3-4 compact
  * card that expanded in place, and drops the F13 hover preview with it — the
  * card's own photo IS the preview.
+ *
+ * That photo is the product's main picture (`image`), which is served at the
+ * `products` class width (1024) precisely because it is displayed this big.
  */
 function CeramicCard({
   product: p,
@@ -93,8 +97,10 @@ function CeramicCard({
   const t = useTranslations("configurator");
   const name = locale === "no" ? p.nameNo : p.nameEn;
   const price = formatMoney(money(p.priceCents, p.currency), locale);
-  // The real photo when the admin uploaded one, else the catalogue thumb.
-  const cover = p.photos[0] ?? p.image;
+  // Ruling 28/08: the cover is ALWAYS the ceramic's main picture, never the
+  // first gallery photo — the grid must stay a homogeneous catalogue. The
+  // photos live only inside the sheet (gallery + lightbox, §3.19-bis).
+  const cover = p.image;
   // Dimensional attributes only — a `custom` one (e.g. colour) has no unit and
   // would print as a bare, unlabelled value here.
   const size = publicAttributes(p.attributes).find((a) => a.key !== "custom");
@@ -322,7 +328,9 @@ export function CeramicsStep({
       configCode,
       configSnapshot: snapshot,
       layers: designLayers,
-      plateImage: selected.image ? assetUrl(selected.image) : undefined,
+      plateImage: selected.image
+        ? assetUrl(selected.image, { width: PRODUCT_THUMB_WIDTH })
+        : undefined,
       productSlug: selected.slug,
       pieces: selected.pieces,
     });
