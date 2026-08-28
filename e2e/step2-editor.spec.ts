@@ -483,6 +483,132 @@ test("CA5: le corsie opzioni hanno le frecce ‹ ›, e un tap su un'opzione non
   ).not.toBe(slBefore);
 });
 
+test("CA5-bis: a riposo, il tab attivo e la prima card non riposano sotto i dischi freccia", async ({
+  page,
+}) => {
+  // DIPENDENZA DAI DATI VIVI: `amalfi-dyr` è il design con abbastanza gruppi
+  // (6 tab) e abbastanza opzioni (14 animali, 20 colori) da far comparire le
+  // frecce a 390px. Se l'admin gli toglie categorie o opzioni le frecce non
+  // appaiono più e questo test perde il suo soggetto: è un dato, non il codice.
+  await page.goto("/no/configurator?design=amalfi-dyr&step=2");
+  await page.getByTestId("details-step").waitFor({ state: "visible" });
+
+  /** Rettangoli dei dischi VISIBILI, area toccabile compresa (`after:-inset-1`). */
+  const discs = async (prev: string, next: string) =>
+    page.evaluate(
+      ([p, n]) =>
+        [p, n]
+          .map((id) => document.querySelector(`[data-testid="${id}"]`) as HTMLElement | null)
+          .filter((el): el is HTMLElement => !!el && el.checkVisibility())
+          .map((el) => {
+            const b = el.getBoundingClientRect();
+            const grow = Math.abs(parseFloat(getComputedStyle(el, "::after").insetInlineStart)) || 0;
+            return { left: b.left - grow, right: b.right + grow, top: b.top, bottom: b.bottom };
+          }),
+      [prev, next]
+    );
+
+  const overlaps = (
+    a: { left: number; right: number; top: number; bottom: number },
+    b: { left: number; right: number; top: number; bottom: number }
+  ) =>
+    Math.min(a.right, b.right) - Math.max(a.left, b.left) > 1 &&
+    Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 1;
+
+  // ── la barra tab ────────────────────────────────────────────────────────
+  const tabsNext = page.getByTestId("category-tabs-next");
+  await expect(tabsNext, "a 390 la barra tab deve avere corsa").toBeVisible();
+
+  // (a) scroll-padding: dopo uno scorrimento con la freccia, il PRIMO tab non
+  //     tagliato dal bordo — quello che l'utente legge — non è sotto un disco.
+  //     Non si guarda il tab attivo: una freccia può portarlo fuori vista, e un
+  //     elemento fuori vista non interseca niente, cioè l'asserzione sarebbe
+  //     vuota. (Verificato: lo era.)
+  await tabsNext.click();
+  await page.waitForTimeout(1000);
+  const firstWholeTab = await page.evaluate(() => {
+    const bar = document.querySelector('[data-testid="category-tabs"]') as HTMLElement;
+    const br = bar.getBoundingClientRect();
+    const b = [...bar.querySelectorAll("[data-testid^='category-tab-']")]
+      .map((el) => el.getBoundingClientRect())
+      .find((r) => r.left >= br.left - 1);
+    return b ? { left: b.left, right: b.right, top: b.top, bottom: b.bottom } : null;
+  });
+  expect(firstWholeTab, "un tab intero dev'essere visibile a riposo").not.toBeNull();
+  for (const d of await discs("category-tabs-prev", "category-tabs-next")) {
+    expect(
+      overlaps(firstWholeTab!, d),
+      "il primo tab intero non riposa sotto un disco freccia"
+    ).toBe(false);
+  }
+
+  // (b) auto-scroll: attivare COL DITO un tab mezzo coperto lo porta in chiaro.
+  //     `dispatchEvent` e non `click()`: il click di Playwright scrolla da sé
+  //     l'elemento in vista (actionability) e coprirebbe proprio il buco che
+  //     questo pezzo sorveglia — un dito umano non fa nulla del genere.
+  //     Verificato: con `click()`, o misurando durante l'animazione di scroll,
+  //     l'asserzione passa anche disattivando l'auto-scroll: è vuota.
+  const tabs = page.locator("[data-testid^='category-tab-']");
+  const covered = await page.evaluate(() => {
+    const bar = document.querySelector('[data-testid="category-tabs"]') as HTMLElement;
+    const disc = document.querySelector(
+      '[data-testid="category-tabs-next"]'
+    ) as HTMLElement;
+    const d = disc.getBoundingClientRect();
+    return [...bar.querySelectorAll("[data-testid^='category-tab-']")].findIndex((el) => {
+      const b = el.getBoundingClientRect();
+      return Math.min(b.right, d.right) - Math.max(b.left, d.left) > 1;
+    });
+  });
+  expect(covered, "serve un tab mezzo coperto dal disco ›").toBeGreaterThanOrEqual(0);
+  await tabs.nth(covered).dispatchEvent("click");
+  await page.waitForTimeout(1000);
+  const activeBox = await page.evaluate(() => {
+    const el = document.querySelector(
+      "[data-testid^='category-tab-'][aria-selected='true']"
+    ) as HTMLElement;
+    const b = el.getBoundingClientRect();
+    return { left: b.left, right: b.right, top: b.top, bottom: b.bottom };
+  });
+  for (const d of await discs("category-tabs-prev", "category-tabs-next")) {
+    expect(
+      overlaps(activeBox, d),
+      "un tab attivato col dito non resta sotto un disco freccia"
+    ).toBe(false);
+  }
+
+  // ── la corsia opzioni ───────────────────────────────────────────────────
+  await tabs.first().click(); // «Dyr», corsia a immagine che scorre
+  await page.waitForTimeout(400);
+  const laneNext = page.getByTestId("option-lane-next").filter({ visible: true }).first();
+  await expect(laneNext, "la corsia «Dyr» deve avere corsa").toBeVisible();
+  await laneNext.click();
+  await page.waitForTimeout(900);
+
+  const laneGeom = await page.evaluate(() => {
+    const lane = [...document.querySelectorAll('[data-testid="option-grid"]')].find(
+      (el) => (el as HTMLElement).checkVisibility()
+    ) as HTMLElement;
+    const lr = lane.getBoundingClientRect();
+    // la PRIMA card non tagliata dal bordo iniziale: è quella che l'utente
+    // legge, e quella che non deve stare sotto il disco. Le card mezze fuori
+    // dal bordo restano il segnale «c'è dell'altro».
+    const first = [...lane.querySelectorAll("button")]
+      .map((c) => c.getBoundingClientRect())
+      .find((b) => b.left >= lr.left - 1);
+    return first
+      ? { left: first.left, right: first.right, top: first.top, bottom: first.bottom }
+      : null;
+  });
+  expect(laneGeom, "una card intera dev'essere visibile a riposo").not.toBeNull();
+  for (const d of await discs("option-lane-prev", "option-lane-next")) {
+    expect(
+      overlaps(laneGeom!, d),
+      "la prima card intera non riposa sotto un disco freccia"
+    ).toBe(false);
+  }
+});
+
 test("CA3: «Fargeønsker» è un tab, esiste solo dove serve, e non lascia form sotto il pannello", async ({
   page,
 }) => {

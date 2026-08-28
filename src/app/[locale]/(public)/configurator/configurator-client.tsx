@@ -14,7 +14,12 @@ import {
   isCustomTextOffered,
 } from "@/lib/configurator/text-option";
 import { useLaneFades } from "@/lib/configurator/use-lane-fades";
-import { arrowStep, centreScrollLeft } from "@/lib/configurator/lane-scroll";
+import {
+  ARROW_SAFE_PX,
+  arrowStep,
+  centreScrollLeft,
+  nearestScrollLeft,
+} from "@/lib/configurator/lane-scroll";
 import { PreviewCanvas } from "@/components/ui-domain/preview-canvas";
 import { Stepper } from "@/components/ui-domain/stepper";
 import { Swatch } from "@/components/ui-domain/swatch";
@@ -393,6 +398,33 @@ export function ConfiguratorClient({
     const el = tabsRef.current;
     if (el) el.scrollBy({ left: dir * el.clientWidth * 0.7, behavior: "smooth" });
   };
+  /* R4-ARROWS: il tab ATTIVO non deve mai riposare sotto un disco freccia.
+     `scroll-px-11` copre snap e focus-into-view, ma NON il tap: cliccare un tab
+     non lo scrolla, quindi restava dov'era — anche mezzo coperto. Qui lo si
+     porta dentro la fascia libera, e SOLO se serve (`nearestScrollLeft` è un
+     `inline:"nearest"`: se il tab ci sta già, non muove niente).
+     Si scrive `scrollLeft`, non `scrollIntoView`: quello scrollerebbe anche la
+     pagina, ed è il bug che R4-POLISH voce 5 ha appena chiuso. */
+  useEffect(() => {
+    const el = tabsRef.current;
+    if (!el || el.scrollWidth <= el.clientWidth) return;
+    const tab = el.querySelector<HTMLElement>(
+      "[data-testid^='category-tab-'][aria-selected='true']"
+    );
+    if (!tab) return;
+    const box = tab.getBoundingClientRect();
+    if (!box.width) return;
+    const next = nearestScrollLeft({
+      scrollerLeft: el.getBoundingClientRect().left,
+      scrollLeft: el.scrollLeft,
+      clientWidth: el.clientWidth,
+      targetLeft: box.left,
+      targetWidth: box.width,
+      padStart: ARROW_SAFE_PX,
+      padEnd: ARROW_SAFE_PX,
+    });
+    if (next !== el.scrollLeft) el.scrollTo({ left: next, behavior: "smooth" });
+  }, [activeTab, isDesktop]);
   /** Foto reali del design: R4-RESTYLE le porta nella sezione
    *  «Inspirasjonsbilder», in pagina sotto la didascalia del canvas. */
   const hasImages = hasPhotos(detail.images);
@@ -969,7 +1001,13 @@ export function ConfiguratorClient({
                 // B1: `touch-pan-x` dice al browser che qui il gesto è
                 // orizzontale (niente pan verticale rubato), `overscroll-x-contain`
                 // impedisce che il fine corsa si propaghi all'antenato.
-                className="flex touch-pan-x snap-x snap-proximity gap-1 overflow-x-auto overscroll-x-contain scroll-smooth px-1 pb-0.5 pt-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                // R4-ARROWS: `scroll-px-11` = 44px, la larghezza del disco
+                // freccia più la sua area toccabile. È scroll-padding, non
+                // padding: non sposta niente, dice solo a snap e all'auto-scroll
+                // DOVE fermarsi, così un tab non RIPOSA mai sotto un disco.
+                // Passarci sotto DURANTE lo scorrimento resta com'è: è il
+                // segnale che c'è dell'altro.
+                className="flex touch-pan-x snap-x snap-proximity gap-1 overflow-x-auto overscroll-x-contain scroll-smooth scroll-px-11 px-1 pb-0.5 pt-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
               >
                 {detail.categories.map((cat) => {
                   const sel = selections[cat.slug];
@@ -987,7 +1025,11 @@ export function ConfiguratorClient({
                       data-testid={`category-tab-${cat.slug}`}
                       onClick={() => setActiveTab(cat.slug)}
                       className={cn(
-                        "flex min-h-11 flex-none snap-start items-center gap-2 rounded-full px-3.5 text-[12.5px]",
+                        // `scroll-mx-1`: la stessa gronda di 4px che la corsia
+                        // ha già (`px-1`/`gap-1`), così il punto di riposo
+                        // eredita il ritmo della barra invece di incollarsi al
+                        // bordo della fascia libera.
+                        "flex min-h-11 flex-none snap-start scroll-mx-1 items-center gap-2 rounded-full px-3.5 text-[12.5px]",
                         "focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring",
                         on
                           ? "bg-secondary font-semibold text-primary"
@@ -1023,7 +1065,7 @@ export function ConfiguratorClient({
                     data-testid="category-tab-wishes"
                     onClick={() => setActiveTab(WISHES_TAB)}
                     className={cn(
-                      "flex min-h-11 flex-none snap-start items-center rounded-full px-3.5 text-[12.5px]",
+                      "flex min-h-11 flex-none snap-start scroll-mx-1 items-center rounded-full px-3.5 text-[12.5px]",
                       "focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring",
                       activeTab === WISHES_TAB
                         ? "bg-secondary font-semibold text-primary"
@@ -1571,11 +1613,11 @@ function CategoryLane({
             // desktop (F15): invariato
             "flex flex-wrap gap-2.5",
             // mobile (mockup `.opts`): corsia orizzontale con snap e peek
-            // R4-FIX 6: `scroll-px-3` (non solo `-pl-`) — con lo snap, l'ULTIMA
+            // R4-FIX 6: `scroll-px` (non solo `-pl-`) — con lo snap, l'ULTIMA
             // card si fermava incollata al bordo destro. Niente `flex-1`: la
             // corsia è alta quanto le sue card, così nessuna sborda (vedi il
             // fieldset).
-            "max-md:min-w-0 max-md:items-start max-md:touch-pan-x max-md:overflow-x-auto max-md:overscroll-x-contain max-md:scroll-px-3 max-md:px-3 max-md:py-3 max-md:snap-x max-md:snap-proximity max-md:[scrollbar-width:none] max-md:[&::-webkit-scrollbar]:hidden",
+            "max-md:min-w-0 max-md:items-start max-md:touch-pan-x max-md:overflow-x-auto max-md:overscroll-x-contain max-md:scroll-px-11 max-md:px-3 max-md:py-3 max-md:snap-x max-md:snap-proximity max-md:[scrollbar-width:none] max-md:[&::-webkit-scrollbar]:hidden",
             dense
               ? // mockup `.opts.dense`: due righe che scorrono insieme
                 "max-md:grid max-md:grid-flow-col max-md:justify-start max-md:gap-x-2.5 max-md:gap-y-1 max-md:py-2 max-md:[grid-template-rows:auto_auto]"
@@ -1649,11 +1691,11 @@ function CategoryLane({
             // `overflow-x:auto` il browser calcola `overflow-y:auto`, quindi le
             // card più alte finivano tagliate dal bordo invece di allargarlo, e
             // `items-start` impediva anche solo di pareggiarle. Ora: altezza dal
-            // contenuto, `items-stretch` (default) e `scroll-px-3` simmetrico —
+            // contenuto, `items-stretch` (default) e `scroll-px` simmetrico —
             // ogni card interamente dentro la corsia, la prima interamente
             // visibile all'apertura (lo `scrollLeft` che centra la corsia si
             // attiva solo sui gruppi colore, che espongono `aria-checked`).
-            "max-md:flex max-md:min-w-0 max-md:gap-3 max-md:touch-pan-x max-md:overflow-x-auto max-md:overscroll-x-contain max-md:scroll-px-3 max-md:px-3 max-md:py-3 max-md:snap-x max-md:snap-proximity max-md:[scrollbar-width:none] max-md:[&::-webkit-scrollbar]:hidden"
+            "max-md:flex max-md:min-w-0 max-md:gap-3 max-md:touch-pan-x max-md:overflow-x-auto max-md:overscroll-x-contain max-md:scroll-px-11 max-md:px-3 max-md:py-3 max-md:snap-x max-md:snap-proximity max-md:[scrollbar-width:none] max-md:[&::-webkit-scrollbar]:hidden"
           )}
         >
           {cat.options.map((o) => (
