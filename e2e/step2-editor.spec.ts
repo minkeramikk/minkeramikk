@@ -574,3 +574,70 @@ test("CA2: il campo «Tekst» è gated e non si sovrappone né alle opzioni né 
     await deleteDesignBySlug(slug);
   }
 });
+
+test("CA6: nessuna fade copre testo statico, su nessun design e nessun tab", async ({
+  page,
+}) => {
+  // Il difetto originale erano DUE colonne sfumate alte quanto la pagina sopra
+  // la descrizione e la didascalia: le fade della barra tab erano `absolute`
+  // dentro un wrapper senza `relative`, quindi si risolvevano contro il blocco
+  // contenitore iniziale. È chiuso in c0bba2f — questo test è ciò che impedisce
+  // che torni, ora che aggiungiamo fade e form nuovi.
+  const problems: string[] = [];
+  for (const slug of await activeDesignSlugs()) {
+    for (const step of [2, 3]) {
+      await page.goto(`/no/configurator?design=${slug}&step=${step}`);
+      await page
+        .getByTestId(step === 2 ? "details-step" : "ceramics-step")
+        .waitFor({ state: "visible" });
+      const tabs =
+        step === 2
+          ? page.getByTestId("category-tabs").locator("button[data-testid^='category-tab-']")
+          : null;
+      const n = tabs ? await tabs.count() : 1;
+      for (let i = 0; i < n; i++) {
+        if (tabs) await tabs.nth(i).click();
+        const hits = await page.evaluate(() => {
+          const lit = (el: Element) => {
+            const s = getComputedStyle(el);
+            return (
+              s.position === "absolute" &&
+              s.pointerEvents === "none" &&
+              /gradient/.test(s.backgroundImage) &&
+              s.display !== "none" &&
+              s.opacity !== "0"
+            );
+          };
+          const scrolls = (el: HTMLElement) =>
+            el.scrollWidth > el.clientWidth + 2 &&
+            getComputedStyle(el).overflowX !== "visible";
+          const inScroller = (el: HTMLElement | null) => {
+            for (let q = el; q; q = q.parentElement) if (scrolls(q)) return true;
+            return false;
+          };
+          const out: string[] = [];
+          for (const fade of [...document.querySelectorAll("span,div")].filter(lit)) {
+            const fr = fade.getBoundingClientRect();
+            if (!fr.width || !fr.height) continue;
+            for (const node of document.querySelectorAll("p,h1,h2,h3,label,legend")) {
+              const el = node as HTMLElement;
+              if (!el.textContent?.trim() || el.contains(fade)) continue;
+              // il contenuto DENTRO una corsia orizzontale può sfumare: è il
+              // segnale «c'è dell'altro». Il testo statico no.
+              if (inScroller(el)) continue;
+              const r = el.getBoundingClientRect();
+              if (!r.width || !r.height) continue;
+              const ox = Math.min(fr.right, r.right) - Math.max(fr.left, r.left);
+              const oy = Math.min(fr.bottom, r.bottom) - Math.max(fr.top, r.top);
+              if (ox > 1 && oy > 1)
+                out.push(`fade over <${el.tagName.toLowerCase()}> "${el.textContent.trim().slice(0, 40)}"`);
+            }
+          }
+          return [...new Set(out)];
+        });
+        hits.forEach((h) => problems.push(`${slug} step${step} tab#${i}: ${h}`));
+      }
+    }
+  }
+  expect(problems, problems.join("\n")).toEqual([]);
+});
