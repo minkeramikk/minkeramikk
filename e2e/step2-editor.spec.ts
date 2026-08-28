@@ -62,6 +62,12 @@ test("il canvas è sticky: resta visibile quando il pannello strumenti è in vie
     EDITOR_VIEWPORT.height
   );
   await expect(page.getByTestId("step-nav-flow")).toBeVisible();
+
+  // R4-FOLLOWUPS Ⓓ: sotto il canvas non c'è più la riga-riassunto (era
+  // troncata a 390 e ridondante coi dot/conteggi delle tab). Resta la sola
+  // didascalia col link alla inspirasjonsside.
+  await expect(page.getByTestId("canvas-summary")).toHaveCount(0);
+  await expect(page.getByTestId("preview-note-mobile")).toBeVisible();
 });
 
 test("B1: il pannello strumenti non scorre in verticale, e la pagina non scorre in orizzontale", async ({
@@ -607,6 +613,104 @@ test("CA5-bis: a riposo, il tab attivo e la prima card non riposano sotto i disc
       "la prima card intera non riposa sotto un disco freccia"
     ).toBe(false);
   }
+});
+
+test("Ⓒ: la barra tab è sticky sotto il canvas — raggiungibile anche a fondo pagina", async ({
+  page,
+}) => {
+  // DIPENDENZA DAI DATI VIVI, come CA5-bis: `amalfi-dyr` + il tab «Fargeønsker»
+  // è il pannello PIÙ ALTO del catalogo (note colore + figura + textarea), cioè
+  // l'unico che a 390×660 dà abbastanza corsa perché il difetto si veda. Se
+  // l'admin gli toglie le note il test perde il suo soggetto: è un dato.
+  //
+  // Il difetto NON era la barra fuori schermo: era la barra sotto il CANVAS.
+  // Il canvas è sticky a top-14 e sta su `z-30`, la barra scorreva via sotto di
+  // lui. Misurato a fondo pagina su questo design (fondo pagina, tab
+  // «Fargeønsker»): senza sticky la barra si ferma a y=246 con il canvas che
+  // arriva a 294 — coperta; a 560 di altezza y=110 contro 258, sparita del
+  // tutto. Con lo sticky si ferma esattamente al bordo inferiore del canvas.
+  await page.goto("/no/configurator?design=amalfi-dyr&step=2");
+  await page.getByTestId("details-step").waitFor({ state: "visible" });
+  const wishes = page.getByTestId("category-tab-wishes");
+  await expect(wishes, "serve il tab col pannello più alto").toBeVisible();
+  await wishes.click();
+
+  await page.evaluate(() =>
+    window.scrollTo(0, document.documentElement.scrollHeight)
+  );
+  await page.waitForTimeout(300);
+
+  const g = await page.evaluate(() => {
+    const b = (sel: string) =>
+      (document.querySelector(sel) as HTMLElement).getBoundingClientRect();
+    const bar = b('[data-testid="category-tabs"]');
+    const canvas = b("[data-preview-column]");
+    return {
+      barTop: bar.top,
+      barBottom: bar.bottom,
+      canvasBottom: canvas.bottom,
+      vh: window.innerHeight,
+      scrollRange:
+        document.documentElement.scrollHeight - window.innerHeight,
+    };
+  });
+  // guardia anti-asserzione-vuota: senza corsa la barra non ha modo di finire
+  // sotto il canvas, e i tre expect qui sotto passerebbero da soli.
+  expect(g.scrollRange, "la pagina deve avere corsa vera").toBeGreaterThan(300);
+  expect(g.barTop, "la barra tab non è uscita dal viewport dall'alto").toBeGreaterThanOrEqual(-1);
+  expect(g.barBottom, "la barra tab è tutta dentro il viewport").toBeLessThanOrEqual(g.vh);
+  expect(
+    g.barTop,
+    "la barra parcheggia SOTTO il canvas sticky, non dietro"
+  ).toBeGreaterThanOrEqual(g.canvasBottom - 1);
+
+  // e da lì è davvero usabile: un tap cambia tab senza risalire
+  const first = page.locator("[data-testid^='category-tab-']").first();
+  await first.click();
+  await expect(first).toHaveAttribute("aria-selected", "true");
+});
+
+test("Ⓒ: col focus sul campo scritta la barra tab molla lo sticky insieme al canvas", async ({
+  page,
+}) => {
+  // La barra è agganciata AL CANVAS: quando il canvas molla (`data-typing`,
+  // R4-POLISH voce 8), molla anche lei. Agganciata all'header resterebbe a
+  // 56px, cioè esattamente sulla striscia in cui `keepClearOfKeyboard` porta il
+  // campo scritta, e lo coprirebbe.
+  // Si commuta `data-typing` direttamente: la sorgente di quello stato (focus →
+  // `setTyping`) è già coperta da CA2, qui si sorveglia l'ACCOPPIAMENTO fra il
+  // canvas e la barra, che è puro CSS. Così il test non deve seminare un design
+  // «Tekst» nel catalogo di produzione per esistere.
+  const design = await firstActiveDesign();
+  await page.goto(`/no/configurator?design=${design.slug}&step=2`);
+  await page.getByTestId("details-step").waitFor({ state: "visible" });
+
+  const positions = () =>
+    page.evaluate(() => {
+      const bar = document.querySelector('[data-testid="category-tabs"]')!
+        .parentElement as HTMLElement;
+      const canvas = document.querySelector(
+        "[data-preview-column]"
+      ) as HTMLElement;
+      return {
+        bar: getComputedStyle(bar).position,
+        canvas: getComputedStyle(canvas).position,
+      };
+    });
+
+  expect(await positions(), "a riposo entrambi sono sticky").toEqual({
+    bar: "sticky",
+    canvas: "sticky",
+  });
+
+  await page.evaluate(() =>
+    (document.querySelector("[data-preview-column]")!
+      .parentElement as HTMLElement).setAttribute("data-typing", "1")
+  );
+  expect(
+    await positions(),
+    "col campo a fuoco la barra molla lo sticky INSIEME al canvas"
+  ).toEqual({ bar: "static", canvas: "static" });
 });
 
 test("CA3: «Fargeønsker» è un tab, esiste solo dove serve, e non lascia form sotto il pannello", async ({
