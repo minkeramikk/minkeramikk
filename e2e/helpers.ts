@@ -78,6 +78,188 @@ export async function activeDesignSlugs(): Promise<string[]> {
   return (data ?? []).map((d) => d.slug as string);
 }
 
+/** Slug prefix for every design an e2e run creates; `sweepTmpDesigns` owns it. */
+const TMP_DESIGN_PREFIX = "e2e-tmp-";
+
+/**
+ * L'UNICO progetto Supabase del progetto (docs/archive/TODO.md §1.1). Non
+ * esiste un ambiente di staging separato: `.env.local`, `.env.prod.local` e
+ * `.env.example` puntano tutti qui. Quindi questa allowlist NON dice "siamo in
+ * staging" — dice "siamo sul progetto che ci aspettiamo", e impedisce di
+ * seminare per sbaglio un progetto DIVERSO (il target di migrazione
+ * `lfphyfkuuszqazkioxlr` in `.env.migration`, la copia di un collega, un URL
+ * storto). Il fatto che questo sia anche il progetto di produzione è il motivo
+ * per cui esiste la seconda metà della guardia, `MK_E2E_SEED`.
+ */
+const SEEDABLE_PROJECT_REFS = ["rqhsbpwvzesvqwdonirf"];
+
+/**
+ * Il seeding scrive nel catalogo VERO, quello che il sito pubblico serve.
+ * Serve una scelta esplicita: senza `MK_E2E_SEED=1` non semina nessuno, e le
+ * spec che ne hanno bisogno fanno uno skip DICHIARATO (lezione F07). Lancia,
+ * non ritorna un booleano: un seed che parte per errore non deve avere modo di
+ * essere ignorato.
+ */
+export function assertSeedingAllowed(): void {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+  const ref = url.match(/^https:\/\/([a-z0-9]+)\.supabase\./)?.[1] ?? "";
+  if (!SEEDABLE_PROJECT_REFS.includes(ref)) {
+    throw new Error(
+      `[e2e seed] progetto Supabase inatteso: "${ref || url || "(nessun URL)"}". ` +
+        `Seeding consentito solo su ${SEEDABLE_PROJECT_REFS.join(", ")}.`
+    );
+  }
+  if (process.env.MK_E2E_SEED !== "1") {
+    throw new Error(
+      "[e2e seed] il seeding scrive nel catalogo reale (nessun progetto di " +
+        "staging separato esiste): riesegui con MK_E2E_SEED=1 se è ciò che vuoi."
+    );
+  }
+}
+
+/** `true` quando le spec che seminano possono girare; altrove → skip dichiarato. */
+export const CAN_SEED =
+  process.env.MK_E2E_SEED === "1" &&
+  SEEDABLE_PROJECT_REFS.includes(
+    (process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").match(
+      /^https:\/\/([a-z0-9]+)\.supabase\./
+    )?.[1] ?? ""
+  );
+
+/**
+ * R4-POLISH: the live catalog has no group named «Tekst»/«Text», so the
+ * gating of the inscription field (lib/configurator/text-option.ts) cannot be
+ * exercised against it. This seeds a throwaway design that HAS one — one image
+ * group, one colour group and a «Tekst» group whose FIRST option is the
+ * conventional "no text". Always paired with `deleteDesignBySlug` in a
+ * `finally`, and `sweepTmpDesigns()` cleans up after a run that crashed.
+ *
+ * NB: the catalog is `unstable_cache`d (tag `catalog`). A server started BEFORE
+ * the seed keeps serving the old list, so a spec that seeds must run against a
+ * server started after it, or clear `.next/cache` first. In CI the server is
+ * always fresh; locally: `rm -rf .next/cache` before `npx playwright test`.
+ */
+export async function seedTextGroupDesign(
+  slug = `${TMP_DESIGN_PREFIX}tekst`
+): Promise<{ slug: string; id: string }> {
+  assertSeedingAllowed();
+  const db = adminClient();
+  await deleteDesignBySlug(slug);
+  const { data: src, error: srcErr } = await db
+    .from("designs")
+    .select("id, supplier_id, description_step2_no, description_step2_en")
+    .eq("slug", "amalfi-dyr")
+    .single();
+  if (srcErr) throw srcErr;
+
+  const { data: design, error: dErr } = await db
+    .from("designs")
+    .insert({
+      slug,
+      name: "E2E TMP Tekst",
+      name_no: "E2E TMP Tekst",
+      name_en: "E2E TMP Text",
+      supplier_id: src.supplier_id,
+      active: true,
+      sort_order: 999,
+      accepts_custom_text: true,
+      accepts_custom_notes: true,
+      description_step2_no: src.description_step2_no,
+      description_step2_en: src.description_step2_en,
+    })
+    .select("id")
+    .single();
+  if (dErr) throw dErr;
+
+  // copy one image group and one colour group so the panel is realistic
+  const { data: srcCats, error: cErr } = await db
+    .from("option_categories")
+    .select("*, options(*)")
+    .eq("design_id", src.id)
+    .in("slug", ["animal", "main-color"]);
+  if (cErr) throw cErr;
+  for (const c of srcCats ?? []) {
+    const { data: nc } = await db
+      .from("option_categories")
+      .insert({
+        design_id: design.id,
+        slug: c.slug,
+        label_no: c.label_no,
+        label_en: c.label_en,
+        kind: c.kind,
+        layer_slot: c.layer_slot,
+        sync_group: c.sync_group,
+        sort_order: c.sort_order,
+      })
+      .select("id")
+      .single();
+    for (const o of (c.options ?? []) as Record<string, unknown>[]) {
+      const { id: _id, category_id: _cat, ...rest } = o;
+      await db.from("options").insert({ ...rest, category_id: nc!.id });
+    }
+  }
+
+  // the «Tekst» group findTextGroup() recognises, first option = "no text".
+  // Colour options need a supplier_color_id (name/hex come from the palette).
+  const { data: tc } = await db
+    .from("option_categories")
+    .insert({
+      design_id: design.id,
+      slug: "tekst",
+      label_no: "Tekst",
+      label_en: "Text",
+      kind: "color",
+      layer_slot: "detail",
+      sort_order: 90,
+    })
+    .select("id")
+    .single();
+  const { data: palette } = await db
+    .from("supplier_colors")
+    .select("id")
+    .eq("supplier_id", src.supplier_id)
+    .limit(3);
+  const names = ["No color", "Tekst 1", "Tekst 2"];
+  for (let i = 0; i < names.length; i++) {
+    await db.from("options").insert({
+      category_id: tc!.id,
+      name: names[i],
+      sort_order: i,
+      active: true,
+      is_default: i === 0,
+      supplier_color_id: palette![i].id,
+    });
+  }
+  return { slug, id: design.id };
+}
+
+/** Deletes a design and everything it owns. Safe on a slug that does not exist. */
+export async function deleteDesignBySlug(slug: string): Promise<void> {
+  const db = adminClient();
+  const { data: design } = await db
+    .from("designs")
+    .select("id")
+    .eq("slug", slug)
+    .maybeSingle();
+  if (!design) return;
+  const { data: cats } = await db
+    .from("option_categories")
+    .select("id")
+    .eq("design_id", design.id);
+  for (const c of cats ?? []) await db.from("options").delete().eq("category_id", c.id);
+  await db.from("option_categories").delete().eq("design_id", design.id);
+  await db.from("designs").delete().eq("id", design.id);
+}
+
+/** Lezione f35fix-src-…: un run che crasha lascia il design in catalogo. */
+export async function sweepTmpDesigns(): Promise<void> {
+  const { data } = await adminClient()
+    .from("designs")
+    .select("slug")
+    .like("slug", `${TMP_DESIGN_PREFIX}%`);
+  for (const d of data ?? []) await deleteDesignBySlug(d.slug as string);
+}
+
 /**
  * R2-2b: first active design with its id (needed for admin edit URL).
  * The id is used to navigate to /admin/designs/<id> for the flag toggle.
