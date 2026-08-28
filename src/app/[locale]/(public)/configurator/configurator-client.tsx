@@ -272,18 +272,6 @@ export function ConfiguratorClient({
     }));
   }, [detail, selections]);
 
-  // R4-STEP2 (mockup .sum): the summary line under the mobile editor canvas —
-  // design name + one «category: option» pair per category. Derived from
-  // `selections` (URL), so it follows taps, keyboard, ?code= and the lock.
-  const summaryLine = useMemo(() => {
-    const parts = detail.categories.map((c) => {
-      const opt = c.options.find((o) => o.id === selections[c.slug]);
-      return `${label(c)}: ${opt?.name ?? "—"}`;
-    });
-    return [designName(selected), ...parts].join(" · ");
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- label/designName are pure locale helpers
-  }, [detail, selections, selected, locale]);
-
   // E (R2): the selected figure (kind=image option) shown read-only beside the
   // colour-notes toggle — pure reference, never a picker. Reactive on selection.
   const selectedFigure = useMemo(() => {
@@ -716,8 +704,17 @@ export function ConfiguratorClient({
           // the visual viewport is ~300px and header+canvas already occupy
           // ~293 of it, so there is nowhere left to scroll the field into
           // unless the canvas stops being sticky.
+          // R4-FOLLOWUPS Ⓒ: la barra tab è sticky SOTTO il canvas, quindi il
+          // suo aggancio dipende dal canvas: quando il canvas molla, molla
+          // anche lei. Scelta fra le due del brief (seguire il canvas vs
+          // agganciarsi all'header): SEGUE IL CANVAS. Agganciata all'header
+          // resterebbe a 56px con ~50px di altezza, cioè esattamente sopra la
+          // striscia in cui `keepClearOfKeyboard` porta il campo scritta (il
+          // suo `scroll-mt-14` è l'header e basta) — coprirebbe ciò che si sta
+          // scrivendo. Da ferma non serve a nulla: con la tastiera aperta si
+          // scrive, non si cambia tab.
           step === 2 &&
-            "max-md:flex max-md:flex-col max-md:items-stretch max-md:gap-0 max-md:data-[typing=1]:[&>[data-preview-column]]:static"
+            "max-md:flex max-md:flex-col max-md:items-stretch max-md:gap-0 max-md:data-[typing=1]:[&>[data-preview-column]]:static max-md:data-[typing=1]:[&_[data-tabs-bar]]:static"
         )}
         data-typing={step === 2 && typing ? "1" : undefined}
         style={
@@ -790,8 +787,9 @@ export function ConfiguratorClient({
               // stable data hook (preview-canvas.tsx), a descendant selector —
               // survives `PreviewCanvas` changing its internal nesting, unlike
               // the structural `[&>div>div]` this replaces.
-              // `[&_p]:hidden` kills the long caption (its only <p>); the summary
-              // line below sits OUTSIDE this wrapper and is untouched.
+              // `[&_p]:hidden` kills the long caption (its only <p>); la
+              // didascalia mobile col link vive fuori da questo wrapper
+              // (`preview-note-mobile`) ed è intatta.
               step === 2 &&
                 "max-md:flex max-md:min-h-0 max-md:flex-1 max-md:items-center max-md:justify-center max-md:[&_[data-canvas-frame]]:h-full max-md:[&_[data-canvas-frame]]:w-full max-md:[&_[data-canvas-frame]]:max-w-none max-md:[&_[data-canvas-frame]]:bg-transparent max-md:[&_[data-canvas-frame]]:shadow-none max-md:[&_p]:hidden"
             )}
@@ -807,16 +805,11 @@ export function ConfiguratorClient({
               layers={previewLayers}
             />
           </div>
-          {step === 2 && (
-            // mockup .sum — one line only, ellipsis when it does not fit. Carries
-            // the design name too (the step-2 <h2> is hidden in the editor).
-            <p
-              data-testid="canvas-summary"
-              className="hidden truncate px-3 text-center text-[10.5px] text-muted-foreground max-md:block max-md:w-full max-md:flex-none"
-            >
-              {summaryLine}
-            </p>
-          )}
+          {/* R4-FOLLOWUPS Ⓓ: qui stava la riga-riassunto (mockup .sum), una
+              riga sola troncata con «design · categoria: opzione · …». Rimossa:
+              a 390px si troncava quasi subito, e ciò che restava leggibile lo
+              dicono già i dot e il conteggio delle tab qui sotto. Solo mobile —
+              era `max-md:block`, quindi il desktop non cambia di un pixel. */}
         </div>
 
         {/* R4-RESTYLE (c): la didascalia col link alla inspirasjonsside — sotto
@@ -979,8 +972,9 @@ export function ConfiguratorClient({
             {/* R4-STEP2 (mockup .cats): corsia tab orizzontale — solo mobile.
                 Dot = colore selezionato della categoria, conteggio = opzioni.
                 I ruoli tab esistono solo dove esiste la corsia (isDesktop).
-                B1: il pannello non scorre più (colonna rigida), quindi la corsia
-                non ha più bisogno di `sticky`: le basta `flex-none`.
+                B1: il pannello non scorre in verticale, scorre la PAGINA —
+                per questo la corsia è sticky contro il viewport (voce Ⓒ qui
+                sotto), non contro un porto di scroll del pannello.
                 R4-RESTYLE: la corsia è fatta SOLO di gruppi-opzione (Tekst
                 compreso) — «Bilder» e «Detaljer» non sono più tab.
                 // TODO:nb-review — step2.tabsLabel / step2.tabCount /
@@ -990,7 +984,19 @@ export function ConfiguratorClient({
                 due colonne sfumate alte quanto la pagina, sopra il testo: le
                 prime lettere delle frasi a sinistra risultavano sbiadite. Il
                 riferimento è questo wrapper, e nient'altro. */}
-            <div className="relative z-10 -mx-3 flex-none bg-card px-3 md:hidden">
+            {/* R4-FOLLOWUPS Ⓒ: la barra è STICKY subito sotto il canvas
+                (`top` = header 3.5rem + `--mk-canvas-h`, la stessa variabile che
+                dà l'altezza al canvas), su fondo `card` e sopra il contenuto
+                del pannello (`z-20`, sotto il canvas che è `z-30`). Così i
+                titoli delle categorie restano raggiungibili anche a pagina
+                scrollata in fondo, senza tornare su. `sticky` sostituisce
+                `relative`: è comunque un elemento posizionato, quindi le fade
+                `absolute` qui sotto continuano a risolversi su questo wrapper
+                (R4-FIX 5) — e il wrapper è `md:hidden`, non esiste da md in su. */}
+            <div
+              data-tabs-bar
+              className="sticky top-[calc(3.5rem+var(--mk-canvas-h))] z-20 -mx-3 flex-none bg-card px-3 md:hidden"
+            >
               <div
                 ref={tabsRef}
                 role={isDesktop ? undefined : "tablist"}
@@ -1119,7 +1125,9 @@ export function ConfiguratorClient({
                 ›
               </button>
             </div>
-            {/* the design name lives in the canvas summary in the editor */}
+            {/* R4-FOLLOWUPS Ⓓ: sotto md questo blocco resta spento. Il nome del
+                design non è più ripetuto nell'editor — lo si è appena scelto
+                allo step 1, e la riga che lo portava è stata rimossa. */}
             <div className="max-md:hidden">
               <p className="text-[11px] uppercase tracking-[0.06em] text-muted-foreground">
                 {t("stepIndicator", { step: 2 })}
@@ -1560,10 +1568,10 @@ function CategoryLane({
         !active && "max-md:hidden"
       )}
     >
-      {/* sotto md il nome della categoria è già nella tab attiva e nel riepilogo
-          sopra il canvas, e il nome dell'opzione scelta sta sotto il suo
-          swatch: la legend diventa `sr-only` ma RESTA nel DOM (screen reader +
-          testid `legend-selected`). */}
+      {/* sotto md il nome della categoria è già nella tab attiva e il nome
+          dell'opzione scelta sta sotto il suo swatch: la legend diventa
+          `sr-only` ma RESTA nel DOM (screen reader + testid
+          `legend-selected`). */}
       <legend className="mb-2 text-[11px] font-semibold uppercase tracking-[0.06em] max-md:sr-only">
         {label}
         {selectedName && (
