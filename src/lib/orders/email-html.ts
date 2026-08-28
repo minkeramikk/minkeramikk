@@ -30,7 +30,7 @@ export interface RenderedEmail {
   html: string;
 }
 
-const esc = (s: string) =>
+export const esc = (s: string) =>
   s
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
@@ -58,7 +58,7 @@ function totals(items: MailItem[], locale: "no" | "en") {
  * Shared email-safe shell: a centred card with an accent header bar and a
  * muted footer. Colours come straight from the theme tokens as inline hex.
  */
-function shell(
+export function shell(
   theme: ThemeTokens,
   opts: {
     preheader: string;
