@@ -93,35 +93,6 @@ export type Database = {
           },
         ]
       }
-      product_images: {
-        Row: {
-          id: string
-          image: string
-          product_id: string
-          sort_order: number
-        }
-        Insert: {
-          id?: string
-          image: string
-          product_id: string
-          sort_order?: number
-        }
-        Update: {
-          id?: string
-          image?: string
-          product_id?: string
-          sort_order?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "product_images_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: false
-            referencedRelation: "products"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       designs: {
         Row: {
           accepts_custom_notes: boolean
@@ -500,6 +471,35 @@ export type Database = {
           },
         ]
       }
+      product_images: {
+        Row: {
+          id: string
+          image: string
+          product_id: string
+          sort_order: number
+        }
+        Insert: {
+          id?: string
+          image: string
+          product_id: string
+          sort_order?: number
+        }
+        Update: {
+          id?: string
+          image?: string
+          product_id?: string
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_images_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       products: {
         Row: {
           currency: string
@@ -626,6 +626,13 @@ export type Database = {
             foreignKeyName: "supplier_colors_supplier_id_fkey"
             columns: ["supplier_id"]
             isOneToOne: false
+            referencedRelation: "public_suppliers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_colors_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
             referencedRelation: "suppliers"
             referencedColumns: ["id"]
           },
@@ -698,12 +705,9 @@ export type Database = {
         Returns: string
       }
       db_size_bytes: { Args: never; Returns: number }
-      reorder_designs: {
-        Args: { p_ids: string[] }
-        Returns: undefined
-      }
+      reorder_designs: { Args: { p_ids: string[] }; Returns: undefined }
       reorder_products: {
-        Args: { p_supplier_id: string; p_ids: string[] }
+        Args: { p_ids: string[]; p_supplier_id: string }
         Returns: undefined
       }
       replace_design_products: {
@@ -715,7 +719,7 @@ export type Database = {
         Returns: undefined
       }
       replace_supplier_colors: {
-        Args: { p_supplier_id: string; p_rows: Json }
+        Args: { p_rows: Json; p_supplier_id: string }
         Returns: undefined
       }
       storage_size_bytes: { Args: never; Returns: number }
