@@ -5,6 +5,8 @@ import { getThemeTokensSafe } from "@/lib/theme.server";
 import { siteUrl } from "@/lib/site";
 import { encodeSetParam } from "@/lib/cart/set-code";
 import { customerEmail, adminEmail, type MailItem } from "./email-html";
+import { statusEmail } from "./status-email";
+import type { OrderStatus } from "./order-status";
 import type { OrderItemInput } from "./schema";
 
 /**
@@ -38,10 +40,9 @@ export interface EmailTransport {
 /** Default transport: Resend if configured, else a dev/CI console no-op. */
 export function defaultTransport(): EmailTransport {
   const key = process.env.RESEND_API_KEY;
-  // Until the minkeramikk.no domain is DNS-verified in Resend, fall back to the
-  // Resend test sender (onboarding@resend.dev). Switch ORDER_EMAIL_FROM to
-  // bestilling@minkeramikk.no once the domain is verified.
-  const from = process.env.ORDER_EMAIL_FROM || "Min Keramikk <onboarding@resend.dev>";
+  // R4-ORDERS: the shop's own sender. Requires minkeramikk.no verified in
+  // Resend (PM action); with no RESEND_API_KEY this value is never used.
+  const from = process.env.ORDER_EMAIL_FROM || "Min Keramikk <bestilling@minkeramikk.no>";
   if (!key) {
     return {
       async send(msg) {
@@ -64,6 +65,36 @@ export function defaultTransport(): EmailTransport {
       });
     },
   };
+}
+
+/**
+ * One customer notification for a status change (ADR 0021). Returns false when
+ * the status does not notify — the caller has already changed the status and
+ * must not treat that as a failure. Theme tokens are read at send time, like
+ * sendOrderEmails.
+ */
+export async function sendStatusEmail(
+  params: {
+    status: OrderStatus;
+    code: string;
+    customerName: string;
+    customerEmail: string;
+    locale: "no" | "en";
+    trackingCode?: string | null;
+    paidAt?: string | null;
+  },
+  transport: EmailTransport = defaultTransport()
+): Promise<boolean> {
+  const theme = await getThemeTokensSafe();
+  const mail = statusEmail({ ...params, theme, baseUrl: siteUrl() });
+  if (!mail) return false;
+  await transport.send({
+    to: params.customerEmail,
+    subject: mail.subject,
+    text: mail.text,
+    html: mail.html,
+  });
+  return true;
 }
 
 const toMailItem = (i: OrderItemInput): MailItem => ({
