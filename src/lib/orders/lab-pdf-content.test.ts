@@ -15,6 +15,8 @@ const ORDER: AdminOrder = {
   locale: "no",
   status: "new",
   internalNotes: "ring back",
+  paidAt: null,
+  trackingCode: null,
   createdAt: "2026-06-08T09:30:00.000Z",
   updatedAt: "2026-06-08T09:30:00.000Z",
   items: [

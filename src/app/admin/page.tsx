@@ -70,7 +70,7 @@ export default async function AdminOrdersPage({
 
   const kpiItems = [
     { key: "new", label: "New requests", value: String(kpis.newCount), accent: true },
-    { key: "contact", label: "To contact", value: String(kpis.toContactCount) },
+    { key: "confirmed", label: "Confirmed", value: String(kpis.confirmedCount) },
     { key: "production", label: "In production", value: String(kpis.inProductionCount) },
     { key: "open", label: "Open orders value", value: formatMoney(kpis.openValue, "en") },
   ];

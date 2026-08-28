@@ -47,6 +47,8 @@ function order(p: Partial<AdminOrder> = {}): AdminOrder {
     locale: p.locale ?? "no",
     status: p.status ?? "new",
     internalNotes: p.internalNotes ?? null,
+    paidAt: p.paidAt ?? null,
+    trackingCode: p.trackingCode ?? null,
     createdAt: p.createdAt ?? "2026-06-04T09:14:00Z",
     updatedAt: p.updatedAt ?? "2026-06-04T09:14:00Z",
     items: p.items ?? [item()],
@@ -59,6 +61,7 @@ describe("mapOrderRow", () => {
       id: "o1", code: "MK-1", customer_name: "A", email: "a@b.no", phone: null,
       address: null, zipcode: null, country: null,
       message: null, locale: "no", status: "weird", internal_notes: null,
+      paid_at: null, tracking_code: null,
       created_at: "2026-06-04T09:14:00Z", updated_at: "2026-06-04T09:14:00Z",
       order_items: [
         { id: "i1", supplier_id: "s1", supplier_name_snapshot: "Vietri",
@@ -80,6 +83,7 @@ describe("mapOrderRow", () => {
       id: "o2", code: "MK-2", customer_name: "A", email: "a@b.no", phone: null,
       address: null, zipcode: null, country: null,
       message: null, locale: "no", status: "new", internal_notes: null,
+      paid_at: null, tracking_code: null,
       created_at: "2026-06-04T09:14:00Z", updated_at: "2026-06-04T09:14:00Z",
       order_items: [
         // product still linked → photo path resolved
@@ -134,14 +138,14 @@ describe("computeKpis", () => {
   it("counts buckets and sums open-order value only", () => {
     const orders = [
       order({ status: "new", items: [item({ priceCentsSnapshot: 100000, quantity: 1 })] }),
-      order({ status: "contacted", items: [item({ priceCentsSnapshot: 50000, quantity: 2 })] }),
+      order({ status: "confirmed", items: [item({ priceCentsSnapshot: 50000, quantity: 2 })] }),
       order({ status: "in_production", items: [item({ priceCentsSnapshot: 30000, quantity: 1 })] }),
       order({ status: "delivered", items: [item({ priceCentsSnapshot: 999900, quantity: 1 })] }), // not open
       order({ status: "cancelled", items: [item({ priceCentsSnapshot: 999900, quantity: 1 })] }), // not open
     ];
     const k = computeKpis(orders);
     expect(k.newCount).toBe(1);
-    expect(k.toContactCount).toBe(1);
+    expect(k.confirmedCount).toBe(1);
     expect(k.inProductionCount).toBe(1);
     // 100000 + 100000 + 30000 = 230000 (delivered + cancelled excluded)
     expect(k.openValue.amountCents).toBe(230000);
@@ -152,7 +156,7 @@ describe("filters", () => {
   const orders = [
     order({ id: "1", code: "MK-2606", customerName: "Ingrid", email: "ingrid@x.no", status: "new",
       items: [item({ supplierId: "vietri", supplierName: "Vietri", configCode: "MK-A-K3-D2" })] }),
-    order({ id: "2", code: "MK-2605", customerName: "Lars", email: "lars@y.no", status: "contacted",
+    order({ id: "2", code: "MK-2605", customerName: "Lars", email: "lars@y.no", status: "confirmed",
       items: [item({ supplierId: "amalfi", supplierName: "Amalfi", configCode: null })] }),
   ];
 
@@ -238,5 +242,55 @@ describe("buildReplicaSet", () => {
     expect(r.param).toBe("");
     expect(r.included).toBe(0);
     expect(r.skipped).toBe(1);
+  });
+});
+
+describe("mapOrderRow — payment and tracking (ADR 0021)", () => {
+  const raw = (over: Partial<RawOrderRow> = {}): RawOrderRow => ({
+    id: "o1", code: "MK-1", customer_name: "A", email: "a@b.no", phone: null,
+    address: null, zipcode: null, country: null, message: null, locale: "no",
+    status: "new", internal_notes: null, paid_at: null, tracking_code: null,
+    created_at: "2026-06-04T09:14:00Z", updated_at: "2026-06-04T09:14:00Z",
+    order_items: [], ...over,
+  });
+
+  it("maps paid_at and tracking_code", () => {
+    const o = mapOrderRow(
+      raw({ paid_at: "2026-08-28T10:00:00Z", tracking_code: "NO123456789" })
+    );
+    expect(o.paidAt).toBe("2026-08-28T10:00:00Z");
+    expect(o.trackingCode).toBe("NO123456789");
+  });
+
+  it("defaults both to null on a legacy row", () => {
+    const o = mapOrderRow(raw());
+    expect(o.paidAt).toBeNull();
+    expect(o.trackingCode).toBeNull();
+  });
+
+  it("keeps a legacy 'contacted' row as contacted, not new", () => {
+    expect(mapOrderRow(raw({ status: "contacted" })).status).toBe("contacted");
+    expect(mapOrderRow(raw({ status: "banana" })).status).toBe("new");
+  });
+});
+
+describe("computeKpis — v2 buckets", () => {
+  it("counts confirmed instead of contacted, and keeps shipped open", () => {
+    const k = computeKpis([
+      order({ id: "1", status: "new" }),
+      order({ id: "2", status: "confirmed" }),
+      order({ id: "3", status: "in_production" }),
+      order({
+        id: "4",
+        status: "shipped",
+        items: [item({ priceCentsSnapshot: 20000, quantity: 1 })],
+      }),
+      order({ id: "5", status: "delivered" }),
+    ]);
+    expect(k.newCount).toBe(1);
+    expect(k.confirmedCount).toBe(1);
+    expect(k.inProductionCount).toBe(1);
+    // new + confirmed + in_production (50000 each) + shipped (20000)
+    expect(k.openValue.amountCents).toBe(170000);
   });
 });
