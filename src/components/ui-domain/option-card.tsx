@@ -78,7 +78,13 @@ export function OptionCard({
         <span
           data-testid="option-icon"
           className={cn(
-            "mx-auto mb-2 flex h-16 w-16 items-center justify-center rounded-sm",
+            // R4-POLISH voce 1: the tile was a FIXED 64px square sized for the
+            // desktop grid (card 117px → 95px inside). In the step-2 mobile
+            // lane the card is 80px → 62px inside, so the tile stuck out past
+            // the card's rounded border and clipped its own artwork. Fluid +
+            // capped: desktop still resolves to 64px (95 → max-w-16), the lane
+            // gets 62, and nothing ever exceeds its card again.
+            "mx-auto mb-2 flex aspect-square w-full max-w-16 items-center justify-center rounded-sm",
             selected ? "bg-primary-foreground/15" : "bg-muted",
           )}
         >
@@ -89,12 +95,15 @@ export function OptionCard({
             aria-hidden
             loading="lazy"
             decoding="async"
-            className="h-14 w-14 object-contain"
+            // 87.5% = the old 56/64 ratio, kept as a ratio so it follows the tile
+            className="h-[87.5%] w-[87.5%] object-contain"
           />
         </span>
         )
       )}
-      <span className="block">{label}</span>
+      <span data-option-label className="block">
+        {label}
+      </span>
       {supplierName && (
         <SupplierBadge name={supplierName} onSelected={selected} className="mt-1.5" />
       )}

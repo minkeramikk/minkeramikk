@@ -10,7 +10,6 @@ import {
   ceramicCards,
   horizontalOverflow,
   loginAdmin,
-  openStep2Extras,
   ADMIN_READY,
 } from "./helpers";
 
@@ -525,9 +524,8 @@ test.describe("R2-2b custom notes", () => {
     try {
       // (c) Public configurator — step 2 with the flagged design.
       await page.goto(`/no/configurator?design=${design.slug}&step=2`);
-      // R4-STEP2: sotto md il blocco vive nella tab «Detaljer» (no-op su desktop).
-      await openStep2Extras(page);
-
+      // R4-RESTYLE: niente più tab «Detaljer» — il blocco note è sempre in
+      // pagina, sotto le corsie, su ogni viewport.
       // AC2: custom-notes block is visible when flag is set.
       const block = page.getByTestId("custom-notes");
       await expect(block).toBeVisible();
@@ -612,9 +610,8 @@ test.describe("R2-2b custom notes", () => {
     try {
       // (c) Public configurator — step 2 with the flagged design.
       await page.goto(`/no/configurator?design=${design.slug}&step=2`);
-      // R4-STEP2: sotto md il blocco vive nella tab «Detaljer» (no-op su desktop).
-      await openStep2Extras(page);
-
+      // R4-RESTYLE: niente più tab «Detaljer» — senza un gruppo «Tekst» il
+      // campo sta in fondo al pannello, visibile su ogni viewport.
       // AC: custom-text block is visible when flag is set.
       const block = page.getByTestId("custom-text");
       await expect(block).toBeVisible();
@@ -696,7 +693,15 @@ test.describe("R2-7 bilingual design name", () => {
       // NO: step-2 heading shows selected.name = legacy `name` = noName (set by
       // saveDesign: name ← nameNo). Confirms the saved NO name reaches the public UI.
       await page.goto(`/no/configurator?design=${design.slug}&step=2`);
-      await expect(page.getByText(noName, { exact: false }).first()).toBeVisible();
+      // Il nome vive in DUE nodi, uno per viewport: la riga di riepilogo sotto
+      // il canvas (mobile) e l'<h2> del pannello (desktop). `.first()` secco
+      // prendeva sempre il primo in DOM — quello mobile — e su desktop lo
+      // trovava `hidden`. Si asserisce sul nodo VISIBILE, qualunque sia: il
+      // punto del test è che il nome norvegese arrivi in UI, non quale nodo lo
+      // porti.
+      await expect(
+        page.getByText(noName, { exact: false }).filter({ visible: true }).first()
+      ).toBeVisible();
 
       // EN: step-2 heading shows legacy name (= noName), not enName.
       // Assert per-locale via the step-3 cart-line subtitle (designLabel → snapshot.designNameEn).

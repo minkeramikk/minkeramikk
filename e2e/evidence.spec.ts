@@ -1,6 +1,14 @@
-import { test } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import { mkdirSync, writeFileSync } from "node:fs";
-import { loadEnvLocal, adminClient } from "./helpers";
+import {
+  loadEnvLocal,
+  adminClient,
+  activeDesignSlugs,
+  ceramicCards,
+  CAN_SEED,
+  seedTextGroupDesign,
+  deleteDesignBySlug,
+} from "./helpers";
 
 loadEnvLocal();
 const OUT08 = "docs/evidence/f08";
@@ -343,11 +351,10 @@ test("F02: capture 390/768/1280 with selections + composed preview", async ({
       // R4-STEP2: sotto md solo la corsia della tab categoria ATTIVA è nel
       // DOM accessibile (le altre sono `max-md:hidden`, configurator-client
       // .tsx `!active && "max-md:hidden"` sul fieldset di CategoryLane) — va
-      // aperta ogni tab prima di poterne selezionare l'opzione. La tab
-      // «Detaljer» (in coda, se presente) non è una categoria: si salta.
-      const tabs = page.locator(
-        '[data-testid^="category-tab-"]:not([data-testid="category-tab-extras"])'
-      );
+      // aperta ogni tab prima di poterne selezionare l'opzione.
+      // R4-RESTYLE: la corsia tab è fatta SOLO di gruppi-opzione, quindi non
+      // c'è più nessuna tab non-categoria da saltare.
+      const tabs = page.locator('[data-testid^="category-tab-"]');
       const n = await tabs.count();
       for (let i = 0; i < n; i++) {
         await tabs.nth(i).click();
@@ -375,5 +382,196 @@ test("F02: capture 390/768/1280 with selections + composed preview", async ({
     }
     await page.waitForTimeout(900); // layer paint
     await page.screenshot({ path: `${OUT2}/f02-${width}.png`, fullPage: true });
+  }
+});
+
+const OUT_R4 = "docs/evidence/r4-step2-restyle";
+
+/**
+ * R4-RESTYLE — evidenza cliente del restyle step 2 mobile (sketch 2026-08-28)
+ * e delle rifiniture della scheda prodotto step 3.
+ *   step2-<locale>-390-top       ordine dei blocchi: descrizione → canvas →
+ *                                didascalia → Inspirasjonsbilder → «Konfigurer
+ *                                ditt design» → pannello
+ *   step2-<locale>-390-scrolled  il canvas è ancora lì: sticky sotto l'header
+ *   step2-<locale>-390-lightbox  tap su una foto → PhotoLightbox condiviso
+ *   step3-sheet-<locale>-390     ✕ di contrasto, testi neri, nessun trattino
+ */
+test("R4-RESTYLE: step 2 @390 NO/EN + scheda prodotto step 3", async ({ page }) => {
+  mkdirSync(OUT_R4, { recursive: true });
+  await page.setViewportSize({ width: 390, height: 844 });
+
+  // Serve un design con foto REALI, altrimenti la sezione non esiste (by
+  // design). Lo si cerca guardando la PAGINA, non la tabella `design_images`:
+  // ciò che conta è che il configuratore renda davvero la sezione.
+  let slug = "";
+  for (const candidate of await activeDesignSlugs()) {
+    await page.goto(`/no/configurator?design=${candidate}&step=2`);
+    await page.getByTestId("details-step").waitFor({ state: "visible" });
+    if ((await page.getByTestId("step2-inspiration").count()) > 0) {
+      slug = candidate;
+      break;
+    }
+  }
+  test.skip(slug === "", "nessun design attivo con foto reali in catalogo");
+
+  for (const locale of ["no", "en"] as const) {
+    await page.goto(`/${locale}/configurator?design=${slug}&step=2`);
+    await page.getByTestId("details-step").waitFor({ state: "visible" });
+    await page.waitForTimeout(400);
+    await page.screenshot({ path: `${OUT_R4}/step2-${locale}-390-top.png`, fullPage: true });
+
+    await page.getByTestId("step-nav-flow").scrollIntoViewIfNeeded();
+    await page.waitForTimeout(400);
+    await page.screenshot({ path: `${OUT_R4}/step2-${locale}-390-scrolled.png` });
+
+    await page.getByTestId("step2-inspiration").scrollIntoViewIfNeeded();
+    await page.getByTestId("step2-inspiration").getByTestId("design-photo").first().click();
+    await page.getByTestId("design-photo-lightbox").waitFor({ state: "visible" });
+    await page.waitForTimeout(400);
+    await page.screenshot({ path: `${OUT_R4}/step2-${locale}-390-lightbox.png` });
+    await page.keyboard.press("Escape");
+  }
+
+  for (const locale of ["no", "en"] as const) {
+    await page.goto(`/${locale}/configurator?design=${slug}&step=3`);
+    await page.getByTestId("ceramics-step").waitFor({ state: "visible" });
+    await ceramicCards(page).first().click();
+    await page.getByTestId("product-sheet").waitFor({ state: "visible" });
+    await page.waitForTimeout(400);
+    await page.screenshot({ path: `${OUT_R4}/step3-sheet-${locale}-390.png` });
+    await page.keyboard.press("Escape");
+  }
+});
+
+const OUT_POLISH = "docs/evidence/r4-polish";
+
+/**
+ * R4-POLISH — un file per criterio d'accettazione della card. `docs/evidence`
+ * è gitignorato: le immagini vanno in PR a mano, mai `git add -f`.
+ */
+test("R4-POLISH: CA1..CA6 @390 NO/EN", async ({ page }) => {
+  // DIPENDENZA DAI DATI VIVI (richiesta TL 28/8): `amalfi-dyr` per la corsia a
+  // immagine più lunga (14 animali, con nomi lunghi come KrabbeAmalfi),
+  // `krabbe` perché HA note+figura+sync, `striper` perché NON ne ha nessuno. Se
+  // l'admin li edita, questa cattura sbaglia bersaglio: è un dato, non il codice.
+  test.skip(!CAN_SEED, "MK_E2E_SEED=1 richiesto: la cattura semina un design «Tekst»");
+  mkdirSync(OUT_POLISH, { recursive: true });
+  await page.setViewportSize({ width: 390, height: 844 });
+  const { slug: tekst } = await seedTextGroupDesign();
+  try {
+    for (const locale of ["no", "en"] as const) {
+      await page.goto(`/${locale}/configurator?design=amalfi-dyr&step=2`);
+      await page.getByTestId("details-step").waitFor({ state: "visible" });
+      // A 390×844 l'heading entra già nei primi 844px (bottom ~542 su "no"),
+      // quindi questo scrollIntoView è quasi sempre un no-op: la pagina non si
+      // sposta e scrollY resta 0. Documentato apposta — è la causa della
+      // duplicazione con CA6 più sotto, non un bug da "correggere" nascondendolo.
+      await page.getByTestId("step2-configure-heading").scrollIntoViewIfNeeded();
+      await page.waitForTimeout(400);
+      const dyrLane = page.getByTestId("option-grid").filter({ visible: true }).first();
+      // CA5 — freccia destra a inizio corsa, sinistra dopo lo scroll
+      await page.screenshot({ path: `${OUT_POLISH}/ca5-lane-arrow-start-${locale}-390.png` });
+      await page.getByTestId("option-lane-next").filter({ visible: true }).click();
+      await page.waitForTimeout(600);
+      await page.screenshot({ path: `${OUT_POLISH}/ca5-lane-arrow-scrolled-${locale}-390.png` });
+      // CA1 — stessa corsia, stesso scroll (un click basta a portare in vista
+      // «KrabbeAmalfi», l'unico nome che eccede la card): la ragione di
+      // riusare questo stato resta valida (la vecchia CA1 non scrollava mai la
+      // corsia e mostrava solo nomi corti). Il ritaglio però è SOLO sulla
+      // corsia — non l'intera viewport come ca5-scrolled — così l'ellissi e il
+      // contenimento dell'icona nella tile sono il soggetto del fotogramma, e
+      // il file è un'immagine realmente diversa (dimensioni diverse), non lo
+      // stesso PNG di ca5-scrolled con un altro nome.
+      await dyrLane.screenshot({ path: `${OUT_POLISH}/ca1-dyr-lane-${locale}-390.png` });
+
+      // CA2 — «No color» e «Tekst 1»
+      await page.goto(`/${locale}/configurator?design=${tekst}&step=2`);
+      await page.getByTestId("details-step").waitFor({ state: "visible" });
+      const tabs = page
+        .getByTestId("category-tabs")
+        .locator("button[data-testid^='category-tab-']");
+      const i = (await tabs.allTextContents()).findIndex((l) => /^(tekst|text)/i.test(l.trim()));
+      await tabs.nth(i).click();
+      await page.getByTestId("step2-configure-heading").scrollIntoViewIfNeeded();
+      const lane = page.getByTestId("option-grid").filter({ visible: true }).first();
+      await lane.locator("> *").first().click();
+      await page.waitForTimeout(400);
+      await page.screenshot({ path: `${OUT_POLISH}/ca2-tekst-nocolor-${locale}-390.png` });
+      await lane.locator("> *").nth(1).click();
+      await page.waitForTimeout(400);
+      await page.screenshot({ path: `${OUT_POLISH}/ca2-tekst-selected-${locale}-390.png` });
+
+      // CA3 — tab presente (krabbe) / assente (striper) / niente residui sotto
+      await page.goto(`/${locale}/configurator?design=krabbe&step=2`);
+      await page.getByTestId("details-step").waitFor({ state: "visible" });
+      await page.getByTestId("category-tab-wishes").click();
+      await page.getByTestId("step2-configure-heading").scrollIntoViewIfNeeded();
+      await page.waitForTimeout(400);
+      await page.screenshot({ path: `${OUT_POLISH}/ca3-wishes-present-${locale}-390.png` });
+      await page.goto(`/${locale}/configurator?design=striper&step=2`);
+      await page.getByTestId("details-step").waitFor({ state: "visible" });
+      await page.getByTestId("step2-configure-heading").scrollIntoViewIfNeeded();
+      await page.waitForTimeout(400);
+      await page.screenshot({ path: `${OUT_POLISH}/ca3-wishes-absent-${locale}-390.png` });
+
+      // CA6 — descrizione + didascalia, prime lettere nitide. `amalfi-dyr` non
+      // ha una descrizione per-locale (F36: nessun blocco `step2-description`
+      // nel DOM per questo design), quindi la vecchia cattura non ha MAI
+      // mostrato "la descrizione" — ed era, byte per byte, la stessa
+      // schermata di ca5-lane-arrow-start: stesso URL, e lo
+      // scrollIntoViewIfNeeded di CA5 sopra è già un no-op (l'heading è dentro
+      // i primi 844px), quindi ca5-start parte da scrollY 0 esattamente come
+      // questa. Il precedente `window.scrollTo(0,0)` non "resettava" nulla:
+      // scrollY era già 0 su entrambe, per questo il reset non cambiava
+      // l'esito.
+      // DIPENDENZA DAI DATI VIVI: `blomster-1-x` è uno dei DUE soli design con
+      // una descrizione step-2 (l'altro è `striper-dan`). Se l'admin la
+      // cancella questa cattura perde il suo soggetto: è un dato cambiato, non
+      // il codice rotto. Il ritaglio si ferma appena sotto la didascalia,
+      // PRIMA della corsia tab del pannello — così la fade legittima della
+      // corsia (quella che sulla prima pillola mostra "r (14)") resta fuori
+      // dal fotogramma e non è ambigua: qui il soggetto è solo
+      // descrizione+didascalia.
+      await page.goto(`/${locale}/configurator?design=blomster-1-x&step=2`);
+      await page.getByTestId("details-step").waitFor({ state: "visible" });
+      await expect(
+        page.getByTestId("step2-description"),
+        "il design deve avere una descrizione step-2: uno slug sconosciuto o " +
+          "senza descrizione ricade silenziosamente su un altro design " +
+          "(fallback sul primo in ordine di catalogo)"
+      ).toHaveCount(1);
+      await page.waitForTimeout(400);
+      const captionBottom = await page
+        .getByTestId("preview-note-mobile")
+        .evaluate((el) => el.getBoundingClientRect().bottom);
+      await page.screenshot({
+        path: `${OUT_POLISH}/ca6-description-caption-${locale}-390.png`,
+        clip: { x: 0, y: 0, width: 390, height: Math.ceil(captionBottom) + 16 },
+      });
+    }
+
+    // CA4 — le due ✕: stessa dimensione di ritaglio (140×100), y diverso
+    // (lightbox y 0-100, product-sheet y 100-200) perché la ✕ del lightbox sta
+    // più in alto nel viewport di quella del product-sheet.
+    let withPhotos = "";
+    for (const s of await activeDesignSlugs()) {
+      await page.goto(`/no/configurator?design=${s}&step=2`);
+      await page.getByTestId("details-step").waitFor({ state: "visible" });
+      if ((await page.getByTestId("step2-inspiration").count()) > 0) { withPhotos = s; break; }
+    }
+    await page.getByTestId("step2-inspiration").getByTestId("design-photo").first().click();
+    await page.getByTestId("design-photo-lightbox").waitFor({ state: "visible" });
+    await page.waitForTimeout(300);
+    await page.screenshot({ path: `${OUT_POLISH}/ca4-x-lightbox-390.png`, clip: { x: 250, y: 0, width: 140, height: 100 } });
+    await page.keyboard.press("Escape");
+    await page.goto(`/no/configurator?design=${withPhotos}&step=3`);
+    await page.getByTestId("ceramics-step").waitFor({ state: "visible" });
+    await ceramicCards(page).first().click();
+    await page.getByTestId("product-sheet").waitFor({ state: "visible" });
+    await page.waitForTimeout(300);
+    await page.screenshot({ path: `${OUT_POLISH}/ca4-x-sheet-390.png`, clip: { x: 250, y: 100, width: 140, height: 100 } });
+  } finally {
+    await deleteDesignBySlug(tekst);
   }
 });
