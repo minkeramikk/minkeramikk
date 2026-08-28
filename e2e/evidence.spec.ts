@@ -551,7 +551,9 @@ test("R4-POLISH: CA1..CA6 @390 NO/EN", async ({ page }) => {
       });
     }
 
-    // CA4 — le due ✕, stesso ritaglio
+    // CA4 — le due ✕: stessa dimensione di ritaglio (140×100), y diverso
+    // (lightbox y 0-100, product-sheet y 100-200) perché la ✕ del lightbox sta
+    // più in alto nel viewport di quella del product-sheet.
     let withPhotos = "";
     for (const s of await activeDesignSlugs()) {
       await page.goto(`/no/configurator?design=${s}&step=2`);

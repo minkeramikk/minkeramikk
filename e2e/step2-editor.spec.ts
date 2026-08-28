@@ -409,7 +409,13 @@ test("CA5: le corsie opzioni hanno le frecce ‹ ›, e un tap su un'opzione non
   });
   expect(order[0], "freccia sopra la fade").toBeGreaterThan(order[1]);
 
-  // e un tap su un'opzione non muove la pagina (deriva misurata su c0bba2f: 27px)
+  // CONTROLLO DI SANITÀ, non la guardia di regressione: questa è la corsia
+  // «Dyr», a IMMAGINE (`aria-pressed`), e l'effetto di centratura guarda
+  // `[aria-checked="true"]` — su questa corsia non scatta MAI, né prima né
+  // dopo la fix (vedi sotto). Ciò che questo blocco prova davvero è solo che
+  // `router.replace(..., {scroll:false})` resta tale al click. La vera
+  // guardia di regressione (deriva misurata su c0bba2f: 27-29px) sta nel
+  // blocco «Hovedfarge» più sotto, l'unico dove l'effetto di centratura gira.
   const lane = page.getByTestId("option-grid").filter({ visible: true }).first();
   const target = lane.locator("> *").nth(5);
   // su un viewport corto (390×660) questa riga eccede il fold: Playwright la
@@ -423,12 +429,16 @@ test("CA5: le corsie opzioni hanno le frecce ‹ ›, e un tap su un'opzione non
   await page.waitForTimeout(400);
   expect(await scrollY(), "selezionare un'opzione non scrolla la pagina").toBe(y0);
 
-  // R4-POLISH fix-round-1 (review): il blocco Dyr sopra è una corsia a
-  // IMMAGINE (`aria-pressed`) — l'effetto di centratura guarda
-  // `[aria-checked="true"]` e lì non scatta MAI, prima o dopo la fix. La
-  // vera copertura di regressione serve sulla corsia COLORE («Hovedfarge»,
-  // `role="radiogroup"`, opzioni `aria-checked`): quella che l'effetto
-  // centra davvero (deriva misurata su c0bba2f: 29px).
+  // Da qui in poi: la guardia di regressione vera, sulla corsia COLORE
+  // («Hovedfarge», `role="radiogroup"`, opzioni `aria-checked`), l'unica dove
+  // l'effetto di centratura scatta davvero (deriva misurata su c0bba2f: 29px).
+  //
+  // DIPENDENZA DAI DATI VIVI (stesso stile di CA3, richiesta TL 28/8):
+  // `category-tab-main-color` e il `count > 9` sotto assumono che il design
+  // `amalfi-dyr` abbia una categoria «Hovedfarge» con più di 9 opzioni attive
+  // (serve perché la corsia sia scrollabile). Se qualcuno rinomina la
+  // categoria o ne riduce le opzioni in admin questo test diventa rosso: è un
+  // DATO cambiato, non il codice rotto.
   await page.getByTestId("category-tab-main-color").click();
   const colorLane = page.getByTestId("option-grid").filter({ visible: true }).first();
   await colorLane.waitFor({ state: "visible" });

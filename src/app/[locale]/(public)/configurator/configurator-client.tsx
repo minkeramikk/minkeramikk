@@ -89,6 +89,10 @@ function keepClearOfKeyboard(field: HTMLElement) {
   const vv = window.visualViewport;
   const run = () => {
     const box = field.getBoundingClientRect();
+    // il campo può essere sparito (blur → pannello max-md:hidden) o staccato dal
+    // DOM (avanzato allo step 3) prima che questo timer/listener scattino: un
+    // rect azzerato produrrebbe uno scroll fantasma, quindi si abortisce qui.
+    if (!field.isConnected || !box.height) return;
     const styles = getComputedStyle(field);
     const delta = keyboardSafeScrollDelta({
       fieldTop: box.top,
@@ -730,9 +734,13 @@ export function ConfiguratorClient({
             // ground so the text scrolling underneath never peeks at the gutters.
             // `top-14` = the ink header's `h-14`, which is itself `max-md:sticky
             // top-0` (site-header.tsx): the canvas parks UNDER it, not behind it.
-            // R4-POLISH: l'altezza è pubblicata come `--mk-canvas-h` sul
-            // contenitore, così il campo scritta può ricavarne il proprio
-            // `scroll-margin-top` invece di ripetere il clamp a mano.
+            // R4-POLISH: l'altezza del canvas è pubblicata come `--mk-canvas-h`
+            // sul contenitore per essere fonte unica SOLO per questa classe
+            // (che la consuma per lo `h-[...]` sopra). Il campo scritta NON la
+            // usa: il suo `max-md:scroll-mt-14` (sotto) è l'altezza del solo
+            // header ink, apposta senza il canvas — quando il campo ha il
+            // focus il canvas ha già mollato lo sticky (`data-typing`), quindi
+            // in alto non resta altro che l'header.
             step === 2 &&
               "max-md:sticky max-md:top-14 max-md:-mx-5 max-md:h-[var(--mk-canvas-h)] max-md:flex-none max-md:items-center max-md:justify-center max-md:gap-1 max-md:px-5 max-md:pt-2 max-md:bg-[radial-gradient(circle_at_50%_42%,color-mix(in_oklab,var(--mk-light),white_55%),var(--background)_78%)]"
           )}
@@ -1643,8 +1651,8 @@ function CategoryLane({
             // `items-start` impediva anche solo di pareggiarle. Ora: altezza dal
             // contenuto, `items-stretch` (default) e `scroll-px-3` simmetrico —
             // ogni card interamente dentro la corsia, la prima interamente
-            // visibile all'apertura (lo scrollIntoView della corsia si attiva
-            // solo sui gruppi colore, che espongono `aria-checked`).
+            // visibile all'apertura (lo `scrollLeft` che centra la corsia si
+            // attiva solo sui gruppi colore, che espongono `aria-checked`).
             "max-md:flex max-md:min-w-0 max-md:gap-3 max-md:touch-pan-x max-md:overflow-x-auto max-md:overscroll-x-contain max-md:scroll-px-3 max-md:px-3 max-md:py-3 max-md:snap-x max-md:snap-proximity max-md:[scrollbar-width:none] max-md:[&::-webkit-scrollbar]:hidden"
           )}
         >

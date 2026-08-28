@@ -253,6 +253,8 @@ export async function deleteDesignBySlug(slug: string): Promise<void> {
 
 /** Lezione f35fix-src-…: un run che crasha lascia il design in catalogo. */
 export async function sweepTmpDesigns(): Promise<void> {
+  // Cancella dal catalogo VERO: deve obbedire allo stesso guard di chi ci scrive.
+  if (!CAN_SEED) return;
   const { data } = await adminClient()
     .from("designs")
     .select("slug")
