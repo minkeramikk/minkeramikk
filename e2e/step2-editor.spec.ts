@@ -526,7 +526,12 @@ test("CA2: il campo «Tekst» è gated e non si sovrappone né alle opzioni né 
       .getByTestId("category-tabs")
       .locator("button[data-testid^='category-tab-']");
     const idx = (await tabs.allTextContents()).findIndex((l) => /^tekst/i.test(l.trim()));
-    expect(idx, "il design seminato ha un gruppo «Tekst»").toBeGreaterThanOrEqual(0);
+    expect(
+      idx,
+      "il design seminato non è visibile: il catalogo è in `unstable_cache` senza " +
+        "revalidate e il webServer di Playwright lo congela al primo GET — " +
+        "seminare PRIMA di `next build`"
+    ).toBeGreaterThanOrEqual(0);
     await tabs.nth(idx).click();
 
     // «No color» (prima opzione, default): nessun campo

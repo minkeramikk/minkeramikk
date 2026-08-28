@@ -5,6 +5,9 @@ import {
   adminClient,
   activeDesignSlugs,
   ceramicCards,
+  CAN_SEED,
+  seedTextGroupDesign,
+  deleteDesignBySlug,
 } from "./helpers";
 
 loadEnvLocal();
@@ -438,5 +441,99 @@ test("R4-RESTYLE: step 2 @390 NO/EN + scheda prodotto step 3", async ({ page }) 
     await page.waitForTimeout(400);
     await page.screenshot({ path: `${OUT_R4}/step3-sheet-${locale}-390.png` });
     await page.keyboard.press("Escape");
+  }
+});
+
+const OUT_POLISH = "docs/evidence/r4-polish";
+
+/**
+ * R4-POLISH — un file per criterio d'accettazione della card. `docs/evidence`
+ * è gitignorato: le immagini vanno in PR a mano, mai `git add -f`.
+ */
+test("R4-POLISH: CA1..CA6 @390 NO/EN", async ({ page }) => {
+  // DIPENDENZA DAI DATI VIVI (richiesta TL 28/8): `amalfi-dyr` per la corsia a
+  // immagine più lunga (14 animali, con nomi lunghi come KrabbeAmalfi),
+  // `krabbe` perché HA note+figura+sync, `striper` perché NON ne ha nessuno. Se
+  // l'admin li edita, questa cattura sbaglia bersaglio: è un dato, non il codice.
+  test.skip(!CAN_SEED, "MK_E2E_SEED=1 richiesto: la cattura semina un design «Tekst»");
+  mkdirSync(OUT_POLISH, { recursive: true });
+  await page.setViewportSize({ width: 390, height: 844 });
+  const { slug: tekst } = await seedTextGroupDesign();
+  try {
+    for (const locale of ["no", "en"] as const) {
+      await page.goto(`/${locale}/configurator?design=amalfi-dyr&step=2`);
+      await page.getByTestId("details-step").waitFor({ state: "visible" });
+      await page.getByTestId("step2-configure-heading").scrollIntoViewIfNeeded();
+      await page.waitForTimeout(400);
+      // CA5 — freccia destra a inizio corsa, sinistra dopo lo scroll
+      await page.screenshot({ path: `${OUT_POLISH}/ca5-lane-arrow-start-${locale}-390.png` });
+      await page.getByTestId("option-lane-next").filter({ visible: true }).click();
+      await page.waitForTimeout(600);
+      await page.screenshot({ path: `${OUT_POLISH}/ca5-lane-arrow-scrolled-${locale}-390.png` });
+      // CA1 — corsia Dyr scrollata fin sull'ellissi di «KrabbeAmalfi» (unico
+      // nome che eccede la card, R4-POLISH voce 1): stesso fotogramma di
+      // ca5-scrolled, un click di freccia basta a portarlo in vista.
+      await page.screenshot({ path: `${OUT_POLISH}/ca1-dyr-lane-${locale}-390.png` });
+
+      // CA2 — «No color» e «Tekst 1»
+      await page.goto(`/${locale}/configurator?design=${tekst}&step=2`);
+      await page.getByTestId("details-step").waitFor({ state: "visible" });
+      const tabs = page
+        .getByTestId("category-tabs")
+        .locator("button[data-testid^='category-tab-']");
+      const i = (await tabs.allTextContents()).findIndex((l) => /^(tekst|text)/i.test(l.trim()));
+      await tabs.nth(i).click();
+      await page.getByTestId("step2-configure-heading").scrollIntoViewIfNeeded();
+      const lane = page.getByTestId("option-grid").filter({ visible: true }).first();
+      await lane.locator("> *").first().click();
+      await page.waitForTimeout(400);
+      await page.screenshot({ path: `${OUT_POLISH}/ca2-tekst-nocolor-${locale}-390.png` });
+      await lane.locator("> *").nth(1).click();
+      await page.waitForTimeout(400);
+      await page.screenshot({ path: `${OUT_POLISH}/ca2-tekst-selected-${locale}-390.png` });
+
+      // CA3 — tab presente (krabbe) / assente (striper) / niente residui sotto
+      await page.goto(`/${locale}/configurator?design=krabbe&step=2`);
+      await page.getByTestId("details-step").waitFor({ state: "visible" });
+      await page.getByTestId("category-tab-wishes").click();
+      await page.getByTestId("step2-configure-heading").scrollIntoViewIfNeeded();
+      await page.waitForTimeout(400);
+      await page.screenshot({ path: `${OUT_POLISH}/ca3-wishes-present-${locale}-390.png` });
+      await page.goto(`/${locale}/configurator?design=striper&step=2`);
+      await page.getByTestId("details-step").waitFor({ state: "visible" });
+      await page.getByTestId("step2-configure-heading").scrollIntoViewIfNeeded();
+      await page.waitForTimeout(400);
+      await page.screenshot({ path: `${OUT_POLISH}/ca3-wishes-absent-${locale}-390.png` });
+
+      // CA6 — descrizione + didascalia, prime lettere nitide (in cima, NON
+      // scrollata: rinavigare alla stessa URL di CA1 non resetta lo scroll da
+      // solo, va forzato)
+      await page.goto(`/${locale}/configurator?design=amalfi-dyr&step=2`);
+      await page.getByTestId("details-step").waitFor({ state: "visible" });
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await page.waitForTimeout(400);
+      await page.screenshot({ path: `${OUT_POLISH}/ca6-description-caption-${locale}-390.png` });
+    }
+
+    // CA4 — le due ✕, stesso ritaglio
+    let withPhotos = "";
+    for (const s of await activeDesignSlugs()) {
+      await page.goto(`/no/configurator?design=${s}&step=2`);
+      await page.getByTestId("details-step").waitFor({ state: "visible" });
+      if ((await page.getByTestId("step2-inspiration").count()) > 0) { withPhotos = s; break; }
+    }
+    await page.getByTestId("step2-inspiration").getByTestId("design-photo").first().click();
+    await page.getByTestId("design-photo-lightbox").waitFor({ state: "visible" });
+    await page.waitForTimeout(300);
+    await page.screenshot({ path: `${OUT_POLISH}/ca4-x-lightbox-390.png`, clip: { x: 250, y: 0, width: 140, height: 100 } });
+    await page.keyboard.press("Escape");
+    await page.goto(`/no/configurator?design=${withPhotos}&step=3`);
+    await page.getByTestId("ceramics-step").waitFor({ state: "visible" });
+    await ceramicCards(page).first().click();
+    await page.getByTestId("product-sheet").waitFor({ state: "visible" });
+    await page.waitForTimeout(300);
+    await page.screenshot({ path: `${OUT_POLISH}/ca4-x-sheet-390.png`, clip: { x: 250, y: 100, width: 140, height: 100 } });
+  } finally {
+    await deleteDesignBySlug(tekst);
   }
 });
