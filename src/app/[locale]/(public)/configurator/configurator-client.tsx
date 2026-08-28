@@ -1539,9 +1539,15 @@ function CategoryLane({
               imageUrl={o.image ? assetUrl(o.image) : undefined}
               selected={selectedId === o.id}
               onSelect={() => onSelect(o.id)}
-              // R4-FIX 5: a 390×660 le card da 96px sforavano la corsia di 12px —
-              // stessa regola della griglia densa: si riduce, non si taglia.
-              className="max-md:w-[4.5rem] max-md:flex-none max-md:snap-start max-md:px-2 max-md:py-2 max-md:[&>span]:line-clamp-1"
+              // R4-FIX 5 → R4-POLISH voce 1: `w-20` (content 62px) with a 10px
+              // label — the same size the colour lane uses — makes every animal
+              // name in the catalog fit whole except `KrabbeAmalfi` (68px), which
+              // now gets a REAL ellipsis: `truncate`, not `line-clamp-1`.
+              // line-clamp only ellipsises when it drops a LINE, so a single
+              // unbreakable word was hard-clipped («Krabbe/», «Marihon»).
+              // The selector targets `[data-option-label]`, not `>span`: the old
+              // one also line-clamped the icon tile and killed its centring.
+              className="max-md:w-20 max-md:flex-none max-md:snap-start max-md:px-2 max-md:py-2 max-md:[&_[data-option-label]]:truncate max-md:[&_[data-option-label]]:text-[10px] max-md:[&_[data-option-label]]:leading-[1.2]"
             />
           ))}
         </div>

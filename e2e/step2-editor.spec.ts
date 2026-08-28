@@ -227,6 +227,49 @@ test("R4-RESTYLE: descrizione, didascalia e «Inspirasjonsbilder» vivono in pag
   await expect(page.getByTestId("step2-configure-heading")).toBeVisible();
 });
 
+test("CA1: nelle corsie a immagine l'icona sta nella mattonella e la label non si tronca a metà parola", async ({
+  page,
+}) => {
+  const problems: string[] = [];
+  for (const slug of await activeDesignSlugs()) {
+    await page.goto(`/no/configurator?design=${slug}&step=2`);
+    await page.getByTestId("details-step").waitFor({ state: "visible" });
+    const tabs = page
+      .getByTestId("category-tabs")
+      .locator("button[data-testid^='category-tab-']");
+    for (let i = 0; i < (await tabs.count()); i++) {
+      await tabs.nth(i).click();
+      const lane = page.getByTestId("option-grid").filter({ visible: true }).first();
+      if ((await lane.locator('[data-testid="option-icon"]').count()) === 0) continue;
+      const bad = await lane.evaluate((el) =>
+        [...el.querySelectorAll("button")].flatMap((card) => {
+          const icon = card.querySelector('[data-testid="option-icon"]') as HTMLElement | null;
+          const label = card.querySelector("[data-option-label]") as HTMLElement | null;
+          const out: string[] = [];
+          if (!icon || !label) return ["missing icon/label hook"];
+          const cs = getComputedStyle(card);
+          const inner =
+            card.getBoundingClientRect().width -
+            parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) -
+            parseFloat(cs.borderLeftWidth) - parseFloat(cs.borderRightWidth);
+          if (icon.getBoundingClientRect().width > inner + 0.5)
+            out.push(`icon ${Math.round(icon.getBoundingClientRect().width)} > inner ${Math.round(inner)}`);
+          // clipped without an ellipsis = truncated mid-word
+          const ls = getComputedStyle(label);
+          if (label.scrollWidth > label.clientWidth + 1 && ls.textOverflow !== "ellipsis")
+            out.push(`label "${label.textContent}" clipped with text-overflow:${ls.textOverflow}`);
+          // the icon tile must never be line-clamped
+          if (getComputedStyle(icon).webkitLineClamp !== "none")
+            out.push("icon tile is line-clamped");
+          return out;
+        })
+      );
+      bad.forEach((b) => problems.push(`${slug} / tab#${i}: ${b}`));
+    }
+  }
+  expect(problems, problems.join("\n")).toEqual([]);
+});
+
 test("R4-FIX 8: il campo «Tekst» compare solo scegliendo un'opzione di testo", async ({
   page,
 }) => {
