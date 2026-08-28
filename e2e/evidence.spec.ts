@@ -1,4 +1,4 @@
-import { test } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import {
   loadEnvLocal,
@@ -524,14 +524,23 @@ test("R4-POLISH: CA1..CA6 @390 NO/EN", async ({ page }) => {
       // i primi 844px), quindi ca5-start parte da scrollY 0 esattamente come
       // questa. Il precedente `window.scrollTo(0,0)` non "resettava" nulla:
       // scrollY era già 0 su entrambe, per questo il reset non cambiava
-      // l'esito. `blomster-1` HA una descrizione reale ("Enkle, elegante
-      // striper" / la sua traduzione EN); il ritaglio si ferma appena sotto la
-      // didascalia, PRIMA della corsia tab del pannello — così la fade
-      // legittima della corsia (quella che sulla prima pillola mostra "r
-      // (14)") resta fuori dal fotogramma e non è ambigua: qui il soggetto è
-      // solo descrizione+didascalia.
-      await page.goto(`/${locale}/configurator?design=blomster-1&step=2`);
+      // l'esito.
+      // DIPENDENZA DAI DATI VIVI: `blomster-1-x` è uno dei DUE soli design con
+      // una descrizione step-2 (l'altro è `striper-dan`). Se l'admin la
+      // cancella questa cattura perde il suo soggetto: è un dato cambiato, non
+      // il codice rotto. Il ritaglio si ferma appena sotto la didascalia,
+      // PRIMA della corsia tab del pannello — così la fade legittima della
+      // corsia (quella che sulla prima pillola mostra "r (14)") resta fuori
+      // dal fotogramma e non è ambigua: qui il soggetto è solo
+      // descrizione+didascalia.
+      await page.goto(`/${locale}/configurator?design=blomster-1-x&step=2`);
       await page.getByTestId("details-step").waitFor({ state: "visible" });
+      await expect(
+        page.getByTestId("step2-description"),
+        "il design deve avere una descrizione step-2: uno slug sconosciuto o " +
+          "senza descrizione ricade silenziosamente su un altro design " +
+          "(fallback sul primo in ordine di catalogo)"
+      ).toHaveCount(1);
       await page.waitForTimeout(400);
       const captionBottom = await page
         .getByTestId("preview-note-mobile")
