@@ -463,17 +463,27 @@ test("R4-POLISH: CA1..CA6 @390 NO/EN", async ({ page }) => {
     for (const locale of ["no", "en"] as const) {
       await page.goto(`/${locale}/configurator?design=amalfi-dyr&step=2`);
       await page.getByTestId("details-step").waitFor({ state: "visible" });
+      // A 390×844 l'heading entra già nei primi 844px (bottom ~542 su "no"),
+      // quindi questo scrollIntoView è quasi sempre un no-op: la pagina non si
+      // sposta e scrollY resta 0. Documentato apposta — è la causa della
+      // duplicazione con CA6 più sotto, non un bug da "correggere" nascondendolo.
       await page.getByTestId("step2-configure-heading").scrollIntoViewIfNeeded();
       await page.waitForTimeout(400);
+      const dyrLane = page.getByTestId("option-grid").filter({ visible: true }).first();
       // CA5 — freccia destra a inizio corsa, sinistra dopo lo scroll
       await page.screenshot({ path: `${OUT_POLISH}/ca5-lane-arrow-start-${locale}-390.png` });
       await page.getByTestId("option-lane-next").filter({ visible: true }).click();
       await page.waitForTimeout(600);
       await page.screenshot({ path: `${OUT_POLISH}/ca5-lane-arrow-scrolled-${locale}-390.png` });
-      // CA1 — corsia Dyr scrollata fin sull'ellissi di «KrabbeAmalfi» (unico
-      // nome che eccede la card, R4-POLISH voce 1): stesso fotogramma di
-      // ca5-scrolled, un click di freccia basta a portarlo in vista.
-      await page.screenshot({ path: `${OUT_POLISH}/ca1-dyr-lane-${locale}-390.png` });
+      // CA1 — stessa corsia, stesso scroll (un click basta a portare in vista
+      // «KrabbeAmalfi», l'unico nome che eccede la card): la ragione di
+      // riusare questo stato resta valida (la vecchia CA1 non scrollava mai la
+      // corsia e mostrava solo nomi corti). Il ritaglio però è SOLO sulla
+      // corsia — non l'intera viewport come ca5-scrolled — così l'ellissi e il
+      // contenimento dell'icona nella tile sono il soggetto del fotogramma, e
+      // il file è un'immagine realmente diversa (dimensioni diverse), non lo
+      // stesso PNG di ca5-scrolled con un altro nome.
+      await dyrLane.screenshot({ path: `${OUT_POLISH}/ca1-dyr-lane-${locale}-390.png` });
 
       // CA2 — «No color» e «Tekst 1»
       await page.goto(`/${locale}/configurator?design=${tekst}&step=2`);
@@ -505,14 +515,31 @@ test("R4-POLISH: CA1..CA6 @390 NO/EN", async ({ page }) => {
       await page.waitForTimeout(400);
       await page.screenshot({ path: `${OUT_POLISH}/ca3-wishes-absent-${locale}-390.png` });
 
-      // CA6 — descrizione + didascalia, prime lettere nitide (in cima, NON
-      // scrollata: rinavigare alla stessa URL di CA1 non resetta lo scroll da
-      // solo, va forzato)
-      await page.goto(`/${locale}/configurator?design=amalfi-dyr&step=2`);
+      // CA6 — descrizione + didascalia, prime lettere nitide. `amalfi-dyr` non
+      // ha una descrizione per-locale (F36: nessun blocco `step2-description`
+      // nel DOM per questo design), quindi la vecchia cattura non ha MAI
+      // mostrato "la descrizione" — ed era, byte per byte, la stessa
+      // schermata di ca5-lane-arrow-start: stesso URL, e lo
+      // scrollIntoViewIfNeeded di CA5 sopra è già un no-op (l'heading è dentro
+      // i primi 844px), quindi ca5-start parte da scrollY 0 esattamente come
+      // questa. Il precedente `window.scrollTo(0,0)` non "resettava" nulla:
+      // scrollY era già 0 su entrambe, per questo il reset non cambiava
+      // l'esito. `blomster-1` HA una descrizione reale ("Enkle, elegante
+      // striper" / la sua traduzione EN); il ritaglio si ferma appena sotto la
+      // didascalia, PRIMA della corsia tab del pannello — così la fade
+      // legittima della corsia (quella che sulla prima pillola mostra "r
+      // (14)") resta fuori dal fotogramma e non è ambigua: qui il soggetto è
+      // solo descrizione+didascalia.
+      await page.goto(`/${locale}/configurator?design=blomster-1&step=2`);
       await page.getByTestId("details-step").waitFor({ state: "visible" });
-      await page.evaluate(() => window.scrollTo(0, 0));
       await page.waitForTimeout(400);
-      await page.screenshot({ path: `${OUT_POLISH}/ca6-description-caption-${locale}-390.png` });
+      const captionBottom = await page
+        .getByTestId("preview-note-mobile")
+        .evaluate((el) => el.getBoundingClientRect().bottom);
+      await page.screenshot({
+        path: `${OUT_POLISH}/ca6-description-caption-${locale}-390.png`,
+        clip: { x: 0, y: 0, width: 390, height: Math.ceil(captionBottom) + 16 },
+      });
     }
 
     // CA4 — le due ✕, stesso ritaglio
