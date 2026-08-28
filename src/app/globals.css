@@ -17,7 +17,9 @@
   --color-status-contacted: var(--status-contacted);
   --color-status-confirmed: var(--status-confirmed);
   --color-status-production: var(--status-production);
+  --color-status-shipped: var(--status-shipped);
   --color-status-delivered: var(--status-delivered);
+  --color-status-paid: var(--status-paid);
   --color-sidebar-ring: var(--ring);
   --color-sidebar-border: var(--ink-muted);
   --color-sidebar-accent-foreground: var(--ink-foreground);
@@ -107,7 +109,10 @@
   --status-contacted: #d9a23f;
   --status-confirmed: #6f93b8;
   --status-production: #9b8fb8;
+  --status-shipped: #4f8fa6;
   --status-delivered: #7da46f;
+  /* payment register (ADR 0021): paid only — unpaid uses --muted-foreground */
+  --status-paid: #7da46f;
 
   /* shape & elevation */
   --radius: 16px;

@@ -93,35 +93,6 @@ export type Database = {
           },
         ]
       }
-      product_images: {
-        Row: {
-          id: string
-          image: string
-          product_id: string
-          sort_order: number
-        }
-        Insert: {
-          id?: string
-          image: string
-          product_id: string
-          sort_order?: number
-        }
-        Update: {
-          id?: string
-          image?: string
-          product_id?: string
-          sort_order?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "product_images_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: false
-            referencedRelation: "products"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       designs: {
         Row: {
           accepts_custom_notes: boolean
@@ -411,8 +382,10 @@ export type Database = {
           internal_notes: string | null
           locale: string
           message: string | null
+          paid_at: string | null
           phone: string | null
           status: Database["public"]["Enums"]["order_status"]
+          tracking_code: string | null
           updated_at: string
           zipcode: string | null
         }
@@ -427,8 +400,10 @@ export type Database = {
           internal_notes?: string | null
           locale: string
           message?: string | null
+          paid_at?: string | null
           phone?: string | null
           status?: Database["public"]["Enums"]["order_status"]
+          tracking_code?: string | null
           updated_at?: string
           zipcode?: string | null
         }
@@ -443,8 +418,10 @@ export type Database = {
           internal_notes?: string | null
           locale?: string
           message?: string | null
+          paid_at?: string | null
           phone?: string | null
           status?: Database["public"]["Enums"]["order_status"]
+          tracking_code?: string | null
           updated_at?: string
           zipcode?: string | null
         }
@@ -487,6 +464,35 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "product_attributes_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      product_images: {
+        Row: {
+          id: string
+          image: string
+          product_id: string
+          sort_order: number
+        }
+        Insert: {
+          id?: string
+          image: string
+          product_id: string
+          sort_order?: number
+        }
+        Update: {
+          id?: string
+          image?: string
+          product_id?: string
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_images_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
@@ -620,6 +626,13 @@ export type Database = {
             foreignKeyName: "supplier_colors_supplier_id_fkey"
             columns: ["supplier_id"]
             isOneToOne: false
+            referencedRelation: "public_suppliers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_colors_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
             referencedRelation: "suppliers"
             referencedColumns: ["id"]
           },
@@ -692,12 +705,9 @@ export type Database = {
         Returns: string
       }
       db_size_bytes: { Args: never; Returns: number }
-      reorder_designs: {
-        Args: { p_ids: string[] }
-        Returns: undefined
-      }
+      reorder_designs: { Args: { p_ids: string[] }; Returns: undefined }
       reorder_products: {
-        Args: { p_supplier_id: string; p_ids: string[] }
+        Args: { p_ids: string[]; p_supplier_id: string }
         Returns: undefined
       }
       replace_design_products: {
@@ -709,7 +719,7 @@ export type Database = {
         Returns: undefined
       }
       replace_supplier_colors: {
-        Args: { p_supplier_id: string; p_rows: Json }
+        Args: { p_rows: Json; p_supplier_id: string }
         Returns: undefined
       }
       storage_size_bytes: { Args: never; Returns: number }
@@ -720,6 +730,7 @@ export type Database = {
         | "contacted"
         | "confirmed"
         | "in_production"
+        | "shipped"
         | "delivered"
         | "cancelled"
     }
@@ -857,6 +868,7 @@ export const Constants = {
         "contacted",
         "confirmed",
         "in_production",
+        "shipped",
         "delivered",
         "cancelled",
       ],

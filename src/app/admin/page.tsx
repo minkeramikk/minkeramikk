@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { AdminShell } from "@/components/shell/admin-shell";
 import { OrderStatusBadge } from "@/components/ui-domain/order-status-badge";
+import { PaidBadge } from "@/components/ui-domain/paid-badge";
 import { listOrders } from "@/lib/orders/admin-orders.server";
 import {
   computeKpis,
@@ -70,7 +71,7 @@ export default async function AdminOrdersPage({
 
   const kpiItems = [
     { key: "new", label: "New requests", value: String(kpis.newCount), accent: true },
-    { key: "contact", label: "To contact", value: String(kpis.toContactCount) },
+    { key: "confirmed", label: "Confirmed", value: String(kpis.confirmedCount) },
     { key: "production", label: "In production", value: String(kpis.inProductionCount) },
     { key: "open", label: "Open orders value", value: formatMoney(kpis.openValue, "en") },
   ];
@@ -213,7 +214,10 @@ export default async function AdminOrdersPage({
                         {formatMoney(orderTotal(o.items), "en")}
                       </td>
                       <td className="px-4 py-3">
-                        <OrderStatusBadge status={o.status as OrderStatus} />
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <OrderStatusBadge status={o.status as OrderStatus} />
+                          <PaidBadge paidAt={o.paidAt} />
+                        </div>
                       </td>
                       <td className="px-4 py-3 text-xs text-muted-foreground">
                         {received(o.createdAt)}
@@ -250,7 +254,10 @@ export default async function AdminOrdersPage({
                 >
                   <div className="flex items-center justify-between gap-2">
                     <span className={cn("font-mono text-xs font-medium", cancelled && "text-muted-foreground line-through")}>{o.code}</span>
-                    <OrderStatusBadge status={o.status as OrderStatus} />
+                    <span className="flex flex-wrap items-center justify-end gap-1.5">
+                      <OrderStatusBadge status={o.status as OrderStatus} />
+                      <PaidBadge paidAt={o.paidAt} />
+                    </span>
                   </div>
                   <div className={cn("mt-1.5 font-medium", cancelled && "text-muted-foreground line-through")}>{o.customerName}</div>
                   <div className="text-xs text-muted-foreground">{o.email}</div>

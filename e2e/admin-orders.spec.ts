@@ -125,3 +125,78 @@ test("AC6 (mobile): order card shown, no horizontal overflow", async ({ page }, 
   );
   expect(overflow).toBeLessThanOrEqual(0);
 });
+
+/* ─────────────── R4-ORDERS · lifecycle v2 (ADR 0021) ───────────────
+ * These run AFTER the F07 cases above and walk the seeded order forward
+ * (confirmed → shipped). afterAll deletes it, so the end state doesn't matter.
+ */
+
+test("AC1: the status select offers shipped and hides contacted", async ({ page }) => {
+  await loginAdmin(page);
+  await page.goto(`/admin/orders/${seeded.orderId}`);
+  const options = page.locator('[data-testid="status-select"] option');
+  await expect(options.filter({ hasText: "Shipped" })).toHaveCount(1);
+  await expect(options.filter({ hasText: "Contacted" })).toHaveCount(0);
+});
+
+test("AC2: unticking the checkbox changes the status and sends nothing", async ({ page }) => {
+  await loginAdmin(page);
+  await page.goto(`/admin/orders/${seeded.orderId}`);
+  await page.getByTestId("status-select").selectOption("confirmed");
+  await page.getByTestId("status-save").click();
+  await expect(page.getByTestId("email-preview")).toBeVisible();
+  await expect(page.getByTestId("send-email")).toBeChecked(); // opt-out, not opt-in
+  await page.getByTestId("send-email").uncheck();
+  await page.getByTestId("status-confirm").click();
+
+  await expect(page.getByTestId("order-detail")).toHaveAttribute("data-status", "confirmed");
+  await expect(page.getByTestId("status-notice")).not.toContainText("Email sent");
+});
+
+test("AC3: shipped without a tracking code needs an explicit acknowledgement", async ({ page }) => {
+  await loginAdmin(page);
+  await adminClient().from("orders").update({ tracking_code: null }).eq("id", seeded.orderId);
+  await page.goto(`/admin/orders/${seeded.orderId}`);
+
+  await page.getByTestId("status-select").selectOption("shipped");
+  await page.getByTestId("status-save").click();
+  await expect(page.getByTestId("status-confirm")).toBeDisabled();
+
+  await page.getByTestId("tracking-input-dialog").fill("NO123456789");
+  await expect(page.getByTestId("status-confirm")).toBeEnabled();
+  await page.getByTestId("status-confirm").click();
+
+  await expect(page.getByTestId("order-detail")).toHaveAttribute("data-status", "shipped");
+  await expect
+    .poll(async () =>
+      (await adminClient().from("orders").select("tracking_code").eq("id", seeded.orderId).single())
+        .data?.tracking_code
+    )
+    .toBe("NO123456789");
+});
+
+test("AC4: the payment toggle sets and clears paid_at, and the badge follows", async ({ page }) => {
+  await loginAdmin(page);
+  await page.goto(`/admin/orders/${seeded.orderId}`);
+  const badge = page.getByTestId("paid-badge");
+  const before = await badge.getAttribute("data-paid");
+
+  await page.getByTestId("paid-toggle").click();
+  await expect(badge).not.toHaveAttribute("data-paid", before!);
+  await page.getByTestId("paid-toggle").click();
+  await expect(badge).toHaveAttribute("data-paid", before!);
+});
+
+test("AC5: the detail shows the full customer data", async ({ page }) => {
+  await loginAdmin(page);
+  await adminClient()
+    .from("orders")
+    .update({ address: "Storgata 1", zipcode: "0155", country: "Norge" })
+    .eq("id", seeded.orderId);
+  await page.goto(`/admin/orders/${seeded.orderId}`);
+
+  const addr = page.getByTestId("customer-address");
+  await expect(addr).toContainText("Storgata 1");
+  await expect(addr).toContainText("0155");
+  await expect(addr).toContainText("Norge");
+});

@@ -150,6 +150,8 @@ erDiagram
         text locale "no | en - lingua email cliente"
         order_status status "enum"
         text internal_notes
+        timestamptz paid_at "ADR 0021 - NULL = non pagato, timestamp = pagamento registrato"
+        text tracking_code "ADR 0021 - codice corriere, inserito a mano prima di shipped"
         timestamptz created_at
         timestamptz updated_at
     }
@@ -169,7 +171,10 @@ erDiagram
     }
 ```
 
-Enum `order_status`: `new → contacted → confirmed → in_production → delivered` (+ `cancelled`).
+Enum `order_status` (v2, ADR 0021): `new → confirmed → in_production → shipped → delivered`
+(+ `cancelled` da qualsiasi stato). `shipped` aggiunto dalla migration 0030; `contacted` resta
+nell'enum ma è **dormiente** — nascosto dall'applicazione, mai rimosso (un valore di enum
+Postgres non si toglie in modo additivo).
 
 ## Indici
 

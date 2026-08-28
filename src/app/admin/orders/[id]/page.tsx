@@ -18,7 +18,8 @@ import {
 import type { OrderStatus } from "@/lib/orders/order-status";
 import { formatMoney } from "@/lib/money/money";
 import { OrderStatusForm } from "@/components/admin/order-status-form";
-import { updateOrderNotes } from "../actions";
+import { PaidBadge } from "@/components/ui-domain/paid-badge";
+import { toggleOrderPaid, updateOrderNotes, updateOrderTracking } from "../actions";
 
 export const dynamic = "force-dynamic";
 
@@ -226,6 +227,16 @@ export default async function OrderDetailPage({
                 </a>
               </p>
               {order.phone && <p className="text-sm">{order.phone}</p>}
+              {(order.address || order.zipcode || order.country) && (
+                <p data-testid="customer-address" className="mt-2 text-sm text-muted-foreground">
+                  {order.address}
+                  {order.address && <br />}
+                  {[order.zipcode, order.country].filter(Boolean).join(" ")}
+                </p>
+              )}
+              <p className="mt-2 text-xs text-muted-foreground">
+                Language: {order.locale.toUpperCase()}
+              </p>
               {order.message && (
                 <>
                   <p className="mt-3 text-xs text-muted-foreground">Customer message:</p>
@@ -234,12 +245,71 @@ export default async function OrderDetailPage({
               )}
             </section>
 
+            {/* R4-ORDERS: payment register (paid_at) + carrier tracking, both
+                plain updates on `orders` through the existing RLS policy. */}
+            <section className="rounded-lg border border-border bg-card p-5">
+              <h2 className="mb-3 text-base font-semibold">Payment &amp; shipping</h2>
+
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <PaidBadge paidAt={order.paidAt} />
+                  {order.paidAt && (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {fmtDateTime(order.paidAt)}
+                    </p>
+                  )}
+                </div>
+                <form action={toggleOrderPaid} data-testid="paid-form">
+                  <input type="hidden" name="id" value={order.id} />
+                  <input type="hidden" name="paid" value={order.paidAt ? "1" : "0"} />
+                  <button
+                    type="submit"
+                    data-testid="paid-toggle"
+                    className="rounded-lg border border-border px-3 py-1.5 text-sm"
+                  >
+                    {order.paidAt ? "Undo payment" : "Register payment"}
+                  </button>
+                </form>
+              </div>
+
+              <form
+                action={updateOrderTracking}
+                data-testid="tracking-form"
+                className="mt-4 flex flex-col gap-2"
+              >
+                <input type="hidden" name="id" value={order.id} />
+                <label className="text-sm" htmlFor="tracking-input">
+                  Tracking code
+                </label>
+                <input
+                  id="tracking-input"
+                  name="trackingCode"
+                  data-testid="tracking-input"
+                  defaultValue={order.trackingCode ?? ""}
+                  placeholder="e.g. NO123456789"
+                  className="h-9 rounded-sm border border-input bg-card px-2 text-sm focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
+                />
+                <button
+                  type="submit"
+                  data-testid="tracking-save"
+                  className="self-start rounded-lg border border-border bg-ink px-3 py-1.5 text-sm font-medium text-ink-foreground"
+                >
+                  Save tracking
+                </button>
+              </form>
+            </section>
+
             <section className="rounded-lg border border-border bg-card p-5">
               <h2 className="mb-3 text-base font-semibold">Actions</h2>
               {/* F07b: controlled select + inline confirmation + error display */}
               <OrderStatusForm
                 orderId={order.id}
+                orderCode={order.code}
                 currentStatus={order.status as OrderStatus}
+                customerName={order.customerName}
+                customerLocale={order.locale === "en" ? "en" : "no"}
+                currentTracking={order.trackingCode}
+                paidAt={order.paidAt}
               />
               <a
                 href={`mailto:${order.email}?subject=${encodeURIComponent(`Order ${order.code}`)}`}

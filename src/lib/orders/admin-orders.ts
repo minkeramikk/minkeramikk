@@ -67,6 +67,10 @@ export interface AdminOrder {
   locale: string;
   status: OrderStatus;
   internalNotes: string | null;
+  /** ADR 0021: NULL = unpaid; timestamp = payment registered by the admin. */
+  paidAt: string | null;
+  /** ADR 0021: carrier code, entered by hand before moving to `shipped`. */
+  trackingCode: string | null;
   createdAt: string;
   updatedAt: string;
   items: AdminOrderItem[];
@@ -86,6 +90,8 @@ export interface RawOrderRow {
   locale: string;
   status: string;
   internal_notes: string | null;
+  paid_at: string | null;
+  tracking_code: string | null;
   created_at: string;
   updated_at: string;
   order_items: {
@@ -121,6 +127,8 @@ export function mapOrderRow(row: RawOrderRow): AdminOrder {
     locale: row.locale,
     status: isOrderStatus(row.status) ? row.status : "new",
     internalNotes: row.internal_notes,
+    paidAt: row.paid_at,
+    trackingCode: row.tracking_code,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     items: (row.order_items ?? []).map((it) => ({
@@ -172,7 +180,7 @@ export function orderTotal(items: AdminOrderItem[]): Money {
 
 export interface OrderKpis {
   newCount: number;
-  toContactCount: number;
+  confirmedCount: number;
   inProductionCount: number;
   openValue: Money;
 }
@@ -183,17 +191,17 @@ export function computeKpis(orders: AdminOrder[]): OrderKpis {
   const currency = orders[0]?.items[0]?.currency ?? "NOK";
   const openTotals: Money[] = [];
   let newCount = 0;
-  let toContactCount = 0;
+  let confirmedCount = 0;
   let inProductionCount = 0;
   for (const o of orders) {
     if (o.status === "new") newCount++;
-    if (o.status === "contacted") toContactCount++;
+    if (o.status === "confirmed") confirmedCount++;
     if (o.status === "in_production") inProductionCount++;
     if (isOpenStatus(o.status)) openTotals.push(orderTotal(o.items));
   }
   return {
     newCount,
-    toContactCount,
+    confirmedCount,
     inProductionCount,
     openValue: openTotals.length ? sum(openTotals, currency) : money(0, currency),
   };
