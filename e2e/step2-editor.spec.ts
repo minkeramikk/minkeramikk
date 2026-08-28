@@ -1,5 +1,19 @@
 import { expect, test } from "@playwright/test";
-import { activeDesignSlugs, ceramicCards, firstActiveDesign } from "./helpers";
+import {
+  activeDesignSlugs,
+  ceramicCards,
+  firstActiveDesign,
+  CAN_SEED,
+  seedTextGroupDesign,
+  deleteDesignBySlug,
+  sweepTmpDesigns,
+} from "./helpers";
+
+// Lezione f35fix-src-…: un run che crasha lascia il design seminato in
+// catalogo, e da lì finisce sul sito. Ogni run parte pulendo i propri.
+test.beforeAll(async () => {
+  await sweepTmpDesigns();
+});
 
 /**
  * R4-RESTYLE — lo step 2 sotto md su un telefono CORTO (390×660: un iPhone con
@@ -408,6 +422,55 @@ test("CA5: le corsie opzioni hanno le frecce ‹ ›, e un tap su un'opzione non
   await target.click();
   await page.waitForTimeout(400);
   expect(await scrollY(), "selezionare un'opzione non scrolla la pagina").toBe(y0);
+
+  // R4-POLISH fix-round-1 (review): il blocco Dyr sopra è una corsia a
+  // IMMAGINE (`aria-pressed`) — l'effetto di centratura guarda
+  // `[aria-checked="true"]` e lì non scatta MAI, prima o dopo la fix. La
+  // vera copertura di regressione serve sulla corsia COLORE («Hovedfarge»,
+  // `role="radiogroup"`, opzioni `aria-checked`): quella che l'effetto
+  // centra davvero (deriva misurata su c0bba2f: 29px).
+  await page.getByTestId("category-tab-main-color").click();
+  const colorLane = page.getByTestId("option-grid").filter({ visible: true }).first();
+  await colorLane.waitFor({ state: "visible" });
+  await page.waitForTimeout(400);
+  // il blocco Dyr sopra ha già scrollato la pagina di qualche px: a quella
+  // quota il pannello è GIÀ "nearest"-soddisfatto per questa riga (stessa
+  // fieldset, stessa posizione), il che maschererebbe una regressione tanto
+  // quanto il pre-scroll di Playwright. Si riparte da una quota nota.
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.waitForTimeout(200);
+
+  const radios = colorLane.locator('[role="radio"]');
+  const count = await radios.count();
+  expect(count, "«Hovedfarge» deve scorrere davvero").toBeGreaterThan(9);
+  const checkedIndex = await colorLane.evaluate((el) =>
+    [...el.querySelectorAll('[role="radio"]')].findIndex(
+      (r) => r.getAttribute("aria-checked") === "true"
+    )
+  );
+  // l'ULTIMA opzione: fuori dalla vista iniziale, quindi costringe l'effetto
+  // a un vero ricentraggio.
+  const farIndex = checkedIndex === count - 1 ? 0 : count - 1;
+  const laneScrollLeft = () => colorLane.evaluate((el) => el.scrollLeft);
+
+  const yBeforeColor = await scrollY();
+  const slBefore = await laneScrollLeft();
+  // `dispatchEvent`, non `.click()`: `.click()` fa scattare il pre-scroll di
+  // actionability di Playwright (porta il bersaglio in vista PRIMA di
+  // cliccare), che maschererebbe esattamente la deriva sotto test — lo stesso
+  // raggiro del blocco Dyr sopra, qui sulla corsia intera. `dispatchEvent`
+  // spara l'evento nativo `click` senza toccare NESSUno scroll: solo il
+  // nostro effetto può muovere qualcosa, da qui in poi.
+  await radios.nth(farIndex).dispatchEvent("click");
+  await page.waitForTimeout(400);
+  expect(
+    await scrollY(),
+    "selezionare un colore non scrolla la pagina"
+  ).toBe(yBeforeColor);
+  expect(
+    await laneScrollLeft(),
+    "selezionare un colore RICENTRA la corsia (prova che l'effetto è girato davvero)"
+  ).not.toBe(slBefore);
 });
 
 test("CA3: «Fargeønsker» è un tab, esiste solo dove serve, e non lascia form sotto il pannello", async ({
@@ -447,4 +510,67 @@ test("CA3: «Fargeønsker» è un tab, esiste solo dove serve, e non lascia form
   await page.getByTestId("details-step").waitFor({ state: "visible" });
   await expect(page.getByTestId("category-tab-wishes")).toHaveCount(0);
   await expect(page.getByTestId("step2-extras")).toBeHidden();
+});
+
+test("CA2: il campo «Tekst» è gated e non si sovrappone né alle opzioni né alla nav", async ({
+  page,
+}) => {
+  // skip DICHIARATO (lezione F07) quando il seeding non è abilitato: semina nel
+  // catalogo reale, quindi vuole una scelta esplicita (controller Ruling 1).
+  test.skip(!CAN_SEED, "MK_E2E_SEED=1 richiesto: il test semina un design «Tekst»");
+  const { slug } = await seedTextGroupDesign();
+  try {
+    await page.goto(`/no/configurator?design=${slug}&step=2`);
+    await page.getByTestId("details-step").waitFor({ state: "visible" });
+    const tabs = page
+      .getByTestId("category-tabs")
+      .locator("button[data-testid^='category-tab-']");
+    const idx = (await tabs.allTextContents()).findIndex((l) => /^tekst/i.test(l.trim()));
+    expect(idx, "il design seminato ha un gruppo «Tekst»").toBeGreaterThanOrEqual(0);
+    await tabs.nth(idx).click();
+
+    // «No color» (prima opzione, default): nessun campo
+    const lane = page.getByTestId("option-grid").filter({ visible: true }).first();
+    await lane.locator("> *").first().click();
+    await expect(page.getByTestId("custom-text")).toHaveCount(0);
+
+    // «Tekst 1»: il campo compare SOTTO la corsia, senza sovrapporsi a nulla
+    await lane.locator("> *").nth(1).click();
+    await expect(page.getByTestId("custom-text")).toBeVisible();
+
+    const boxes = await page.evaluate(() => {
+      const b = (sel: string) => {
+        const el = document.querySelector(sel) as HTMLElement | null;
+        if (!el) return null;
+        const r = el.getBoundingClientRect();
+        return { top: r.top, bottom: r.bottom };
+      };
+      return {
+        lane: b('fieldset[data-testid="category-tekst"] [data-testid="option-grid"]'),
+        field: b('[data-testid="custom-text"]'),
+        nav: b('[data-testid="step-nav-flow"]'),
+      };
+    });
+    expect(boxes.field!.top, "il campo sta SOTTO la corsia").toBeGreaterThanOrEqual(
+      boxes.lane!.bottom - 1
+    );
+    expect(boxes.nav!.top, "la nav sta SOTTO il campo, mai coperta").toBeGreaterThanOrEqual(
+      boxes.field!.bottom - 1
+    );
+
+    // il focus non nasconde il campo dietro il canvas sticky
+    await page.getByTestId("custom-text-input").click();
+    await page.waitForTimeout(700);
+    const after = await page.evaluate(() => {
+      const f = document.querySelector('[data-testid="custom-text-input"]')!.getBoundingClientRect();
+      const c = document.querySelector('[data-testid="preview-sticky"]')!.getBoundingClientRect();
+      return { fieldTop: f.top, fieldBottom: f.bottom, canvasBottom: c.bottom, vh: window.innerHeight };
+    });
+    expect(after.fieldTop, "il campo non finisce sotto il canvas sticky").toBeGreaterThanOrEqual(
+      after.canvasBottom - 1
+    );
+    expect(after.fieldBottom, "il campo resta nel viewport").toBeLessThanOrEqual(after.vh);
+  } finally {
+    await deleteDesignBySlug(slug);
+  }
 });
