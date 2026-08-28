@@ -2,6 +2,7 @@ import { AdminShell } from "@/components/shell/admin-shell";
 import { createClient } from "@/lib/supabase/server";
 import { formatMoney, money, type Currency } from "@/lib/money/money";
 import { assetUrl } from "@/lib/storage";
+import { PRODUCT_THUMB_WIDTH } from "@/lib/asset-variants";
 import { CloneCeramicsPanel } from "@/components/admin/clone-ceramics-panel";
 
 export const dynamic = "force-dynamic";
@@ -24,7 +25,7 @@ export default async function CloneCeramicsPage() {
     nameNo: p.name_no,
     nameEn: p.name_en,
     price: formatMoney(money(p.price_cents, p.currency as Currency), "en"),
-    image: p.image ? assetUrl(p.image, { width: 256 }) : null,
+    image: p.image ? assetUrl(p.image, { width: PRODUCT_THUMB_WIDTH }) : null,
   }));
 
   return (

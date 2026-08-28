@@ -10,6 +10,7 @@ import { SetBadge } from "@/components/ui-domain/set-badge";
 import { PhotoLightbox } from "@/components/ui-domain/photo-lightbox";
 import { CLOSE_DISC } from "@/components/ui-domain/close-disc";
 import { assetUrl } from "@/lib/storage";
+import { PRODUCT_THUMB_WIDTH } from "@/lib/asset-variants";
 import { formatMoney, money } from "@/lib/money/money";
 import { displayPhotos } from "@/lib/catalog/product-photos";
 import { ATTR_ICON } from "@/components/ui-domain/attribute-icons";
@@ -216,7 +217,7 @@ export function ProductSheet({
                     <>
                       {/* eslint-disable-next-line @next/next/no-img-element -- catalog art from storage */}
                       <img
-                        src={assetUrl(p.image)}
+                        src={assetUrl(p.image, { width: PRODUCT_THUMB_WIDTH })}
                         alt=""
                         aria-hidden
                         className="size-11 shrink-0 rounded-full object-cover"

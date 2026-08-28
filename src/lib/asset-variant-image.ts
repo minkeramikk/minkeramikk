@@ -7,7 +7,12 @@
 import sharp from "sharp";
 // explicit .ts extension: this file is ALSO imported by the backfill script
 // under plain Node (type stripping), where ESM resolution needs the extension
-import { variantPath, variantWidth, assetClass } from "./asset-variants.ts";
+import {
+  variantPath,
+  variantWidth,
+  variantWidths,
+  assetClass,
+} from "./asset-variants.ts";
 
 export interface VariantFile {
   path: string;
@@ -25,9 +30,11 @@ export interface VariantFile {
  */
 export async function makeVariant(
   master: Buffer,
-  path: string
+  path: string,
+  /** Defaults to the path's class width; pass one of `variantWidths(path)`. */
+  explicitWidth?: number
 ): Promise<VariantFile | null> {
-  const width = variantWidth(path);
+  const width = explicitWidth ?? variantWidth(path);
   if (!width) return null;
   const target = variantPath(path, width);
   if (!target) return null;
@@ -65,13 +72,17 @@ export async function uploadVariant(
   master: Buffer
 ): Promise<void> {
   try {
-    const v = await makeVariant(master, masterPath);
-    if (!v) return;
-    await supabase.storage.from("assets").upload(v.path, v.data, {
-      contentType: v.contentType,
-      cacheControl: v.cacheControl,
-      upsert: true, // re-uploading a master must refresh its variant
-    });
+    // usually one width; a product photo also gets its 256 thumb (assetUrl
+    // asks for it explicitly on the cart plate and the admin lists).
+    for (const width of variantWidths(masterPath)) {
+      const v = await makeVariant(master, masterPath, width);
+      if (!v) return;
+      await supabase.storage.from("assets").upload(v.path, v.data, {
+        contentType: v.contentType,
+        cacheControl: v.cacheControl,
+        upsert: true, // re-uploading a master must refresh its variant
+      });
+    }
   } catch {
     // swallow — see above
   }
