@@ -411,8 +411,10 @@ export type Database = {
           internal_notes: string | null
           locale: string
           message: string | null
+          paid_at: string | null
           phone: string | null
           status: Database["public"]["Enums"]["order_status"]
+          tracking_code: string | null
           updated_at: string
           zipcode: string | null
         }
@@ -427,8 +429,10 @@ export type Database = {
           internal_notes?: string | null
           locale: string
           message?: string | null
+          paid_at?: string | null
           phone?: string | null
           status?: Database["public"]["Enums"]["order_status"]
+          tracking_code?: string | null
           updated_at?: string
           zipcode?: string | null
         }
@@ -443,8 +447,10 @@ export type Database = {
           internal_notes?: string | null
           locale?: string
           message?: string | null
+          paid_at?: string | null
           phone?: string | null
           status?: Database["public"]["Enums"]["order_status"]
+          tracking_code?: string | null
           updated_at?: string
           zipcode?: string | null
         }
@@ -720,6 +726,7 @@ export type Database = {
         | "contacted"
         | "confirmed"
         | "in_production"
+        | "shipped"
         | "delivered"
         | "cancelled"
     }
@@ -857,6 +864,7 @@ export const Constants = {
         "contacted",
         "confirmed",
         "in_production",
+        "shipped",
         "delivered",
         "cancelled",
       ],
