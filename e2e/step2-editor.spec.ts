@@ -363,3 +363,49 @@ test("CA4: la ✕ del lightbox e quella della scheda prodotto sono identiche e s
   // ink disc, light glyph — not the light `--background` disc it used to be
   expect(lightbox.bg).not.toBe(lightbox.fg);
 });
+
+test("CA5: le corsie opzioni hanno le frecce ‹ ›, e un tap su un'opzione non muove la pagina", async ({
+  page,
+}) => {
+  await page.goto("/no/configurator?design=amalfi-dyr&step=2");
+  await page.getByTestId("details-step").waitFor({ state: "visible" });
+  // R4-POLISH: ogni CategoryLane resta montata (visibilità via `max-md:hidden`
+  // sul fieldset, come già per `option-grid` in CA1) — serve scoping sul
+  // pannello VISIBILE, altrimenti il locator colpisce tutte le corsie a colpo.
+  const prev = page.getByTestId("option-lane-prev").filter({ visible: true });
+  const next = page.getByTestId("option-lane-next").filter({ visible: true });
+
+  // a inizio corsa: destra sì, sinistra no
+  await expect(next).toBeVisible();
+  await expect(prev).toBeHidden();
+
+  // la freccia scorre la corsia, non la pagina
+  const scrollY = () => page.evaluate(() => Math.round(window.scrollY));
+  const before = await scrollY();
+  await next.click();
+  await page.waitForTimeout(500);
+  await expect(prev).toBeVisible();
+  expect(await scrollY(), "la freccia non scrolla la pagina").toBe(before);
+
+  // la freccia sta SOPRA la fade
+  const order = await page.evaluate(() => {
+    const a = document.querySelector('[data-testid="option-lane-next"]') as HTMLElement;
+    const fade = a.parentElement!.querySelector("span[aria-hidden]") as HTMLElement;
+    return [Number(getComputedStyle(a).zIndex), Number(getComputedStyle(fade).zIndex)];
+  });
+  expect(order[0], "freccia sopra la fade").toBeGreaterThan(order[1]);
+
+  // e un tap su un'opzione non muove la pagina (deriva misurata su c0bba2f: 27px)
+  const lane = page.getByTestId("option-grid").filter({ visible: true }).first();
+  const target = lane.locator("> *").nth(5);
+  // su un viewport corto (390×660) questa riga eccede il fold: Playwright la
+  // porta in vista PRIMA del click (actionability) — è il raggiungimento
+  // dell'utente, non la deriva sotto test. Lo anticipiamo qui, cosi `y0`
+  // misura DOPO il raggiungimento e isola solo l'eventuale deriva della
+  // selezione stessa.
+  await target.scrollIntoViewIfNeeded();
+  const y0 = await scrollY();
+  await target.click();
+  await page.waitForTimeout(400);
+  expect(await scrollY(), "selezionare un'opzione non scrolla la pagina").toBe(y0);
+});

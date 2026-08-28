@@ -84,6 +84,8 @@
       "configureHeading": "Configure your design",
       "scrollTabsBack": "Scroll categories back",
       "scrollTabsForward": "Scroll categories forward",
+      "scrollOptionsBack": "Scroll options back",
+      "scrollOptionsForward": "Scroll options forward",
       "optionsLabel": "Colours and motifs"
     },
     "photos": {

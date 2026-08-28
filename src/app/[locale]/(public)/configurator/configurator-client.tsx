@@ -14,6 +14,7 @@ import {
   isCustomTextOffered,
 } from "@/lib/configurator/text-option";
 import { useLaneFades } from "@/lib/configurator/use-lane-fades";
+import { arrowStep, centreScrollLeft } from "@/lib/configurator/lane-scroll";
 import { PreviewCanvas } from "@/components/ui-domain/preview-canvas";
 import { Stepper } from "@/components/ui-domain/stepper";
 import { Swatch } from "@/components/ui-domain/swatch";
@@ -1357,16 +1358,32 @@ function CategoryLane({
   const dense = cat.options.length > 9;
 
   // Tab aperta → la scelta corrente dev'essere visibile, altrimenti la corsia
-  // riparte da sinistra e sembra che non ci sia nessuna selezione. Solo se la
-  // corsia scorre davvero: su desktop (griglia che va a capo) non scorre, quindi
-  // qui non succede nulla e la pagina non si muove.
+  // riparte da sinistra e sembra che non ci sia nessuna selezione.
+  // R4-POLISH: si scrive `scrollLeft`, NON `scrollIntoView`. Quest'ultimo
+  // scrolla ogni antenato scrollabile, documento compreso — misurato su
+  // c0bba2f: 27-29px di deriva della PAGINA a ogni tap su un'opzione, con il
+  // canvas sticky sopra. L'aritmetica sta in lib/configurator/lane-scroll.
   useEffect(() => {
     const lane = laneRef.current;
     if (!active || !lane || lane.scrollWidth <= lane.clientWidth) return;
-    lane
-      .querySelector<HTMLElement>('[aria-checked="true"]')
-      ?.scrollIntoView({ block: "nearest", inline: "nearest" });
+    const card = lane.querySelector<HTMLElement>('[aria-checked="true"]');
+    if (!card) return;
+    const laneBox = lane.getBoundingClientRect();
+    const cardBox = card.getBoundingClientRect();
+    lane.scrollLeft = centreScrollLeft({
+      laneLeft: laneBox.left,
+      laneScrollLeft: lane.scrollLeft,
+      laneClientWidth: lane.clientWidth,
+      cardLeft: cardBox.left,
+      cardWidth: cardBox.width,
+    });
   }, [active, selectedId]);
+
+  /** R4-POLISH voce 5: frecce ‹ › sulla corsia, stesso stato can-scroll delle fade. */
+  const scrollLane = (dir: -1 | 1) => {
+    const lane = laneRef.current;
+    if (lane) lane.scrollBy({ left: arrowStep(lane.clientWidth, dir), behavior: "smooth" });
+  };
 
   return (
     <fieldset
@@ -1572,6 +1589,39 @@ function CategoryLane({
               fades.right ? "opacity-100" : "opacity-0"
             )}
           />
+          {/* R4-POLISH voce 5: le frecce stanno SOPRA le fade (z-3 contro z-2)
+              e seguono lo stesso stato can-scroll — niente corsa, niente
+              freccia, e l'attributo `hidden` la toglie anche dal tab order.
+              Disco 36px + `after` (2×4px) = 44px toccabili (§5).
+              // TODO:nb-review — step2.scrollOptionsBack / scrollOptionsForward */}
+          <button
+            type="button"
+            onClick={() => scrollLane(-1)}
+            aria-label={t("step2.scrollOptionsBack")}
+            data-testid="option-lane-prev"
+            hidden={!fades.left}
+            className={cn(
+              "absolute top-1/2 left-1 z-[3] hidden -translate-y-1/2 max-md:flex",
+              "size-9 items-center justify-center rounded-full bg-card text-sm ring-1 ring-border",
+              "after:absolute after:-inset-1 after:content-[''] outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+            )}
+          >
+            ‹
+          </button>
+          <button
+            type="button"
+            onClick={() => scrollLane(1)}
+            aria-label={t("step2.scrollOptionsForward")}
+            data-testid="option-lane-next"
+            hidden={!fades.right}
+            className={cn(
+              "absolute top-1/2 right-1 z-[3] hidden -translate-y-1/2 max-md:flex",
+              "size-9 items-center justify-center rounded-full bg-card text-sm ring-1 ring-border",
+              "after:absolute after:-inset-1 after:content-[''] outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+            )}
+          >
+            ›
+          </button>
         </>
       )}
       </div>

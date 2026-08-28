@@ -83,6 +83,8 @@
       "configureHeading": "Konfigurer ditt design",
       "scrollTabsBack": "Bla kategorier bakover",
       "scrollTabsForward": "Bla kategorier fremover",
+      "scrollOptionsBack": "Bla alternativer bakover",
+      "scrollOptionsForward": "Bla alternativer fremover",
       "optionsLabel": "Farger og motiv"
     },
     "photos": {
