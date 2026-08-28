@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { DesignRound } from "@/components/ui-domain/design-round";
 import { SetBadge } from "@/components/ui-domain/set-badge";
 import { PhotoLightbox } from "@/components/ui-domain/photo-lightbox";
+import { CLOSE_DISC } from "@/components/ui-domain/close-disc";
 import { assetUrl } from "@/lib/storage";
 import { formatMoney, money } from "@/lib/money/money";
 import { displayPhotos } from "@/lib/catalog/product-photos";
@@ -142,14 +143,9 @@ export function ProductSheet({
           onClick={() => onOpenChange(false)}
           aria-label={tCfg("productSheet.close")}
           data-testid="product-sheet-close"
-          // R4-FIX: `bg-muted` on the sheet's light card was a light disc on a
-          // light ground — invisible on a phone. Inverted onto the ink pair
-          // (`--ink` / `--ink-foreground`, the same tokens the zoom pill uses):
-          // dark disc, light glyph, no hardcoded colour.
-          // 36px disc like the mockup; `after` stretches the hit area to 44px
-          // (36 + 2×4) so the touch target rule (§5) holds without changing the
-          // visual.
-          className="absolute top-2.5 right-3 z-2 flex size-9 items-center justify-center rounded-full bg-ink text-base text-ink-foreground outline-none after:absolute after:-inset-1 after:content-[''] focus-visible:ring-3 focus-visible:ring-ring/50"
+          // R4-POLISH voce 4: the disc itself lives in `CLOSE_DISC` — the same
+          // one the photo lightbox uses, so the two can never drift apart.
+          className={cn("absolute top-2.5 right-3 z-2", CLOSE_DISC)}
         >
           ✕
         </button>

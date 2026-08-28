@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { assetUrl } from "@/lib/storage";
 import { photoIndexAt } from "@/lib/configurator/photos";
+import { CLOSE_DISC } from "@/components/ui-domain/close-disc";
+import { cn } from "@/lib/utils";
 
 /**
  * F41 lightbox body. Mounts only while the Dialog is open (Radix unmounts the
@@ -123,7 +125,8 @@ export function PhotoLightbox({
         type="button"
         onClick={onClose}
         aria-label={t("closePhoto")}
-        className="absolute right-2 top-2 flex size-10 items-center justify-center rounded-full bg-background text-lg ring-1 ring-border"
+        data-testid="lightbox-close"
+        className={cn("absolute right-2 top-2 z-2", CLOSE_DISC)}
       >
         ✕
       </button>

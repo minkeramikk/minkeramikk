@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { activeDesignSlugs, firstActiveDesign } from "./helpers";
+import { activeDesignSlugs, ceramicCards, firstActiveDesign } from "./helpers";
 
 /**
  * R4-RESTYLE — lo step 2 sotto md su un telefono CORTO (390×660: un iPhone con
@@ -308,4 +308,58 @@ test("R4-FIX 8: il campo «Tekst» compare solo scegliendo un'opzione di testo",
   await options.nth(1).click();
   await expect(page.getByTestId("custom-text")).toBeVisible();
   await expect(page.getByTestId("custom-text-input")).toBeVisible();
+});
+
+test("CA4: la ✕ del lightbox e quella della scheda prodotto sono identiche e su token ink", async ({
+  page,
+}) => {
+  const read = async () =>
+    page.evaluate(() => {
+      const btn = [...document.querySelectorAll("button")].find(
+        (b) => b.textContent?.trim() === "✕" && b.checkVisibility()
+      )!;
+      const cs = getComputedStyle(btn);
+      const r = btn.getBoundingClientRect();
+      const after = getComputedStyle(btn, "::after");
+      const grow = Math.abs(parseFloat(after.insetBlockStart || "0")) || 0;
+      return {
+        bg: cs.backgroundColor,
+        fg: cs.color,
+        hit: [Math.round(r.width + 2 * grow), Math.round(r.height + 2 * grow)],
+      };
+    });
+
+  // step 2 — photo lightbox
+  const slugs = await activeDesignSlugs();
+  let withPhotos = "";
+  for (const s of slugs) {
+    await page.goto(`/no/configurator?design=${s}&step=2`);
+    await page.getByTestId("details-step").waitFor({ state: "visible" });
+    if ((await page.getByTestId("step2-inspiration").count()) > 0) { withPhotos = s; break; }
+  }
+  expect(withPhotos, "serve un design con foto reali").not.toBe("");
+  await page.getByTestId("step2-inspiration").getByTestId("design-photo").first().click();
+  await page.getByTestId("design-photo-lightbox").waitFor({ state: "visible" });
+  // The lightbox Dialog keeps the base `zoom-in-95` entrance (unlike the
+  // product sheet, which overrides it to `zoom-in-100!`): "visible" fires the
+  // instant it mounts, mid-animation, so the disc is still scale(.95) — a
+  // real 34.2px, not 36px — unless the entrance is let finish first.
+  await page
+    .getByTestId("design-photo-lightbox")
+    .evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished)));
+  const lightbox = await read();
+  await page.keyboard.press("Escape");
+
+  // step 3 — product sheet
+  await page.goto(`/no/configurator?design=${withPhotos}&step=3`);
+  await page.getByTestId("ceramics-step").waitFor({ state: "visible" });
+  await ceramicCards(page).first().click();
+  await page.getByTestId("product-sheet").waitFor({ state: "visible" });
+  const sheet = await read();
+
+  expect(lightbox, "le due ✕ devono essere identiche").toEqual(sheet);
+  expect(lightbox.hit[0], "hit area ≥ 44px").toBeGreaterThanOrEqual(44);
+  expect(lightbox.hit[1], "hit area ≥ 44px").toBeGreaterThanOrEqual(44);
+  // ink disc, light glyph — not the light `--background` disc it used to be
+  expect(lightbox.bg).not.toBe(lightbox.fg);
 });
