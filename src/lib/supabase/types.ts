@@ -185,6 +185,80 @@ export type Database = {
           },
         ]
       }
+      discount_rule_products: {
+        Row: {
+          product_id: string
+          rule_id: string
+        }
+        Insert: {
+          product_id: string
+          rule_id: string
+        }
+        Update: {
+          product_id?: string
+          rule_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "discount_rule_products_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "discount_rule_products_rule_id_fkey"
+            columns: ["rule_id"]
+            isOneToOne: false
+            referencedRelation: "discount_rules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      discount_rules: {
+        Row: {
+          discount_mode: string
+          discount_pct: number | null
+          enabled: boolean
+          id: string
+          name: string
+          sort_order: number
+          suggested_product_id: string
+          suggested_qty: number
+          trigger_min_qty: number
+        }
+        Insert: {
+          discount_mode?: string
+          discount_pct?: number | null
+          enabled?: boolean
+          id?: string
+          name: string
+          sort_order?: number
+          suggested_product_id: string
+          suggested_qty?: number
+          trigger_min_qty?: number
+        }
+        Update: {
+          discount_mode?: string
+          discount_pct?: number | null
+          enabled?: boolean
+          id?: string
+          name?: string
+          sort_order?: number
+          suggested_product_id?: string
+          suggested_qty?: number
+          trigger_min_qty?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "discount_rules_suggested_product_id_fkey"
+            columns: ["suggested_product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       discount_tiers: {
         Row: {
           id: string
@@ -775,6 +849,10 @@ export type Database = {
       }
       replace_discount_products: {
         Args: { p_product_ids: string[] }
+        Returns: undefined
+      }
+      replace_discount_rule_products: {
+        Args: { p_product_ids: string[]; p_rule_id: string }
         Returns: undefined
       }
       replace_discount_tiers: { Args: { p_rows: Json }; Returns: undefined }
