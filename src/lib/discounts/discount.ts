@@ -184,9 +184,15 @@ export function firstSuggestion(
     if (groupQty < rule.triggerMinQty) continue;
 
     // the line that will lend its config: the biggest trigger line (the one the
-    // customer clearly committed to), first-seen on a tie
+    // customer clearly committed to), first-seen on a tie. Same population that
+    // fed groupQty — an excluded line never triggers, so it can't donate either.
     const from = lines
-      .filter((l) => l.productId && rule.triggerProductIds.includes(l.productId))
+      .filter(
+        (l) =>
+          l.productId &&
+          rule.triggerProductIds.includes(l.productId) &&
+          included(l.productId, config)
+      )
       .sort((a, b) => b.quantity - a.quantity)[0];
     if (!from) continue;
 

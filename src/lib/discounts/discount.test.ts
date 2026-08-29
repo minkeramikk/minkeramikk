@@ -205,4 +205,30 @@ describe("firstSuggestion", () => {
   it("gives nothing when automations are off", () => {
     expect(firstSuggestion([line({ id: "a", quantity: 4 })], cfg({ automationsEnabled: false }), opts)).toBeNull();
   });
+
+  it("the donor line is filtered by inclusion too — an excluded line can't supply the config (review fix R1)", () => {
+    // plate is included and alone crosses triggerMinQty; carafe is excluded and
+    // contributes nothing to groupQty, but its raw quantity (100) is bigger, so
+    // an inclusion-blind donor scan would wrongly pick it.
+    const rule = { ...RULE, triggerProductIds: ["plate", "carafe"] };
+    const lines = [
+      line({ id: "a", productId: "plate", quantity: 4 }),
+      line({ id: "b", productId: "carafe", quantity: 100 }),
+    ];
+    const s = firstSuggestion(
+      lines,
+      cfg({ rules: [rule], includedProductIds: ["plate"] }),
+      opts
+    );
+    expect(s?.fromLineId).toBe("a");
+  });
+
+  it("a line with no productId is never a donor", () => {
+    const lines = [
+      line({ id: "a", productId: null, quantity: 4 }),
+      line({ id: "b", productId: "plate", quantity: 4 }),
+    ];
+    const s = firstSuggestion(lines, cfg(), opts);
+    expect(s?.fromLineId).toBe("b");
+  });
 });
