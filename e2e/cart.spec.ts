@@ -6,6 +6,10 @@ import {
   horizontalOverflow,
   CAN_SEED,
   seedDiscountTiers,
+  ADMIN_READY,
+  adminClient,
+  deleteOrder,
+  loginAdmin,
 } from "./helpers";
 
 /**
@@ -258,6 +262,138 @@ test.describe("R4-SCONTI — quantity discounts", () => {
       }
     } finally {
       await seeded.restore();
+    }
+  });
+
+  test("AC-SC9: switched off from admin — the flag is false but the tier rows stay", async ({
+    page,
+  }) => {
+    // AC-SC3 switches off by DELETING the tier rows. That is not the state the
+    // shop can actually produce: `/admin/discounts` flips
+    // `settings.quantity_discounts_enabled` and leaves the scale in the table
+    // (the empty scale is refused by `.min(1)` in saveDiscountTiers). This is
+    // that real state.
+    //
+    // TWO steps on purpose, and the fixture only works this way: with a single
+    // step at min_qty 2 and a cart of 2, `nextTier(2, …)` finds no threshold
+    // above 2 and CartDiscountNudge returns null on its own — the test would go
+    // green without proving anything. With a second step at 9 there IS a next
+    // tier, so the nudge renders whenever it is asked to, which is what makes
+    // the off-state assertable at all.
+    const seeded = await seedDiscountTiers([
+      { min_qty: 2, pct: 12 },
+      { min_qty: 9, pct: 20 },
+    ]);
+    const db = adminClient();
+    try {
+      await page.goto(step3);
+      await addFirstCeramic(page);
+      await openCart(page);
+      const line = drawer(page).getByTestId("cart-line").first();
+      await drawer(page).getByLabel("+").first().click(); // qty 2 → 12%, next step at 9
+
+      // the seed really took: discount applied AND the nudge pointing at 9
+      await expect(async () => {
+        await page.reload();
+        await openCart(page);
+        await expect(line.getByTestId("cart-line-full")).toBeVisible();
+      }).toPass({ timeout: 15_000 });
+      await expect(drawer(page).getByTestId("cart-discount-nudge")).toBeVisible();
+
+      // now the admin off-switch: the FLAG only, rows untouched
+      const off = await db
+        .from("settings")
+        .update({ quantity_discounts_enabled: false })
+        .eq("id", 1);
+      if (off.error) throw off.error;
+
+      await expect(async () => {
+        await page.reload();
+        await openCart(page);
+        await expect(drawer(page).getByTestId("cart-line-full")).toHaveCount(0);
+      }).toPass({ timeout: 15_000 });
+      // …and nothing may still advertise a discount that is switched off.
+      await expect(drawer(page).getByTestId("cart-discount-nudge")).toHaveCount(0);
+    } finally {
+      // restore() rewrites the flag to what it found, but be explicit: this
+      // test flipped it outside the seeder, so it puts it back itself first.
+      await db
+        .from("settings")
+        .update({ quantity_discounts_enabled: true })
+        .eq("id", 1);
+      await seeded.restore();
+    }
+  });
+
+  test("AC-SC10: the tier discount reaches the order — frozen on the line, shown in admin", async ({
+    page,
+  }) => {
+    test.skip(!ADMIN_READY, "needs ADMIN_EMAIL/PASSWORD + service role");
+    // AC-SC8 proves a part-② DEAL reaches the order. Nothing proved it for the
+    // part-① TIER, which is the 200 € half of the card and the path where the
+    // money actually lands in the database. Asserting on the admin badge alone
+    // would only prove something rendered; the row is what the shop invoices
+    // from, so the frozen columns are checked directly and the AMOUNT is
+    // recomputed here rather than trusted.
+    const seeded = await seedDiscountTiers([{ min_qty: 2, pct: 12 }]);
+    const db = adminClient();
+    let orderId = "";
+    try {
+      await page.goto(step3);
+      await addFirstCeramic(page);
+      await openCart(page);
+      const line = drawer(page).getByTestId("cart-line").first();
+      await drawer(page).getByLabel("+").first().click(); // qty 2 → the ×2 tier
+      await expect(async () => {
+        await page.reload();
+        await openCart(page);
+        await expect(line.getByTestId("cart-line-full")).toBeVisible();
+      }).toPass({ timeout: 15_000 });
+
+      await page.getByTestId("cart-checkout").click();
+      await page.getByTestId("order-form").waitFor();
+      await page.getByTestId("order-name").fill("E2E Sconti Tier");
+      await page.getByTestId("order-email").fill("e2e-sconti-tier@example.no");
+      await page.getByTestId("order-submit").click();
+      await expect(page.getByTestId("order-confirmation")).toBeVisible();
+      const code = await page.getByTestId("order-code").innerText();
+
+      const { data: order, error } = await db
+        .from("orders")
+        .select("id")
+        .eq("code", code)
+        .single();
+      if (error) throw error;
+      orderId = (order as { id: string }).id;
+
+      const { data: items, error: itemsErr } = await db
+        .from("order_items")
+        .select("quantity, price_cents_snapshot, discount_pct, discount_cents, discount_source")
+        .eq("order_id", orderId);
+      if (itemsErr) throw itemsErr;
+      expect(items).toHaveLength(1);
+      const it = items![0] as {
+        quantity: number;
+        price_cents_snapshot: number;
+        discount_pct: number | null;
+        discount_cents: number;
+        discount_source: string | null;
+      };
+      expect(it.quantity).toBe(2);
+      expect(it.discount_pct).toBe(12);
+      expect(it.discount_source).toBe("tier");
+      // the frozen amount must be the server's own arithmetic, rounded ONCE on
+      // the line total (ADR 0022) — not merely "some discount was recorded".
+      expect(it.discount_cents).toBe(
+        Math.round((it.price_cents_snapshot * it.quantity * 12) / 100)
+      );
+
+      await loginAdmin(page);
+      await page.goto(`/admin/orders/${orderId}`);
+      await expect(page.getByTestId("detail-discount")).toBeVisible();
+    } finally {
+      await seeded.restore();
+      if (orderId) await deleteOrder(orderId);
     }
   });
 }); // R4-SCONTI describe
