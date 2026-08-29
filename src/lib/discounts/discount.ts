@@ -267,3 +267,20 @@ export function computeCartDiscount(
     total: subtract(subtract(subtotal, tierSaved), dealSaved),
   };
 }
+
+/**
+ * R4-SCONTI Task 14, ADR 0023 (e) — authoring-time guard: a suggested product
+ * with no supplier in common with its rule's trigger group can never fire,
+ * because the suggested line inherits the triggering line's configCode and a
+ * config code means nothing across suppliers. Pure (no DB), so the admin
+ * action that owns this refusal (src/app/admin/discounts/actions.ts) can
+ * derive real suppliers from the DB and hand them to this predicate rather
+ * than trusting the browser. Lives here, not in actions.ts, because that file
+ * is `"use server"` and every export from it must be an async Server Action.
+ */
+export function suggestedSharesSupplier(
+  triggerSupplierIds: string[],
+  suggestedSupplierId: string | undefined
+): boolean {
+  return Boolean(suggestedSupplierId) && triggerSupplierIds.includes(suggestedSupplierId!);
+}

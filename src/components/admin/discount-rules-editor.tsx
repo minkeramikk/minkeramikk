@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useId, useMemo, useRef, useState, useTransition } from "react";
+import { useActionState, useEffect, useId, useRef, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ProductPicker, type EditorProduct } from "@/components/admin/product-multi-select";
@@ -10,12 +10,6 @@ import {
   toggleAutomations,
   type ActionResult,
 } from "@/app/admin/discounts/actions";
-
-/** A product plus the one extra fact this panel needs that the "Applies to"
- *  picker doesn't: which supplier it belongs to (ADR 0023 (e) — duty 4 below). */
-export interface RuleProduct extends EditorProduct {
-  supplierId: string;
-}
 
 export interface EditorRule {
   id: string; // "" for a rule not yet saved
@@ -30,7 +24,10 @@ export interface EditorRule {
 }
 
 const initial: ActionResult = {};
-const selectCls = "h-9 rounded-lg border border-border bg-card px-2 text-sm";
+// Minor 3 (review round 1): same focus ring as order-status-form.tsx /
+// product-form.tsx's native selects.
+const selectCls =
+  "h-9 rounded-sm border border-input bg-card px-2 text-sm focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring";
 
 const blankRule = (): EditorRule => ({
   id: "",
@@ -92,15 +89,15 @@ function AutomationsSwitch({ initialEnabled }: { initialEnabled: boolean }) {
 function RuleCard({
   rule,
   products,
-  onRemoveUnsaved,
+  onRemove,
 }: {
   rule: EditorRule;
-  products: RuleProduct[];
-  onRemoveUnsaved: () => void;
+  products: EditorProduct[];
+  onRemove: () => void;
 }) {
   const [state, formAction, pending] = useActionState(saveDiscountRule, initial);
   // the id the DB assigned on first save — turns the next submit into an
-  // UPDATE and gives the delete form something to point at.
+  // UPDATE and gives delete something to point at.
   const [id, setId] = useState(rule.id);
   useEffect(() => {
     if (state.id && !id) setId(state.id);
@@ -126,27 +123,38 @@ function RuleCard({
     if (discountMode !== "fixed") setDiscountPct("");
   }, [discountMode]);
 
-  const byId = useMemo(() => new Map(products.map((p) => [p.id, p])), [products]);
-  const triggerSupplierIds = useMemo(
-    () =>
-      Array.from(
-        new Set(
-          Array.from(triggerSelected)
-            .map((pid) => byId.get(pid)?.supplierId)
-            .filter((s): s is string => Boolean(s))
-        )
-      ),
-    [triggerSelected, byId]
-  );
-  const suggestedSupplierId = byId.get(suggestedProductId)?.supplierId ?? "";
+  // Review round 1, Important 5: the trigger/suggested supplier ids are no
+  // longer computed or submitted here — saveDiscountRule looks them up itself
+  // from the DB, so a stale/wrong client-side product list can no longer
+  // produce a cryptic refusal on a field the admin never sees.
+
+  const [deletePending, startDelete] = useTransition();
+  const [deleteError, setDeleteError] = useState<string>();
+
+  function handleDelete() {
+    if (!id) {
+      onRemove(); // never saved — nothing to confirm or delete server-side
+      return;
+    }
+    if (!confirm(`Delete rule "${name || "Untitled"}"?`)) return;
+    setDeleteError(undefined);
+    startDelete(async () => {
+      const fd = new FormData();
+      fd.set("id", id);
+      const res = await deleteDiscountRule(fd);
+      // Review round 1, Important 3: only remove the card once the DELETE
+      // actually succeeded — before this, a successful delete and a failed
+      // one looked identical (card stayed put either way).
+      if (res.error) setDeleteError(res.error);
+      else onRemove();
+    });
+  }
 
   return (
     <div className="rounded-lg border border-border p-4" data-testid="rule-card">
       <form action={formAction} onSubmit={() => setEdited(false)} className="flex flex-col gap-3">
         <input type="hidden" name="id" value={id} />
         <input type="hidden" name="triggerProductIds" value={JSON.stringify([...triggerSelected])} />
-        <input type="hidden" name="triggerSupplierIds" value={JSON.stringify(triggerSupplierIds)} />
-        <input type="hidden" name="suggestedSupplierId" value={suggestedSupplierId} />
 
         <div className="flex items-center gap-3">
           <Input
@@ -240,6 +248,7 @@ function RuleCard({
           />
           ×
           <select
+            name="suggestedProductId"
             value={suggestedProductId}
             onChange={(e) => {
               setSuggestedProductId(e.target.value);
@@ -257,8 +266,6 @@ function RuleCard({
               </option>
             ))}
           </select>
-          {/* not submitted directly: the hidden suggestedSupplierId field above carries it */}
-          <input type="hidden" name="suggestedProductId" value={suggestedProductId} />
           with discount
           <select
             value={discountMode}
@@ -291,9 +298,9 @@ function RuleCard({
           %
         </p>
 
-        {state.error && (
+        {(state.error || deleteError) && (
           <p role="alert" className="text-sm text-destructive" data-testid="rule-error">
-            {state.error}
+            {state.error || deleteError}
           </p>
         )}
 
@@ -309,30 +316,17 @@ function RuleCard({
         </div>
       </form>
 
-      {id ? (
-        <form
-          // deleteDiscountRule returns ActionResult (so the integration tests
-          // can assert on it); <form action> wants void|Promise<void>, hence
-          // the thin wrapper. No inline error surface for delete — same
-          // single-arg, fire-and-forget shape as toggleAutomations.
-          action={async (fd) => {
-            await deleteDiscountRule(fd);
-          }}
-          onSubmit={(e) => {
-            if (!confirm(`Delete rule "${name || "Untitled"}"?`)) e.preventDefault();
-          }}
-          className="mt-2"
-        >
-          <input type="hidden" name="id" value={id} />
-          <Button type="submit" variant="ghost" size="sm" data-testid="rule-delete">
-            Delete
-          </Button>
-        </form>
-      ) : (
-        <Button type="button" variant="ghost" size="sm" className="mt-2" onClick={onRemoveUnsaved} data-testid="rule-delete">
-          Remove
-        </Button>
-      )}
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className="mt-2"
+        disabled={deletePending}
+        onClick={handleDelete}
+        data-testid="rule-delete"
+      >
+        {deletePending ? "Deleting…" : id ? "Delete" : "Remove"}
+      </Button>
     </div>
   );
 }
@@ -343,7 +337,7 @@ export function DiscountRulesEditor({
   initialRules,
 }: {
   initialAutomationsEnabled: boolean;
-  products: RuleProduct[];
+  products: EditorProduct[];
   initialRules: EditorRule[];
 }) {
   const idBase = useId();
@@ -372,7 +366,7 @@ export function DiscountRulesEditor({
       </p>
 
       {drafts.map((d) => (
-        <RuleCard key={d.key} rule={d.rule} products={products} onRemoveUnsaved={() => removeDraft(d.key)} />
+        <RuleCard key={d.key} rule={d.rule} products={products} onRemove={() => removeDraft(d.key)} />
       ))}
 
       <Button type="button" variant="outline" className="self-start" onClick={addRule} data-testid="rule-add">

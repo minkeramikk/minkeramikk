@@ -139,6 +139,7 @@ import {
   saveDiscountRule,
   deleteDiscountRule,
 } from "./actions";
+import { suggestedSharesSupplier } from "@/lib/discounts/discount";
 
 function fd(obj: Record<string, string>): FormData {
   const f = new FormData();
@@ -152,7 +153,6 @@ function fd(obj: Record<string, string>): FormData {
 // is ever touched.
 const PROD_A = "11111111-1111-4111-8111-111111111111";
 const PROD_B = "22222222-2222-4222-8222-222222222222";
-const PROD_C = "33333333-3333-4333-8333-333333333333";
 const SUP_A = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const SUP_B = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 
@@ -194,15 +194,35 @@ describe("R4-SCONTI saveDiscountRule — validation (no DB call)", () => {
         enabled: "on",
         triggerMinQty: "2",
         triggerProductIds: JSON.stringify([PROD_A]),
-        triggerSupplierIds: JSON.stringify([SUP_A]),
         suggestedProductId: PROD_B,
-        suggestedSupplierId: SUP_A,
         suggestedQty: "1",
         discountMode: "fixed",
         discountPct: "",
       })
     );
     expect(res.error).toMatch(/percentage/i);
+  });
+
+  // Review round 1, Important 1: a fractional percentage is REFUSED, not
+  // rounded — silently turning an admin's "15.6" into 16 would change a
+  // commercial decision without telling them. Pure (fails at the zod layer,
+  // no DB), so this replaces the DB-gated round-trip test that would have
+  // become a guaranteed failure the moment 0034 lands.
+  it("refuses a fractional percentage on a fixed rule", async () => {
+    const res = await saveDiscountRule(
+      {},
+      fd({
+        name: "Fractional pct",
+        enabled: "on",
+        triggerMinQty: "2",
+        triggerProductIds: JSON.stringify([PROD_A]),
+        suggestedProductId: PROD_B,
+        suggestedQty: "1",
+        discountMode: "fixed",
+        discountPct: "15.6",
+      })
+    );
+    expect(res.error).toMatch(/whole number/i);
   });
 
   // C2 — the regression the TL caught in review. Without the z.preprocess fix
@@ -218,9 +238,7 @@ describe("R4-SCONTI saveDiscountRule — validation (no DB call)", () => {
         enabled: "on",
         triggerMinQty: "2",
         triggerProductIds: JSON.stringify([PROD_A]),
-        triggerSupplierIds: JSON.stringify([SUP_A]),
         suggestedProductId: PROD_A, // trips the self-suggest refusal instead
-        suggestedSupplierId: SUP_A,
         suggestedQty: "1",
         discountMode: "inherited",
         discountPct: "",
@@ -238,9 +256,7 @@ describe("R4-SCONTI saveDiscountRule — validation (no DB call)", () => {
         enabled: "on",
         triggerMinQty: "2",
         triggerProductIds: JSON.stringify([PROD_A]),
-        triggerSupplierIds: JSON.stringify([SUP_A]),
         suggestedProductId: PROD_A,
-        suggestedSupplierId: SUP_A,
         suggestedQty: "1",
         discountMode: "none",
         discountPct: "",
@@ -257,9 +273,7 @@ describe("R4-SCONTI saveDiscountRule — validation (no DB call)", () => {
         enabled: "on",
         triggerMinQty: "2",
         triggerProductIds: JSON.stringify([]),
-        triggerSupplierIds: JSON.stringify([]),
         suggestedProductId: PROD_B,
-        suggestedSupplierId: SUP_A,
         suggestedQty: "1",
         discountMode: "none",
         discountPct: "",
@@ -267,27 +281,25 @@ describe("R4-SCONTI saveDiscountRule — validation (no DB call)", () => {
     );
     expect(res.error).toBeTruthy();
   });
+});
 
-  // Duty 4 — ADR 0023 (e): the suggested line inherits the trigger line's
-  // configCode, which means nothing across suppliers. A rule that can never
-  // fire is refused rather than silently shipped.
-  it("refuses a suggested product that shares no supplier with the trigger group", async () => {
-    const res = await saveDiscountRule(
-      {},
-      fd({
-        name: "Cross supplier",
-        enabled: "on",
-        triggerMinQty: "2",
-        triggerProductIds: JSON.stringify([PROD_A]),
-        triggerSupplierIds: JSON.stringify([SUP_A]),
-        suggestedProductId: PROD_C,
-        suggestedSupplierId: SUP_B,
-        suggestedQty: "1",
-        discountMode: "none",
-        discountPct: "",
-      })
-    );
-    expect(res.error).toMatch(/supplier/i);
+// Duty 4 — ADR 0023 (e): the suggested line inherits the trigger line's
+// configCode, which means nothing across suppliers. Since review round 1
+// (Important 5), saveDiscountRule derives suppliers itself from the DB rather
+// than trusting browser-submitted fields, so this predicate — the actual
+// refusal logic — is what's unit-testable without a DB; see the DB-gated
+// "cross supplier" test below for proof of the DB wiring around it.
+describe("R4-SCONTI suggestedSharesSupplier — validation (no DB call)", () => {
+  it("is false when the suggested product shares no supplier with the trigger group", () => {
+    expect(suggestedSharesSupplier([SUP_A], SUP_B)).toBe(false);
+  });
+
+  it("is true when the suggested product shares a supplier with the trigger group", () => {
+    expect(suggestedSharesSupplier([SUP_A], SUP_A)).toBe(true);
+  });
+
+  it("is false when the suggested product's supplier could not be resolved", () => {
+    expect(suggestedSharesSupplier([SUP_A], undefined)).toBe(false);
   });
 });
 
@@ -383,15 +395,18 @@ describe.skipIf(!hasRules)(
     let prodA: string;
     let prodB: string;
     let supA: string;
+    // A product under a DIFFERENT supplier, if the live catalogue has one —
+    // proves the server-side duty-4 wiring (Important 5) actually refuses a
+    // real cross-supplier rule, not just the pure predicate in isolation.
+    let prodC: string | undefined;
     const seededRuleIds: string[] = [];
 
     beforeAll(async () => {
       db = createSb(url!, serviceKey!, { auth: { persistSession: false } });
       mockDb.client = db;
 
-      // Two real catalogue products that share a supplier (duty 4 requires
-      // it) — any supplier with 2+ products works, the actual products don't
-      // matter to these tests.
+      // Real catalogue products (duty 4 requires two that share a supplier)
+      // — never created here, this DB also serves the live public site.
       const { data: products, error } = await db
         .from("products")
         .select("id, supplier_id")
@@ -411,6 +426,7 @@ describe.skipIf(!hasRules)(
       }
       [prodA, prodB] = pair[1];
       supA = pair[0];
+      prodC = [...bySupplier.entries()].find(([sup]) => sup !== supA)?.[1][0];
     });
 
     afterAll(async () => {
@@ -429,12 +445,10 @@ describe.skipIf(!hasRules)(
         {},
         fd({
           name: `IT rule ${Date.now()}`,
-          enabled: "on",
+          enabled: "off",
           triggerMinQty: "2",
           triggerProductIds: JSON.stringify([prodA]),
-          triggerSupplierIds: JSON.stringify([supA]),
           suggestedProductId: prodB,
-          suggestedSupplierId: supA,
           suggestedQty: "1",
           discountMode: "fixed",
           discountPct: "15",
@@ -458,17 +472,36 @@ describe.skipIf(!hasRules)(
       expect((links ?? []).map((l) => l.product_id)).toEqual([prodA]);
     });
 
+    // Review round 1, Important 5: proves the DB wiring, not just the pure
+    // predicate (which has its own ungated tests above) — a rule pointing at
+    // a real product under a different supplier is refused even though
+    // nothing in the FormData claims a supplier at all any more.
+    it.skipIf(!prodC)("refuses a suggested product from a different real supplier", async () => {
+      const res = await saveDiscountRule(
+        {},
+        fd({
+          name: `IT cross-supplier ${Date.now()}`,
+          enabled: "off",
+          triggerMinQty: "1",
+          triggerProductIds: JSON.stringify([prodA]),
+          suggestedProductId: prodC!,
+          suggestedQty: "1",
+          discountMode: "none",
+          discountPct: "",
+        })
+      );
+      expect(res.error).toMatch(/supplier/i);
+    });
+
     it("deleting a rule cascades its trigger group away", async () => {
       const saveRes = await saveDiscountRule(
         {},
         fd({
           name: `IT delete ${Date.now()}`,
-          enabled: "on",
+          enabled: "off",
           triggerMinQty: "1",
           triggerProductIds: JSON.stringify([prodA]),
-          triggerSupplierIds: JSON.stringify([supA]),
           suggestedProductId: prodB,
-          suggestedSupplierId: supA,
           suggestedQty: "1",
           discountMode: "none",
           discountPct: "",
@@ -476,6 +509,10 @@ describe.skipIf(!hasRules)(
       );
       expect(saveRes.error).toBeUndefined();
       const id = saveRes.id!;
+      // Review round 1, Important 6: push BEFORE asserting the delete — if
+      // that assertion fails, afterAll still knows to clean this rule up
+      // rather than leaking an enabled... rule onto shared staging.
+      seededRuleIds.push(id);
 
       const delRes = await deleteDiscountRule(fd({ id }));
       expect(delRes.error).toBeUndefined();
@@ -501,12 +538,10 @@ describe.skipIf(!hasRules)(
         {},
         fd({
           name: `IT inherited ${Date.now()}`,
-          enabled: "on",
+          enabled: "off",
           triggerMinQty: "2",
           triggerProductIds: JSON.stringify([prodA]),
-          triggerSupplierIds: JSON.stringify([supA]),
           suggestedProductId: prodB,
-          suggestedSupplierId: supA,
           suggestedQty: "1",
           discountMode: "inherited",
           discountPct: "",
@@ -528,12 +563,10 @@ describe.skipIf(!hasRules)(
         {},
         fd({
           name,
-          enabled: "on",
+          enabled: "off",
           triggerMinQty: "1",
           triggerProductIds: JSON.stringify([prodA]),
-          triggerSupplierIds: JSON.stringify([supA]),
           suggestedProductId: prodB,
-          suggestedSupplierId: supA,
           suggestedQty: "1",
           discountMode: "fixed",
           discountPct: "15",
@@ -548,12 +581,10 @@ describe.skipIf(!hasRules)(
         fd({
           id,
           name,
-          enabled: "on",
+          enabled: "off",
           triggerMinQty: "1",
           triggerProductIds: JSON.stringify([prodA]),
-          triggerSupplierIds: JSON.stringify([supA]),
           suggestedProductId: prodB,
-          suggestedSupplierId: supA,
           suggestedQty: "1",
           discountMode: "none",
           discountPct: "",
@@ -569,36 +600,39 @@ describe.skipIf(!hasRules)(
       expect(data).toEqual({ discount_mode: "none", discount_pct: null });
     });
 
-    // Duty 3 — discount_rules.discount_pct is an int column with no cast-side
-    // rounding; a fractional entry would abort the insert with 22P02 (same
-    // failure class build.ts:50-54 already guards against). pctField
-    // deliberately has no `.int()` (see actions.ts) so this proves the
-    // Math.round mirror actually runs the write, not that validation merely
-    // rejected the fraction outright.
-    it("rounds a fractional percentage before it reaches the int column", async () => {
+    // Important 4 — a new rule must not land on the default sort_order=0 tie:
+    // with 2+ rules already seeded above, the next insert must sort strictly
+    // after every existing one.
+    it("gives a new rule a sort_order after every existing rule", async () => {
+      const { data: before } = await db
+        .from("discount_rules")
+        .select("sort_order")
+        .order("sort_order", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
       const res = await saveDiscountRule(
         {},
         fd({
-          name: `IT round ${Date.now()}`,
-          enabled: "on",
+          name: `IT sort ${Date.now()}`,
+          enabled: "off",
           triggerMinQty: "1",
           triggerProductIds: JSON.stringify([prodA]),
-          triggerSupplierIds: JSON.stringify([supA]),
           suggestedProductId: prodB,
-          suggestedSupplierId: supA,
           suggestedQty: "1",
-          discountMode: "fixed",
-          discountPct: "15.6",
+          discountMode: "none",
+          discountPct: "",
         })
       );
       expect(res.error).toBeUndefined();
       seededRuleIds.push(res.id!);
-      const { data } = await db
+
+      const { data: after } = await db
         .from("discount_rules")
-        .select("discount_pct")
+        .select("sort_order")
         .eq("id", res.id!)
         .single();
-      expect(data?.discount_pct).toBe(16);
+      expect(after!.sort_order).toBeGreaterThan(before?.sort_order ?? -1);
     });
   }
 );

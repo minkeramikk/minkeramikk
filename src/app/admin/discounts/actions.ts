@@ -5,6 +5,7 @@ import { revalidatePath, revalidateTag } from "next/cache";
 import { getAdminUser } from "@/lib/auth/admin";
 import { createClient } from "@/lib/supabase/server";
 import type { PickerState } from "@/components/admin/product-multi-select";
+import { suggestedSharesSupplier } from "@/lib/discounts/discount";
 
 // R4-SCONTI Task 7 — admin controls for the quantity-discount scale (ADR 0022).
 // Same pattern as saveDesignProducts (src/app/admin/designs/actions.ts:717):
@@ -123,35 +124,50 @@ export async function saveDiscountProducts(
  *  otherwise coerce "" (the input is disabled and cleared for `inherited`/
  *  `none`, Task 14 step 2) to 0, and min(1) would then reject every non-fixed
  *  rule with an error about a field the admin cannot even type into.
- *  No `.int()` here (unlike the tiers' pctField above): a fractional entry is
- *  ROUNDED before the write below, mirroring build.ts's Math.round guard for
- *  the exact same int-column trap (src/lib/orders/build.ts:50-54), rather than
- *  rejected — the DB is the source of truth, not the admin's typing precision. */
+ *  `.int()` IS kept (review round 1, Important 1): silently turning an
+ *  admin's "7.5" into 8 changes a commercial decision without telling them,
+ *  and the column is `int` — a fractional percentage is not a legitimate
+ *  value, so it is REFUSED here, not rounded. `Math.round` below stays as
+ *  belt-and-braces against the same int-column trap build.ts:50-54 guards
+ *  against (SQLSTATE 22P02) — defence in depth, not the primary guard. */
 const pctField = z.preprocess(
   (v) => (v === "" || v === null || v === undefined ? null : v),
-  z.coerce.number().min(1).max(90).nullable()
+  z.coerce
+    .number({ error: "Enter a percentage." })
+    .int({ error: "The percentage must be a whole number." })
+    .min(1, { error: "The percentage must be at least 1%." })
+    .max(90, { error: "The percentage cannot exceed 90%." })
+    .nullable()
 );
 
 const ruleSchema = z
   .object({
     id: z.string().uuid().optional().or(z.literal("")),
-    name: z.string().trim().min(1).max(80),
+    name: z
+      .string()
+      .trim()
+      .min(1, { error: "Give the rule a name." })
+      .max(80, { error: "Keep the name under 80 characters." }),
     enabled: z.boolean(),
-    triggerMinQty: z.coerce.number().int().min(1).max(999),
+    triggerMinQty: z.coerce
+      .number({ error: "Enter a trigger quantity." })
+      .int({ error: "The trigger quantity must be a whole number." })
+      .min(1, { error: "The trigger quantity must be at least 1." })
+      .max(999, { error: "The trigger quantity is too high." }),
     // no rows = a rule with nothing that can ever trigger it — refuse, not
     // "all products" (unlike discount_products' ADR 0017 convention: that
     // convention is for an OPT-OUT list, this is an opt-IN trigger group).
-    triggerProductIds: z.array(z.string().uuid()).min(1),
-    suggestedProductId: z.string().uuid(),
-    suggestedQty: z.coerce.number().int().min(1).max(99),
-    discountMode: z.enum(["fixed", "inherited", "none"]),
+    triggerProductIds: z
+      .array(z.string().uuid())
+      .min(1, { error: "Pick at least one product for the trigger group." }),
+    suggestedProductId: z.string().uuid({ error: "Choose a product to suggest." }),
+    suggestedQty: z.coerce
+      .number({ error: "Enter a suggested quantity." })
+      .int({ error: "The suggested quantity must be a whole number." })
+      .min(1, { error: "The suggested quantity must be at least 1." })
+      .max(99, { error: "The suggested quantity is too high." }),
+    discountMode: z.enum(["fixed", "inherited", "none"], { error: "Choose a discount mode." }),
     discountPct: pctField,
-    // Duty 4 — supplier ids the admin's browser already knows (it rendered the
-    // picker from the same product list), submitted alongside the product ids
-    // so this refusal is pure logic that returns before createClient() is ever
-    // called, same trust boundary as the product ids themselves.
-    triggerSupplierIds: z.array(z.string().uuid()).min(1),
-    suggestedSupplierId: z.string().uuid(),
   })
   // «fixed» without a percentage is a rule that silently resolves to a 0% deal
   // in the engine (discount.ts: `rule.discountPct ?? 0`) — looks configured,
@@ -163,15 +179,10 @@ const ruleSchema = z
   // never fire (the suggested product would always be in the cart, ADR 0023 (d)).
   .refine((r) => !r.triggerProductIds.includes(r.suggestedProductId), {
     message: "The suggested ceramic cannot be part of its own trigger group.",
-  })
-  // ADR 0023 (e): the suggested line inherits the triggering line's
-  // configCode, which means nothing across suppliers. A suggested product
-  // that shares no supplier with the trigger group is not incorrect — it can
-  // simply never fire. Refuse it rather than ship a silently inert rule.
-  .refine((r) => r.triggerSupplierIds.includes(r.suggestedSupplierId), {
-    message:
-      "The suggested ceramic must share a supplier with at least one product in the trigger group — the suggested line inherits the trigger's design, which means nothing across suppliers.",
   });
+
+const CROSS_SUPPLIER_ERROR =
+  "The suggested ceramic must share a supplier with at least one product in the trigger group — the suggested line inherits the trigger's design, which means nothing across suppliers.";
 
 export async function saveDiscountRule(
   _prev: ActionResult,
@@ -180,10 +191,8 @@ export async function saveDiscountRule(
   if (!(await getAdminUser())) return { error: "Not authorized." };
 
   let triggerProductIds: unknown;
-  let triggerSupplierIds: unknown;
   try {
     triggerProductIds = JSON.parse(String(formData.get("triggerProductIds") ?? "[]"));
-    triggerSupplierIds = JSON.parse(String(formData.get("triggerSupplierIds") ?? "[]"));
   } catch {
     return { error: "Invalid selection." };
   }
@@ -198,24 +207,40 @@ export async function saveDiscountRule(
     suggestedQty: formData.get("suggestedQty"),
     discountMode: formData.get("discountMode"),
     discountPct: formData.get("discountPct"),
-    triggerSupplierIds,
-    suggestedSupplierId: formData.get("suggestedSupplierId"),
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Invalid rule." };
   }
 
-  // Normalise the mode's own field, THEN round: a percentage left over from an
-  // earlier `fixed` state cannot linger on a rule that no longer uses one, and
-  // discount_rules.discount_pct is an `int` column with no cast-side rounding
-  // (same 22P02 trap build.ts:50-54 already guards against — the admin's "15.6"
-  // is a shop-floor number, not a promise the DB can store as typed).
-  const discountPct =
-    parsed.data.discountMode === "fixed" && parsed.data.discountPct !== null
-      ? Math.round(parsed.data.discountPct)
-      : null;
+  // Normalise the mode's own field: a percentage left over from an earlier
+  // `fixed` state cannot linger on a rule that no longer uses one.
+  const discountPct = parsed.data.discountMode === "fixed" ? parsed.data.discountPct : null;
+  // Belt-and-braces (see pctField's comment above): the column is `int` and a
+  // bare TS `number` is not a promise it already is one.
+  const roundedPct = discountPct === null ? null : Math.round(discountPct);
 
   const supabase = await createClient();
+
+  // Duty 4, enforced server-side (review round 1, Important 5): never trust
+  // the browser for a business rule. One query for every submitted product id.
+  const productIds = Array.from(
+    new Set([...parsed.data.triggerProductIds, parsed.data.suggestedProductId])
+  );
+  const { data: productRows, error: productErr } = await supabase
+    .from("products")
+    .select("id, supplier_id")
+    .in("id", productIds);
+  if (productErr) return { error: "Could not verify the selected products." };
+
+  const supplierById = new Map((productRows ?? []).map((p) => [p.id, p.supplier_id]));
+  const triggerSupplierIds = parsed.data.triggerProductIds
+    .map((id) => supplierById.get(id))
+    .filter((s): s is string => Boolean(s));
+  const suggestedSupplierId = supplierById.get(parsed.data.suggestedProductId);
+  if (!suggestedSharesSupplier(triggerSupplierIds, suggestedSupplierId)) {
+    return { error: CROSS_SUPPLIER_ERROR };
+  }
+
   const row = {
     name: parsed.data.name,
     enabled: parsed.data.enabled,
@@ -223,13 +248,36 @@ export async function saveDiscountRule(
     suggested_product_id: parsed.data.suggestedProductId,
     suggested_qty: parsed.data.suggestedQty,
     discount_mode: parsed.data.discountMode,
-    discount_pct: discountPct,
+    discount_pct: roundedPct,
   };
 
   const existingId = parsed.data.id || undefined;
-  const { data: saved, error } = existingId
-    ? await supabase.from("discount_rules").update(row).eq("id", existingId).select("id").single()
-    : await supabase.from("discount_rules").insert(row).select("id").single();
+  let saved: { id: string } | null;
+  let error: { message: string } | null;
+  if (existingId) {
+    ({ data: saved, error } = await supabase
+      .from("discount_rules")
+      .update(row)
+      .eq("id", existingId)
+      .select("id")
+      .single());
+  } else {
+    // Duty (Important 4): every new rule lands on sort_order 0 by default —
+    // with 2+ rules that's an arbitrary heap-order tie, and discount.ts:151
+    // documents "the first matching rule in the admin's own order wins".
+    // max(sort_order) + 1 keeps new rules deterministically last.
+    const { data: maxRow } = await supabase
+      .from("discount_rules")
+      .select("sort_order")
+      .order("sort_order", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    ({ data: saved, error } = await supabase
+      .from("discount_rules")
+      .insert({ ...row, sort_order: (maxRow?.sort_order ?? -1) + 1 })
+      .select("id")
+      .single());
+  }
   if (error || !saved) return { error: "Could not save the rule." };
 
   // Revalidate as soon as the rule ITSELF is committed (Task 7 pattern: before

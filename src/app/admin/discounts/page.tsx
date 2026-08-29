@@ -4,12 +4,11 @@ import { formatMoney, money, type Currency } from "@/lib/money/money";
 import { assetUrl } from "@/lib/storage";
 import { PRODUCT_THUMB_WIDTH } from "@/lib/asset-variants";
 import { DiscountTiersEditor } from "@/components/admin/discount-tiers-editor";
-import { ProductMultiSelect } from "@/components/admin/product-multi-select";
 import {
-  DiscountRulesEditor,
-  type EditorRule,
-  type RuleProduct,
-} from "@/components/admin/discount-rules-editor";
+  ProductMultiSelect,
+  type EditorProduct,
+} from "@/components/admin/product-multi-select";
+import { DiscountRulesEditor, type EditorRule } from "@/components/admin/discount-rules-editor";
 import { saveDiscountProducts } from "@/app/admin/discounts/actions";
 
 // R4-SCONTI Task 7 — live data, same as /admin/featured: the shop owner must
@@ -24,7 +23,7 @@ export default async function AdminDiscountsPage() {
     { data: tierRows },
     { data: discountProductRows },
     { data: productRows },
-    { data: ruleRows },
+    { data: ruleRows, error: ruleErr },
     { data: ruleProductRows },
   ] = await Promise.all([
     supabase
@@ -36,10 +35,12 @@ export default async function AdminDiscountsPage() {
     supabase.from("discount_products").select("product_id"),
     supabase
       .from("products")
-      .select("id, name_no, name_en, price_cents, currency, image, visible, supplier_id")
+      .select("id, name_no, name_en, price_cents, currency, image, visible")
       .order("name_no"),
     // R4-SCONTI Task 14 — absent until the PM applies migration 0034; `?? []`
-    // below keeps this page rendering (empty rules list) either way.
+    // below keeps this page rendering (empty rules list) either way, and
+    // `ruleErr` (Minor 4, review round 1) drives an explicit "not available
+    // yet" notice instead of a silent empty panel + confusing save failures.
     supabase
       .from("discount_rules")
       .select(
@@ -53,14 +54,14 @@ export default async function AdminDiscountsPage() {
   const initialEnabled = settings?.quantity_discounts_enabled ?? false;
   const initialAutomationsEnabled = settings?.automations_enabled ?? false;
   const selectedProductIds = (discountProductRows ?? []).map((r) => r.product_id);
-  const products: RuleProduct[] = (productRows ?? []).map((p) => ({
+  const rulesUnavailable = Boolean(ruleErr);
+  const products: EditorProduct[] = (productRows ?? []).map((p) => ({
     id: p.id,
     nameNo: p.name_no,
     nameEn: p.name_en,
     price: formatMoney(money(p.price_cents, p.currency as Currency), "en"),
     image: p.image ? assetUrl(p.image, { width: PRODUCT_THUMB_WIDTH }) : null,
     visible: p.visible,
-    supplierId: p.supplier_id,
   }));
 
   const triggerByRule = new Map<string, string[]>();
@@ -116,11 +117,18 @@ export default async function AdminDiscountsPage() {
         </section>
 
         <section className="rounded-lg border border-border bg-card p-5">
-          <DiscountRulesEditor
-            initialAutomationsEnabled={initialAutomationsEnabled}
-            products={products}
-            initialRules={initialRules}
-          />
+          {rulesUnavailable ? (
+            <p className="text-sm text-muted-foreground">
+              Automations aren&apos;t available yet — ask your developer to finish
+              deploying this feature.
+            </p>
+          ) : (
+            <DiscountRulesEditor
+              initialAutomationsEnabled={initialAutomationsEnabled}
+              products={products}
+              initialRules={initialRules}
+            />
+          )}
         </section>
       </div>
     </AdminShell>
