@@ -131,3 +131,52 @@ describe("adminEmail / supplierEmail", () => {
     expect(m.text).toContain("production order MK-1042");
   });
 });
+
+describe("discounted emails (R4-SCONTI)", () => {
+  const baseParams = {
+    name: "Kari",
+    code: "MK-1042",
+    locale: "no" as const,
+    setUrl: null,
+    theme,
+  };
+  const baseAdminParams = {
+    code: "MK-1042",
+    customerName: "Kari",
+    customerEmail: "kari@example.com",
+    theme,
+    replicaUrl: null,
+  };
+  const discounted: MailItem = {
+    productName: "Deluxe tallerken",
+    quantity: 8,
+    unitPriceCents: 74900,
+    currency: "NOK",
+    configCode: "MK-A-b1",
+    discountPct: 10,
+    discountCents: 59920,
+  };
+
+  it("the customer email shows full struck through, net, and the percentage", () => {
+    const m = customerEmail({ ...baseParams, items: [discounted] });
+    expect(m.html).toContain("<s "); // full price struck through (not "<span")
+    expect(m.html).toMatch(/−\s?10\s?%/);
+    expect(m.text).toContain("-10%");
+    // the total is the NET one
+    expect(m.text).toContain("5 392,80"); // 599 200 − 59 920 øre, nb-NO
+  });
+
+  it("an undiscounted item renders exactly as before (regression)", () => {
+    const m = customerEmail({
+      ...baseParams,
+      items: [{ ...discounted, discountPct: undefined, discountCents: undefined }],
+    });
+    expect(m.html).not.toContain("<s ");
+    expect(m.text).not.toContain("%");
+  });
+
+  it("the admin email carries the same numbers (what was promised)", () => {
+    const m = adminEmail({ ...baseAdminParams, items: [discounted] });
+    expect(m.text).toContain("-10%");
+  });
+});

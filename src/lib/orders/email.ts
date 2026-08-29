@@ -8,6 +8,7 @@ import { customerEmail, adminEmail, type MailItem } from "./email-html";
 import { statusEmail } from "./status-email";
 import type { OrderStatus } from "./order-status";
 import type { OrderItemInput } from "./schema";
+import type { CartDiscount } from "@/lib/discounts/discount";
 
 /**
  * Order emails (F05 + F30): a branded HTML confirmation to the customer in
@@ -97,7 +98,10 @@ export async function sendStatusEmail(
   return true;
 }
 
-const toMailItem = (i: OrderItemInput): MailItem => ({
+// R4-SCONTI: keyed by array index as String(idx), same convention create.ts
+// uses to compute `discount` and to snapshot it onto the order lines — the
+// email must draw from the very same CartDiscount, never recompute one.
+const toMailItem = (i: OrderItemInput, idx: number, d: CartDiscount): MailItem => ({
   productName: i.productName,
   quantity: i.quantity,
   unitPriceCents: i.unitPriceCents,
@@ -105,6 +109,8 @@ const toMailItem = (i: OrderItemInput): MailItem => ({
   configCode: i.configCode,
   customNote: i.configSnapshot?.customNote || undefined,
   customText: i.configSnapshot?.customText || undefined,
+  discountPct: d.perLine[String(idx)]?.pct || undefined,
+  discountCents: d.perLine[String(idx)]?.saved.amountCents || undefined,
 });
 
 /**
@@ -153,11 +159,13 @@ export async function sendOrderEmails(
     customerEmail: string;
     locale: "no" | "en";
     items: OrderItemInput[];
+    /** R4-SCONTI: the SAME CartDiscount create.ts computed before the RPC. */
+    discount: CartDiscount;
   },
   transport: EmailTransport = defaultTransport()
 ): Promise<void> {
   const theme = await getThemeTokensSafe();
-  const items = params.items.map(toMailItem);
+  const items = params.items.map((i, idx) => toMailItem(i, idx, params.discount));
 
   const customer = customerEmail({
     name: params.customerName,

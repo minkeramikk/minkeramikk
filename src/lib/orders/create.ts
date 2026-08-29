@@ -82,6 +82,7 @@ export async function createOrder(
         customerEmail: payload.email,
         locale: payload.locale,
         items: payload.items,
+        discount,
       },
       deps.transport
     );
