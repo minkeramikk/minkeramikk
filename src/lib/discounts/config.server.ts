@@ -2,6 +2,7 @@ import "server-only";
 
 import { unstable_cache } from "next/cache";
 import { createPublicClient } from "@/lib/supabase/public";
+import type { Currency } from "@/lib/money/money";
 import { EMPTY_CONFIG, type DiscountConfig } from "./discount";
 
 /**
@@ -43,7 +44,7 @@ export const getDiscountConfig = async (): Promise<DiscountConfig> => {
 async function loadDiscountConfig(): Promise<DiscountConfig> {
   try {
     const supabase = createPublicClient();
-    const [settings, tiers, products] = await Promise.all([
+    const [settings, tiers, products, rules, ruleProducts] = await Promise.all([
       supabase
         .from("settings")
         .select("quantity_discounts_enabled, automations_enabled")
@@ -51,16 +52,73 @@ async function loadDiscountConfig(): Promise<DiscountConfig> {
         .maybeSingle(),
       supabase.from("discount_tiers").select("min_qty, pct").order("min_qty"),
       supabase.from("discount_products").select("product_id"),
-      // part ②: discount_rules / discount_rule_products reads go here once
-      // 0034 lands and the two tables are typed (Task 13).
+      // part ②: automation rules (ADR 0023). enabled only, admin sort order.
+      supabase
+        .from("discount_rules")
+        .select(
+          "id, name, trigger_min_qty, suggested_product_id, suggested_qty, discount_mode, discount_pct"
+        )
+        .eq("enabled", true)
+        .order("sort_order"),
+      supabase.from("discount_rule_products").select("rule_id, product_id"),
     ]);
+
+    // The suggested product's public card, resolved server-side so the cart
+    // never fetches (Task 13). A rule whose target is missing or hidden is
+    // dropped below rather than rendered broken.
+    const suggestedIds = [
+      ...new Set((rules.data ?? []).map((r) => r.suggested_product_id)),
+    ];
+    const { data: sugProducts } = suggestedIds.length
+      ? await supabase
+          .from("products")
+          .select("id, slug, name_no, name_en, price_cents, currency, image, pieces, supplier_id")
+          .in("id", suggestedIds)
+          .eq("visible", true)
+      : { data: [] };
+    const sugById = new Map((sugProducts ?? []).map((p) => [p.id, p]));
+
+    const triggersByRule = new Map<string, string[]>();
+    for (const rp of ruleProducts.data ?? []) {
+      const list = triggersByRule.get(rp.rule_id) ?? [];
+      list.push(rp.product_id);
+      triggersByRule.set(rp.rule_id, list);
+    }
+
+    const resolvedRules = (rules.data ?? []).flatMap((r) => {
+      const p = sugById.get(r.suggested_product_id);
+      if (!p) return []; // suggested product missing/hidden ⇒ the rule never fires
+      return [
+        {
+          id: r.id,
+          name: r.name,
+          triggerProductIds: triggersByRule.get(r.id) ?? [],
+          triggerMinQty: r.trigger_min_qty,
+          suggestedProductId: r.suggested_product_id,
+          suggestedQty: r.suggested_qty,
+          discountMode: r.discount_mode as "fixed" | "inherited" | "none",
+          discountPct: r.discount_pct,
+          suggested: {
+            id: p.id,
+            slug: p.slug,
+            nameNo: p.name_no,
+            nameEn: p.name_en,
+            priceCents: p.price_cents,
+            currency: p.currency as Currency,
+            image: p.image,
+            pieces: p.pieces,
+            supplierId: p.supplier_id,
+          },
+        },
+      ];
+    });
 
     return {
       tiersEnabled: settings.data?.quantity_discounts_enabled ?? false,
       tiers: (tiers.data ?? []).map((t) => ({ minQty: t.min_qty, pct: t.pct })),
       includedProductIds: (products.data ?? []).map((p) => p.product_id),
       automationsEnabled: settings.data?.automations_enabled ?? false,
-      rules: [],
+      rules: resolvedRules,
     };
   } catch {
     return EMPTY_CONFIG;

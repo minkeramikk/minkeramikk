@@ -4,6 +4,8 @@ import { createContext, useCallback, useContext, useMemo, useState, type ReactNo
 import { useCart } from "./use-cart";
 import {
   computeCartDiscount,
+  firstSuggestion,
+  type ActiveSuggestion,
   type CartDiscount,
   type DiscountConfig,
 } from "@/lib/discounts/discount";
@@ -31,6 +33,10 @@ type CartApi = ReturnType<typeof useCart> & {
   /** Part ②: rules the visitor closed in this session (never persisted). */
   dismissedRuleIds: string[];
   dismissRule: (ruleId: string) => void;
+  /** Part ②: the ONE upsell suggestion to show, or null (Task 11). */
+  suggestion: ActiveSuggestion | null;
+  /** Part ②: add the suggested ceramic wearing the trigger line's design. */
+  acceptSuggestion: () => void;
 };
 
 const CartContext = createContext<CartApi | null>(null);
@@ -66,6 +72,67 @@ export function CartProvider({
     [cart.cart, config]
   );
 
+  // Part ②: a rule requires the suggested ceramic and the trigger line to
+  // share a supplier (the config code means nothing on another supplier's
+  // product), so both lookups are keyed off the cart itself / the rule's own
+  // resolved `suggested` card — no extra fetch.
+  const supplierOf = useCallback(
+    (lineId: string) => cart.cart.find((l) => l.id === lineId)?.supplierId ?? null,
+    [cart.cart]
+  );
+  const supplierOfProduct = useCallback(
+    (productId: string) =>
+      config.rules.find((r) => r.suggested?.id === productId)?.suggested?.supplierId ?? null,
+    [config.rules]
+  );
+
+  const suggestion = useMemo(
+    () =>
+      firstSuggestion(
+        cart.cart.map((l) => ({
+          id: l.id,
+          productId: l.productId,
+          unitPriceCents: l.unitPriceCents,
+          currency: l.currency,
+          quantity: l.quantity,
+          dealRuleId: l.dealRuleId,
+        })),
+        config,
+        { dismissedRuleIds, supplierOf, supplierOfProduct }
+      ),
+    [cart.cart, config, dismissedRuleIds, supplierOf, supplierOfProduct]
+  );
+
+  /**
+   * Add the suggested ceramic wearing the design of the line that triggered the
+   * rule (ADR 0023 (e)): the config code, snapshot and layers are the trigger
+   * line's; only product identity, price, slug, pieces and plate photo change.
+   * `dealRuleId` is the ONLY thing about the price that travels.
+   */
+  const acceptSuggestion = useCallback(() => {
+    if (!suggestion) return;
+    const from = cart.cart.find((l) => l.id === suggestion.fromLineId);
+    const p = suggestion.rule.suggested;
+    if (!from || !p) return;
+    cart.add({
+      productId: p.id,
+      productNameNo: p.nameNo,
+      productNameEn: p.nameEn,
+      supplierId: from.supplierId,
+      supplierName: from.supplierName,
+      unitPriceCents: p.priceCents,
+      currency: p.currency,
+      quantity: suggestion.rule.suggestedQty,
+      configCode: from.configCode,
+      configSnapshot: from.configSnapshot,
+      layers: from.layers,
+      plateImage: p.image ?? undefined,
+      productSlug: p.slug,
+      pieces: p.pieces,
+      dealRuleId: suggestion.rule.id,
+    });
+  }, [suggestion, cart]);
+
   const value = useMemo<CartApi>(
     () => ({
       ...cart,
@@ -77,8 +144,10 @@ export function CartProvider({
       discount,
       dismissedRuleIds,
       dismissRule,
+      suggestion,
+      acceptSuggestion,
     }),
-    [cart, open, config, discount, dismissedRuleIds, dismissRule]
+    [cart, open, config, discount, dismissedRuleIds, dismissRule, suggestion, acceptSuggestion]
   );
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

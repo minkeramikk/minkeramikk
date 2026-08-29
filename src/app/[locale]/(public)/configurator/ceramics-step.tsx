@@ -28,6 +28,7 @@ import { SetBadge } from "@/components/ui-domain/set-badge";
 import { CartLineRecap } from "@/components/ui-domain/cart-line-recap";
 import { useShippingTotalSuffix } from "@/components/ui-domain/cart-shipping-row";
 import { CartLinePrice, CartDiscountNudge } from "@/components/ui-domain/cart-discount-row";
+import { CartSuggestion } from "@/components/ui-domain/cart-suggestion";
 import { CartTotals } from "@/components/ui-domain/cart-totals";
 import {
   formatAttributeValue,
@@ -611,6 +612,8 @@ export function CeramicsStep({
               </div>
             ))}
           </div>
+
+          <CartSuggestion />
 
           {/* R4-SCONTI fix-3: gap-3 dropped — CartTotals now owns a single
               child here and carries its own internal gap-2, the same value

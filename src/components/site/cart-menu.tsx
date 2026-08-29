@@ -20,6 +20,7 @@ import { CartLineThumb } from "@/components/ui-domain/cart-line-thumb";
 import { CartLineRecap } from "@/components/ui-domain/cart-line-recap";
 import { SetBadge } from "@/components/ui-domain/set-badge";
 import { CartLinePrice, CartDiscountNudge } from "@/components/ui-domain/cart-discount-row";
+import { CartSuggestion } from "@/components/ui-domain/cart-suggestion";
 import { CartTotals } from "@/components/ui-domain/cart-totals";
 import { useCartContext } from "@/lib/cart/cart-context";
 import { designLabel, itemCount, type CartLine } from "@/lib/cart/cart";
@@ -243,6 +244,10 @@ export function CartMenu() {
                     </div>
                   </div>
                 ))}
+              </div>
+
+              <div className="px-4">
+                <CartSuggestion />
               </div>
 
               <SheetFooter className="border-t border-border">

@@ -239,6 +239,11 @@
       "custom": "Egendefinerte farger",
       "studio": "Studioets farger"
     },
+    "suggestion": {
+      "kicker": "Passer til settet ditt",
+      "add": "Legg til",
+      "dismiss": "Skjul dette forslaget"
+    },
     "discount": {
       "badge": "−{pct} %",
       "inCart": "{qty} av denne keramikken i kurven",

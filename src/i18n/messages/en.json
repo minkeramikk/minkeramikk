@@ -240,6 +240,11 @@
       "custom": "Custom colours",
       "studio": "Studio colours"
     },
+    "suggestion": {
+      "kicker": "Goes well with your set",
+      "add": "Add",
+      "dismiss": "Dismiss this suggestion"
+    },
     "discount": {
       "badge": "−{pct}%",
       "inCart": "{qty} of this ceramic in your basket",
