@@ -4,6 +4,8 @@ import {
   addFirstCeramic,
   ceramicCards,
   horizontalOverflow,
+  CAN_SEED,
+  seedDiscountTiers,
 } from "./helpers";
 
 /**
@@ -160,3 +162,102 @@ test("AC R2-D: drawer row reveals the shared recap (selections + ceramic + code)
   await expect(recap).toContainText("Keramikk"); // cart.line.ceramic (NO)
   await expect(recap.getByTestId("cart-copy-code")).toBeVisible();
 });
+
+test.describe("R4-SCONTI — quantity discounts", () => {
+  test.skip(
+    !CAN_SEED,
+    "MK_E2E_SEED=1 richiesto: i test seminano la scala sconti nel catalogo reale"
+  );
+
+  // config.server.ts caches the discount config for up to `revalidate: 10`
+  // seconds (tag-only invalidation would never notice this seeder's direct
+  // DB write otherwise — see the comment there). Reload and re-check instead
+  // of sleeping blindly; toPass() retries the whole callback until it holds
+  // or the timeout is spent. The scales below are chosen to be unmistakably
+  // different from the live production scale (4→5 · 6→8 · 8→10 · 12→15) —
+  // these tests must fail if the seed is ever skipped, not pass by
+  // coincidentally matching prod.
+  test.describe.configure({ timeout: 60_000 }); // polling can eat the default 30s budget
+
+  test("AC-SC1: reaching a tier strikes the full price through and shows the percentage", async ({
+    page,
+  }) => {
+    const seeded = await seedDiscountTiers([{ min_qty: 2, pct: 12 }]);
+    try {
+      await page.goto(step3);
+      await addFirstCeramic(page);
+      await openCart(page);
+      const line = drawer(page).getByTestId("cart-line").first();
+      // one piece: full price only
+      await expect(line.getByTestId("cart-line-full")).toHaveCount(0);
+      // second piece: the ×2 tier fires
+      await drawer(page).getByLabel("+").first().click();
+      await expect(async () => {
+        await page.reload();
+        await openCart(page);
+        await expect(line.getByTestId("cart-line-full")).toBeVisible();
+      }).toPass({ timeout: 15_000 });
+      await expect(line.getByTestId("cart-discount-badge")).toContainText("12");
+      await expect(drawer(page).getByTestId("cart-discount-total")).toBeVisible();
+    } finally {
+      await seeded.restore();
+    }
+  });
+
+  test("AC-SC2: the nudge points at the next step", async ({ page }) => {
+    // qty 2 with these thresholds needs 7 more to the next tier — prod's own
+    // scale would answer "2" here (its first step sits at min_qty 4), so a
+    // stale/unseeded read is caught, not coincidentally matched.
+    const seeded = await seedDiscountTiers([
+      { min_qty: 2, pct: 6 },
+      { min_qty: 9, pct: 13 },
+    ]);
+    try {
+      await page.goto(step3);
+      await addFirstCeramic(page);
+      await openCart(page);
+      await drawer(page).getByLabel("+").first().click(); // qty 2 → 6%, next step at 9
+      await expect(async () => {
+        await page.reload();
+        await openCart(page);
+        await expect(drawer(page).getByTestId("cart-discount-nudge")).toContainText("7");
+      }).toPass({ timeout: 15_000 });
+    } finally {
+      await seeded.restore();
+    }
+  });
+
+  test("AC-SC3: switched off, the cart is back to plain full prices", async ({ page }) => {
+    // Prove the off-switch actually did something: first confirm a
+    // distinctive scale IS applied, then switch it off and confirm it's
+    // gone — trivially "the cart has no discount" is also true if the seed
+    // never took effect at all, which is exactly the failure this guards.
+    const seeded = await seedDiscountTiers([{ min_qty: 2, pct: 12 }]);
+    try {
+      await page.goto(step3);
+      await addFirstCeramic(page);
+      await openCart(page);
+      const line = drawer(page).getByTestId("cart-line").first();
+      await drawer(page).getByLabel("+").first().click(); // qty 2
+      await expect(async () => {
+        await page.reload();
+        await openCart(page);
+        await expect(line.getByTestId("cart-line-full")).toBeVisible();
+      }).toPass({ timeout: 15_000 });
+
+      const off = await seedDiscountTiers([]); // also clears the flag
+      try {
+        await expect(async () => {
+          await page.reload();
+          await openCart(page);
+          await expect(drawer(page).getByTestId("cart-line-full")).toHaveCount(0);
+        }).toPass({ timeout: 15_000 });
+        await expect(drawer(page).getByTestId("cart-total")).toContainText(/\d[\d\s]*\s*kr/);
+      } finally {
+        await off.restore();
+      }
+    } finally {
+      await seeded.restore();
+    }
+  });
+}); // R4-SCONTI describe

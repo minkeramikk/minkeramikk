@@ -497,6 +497,92 @@ export async function seedOrder(prefix = "MK-E2E"): Promise<SeededOrder> {
   return { orderId, code, supplierId: supplier.id, designSlug: design.slug };
 }
 
+export interface SeededDiscounts {
+  restore: () => Promise<void>;
+}
+
+/**
+ * R4-SCONTI — put a KNOWN scale on the DB for the duration of a spec, then put
+ * back EXACTLY what was there (rows + the `settings` flag).
+ *
+ * Writes to `discount_tiers` and `settings`, i.e. to the config the PUBLIC
+ * site reads: same blast radius as the catalog seeders, so same guard —
+ * assertSeedingAllowed() throws unless MK_E2E_SEED=1 and the project ref is
+ * on the allowlist (lezione f91609e). Specs gate themselves on CAN_SEED and
+ * skip DECLARED (lezione F07), never silently.
+ *
+ * Writes the tables DIRECTLY with the service-role client instead of the
+ * `replace_discount_tiers` RPC: migration 0033 (which fixes that RPC's
+ * pg_safeupdate-rejected unqualified DELETE, SQLSTATE 21000) is not applied
+ * yet, and this seeder does not need it — PostgREST requires a filter on
+ * every delete anyway (`.gte("min_qty", 0)`), which satisfies pg_safeupdate
+ * for free.
+ *
+ * `restore()` puts the flag back FIRST, then the scale: the public site reads
+ * `quantity_discounts_enabled` to decide whether to even look at
+ * `discount_tiers`, so a half-restored scale is never read while it's mid-
+ * restore. A failed restore throws loudly instead of swallowing — this is the
+ * config the live catalogue serves.
+ */
+export async function seedDiscountTiers(
+  tiers: { min_qty: number; pct: number }[]
+): Promise<SeededDiscounts> {
+  assertSeedingAllowed();
+  const db = adminClient();
+  const before =
+    (await db.from("discount_tiers").select("min_qty, pct, sort_order")).data ?? [];
+  const flagBefore =
+    (
+      await db
+        .from("settings")
+        .select("quantity_discounts_enabled")
+        .eq("id", 1)
+        .maybeSingle()
+    ).data?.quantity_discounts_enabled ?? false;
+
+  const del = await db.from("discount_tiers").delete().gte("min_qty", 0);
+  if (del.error) throw del.error;
+  if (tiers.length > 0) {
+    const ins = await db
+      .from("discount_tiers")
+      .insert(tiers.map((t, i) => ({ min_qty: t.min_qty, pct: t.pct, sort_order: i })));
+    if (ins.error) throw ins.error;
+  }
+  const flagSet = await db
+    .from("settings")
+    .update({ quantity_discounts_enabled: tiers.length > 0 })
+    .eq("id", 1);
+  if (flagSet.error) throw flagSet.error;
+
+  return {
+    async restore() {
+      const flagRes = await db
+        .from("settings")
+        .update({ quantity_discounts_enabled: flagBefore })
+        .eq("id", 1);
+      if (flagRes.error) {
+        throw new Error(
+          `[e2e seed] FAILED to restore quantity_discounts_enabled: ${flagRes.error.message}`
+        );
+      }
+      const delRes = await db.from("discount_tiers").delete().gte("min_qty", 0);
+      if (delRes.error) {
+        throw new Error(
+          `[e2e seed] FAILED to clear discount_tiers before restore: ${delRes.error.message}`
+        );
+      }
+      if (before.length > 0) {
+        const insRes = await db.from("discount_tiers").insert(before);
+        if (insRes.error) {
+          throw new Error(
+            `[e2e seed] FAILED to restore discount_tiers rows: ${insRes.error.message}`
+          );
+        }
+      }
+    },
+  };
+}
+
 export async function deleteOrder(orderId: string) {
   if (!orderId) return;
   await adminClient().from("orders").delete().eq("id", orderId);
