@@ -9,6 +9,7 @@ import {
   type CartDiscount,
   type DiscountConfig,
 } from "@/lib/discounts/discount";
+import { buildSuggestionLine } from "@/lib/discounts/suggestion-line";
 
 /**
  * Shared cart view (F16). The cart STATE and persistence already live in
@@ -105,32 +106,16 @@ export function CartProvider({
 
   /**
    * Add the suggested ceramic wearing the design of the line that triggered the
-   * rule (ADR 0023 (e)): the config code, snapshot and layers are the trigger
-   * line's; only product identity, price, slug, pieces and plate photo change.
-   * `dealRuleId` is the ONLY thing about the price that travels.
+   * rule (ADR 0023 (e)) — inheritance contract lives in `buildSuggestionLine`
+   * (unit-tested), so this hook is just wiring.
    */
   const acceptSuggestion = useCallback(() => {
     if (!suggestion) return;
     const from = cart.cart.find((l) => l.id === suggestion.fromLineId);
-    const p = suggestion.rule.suggested;
-    if (!from || !p) return;
-    cart.add({
-      productId: p.id,
-      productNameNo: p.nameNo,
-      productNameEn: p.nameEn,
-      supplierId: from.supplierId,
-      supplierName: from.supplierName,
-      unitPriceCents: p.priceCents,
-      currency: p.currency,
-      quantity: suggestion.rule.suggestedQty,
-      configCode: from.configCode,
-      configSnapshot: from.configSnapshot,
-      layers: from.layers,
-      plateImage: p.image ?? undefined,
-      productSlug: p.slug,
-      pieces: p.pieces,
-      dealRuleId: suggestion.rule.id,
-    });
+    if (!from) return;
+    const line = buildSuggestionLine(suggestion, from);
+    if (!line) return;
+    cart.add(line);
   }, [suggestion, cart]);
 
   const value = useMemo<CartApi>(

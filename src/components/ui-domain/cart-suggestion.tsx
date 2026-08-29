@@ -15,17 +15,25 @@ import { CartLineThumb } from "./cart-line-thumb";
  * The price cell mirrors CartLinePrice's markup (§3.22) rather than reusing
  * the component directly — this card needs its own `cart-suggestion-*`
  * testids, distinct from a cart line's `cart-line-*`.
+ *
+ * The thumbnail shows the TRIGGERING line's pattern (`layers`/`hex`) under
+ * the suggested product's own plate photo — exactly the composite
+ * `acceptSuggestion` is about to add, not a blank pattern cell (the
+ * suggested product has no layers of its own; `CartLineThumb` always
+ * renders that cell, so passing nothing left a permanently empty box).
  */
 export function CartSuggestion() {
   const t = useTranslations("cart.suggestion");
   const td = useTranslations("cart.discount");
   const locale = useLocale() as "no" | "en";
-  const { suggestion, acceptSuggestion, dismissRule } = useCartContext();
+  const { suggestion, acceptSuggestion, dismissRule, cart } = useCartContext();
 
   if (!suggestion) return null;
   const { rule, pct } = suggestion;
   const p = rule.suggested;
   if (!p) return null;
+  const from = cart.find((l) => l.id === suggestion.fromLineId);
+  const fromHex = from?.configSnapshot?.selections.find((s) => s.hex)?.hex ?? undefined;
 
   const full = multiply(money(p.priceCents, p.currency), rule.suggestedQty);
   const saved = pct > 0 ? percentOf(full, pct) : money(0, p.currency);
@@ -45,18 +53,22 @@ export function CartSuggestion() {
         data-testid="cart-suggestion-dismiss"
         aria-label={t("dismiss")}
         onClick={() => dismissRule(rule.id)}
-        className="absolute top-2 right-2 flex size-8 items-center justify-center rounded-full text-muted-foreground hover:text-foreground"
+        className="absolute top-2 right-2 flex size-11 items-center justify-center rounded-full text-muted-foreground hover:text-foreground"
       >
         <X className="size-4" aria-hidden />
       </button>
 
       {/* TODO:nb-review NO copy: cart.suggestion.kicker/add/dismiss (TL wording) */}
-      <p className="mb-2 pr-8 text-[10px] font-semibold tracking-[.06em] text-primary uppercase">
+      <p className="mb-2 pr-11 text-[10px] font-semibold tracking-[.06em] text-primary uppercase">
         {t("kicker")}
       </p>
 
       <div className="flex items-center gap-3">
-        <CartLineThumb plateImage={p.image ?? undefined} />
+        <CartLineThumb
+          layers={from?.layers}
+          hex={fromHex}
+          plateImage={p.image ?? undefined}
+        />
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-medium">
             {locale === "no" ? p.nameNo : p.nameEn}
@@ -79,7 +91,7 @@ export function CartSuggestion() {
                 {formatMoney(net, locale)}
               </span>
               <span
-                data-testid="cart-discount-badge"
+                data-testid="cart-suggestion-badge"
                 className="rounded-full px-2 py-0.5 text-[10px] font-semibold whitespace-nowrap"
                 style={{
                   backgroundColor: "color-mix(in oklab, var(--discount) 16%, white)",
