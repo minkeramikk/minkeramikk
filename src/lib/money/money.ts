@@ -70,6 +70,19 @@ export function multiply(m: Money, quantity: number): Money {
   return money(m.amountCents * quantity, m.currency);
 }
 
+/**
+ * A whole percentage OF an amount, rounded half-up, ONCE, on the amount given
+ * (R4-SCONTI / ADR 0022). Callers pass the LINE total, never the unit price:
+ * rounding per unit and multiplying drifts by up to `quantity` øre.
+ * `pct` is a percentage, not a fraction: 10 means 10%.
+ */
+export function percentOf(m: Money, pct: number): Money {
+  if (!Number.isFinite(pct) || pct < 0 || pct > 100) {
+    throw new InvalidAmountError(`Percentage must be within 0..100, got: ${pct}`);
+  }
+  return money(Math.round((m.amountCents * pct) / 100), m.currency);
+}
+
 /** Sum a list of Money. The currency argument seeds the empty case. */
 export function sum(items: readonly Money[], currency: Currency = "NOK"): Money {
   return items.reduce((acc, item) => add(acc, item), money(0, currency));

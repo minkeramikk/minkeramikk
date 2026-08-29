@@ -8,6 +8,7 @@ import {
   fromMajorUnits,
   money,
   multiply,
+  percentOf,
   sum,
 } from "./money";
 
@@ -104,5 +105,33 @@ describe("formatMoney()", () => {
   it("keeps decimals when the amount has them", () => {
     const text = formatMoney(money(1_350, "EUR"), "en");
     expect(text).toContain("13.50");
+  });
+});
+
+describe("percentOf", () => {
+  it("takes a whole percentage of the amount", () => {
+    expect(percentOf(money(599200), 10)).toEqual(money(59920));
+  });
+
+  it("rounds half-up on the total, once", () => {
+    // 749,00 kr × 1 = 74900 øre; 5% = 3745 exactly
+    expect(percentOf(money(74900), 5)).toEqual(money(3745));
+    // 333 øre at 5% = 16.65 → 17
+    expect(percentOf(money(333), 5)).toEqual(money(17));
+  });
+
+  it("0% is nothing, 100% is everything", () => {
+    expect(percentOf(money(74900), 0)).toEqual(money(0));
+    expect(percentOf(money(74900), 100)).toEqual(money(74900));
+  });
+
+  it("keeps the currency", () => {
+    expect(percentOf(money(1000, "EUR"), 10).currency).toBe("EUR");
+  });
+
+  it("rejects a negative, >100 or non-finite percentage", () => {
+    expect(() => percentOf(money(100), -1)).toThrow(InvalidAmountError);
+    expect(() => percentOf(money(100), 101)).toThrow(InvalidAmountError);
+    expect(() => percentOf(money(100), Number.NaN)).toThrow(InvalidAmountError);
   });
 });
