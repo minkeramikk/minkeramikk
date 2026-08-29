@@ -103,6 +103,27 @@ async function probeFixApplied(): Promise<boolean> {
 // the opt-in, so `canSeed` gates it directly rather than being ANDed in after.
 const hasFix = canSeed && (await probeFixApplied());
 
+/** R4-SCONTI Task 14 — migration 0034 (discount_rules, discount_rule_products)
+ *  is a separate, later migration from 0032/0033 above and has NOT been
+ *  applied to any database at the time this file was written. `42P01` → a
+ *  declared skip (lezione F07: never a silent skip); any other error is
+ *  logged and treated as "ready" so the suite fails loudly instead of
+ *  skipping for the wrong reason. */
+async function probeRulesApplied(): Promise<boolean> {
+  const db = createSb(url!, serviceKey!, { auth: { persistSession: false } });
+  const { error } = await db.from("discount_rules").select("id").limit(1);
+  if (error) {
+    if (error.code === "42P01") return false; // 0034 not applied
+    console.warn(
+      "[R4-SCONTI integration] unexpected error reading discount_rules — running the suite so it fails loudly instead of skipping for the wrong reason:",
+      error
+    );
+    return true;
+  }
+  return true;
+}
+const hasRules = canSeed && (await probeRulesApplied());
+
 // The actions call createClient() (cookie-based) → swap for the service-role
 // client, and getAdminUser() → always "authorized" for these tests.
 const mockDb = vi.hoisted(() => ({ client: null as unknown as SupabaseClient }));
@@ -112,13 +133,28 @@ vi.mock("@/lib/auth/admin", () => ({
   getAdminUser: async () => ({ email: "test@example.com" }),
 }));
 
-import { saveDiscountTiers, saveDiscountProducts } from "./actions";
+import {
+  saveDiscountTiers,
+  saveDiscountProducts,
+  saveDiscountRule,
+  deleteDiscountRule,
+} from "./actions";
 
 function fd(obj: Record<string, string>): FormData {
   const f = new FormData();
   for (const [k, v] of Object.entries(obj)) f.set(k, v);
   return f;
 }
+
+// R4-SCONTI Task 14 — dummy v4-shaped uuids for the pure-validation tests below.
+// None of these need to reference real rows: every test that uses them fails
+// zod validation before saveDiscountRule ever calls createClient(), so no FK
+// is ever touched.
+const PROD_A = "11111111-1111-4111-8111-111111111111";
+const PROD_B = "22222222-2222-4222-8222-222222222222";
+const PROD_C = "33333333-3333-4333-8333-333333333333";
+const SUP_A = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+const SUP_B = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 
 // ── pure validation — no DB, no opt-in required, always runs ────────────────
 describe("R4-SCONTI saveDiscountTiers — validation (no DB call)", () => {
@@ -142,6 +178,116 @@ describe("R4-SCONTI saveDiscountTiers — validation (no DB call)", () => {
       fd({ tiers: JSON.stringify([{ min_qty: 4, pct: 120 }]), enabled: "on" })
     );
     expect(res.error).toBeTruthy();
+  });
+});
+
+// R4-SCONTI Task 14 — saveDiscountRule's four refusals are pure logic that
+// return before createClient() is ever called (Task 7 learned this the hard
+// way: its validation tests sat behind the DB gate and covered nothing). No
+// env vars, no MK_E2E_SEED — these run everywhere, always.
+describe("R4-SCONTI saveDiscountRule — validation (no DB call)", () => {
+  it("refuses a fixed rule with no percentage", async () => {
+    const res = await saveDiscountRule(
+      {},
+      fd({
+        name: "Fixed no pct",
+        enabled: "on",
+        triggerMinQty: "2",
+        triggerProductIds: JSON.stringify([PROD_A]),
+        triggerSupplierIds: JSON.stringify([SUP_A]),
+        suggestedProductId: PROD_B,
+        suggestedSupplierId: SUP_A,
+        suggestedQty: "1",
+        discountMode: "fixed",
+        discountPct: "",
+      })
+    );
+    expect(res.error).toMatch(/percentage/i);
+  });
+
+  // C2 — the regression the TL caught in review. Without the z.preprocess fix
+  // in actions.ts, z.coerce.number() turns "" into 0 and min(1) rejects it
+  // with a "percentage" error — even though this rule is refused for an
+  // UNRELATED reason (self-suggestion). Proves the empty field never reaches
+  // the number rules as 0.
+  it("does not misreport an empty percentage as invalid on a non-fixed rule", async () => {
+    const res = await saveDiscountRule(
+      {},
+      fd({
+        name: "Inherited self-suggest",
+        enabled: "on",
+        triggerMinQty: "2",
+        triggerProductIds: JSON.stringify([PROD_A]),
+        triggerSupplierIds: JSON.stringify([SUP_A]),
+        suggestedProductId: PROD_A, // trips the self-suggest refusal instead
+        suggestedSupplierId: SUP_A,
+        suggestedQty: "1",
+        discountMode: "inherited",
+        discountPct: "",
+      })
+    );
+    expect(res.error).toMatch(/own trigger group/i);
+    expect(res.error).not.toMatch(/percentage/i);
+  });
+
+  it("refuses a rule that suggests a product from its own trigger group", async () => {
+    const res = await saveDiscountRule(
+      {},
+      fd({
+        name: "Self-suggest",
+        enabled: "on",
+        triggerMinQty: "2",
+        triggerProductIds: JSON.stringify([PROD_A]),
+        triggerSupplierIds: JSON.stringify([SUP_A]),
+        suggestedProductId: PROD_A,
+        suggestedSupplierId: SUP_A,
+        suggestedQty: "1",
+        discountMode: "none",
+        discountPct: "",
+      })
+    );
+    expect(res.error).toMatch(/own trigger group/i);
+  });
+
+  it("refuses an empty trigger group", async () => {
+    const res = await saveDiscountRule(
+      {},
+      fd({
+        name: "Empty group",
+        enabled: "on",
+        triggerMinQty: "2",
+        triggerProductIds: JSON.stringify([]),
+        triggerSupplierIds: JSON.stringify([]),
+        suggestedProductId: PROD_B,
+        suggestedSupplierId: SUP_A,
+        suggestedQty: "1",
+        discountMode: "none",
+        discountPct: "",
+      })
+    );
+    expect(res.error).toBeTruthy();
+  });
+
+  // Duty 4 — ADR 0023 (e): the suggested line inherits the trigger line's
+  // configCode, which means nothing across suppliers. A rule that can never
+  // fire is refused rather than silently shipped.
+  it("refuses a suggested product that shares no supplier with the trigger group", async () => {
+    const res = await saveDiscountRule(
+      {},
+      fd({
+        name: "Cross supplier",
+        enabled: "on",
+        triggerMinQty: "2",
+        triggerProductIds: JSON.stringify([PROD_A]),
+        triggerSupplierIds: JSON.stringify([SUP_A]),
+        suggestedProductId: PROD_C,
+        suggestedSupplierId: SUP_B,
+        suggestedQty: "1",
+        discountMode: "none",
+        discountPct: "",
+      })
+    );
+    expect(res.error).toMatch(/supplier/i);
   });
 });
 
@@ -220,6 +366,239 @@ describe.skipIf(!hasFix)(
       expect(res.error).toBeNull();
       const { count } = await db.from("discount_products").select("*", { count: "exact", head: true });
       expect(count).toBe(0);
+    });
+  }
+);
+
+// ── R4-SCONTI Task 14 — discount_rules / discount_rule_products ─────────────
+// Gated on migration 0034 separately from the block above (0032/0033), since
+// it can be applied independently. Every row seeded here is a throwaway rule
+// this suite creates and deletes; the PRODUCTS it points at are real catalogue
+// rows (never created/mutated) — same "read real config, never fabricate
+// products" discipline as the block above.
+describe.skipIf(!hasRules)(
+  "R4-SCONTI discount rules (set MK_E2E_SEED=1; needs migration 0034 applied)",
+  () => {
+    let db: SupabaseClient;
+    let prodA: string;
+    let prodB: string;
+    let supA: string;
+    const seededRuleIds: string[] = [];
+
+    beforeAll(async () => {
+      db = createSb(url!, serviceKey!, { auth: { persistSession: false } });
+      mockDb.client = db;
+
+      // Two real catalogue products that share a supplier (duty 4 requires
+      // it) — any supplier with 2+ products works, the actual products don't
+      // matter to these tests.
+      const { data: products, error } = await db
+        .from("products")
+        .select("id, supplier_id")
+        .limit(200);
+      if (error) throw error;
+      const bySupplier = new Map<string, string[]>();
+      for (const p of products ?? []) {
+        const arr = bySupplier.get(p.supplier_id) ?? [];
+        arr.push(p.id);
+        bySupplier.set(p.supplier_id, arr);
+      }
+      const pair = [...bySupplier.entries()].find(([, ids]) => ids.length >= 2);
+      if (!pair) {
+        throw new Error(
+          "Need a supplier with at least 2 products in the catalogue to run the R4-SCONTI rule tests."
+        );
+      }
+      [prodA, prodB] = pair[1];
+      supA = pair[0];
+    });
+
+    afterAll(async () => {
+      if (seededRuleIds.length === 0) return;
+      // discount_rule_products cascades (migration 0034: on delete cascade).
+      const { error } = await db.from("discount_rules").delete().in("id", seededRuleIds);
+      if (error) {
+        throw new Error(
+          `Failed to clean up seeded discount rules on staging — fix by hand (ids: ${seededRuleIds.join(", ")}): ${error.message}`
+        );
+      }
+    });
+
+    it("saves a rule with its trigger group and reads it back", async () => {
+      const res = await saveDiscountRule(
+        {},
+        fd({
+          name: `IT rule ${Date.now()}`,
+          enabled: "on",
+          triggerMinQty: "2",
+          triggerProductIds: JSON.stringify([prodA]),
+          triggerSupplierIds: JSON.stringify([supA]),
+          suggestedProductId: prodB,
+          suggestedSupplierId: supA,
+          suggestedQty: "1",
+          discountMode: "fixed",
+          discountPct: "15",
+        })
+      );
+      expect(res.error).toBeUndefined();
+      expect(res.id).toBeTruthy();
+      seededRuleIds.push(res.id!);
+
+      const { data: rule } = await db
+        .from("discount_rules")
+        .select("discount_mode, discount_pct")
+        .eq("id", res.id!)
+        .single();
+      expect(rule).toEqual({ discount_mode: "fixed", discount_pct: 15 });
+
+      const { data: links } = await db
+        .from("discount_rule_products")
+        .select("product_id")
+        .eq("rule_id", res.id!);
+      expect((links ?? []).map((l) => l.product_id)).toEqual([prodA]);
+    });
+
+    it("deleting a rule cascades its trigger group away", async () => {
+      const saveRes = await saveDiscountRule(
+        {},
+        fd({
+          name: `IT delete ${Date.now()}`,
+          enabled: "on",
+          triggerMinQty: "1",
+          triggerProductIds: JSON.stringify([prodA]),
+          triggerSupplierIds: JSON.stringify([supA]),
+          suggestedProductId: prodB,
+          suggestedSupplierId: supA,
+          suggestedQty: "1",
+          discountMode: "none",
+          discountPct: "",
+        })
+      );
+      expect(saveRes.error).toBeUndefined();
+      const id = saveRes.id!;
+
+      const delRes = await deleteDiscountRule(fd({ id }));
+      expect(delRes.error).toBeUndefined();
+
+      const { data: rule } = await db
+        .from("discount_rules")
+        .select("id")
+        .eq("id", id)
+        .maybeSingle();
+      expect(rule).toBeNull();
+      const { data: links } = await db
+        .from("discount_rule_products")
+        .select("product_id")
+        .eq("rule_id", id);
+      expect(links ?? []).toEqual([]);
+    });
+
+    // C2 (full round trip): the regression the TL caught — before the fix,
+    // this save would fail with a "percentage" error on a field the admin
+    // cannot even type into for an INHERITED rule.
+    it("saves an INHERITED rule when the percentage field arrives empty", async () => {
+      const res = await saveDiscountRule(
+        {},
+        fd({
+          name: `IT inherited ${Date.now()}`,
+          enabled: "on",
+          triggerMinQty: "2",
+          triggerProductIds: JSON.stringify([prodA]),
+          triggerSupplierIds: JSON.stringify([supA]),
+          suggestedProductId: prodB,
+          suggestedSupplierId: supA,
+          suggestedQty: "1",
+          discountMode: "inherited",
+          discountPct: "",
+        })
+      );
+      expect(res.error).toBeUndefined();
+      seededRuleIds.push(res.id!);
+      const { data } = await db
+        .from("discount_rules")
+        .select("discount_mode, discount_pct")
+        .eq("id", res.id!)
+        .single();
+      expect(data).toEqual({ discount_mode: "inherited", discount_pct: null });
+    });
+
+    it("switching a rule from fixed to none clears the leftover percentage", async () => {
+      const name = `IT switch ${Date.now()}`;
+      const first = await saveDiscountRule(
+        {},
+        fd({
+          name,
+          enabled: "on",
+          triggerMinQty: "1",
+          triggerProductIds: JSON.stringify([prodA]),
+          triggerSupplierIds: JSON.stringify([supA]),
+          suggestedProductId: prodB,
+          suggestedSupplierId: supA,
+          suggestedQty: "1",
+          discountMode: "fixed",
+          discountPct: "15",
+        })
+      );
+      expect(first.error).toBeUndefined();
+      const id = first.id!;
+      seededRuleIds.push(id);
+
+      const second = await saveDiscountRule(
+        {},
+        fd({
+          id,
+          name,
+          enabled: "on",
+          triggerMinQty: "1",
+          triggerProductIds: JSON.stringify([prodA]),
+          triggerSupplierIds: JSON.stringify([supA]),
+          suggestedProductId: prodB,
+          suggestedSupplierId: supA,
+          suggestedQty: "1",
+          discountMode: "none",
+          discountPct: "",
+        })
+      );
+      expect(second.error).toBeUndefined();
+
+      const { data } = await db
+        .from("discount_rules")
+        .select("discount_mode, discount_pct")
+        .eq("id", id)
+        .single();
+      expect(data).toEqual({ discount_mode: "none", discount_pct: null });
+    });
+
+    // Duty 3 — discount_rules.discount_pct is an int column with no cast-side
+    // rounding; a fractional entry would abort the insert with 22P02 (same
+    // failure class build.ts:50-54 already guards against). pctField
+    // deliberately has no `.int()` (see actions.ts) so this proves the
+    // Math.round mirror actually runs the write, not that validation merely
+    // rejected the fraction outright.
+    it("rounds a fractional percentage before it reaches the int column", async () => {
+      const res = await saveDiscountRule(
+        {},
+        fd({
+          name: `IT round ${Date.now()}`,
+          enabled: "on",
+          triggerMinQty: "1",
+          triggerProductIds: JSON.stringify([prodA]),
+          triggerSupplierIds: JSON.stringify([supA]),
+          suggestedProductId: prodB,
+          suggestedSupplierId: supA,
+          suggestedQty: "1",
+          discountMode: "fixed",
+          discountPct: "15.6",
+        })
+      );
+      expect(res.error).toBeUndefined();
+      seededRuleIds.push(res.id!);
+      const { data } = await db
+        .from("discount_rules")
+        .select("discount_pct")
+        .eq("id", res.id!)
+        .single();
+      expect(data?.discount_pct).toBe(16);
     });
   }
 );

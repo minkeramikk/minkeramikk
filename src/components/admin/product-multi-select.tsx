@@ -40,6 +40,126 @@ export interface PickerLabels {
 const initial: PickerState = { error: null };
 
 /**
+ * The search/select-all/clear/list part of the picker, extracted (R4-SCONTI
+ * Task 14) so a consumer that needs the checkbox list WITHOUT the surrounding
+ * all/some radio + its own <form>+save button (e.g. a rule's trigger group,
+ * nested inside a bigger form — two <form> elements cannot nest) can reuse the
+ * exact same markup/testids as the "all"-mode picker below, instead of a
+ * second hand-rolled list. `selected` is owned by the caller so it can be
+ * combined with other form fields (e.g. the supplier ids Task 14 needs).
+ */
+export function ProductPicker({
+  products,
+  selected,
+  onToggle,
+  onSelectAll,
+  onClear,
+  labels,
+  testIdPrefix,
+}: {
+  products: EditorProduct[];
+  selected: Set<string>;
+  onToggle: (id: string) => void;
+  onSelectAll: (ids: string[]) => void;
+  onClear: () => void;
+  labels: Pick<PickerLabels, "searchPlaceholder" | "counterSuffix" | "emptyHint">;
+  testIdPrefix: string;
+}) {
+  const [q, setQ] = useState("");
+  const filtered = useMemo(() => {
+    const v = q.trim().toLowerCase();
+    if (!v) return products;
+    return products.filter((p) =>
+      `${p.nameEn} ${p.nameNo}`.toLowerCase().includes(v)
+    );
+  }, [q, products]);
+
+  const total = products.length;
+  const nSel = selected.size;
+  const empty = nSel === 0;
+  const t = (suffix: string) => `${testIdPrefix}-${suffix}`;
+
+  return (
+    <div className="flex flex-col gap-2" data-testid={t("picker")}>
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative flex-1">
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
+          <Input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder={labels.searchPlaceholder}
+            className="pl-8"
+            data-testid={t("search")}
+          />
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => onSelectAll(filtered.map((p) => p.id))}
+          data-testid={t("select-all")}
+        >
+          Select all
+        </Button>
+        <Button type="button" variant="outline" size="sm" onClick={onClear} data-testid={t("clear")}>
+          Clear
+        </Button>
+      </div>
+
+      <p className="text-xs text-muted-foreground" data-testid={t("counter")}>
+        <b className="text-foreground">{nSel}</b> of {total} {labels.counterSuffix}
+      </p>
+
+      <div className="max-h-80 overflow-y-auto rounded-sm border border-border">
+        {filtered.map((p) => (
+          <label
+            key={p.id}
+            className="flex cursor-pointer items-center gap-3 border-b border-border px-3 py-2 last:border-b-0 hover:bg-muted/40"
+            data-testid={t("row")}
+          >
+            <input
+              // key includes checked state: after a useActionState submit,
+              // React can skip writing .checked to a controlled checkbox
+              // (DOM stays unticked while React thinks it's ticked → the
+              // "must refresh to see it" bug). Keying on the value forces a
+              // fresh DOM node whenever it flips, so DOM always matches state.
+              key={selected.has(p.id) ? "on" : "off"}
+              type="checkbox"
+              className="size-4 accent-[var(--primary)]"
+              checked={selected.has(p.id)}
+              onChange={() => onToggle(p.id)}
+              data-testid={t("row-check")}
+            />
+            {p.image ? (
+              // eslint-disable-next-line @next/next/no-img-element -- catalog art from storage
+              <img src={p.image} alt="" className="size-9 rounded-full border border-border object-cover" />
+            ) : (
+              <span className="size-9 rounded-full border border-border bg-muted" />
+            )}
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-sm font-medium">{p.nameEn}</span>
+              <span className="block truncate text-xs text-muted-foreground">{p.nameNo}</span>
+            </span>
+            {!p.visible && (
+              <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                hidden
+              </span>
+            )}
+            <span className="text-xs text-muted-foreground">{p.price}</span>
+          </label>
+        ))}
+      </div>
+
+      {empty && (
+        <p role="alert" className="rounded-sm bg-destructive/10 px-3 py-2 text-xs text-destructive" data-testid={t("empty-hint")}>
+          {labels.emptyHint}
+        </p>
+      )}
+    </div>
+  );
+}
+
+/**
  * Generalised picker lifted from `design-products-editor.tsx` (F34): search box,
  * toggle chips, "select all filtered", `all`/`some` radio. The action, the extra
  * hidden fields (e.g. `designId`) and every piece of copy are props so the same
@@ -67,21 +187,10 @@ export function ProductMultiSelect({
     initialSelectedIds.length > 0 ? "some" : "all"
   );
   const [selected, setSelected] = useState<Set<string>>(new Set(initialSelectedIds));
-  const [q, setQ] = useState("");
   // hides the "Saved" badge as soon as the selection is touched again
   const [edited, setEdited] = useState(false);
 
-  const filtered = useMemo(() => {
-    const v = q.trim().toLowerCase();
-    if (!v) return products;
-    return products.filter((p) =>
-      `${p.nameEn} ${p.nameNo}`.toLowerCase().includes(v)
-    );
-  }, [q, products]);
-
-  const total = products.length;
-  const nSel = selected.size;
-  const empty = mode === "some" && nSel === 0;
+  const empty = mode === "some" && selected.size === 0;
 
   function toggle(id: string) {
     setEdited(true);
@@ -89,14 +198,6 @@ export function ProductMultiSelect({
       const n = new Set(s);
       if (n.has(id)) n.delete(id);
       else n.add(id);
-      return n;
-    });
-  }
-  function selectAllFiltered() {
-    setEdited(true);
-    setSelected((s) => {
-      const n = new Set(s);
-      filtered.forEach((p) => n.add(p.id));
       return n;
     });
   }
@@ -158,76 +259,21 @@ export function ProductMultiSelect({
 
       {/* picker */}
       {mode === "some" && (
-        <div className="flex flex-col gap-2" data-testid={t("picker")}>
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="relative flex-1">
-              <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
-              <Input
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-                placeholder={labels.searchPlaceholder}
-                className="pl-8"
-                data-testid={t("search")}
-              />
-            </div>
-            <Button type="button" variant="outline" size="sm" onClick={selectAllFiltered} data-testid={t("select-all")}>
-              Select all
-            </Button>
-            <Button type="button" variant="outline" size="sm" onClick={() => { setEdited(true); setSelected(new Set()); }} data-testid={t("clear")}>
-              Clear
-            </Button>
-          </div>
-
-          <p className="text-xs text-muted-foreground" data-testid={t("counter")}>
-            <b className="text-foreground">{nSel}</b> of {total} {labels.counterSuffix}
-          </p>
-
-          <div className="max-h-80 overflow-y-auto rounded-sm border border-border">
-            {filtered.map((p) => (
-              <label
-                key={p.id}
-                className="flex cursor-pointer items-center gap-3 border-b border-border px-3 py-2 last:border-b-0 hover:bg-muted/40"
-                data-testid={t("row")}
-              >
-                <input
-                  // key includes checked state: after a useActionState submit,
-                  // React can skip writing .checked to a controlled checkbox
-                  // (DOM stays unticked while React thinks it's ticked → the
-                  // "must refresh to see it" bug). Keying on the value forces a
-                  // fresh DOM node whenever it flips, so DOM always matches state.
-                  key={selected.has(p.id) ? "on" : "off"}
-                  type="checkbox"
-                  className="size-4 accent-[var(--primary)]"
-                  checked={selected.has(p.id)}
-                  onChange={() => toggle(p.id)}
-                  data-testid={t("row-check")}
-                />
-                {p.image ? (
-                  // eslint-disable-next-line @next/next/no-img-element -- catalog art from storage
-                  <img src={p.image} alt="" className="size-9 rounded-full border border-border object-cover" />
-                ) : (
-                  <span className="size-9 rounded-full border border-border bg-muted" />
-                )}
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-medium">{p.nameEn}</span>
-                  <span className="block truncate text-xs text-muted-foreground">{p.nameNo}</span>
-                </span>
-                {!p.visible && (
-                  <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-                    hidden
-                  </span>
-                )}
-                <span className="text-xs text-muted-foreground">{p.price}</span>
-              </label>
-            ))}
-          </div>
-
-          {empty && (
-            <p role="alert" className="rounded-sm bg-destructive/10 px-3 py-2 text-xs text-destructive" data-testid={t("empty-hint")}>
-              {labels.emptyHint}
-            </p>
-          )}
-        </div>
+        <ProductPicker
+          products={products}
+          selected={selected}
+          onToggle={toggle}
+          onSelectAll={(ids) => {
+            setEdited(true);
+            setSelected((s) => new Set([...s, ...ids]));
+          }}
+          onClear={() => {
+            setEdited(true);
+            setSelected(new Set());
+          }}
+          labels={labels}
+          testIdPrefix={testIdPrefix}
+        />
       )}
 
       {state.error && (

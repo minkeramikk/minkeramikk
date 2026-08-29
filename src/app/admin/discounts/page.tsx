@@ -4,10 +4,12 @@ import { formatMoney, money, type Currency } from "@/lib/money/money";
 import { assetUrl } from "@/lib/storage";
 import { PRODUCT_THUMB_WIDTH } from "@/lib/asset-variants";
 import { DiscountTiersEditor } from "@/components/admin/discount-tiers-editor";
+import { ProductMultiSelect } from "@/components/admin/product-multi-select";
 import {
-  ProductMultiSelect,
-  type EditorProduct,
-} from "@/components/admin/product-multi-select";
+  DiscountRulesEditor,
+  type EditorRule,
+  type RuleProduct,
+} from "@/components/admin/discount-rules-editor";
 import { saveDiscountProducts } from "@/app/admin/discounts/actions";
 
 // R4-SCONTI Task 7 — live data, same as /admin/featured: the shop owner must
@@ -17,27 +19,66 @@ export const dynamic = "force-dynamic";
 export default async function AdminDiscountsPage() {
   const supabase = await createClient();
 
-  const [{ data: settings }, { data: tierRows }, { data: discountProductRows }, { data: productRows }] =
-    await Promise.all([
-      supabase.from("settings").select("quantity_discounts_enabled").eq("id", 1).maybeSingle(),
-      supabase.from("discount_tiers").select("min_qty, pct").order("sort_order"),
-      supabase.from("discount_products").select("product_id"),
-      supabase
-        .from("products")
-        .select("id, name_no, name_en, price_cents, currency, image, visible")
-        .order("name_no"),
-    ]);
+  const [
+    { data: settings },
+    { data: tierRows },
+    { data: discountProductRows },
+    { data: productRows },
+    { data: ruleRows },
+    { data: ruleProductRows },
+  ] = await Promise.all([
+    supabase
+      .from("settings")
+      .select("quantity_discounts_enabled, automations_enabled")
+      .eq("id", 1)
+      .maybeSingle(),
+    supabase.from("discount_tiers").select("min_qty, pct").order("sort_order"),
+    supabase.from("discount_products").select("product_id"),
+    supabase
+      .from("products")
+      .select("id, name_no, name_en, price_cents, currency, image, visible, supplier_id")
+      .order("name_no"),
+    // R4-SCONTI Task 14 — absent until the PM applies migration 0034; `?? []`
+    // below keeps this page rendering (empty rules list) either way.
+    supabase
+      .from("discount_rules")
+      .select(
+        "id, name, enabled, trigger_min_qty, suggested_product_id, suggested_qty, discount_mode, discount_pct"
+      )
+      .order("sort_order"),
+    supabase.from("discount_rule_products").select("rule_id, product_id"),
+  ]);
 
   const initialTiers = (tierRows ?? []).map((t) => ({ minQty: t.min_qty, pct: t.pct }));
   const initialEnabled = settings?.quantity_discounts_enabled ?? false;
+  const initialAutomationsEnabled = settings?.automations_enabled ?? false;
   const selectedProductIds = (discountProductRows ?? []).map((r) => r.product_id);
-  const products: EditorProduct[] = (productRows ?? []).map((p) => ({
+  const products: RuleProduct[] = (productRows ?? []).map((p) => ({
     id: p.id,
     nameNo: p.name_no,
     nameEn: p.name_en,
     price: formatMoney(money(p.price_cents, p.currency as Currency), "en"),
     image: p.image ? assetUrl(p.image, { width: PRODUCT_THUMB_WIDTH }) : null,
     visible: p.visible,
+    supplierId: p.supplier_id,
+  }));
+
+  const triggerByRule = new Map<string, string[]>();
+  for (const r of ruleProductRows ?? []) {
+    const arr = triggerByRule.get(r.rule_id) ?? [];
+    arr.push(r.product_id);
+    triggerByRule.set(r.rule_id, arr);
+  }
+  const initialRules: EditorRule[] = (ruleRows ?? []).map((r) => ({
+    id: r.id,
+    name: r.name,
+    enabled: r.enabled,
+    triggerMinQty: r.trigger_min_qty,
+    triggerProductIds: triggerByRule.get(r.id) ?? [],
+    suggestedProductId: r.suggested_product_id,
+    suggestedQty: r.suggested_qty,
+    discountMode: r.discount_mode as EditorRule["discountMode"],
+    discountPct: r.discount_pct,
   }));
 
   return (
@@ -71,6 +112,14 @@ export default async function AdminDiscountsPage() {
               footnote:
                 "Hidden products (visible = off) still count toward the scale here, even though they don't appear in the configurator.",
             }}
+          />
+        </section>
+
+        <section className="rounded-lg border border-border bg-card p-5">
+          <DiscountRulesEditor
+            initialAutomationsEnabled={initialAutomationsEnabled}
+            products={products}
+            initialRules={initialRules}
           />
         </section>
       </div>
