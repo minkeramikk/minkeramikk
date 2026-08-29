@@ -14,11 +14,16 @@
 -- One global scale (spec-sconti.html §1: "una scala unica"). Rows, not a jsonb
 -- blob, so the admin form is a plain list and a bad row can never corrupt the
 -- others. pct is an integer percentage: 5 = 5%.
+-- unique(min_qty): two rows at the same threshold make tier selection
+-- nondeterministic. The admin action (Task 7) already enforces "two steps
+-- cannot start at the same quantity" in application code; this puts the same
+-- invariant where it cannot be bypassed.
 create table if not exists discount_tiers (
   id         uuid primary key default gen_random_uuid(),
   min_qty    int  not null check (min_qty >= 2),
   pct        int  not null check (pct > 0 and pct <= 90),
-  sort_order int  not null default 0
+  sort_order int  not null default 0,
+  unique (min_qty)
 );
 
 -- Alessio's confirmed starting scale (27/8). Seeded once; editable in admin.
@@ -41,6 +46,15 @@ alter table order_items
   add column if not exists discount_pct    int,
   add column if not exists discount_cents  int not null default 0,
   add column if not exists discount_source text;
+
+-- DB half of the ADR's own money/trust-boundary argument. No CHECK on
+-- discount_source: 'deal' has no meaning until migration 0033. The pct upper
+-- bound is 100 (nonsense at any policy), not 90 (the admin form's current
+-- business rule, which may change without a migration).
+alter table order_items
+  add constraint order_items_discount_cents_nonneg check (discount_cents >= 0),
+  add constraint order_items_discount_pct_range
+    check (discount_pct is null or (discount_pct > 0 and discount_pct <= 100));
 
 comment on column order_items.discount_pct is
   'Percentage applied to this line at send time (NULL = none). ADR 0022.';
@@ -77,13 +91,16 @@ begin
   end if;
   delete from discount_tiers;
   insert into discount_tiers (min_qty, pct, sort_order)
-  select (r->>'min_qty')::int, (r->>'pct')::int, (r->>'sort_order')::int
+  select (r->>'min_qty')::int, (r->>'pct')::int, coalesce((r->>'sort_order')::int, 0)
   from jsonb_array_elements(p_rows) as r;
 end;
 $$;
 
 revoke all on function replace_discount_tiers(jsonb) from public;
 grant execute on function replace_discount_tiers(jsonb) to authenticated;
+
+comment on function replace_discount_tiers(jsonb) is
+  'ADR 0022: atomically replace the global discount tier scale (delete + insert in one transaction). Called via rpc() from the authenticated admin action.';
 
 create or replace function replace_discount_products(p_product_ids uuid[])
 returns void
@@ -98,6 +115,9 @@ $$;
 
 revoke all on function replace_discount_products(uuid[]) from public;
 grant execute on function replace_discount_products(uuid[]) to authenticated;
+
+comment on function replace_discount_products(uuid[]) is
+  'ADR 0022: atomically replace the discount-inclusion product list (delete + insert in one transaction). No rows = every product included. Called via rpc() from the authenticated admin action.';
 
 -- ── RLS: public read (the cart computes client-side), authenticated writes ──
 -- Nothing here is secret: every row is shown to the customer in the cart.

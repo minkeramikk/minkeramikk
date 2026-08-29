@@ -66,7 +66,10 @@ creda che il confine di fiducia sia più esterno di quanto sia davvero.
 - (+) Un ordine storico è autoesplicativo senza bisogno di leggere la config corrente.
 - (+) I due meccanismi si spengono senza toccare una riga di codice.
 - (−) Le tabelle delle soglie sono leggibili pubblicamente (accettato: il loro contenuto è
-  comunque mostrato a ogni visitatore).
+  comunque mostrato a ogni visitatore). Per lo stesso motivo diventano pubblicamente leggibili
+  anche i due nuovi flag di `settings`: `quantity_discounts_enabled` deve esserlo perché il
+  carrello anonimo sappia se applicare gli sconti; `automations_enabled` segue la stessa riga
+  (nessun dato sensibile in nessuno dei due).
 - (−) Lo sconto è "soft" — nulla impedisce al negozio di confermare un ordine il cui sconto non
   ha letto (mitigato dal dialog di conferma che mostra i totali).
 - (?) Se arriverà un mercato con una seconda valuta (R4-MARKET-EUR), la scala è

@@ -166,9 +166,15 @@ export type Database = {
         ]
       }
       discount_products: {
-        Row: { product_id: string }
-        Insert: { product_id: string }
-        Update: { product_id?: string }
+        Row: {
+          product_id: string
+        }
+        Insert: {
+          product_id: string
+        }
+        Update: {
+          product_id?: string
+        }
         Relationships: [
           {
             foreignKeyName: "discount_products_product_id_fkey"
@@ -180,9 +186,24 @@ export type Database = {
         ]
       }
       discount_tiers: {
-        Row: { id: string; min_qty: number; pct: number; sort_order: number }
-        Insert: { id?: string; min_qty: number; pct: number; sort_order?: number }
-        Update: { id?: string; min_qty?: number; pct?: number; sort_order?: number }
+        Row: {
+          id: string
+          min_qty: number
+          pct: number
+          sort_order: number
+        }
+        Insert: {
+          id?: string
+          min_qty: number
+          pct: number
+          sort_order?: number
+        }
+        Update: {
+          id?: string
+          min_qty?: number
+          pct?: number
+          sort_order?: number
+        }
         Relationships: []
       }
       featured_configs: {
