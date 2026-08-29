@@ -238,6 +238,16 @@
     "colourBadge": {
       "custom": "Egendefinerte farger",
       "studio": "Studioets farger"
+    },
+    "discount": {
+      "badge": "−{pct} %",
+      "inCart": "{qty} av denne keramikken i kurven",
+      "applied": "−{pct} %",
+      "nudge": "legg til {missing} til → {pct} %",
+      "subtotal": "Delsum",
+      "quantityRow": "Mengderabatt",
+      "dealRow": "Tilbud",
+      "note": "Rabatten er veiledende — vi bekrefter endelig pris sammen med bestillingen."
     }
   },
   "order": {

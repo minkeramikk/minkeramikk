@@ -239,6 +239,16 @@
     "colourBadge": {
       "custom": "Custom colours",
       "studio": "Studio colours"
+    },
+    "discount": {
+      "badge": "−{pct}%",
+      "inCart": "{qty} of this ceramic in your basket",
+      "applied": "−{pct}%",
+      "nudge": "add {missing} more → {pct}%",
+      "subtotal": "Subtotal",
+      "quantityRow": "Quantity discount",
+      "dealRow": "Offer",
+      "note": "Discounts shown are indicative — we confirm the final price with your order."
     }
   },
   "order": {

@@ -1,0 +1,78 @@
+"use client";
+
+import { useTranslations } from "next-intl";
+import { formatMoney } from "@/lib/money/money";
+import { nextTier, type DiscountTier, type LineDiscount } from "@/lib/discounts/discount";
+
+/**
+ * R4-SCONTI (DESIGN-SYSTEM §3.22) — the discounted price cell and the per-line
+ * nudge, shared by CartDrawer (§3.12) and DockedCart (§3.14).
+ *
+ * TODO:nb-review — the `cart.discount.*` Norwegian copy is the TL's wording.
+ */
+export function CartLinePrice({
+  d,
+  locale,
+}: {
+  d: LineDiscount;
+  locale: "no" | "en";
+}) {
+  const t = useTranslations("cart.discount");
+  if (d.pct === 0) {
+    return (
+      <span data-testid="cart-line-net" className="text-sm font-medium tabular-nums">
+        {formatMoney(d.full, locale)}
+      </span>
+    );
+  }
+  return (
+    <span className="flex flex-col items-end gap-0.5">
+      <s data-testid="cart-line-full" className="text-xs text-muted-foreground tabular-nums">
+        {formatMoney(d.full, locale)}
+      </s>
+      <span data-testid="cart-line-net" className="text-sm font-medium tabular-nums">
+        {formatMoney(d.net, locale)}
+      </span>
+      <span
+        data-testid="cart-discount-badge"
+        className="rounded-full px-2 py-0.5 text-[10px] font-semibold whitespace-nowrap"
+        style={{
+          backgroundColor: "color-mix(in oklab, var(--discount) 16%, white)",
+          color: "color-mix(in oklab, var(--discount), black 34%)",
+          border: "1px solid color-mix(in oklab, var(--discount) 38%, white)",
+        }}
+      >
+        {t("badge", { pct: d.pct })}
+      </span>
+    </span>
+  );
+}
+
+/** «4 of this ceramic in your basket → −5% · add 2 more → 8%». */
+export function CartDiscountNudge({
+  productQty,
+  tiers,
+  pct,
+}: {
+  productQty: number;
+  tiers: DiscountTier[];
+  pct: number;
+}) {
+  const t = useTranslations("cart.discount");
+  const up = nextTier(productQty, tiers);
+  if (productQty === 0 || (pct === 0 && !up)) return null;
+  return (
+    <p data-testid="cart-discount-nudge" className="mt-1 text-[11px] text-muted-foreground">
+      {t("inCart", { qty: productQty })}
+      {pct > 0 && <> → {t("applied", { pct })}</>}
+      {up && (
+        <>
+          {" · "}
+          <span className="font-medium text-primary">
+            {t("nudge", { missing: up.minQty - productQty, pct: up.pct })}
+          </span>
+        </>
+      )}
+    </p>
+  );
+}

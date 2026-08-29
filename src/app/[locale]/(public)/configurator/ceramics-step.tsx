@@ -20,7 +20,6 @@ import {
   cartTotal,
   designLabel,
   itemCount,
-  lineSubtotal,
   type CartLine,
   type CartLayer,
   type ConfigSnapshot,
@@ -28,10 +27,9 @@ import {
 import { encodeSetParam, SET_LINK_BUDGET } from "@/lib/cart/set-code";
 import { SetBadge } from "@/components/ui-domain/set-badge";
 import { CartLineRecap } from "@/components/ui-domain/cart-line-recap";
-import {
-  CartShippingRow,
-  useShippingTotalSuffix,
-} from "@/components/ui-domain/cart-shipping-row";
+import { useShippingTotalSuffix } from "@/components/ui-domain/cart-shipping-row";
+import { CartLinePrice, CartDiscountNudge } from "@/components/ui-domain/cart-discount-row";
+import { CartTotals } from "@/components/ui-domain/cart-totals";
 import {
   formatAttributeValue,
   publicAttributes,
@@ -205,7 +203,8 @@ export function CeramicsStep({
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  const { cart, hydrated, add, setQuantity, remove, clear } = useCartContext();
+  const { cart, hydrated, add, setQuantity, remove, clear, discount, discountConfig } =
+    useCartContext();
 
   /**
    * R4-STEP3: id of the product whose `ProductSheet` is OPEN — no preselection
@@ -554,11 +553,16 @@ export function CeramicsStep({
                       {t("remove")}
                     </button>
                   </div>
+                  <CartDiscountNudge
+                    productQty={
+                      line.productId ? discount.qtyByProduct[line.productId] ?? 0 : 0
+                    }
+                    tiers={discountConfig.tiers}
+                    pct={discount.perLine[line.id]?.pct ?? 0}
+                  />
                 </div>
                 <div className="flex shrink-0 flex-col items-end justify-between self-stretch">
-                  <span className="text-right text-sm font-medium tabular-nums">
-                    {formatMoney(lineSubtotal(line), locale)}
-                  </span>
+                  <CartLinePrice d={discount.perLine[line.id]} locale={locale} />
                   {/* CA-3 E: expansion as a LABELLED action (the bare ▾ icon
                       read as decoration) — price top-right, toggle BOTTOM
                       right on the qty/Remove baseline (mb compensates the
@@ -607,17 +611,7 @@ export function CeramicsStep({
           </div>
 
           <div className="mt-3 flex flex-col gap-3 border-t border-border pt-3">
-            <CartShippingRow total={total} />
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">{t("total")}</span>
-              <span
-                data-testid="docked-total"
-                className="text-lg font-semibold tabular-nums"
-              >
-                {formatMoney(total, locale)}
-                {totalSuffix}
-              </span>
-            </div>
+            <CartTotals totalTestId="docked-total" />
 
             {checkoutOpen ? (
               // scroll-mt: the mobile header is sticky and 56px tall, so a
