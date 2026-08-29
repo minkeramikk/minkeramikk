@@ -242,7 +242,8 @@
     "suggestion": {
       "kicker": "Passer til settet ditt",
       "add": "Legg til",
-      "dismiss": "Skjul dette forslaget"
+      "dismiss": "Skjul dette forslaget",
+      "qtyName": "{qty} × {name}"
     },
     "discount": {
       "badge": "−{pct} %",

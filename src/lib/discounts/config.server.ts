@@ -2,6 +2,7 @@ import "server-only";
 
 import { unstable_cache } from "next/cache";
 import { createPublicClient } from "@/lib/supabase/public";
+import { assetUrl } from "@/lib/storage";
 import type { Currency } from "@/lib/money/money";
 import { EMPTY_CONFIG, type DiscountConfig } from "./discount";
 
@@ -105,7 +106,11 @@ async function loadDiscountConfig(): Promise<DiscountConfig> {
             nameEn: p.name_en,
             priceCents: p.price_cents,
             currency: p.currency as Currency,
-            image: p.image,
+            // `products.image` is a Storage PATH (products/x.png), not a URL.
+            // Resolve it HERE so `suggested.image` is a ready-to-render URL, the
+            // same contract `plateImage` already has on a cart line — the card must
+            // not have to know where assets live.
+            image: p.image ? assetUrl(p.image) : null,
             pieces: p.pieces,
             supplierId: p.supplier_id,
           },

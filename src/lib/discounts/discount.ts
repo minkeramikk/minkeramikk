@@ -38,7 +38,10 @@ export interface DiscountRule {
   discountMode: "fixed" | "inherited" | "none";
   discountPct: number | null;
   /** R4-SCONTI ②: the suggested product's public card, resolved server-side so
-   *  the cart never fetches. Absent until part ② fills it (Task 13). */
+   *  the cart never fetches. Absent until part ② fills it (Task 13).
+   *  `image` is a READY-TO-RENDER URL, not a Storage path — config.server.ts
+   *  runs it through assetUrl() so the card never has to know where assets
+   *  live (same contract as `plateImage` on a cart line). */
   suggested?: {
     id: string;
     slug: string;

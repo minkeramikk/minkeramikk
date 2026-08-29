@@ -58,7 +58,7 @@ export function CartSuggestion() {
         <X className="size-4" aria-hidden />
       </button>
 
-      {/* TODO:nb-review NO copy: cart.suggestion.kicker/add/dismiss (TL wording) */}
+      {/* TODO:nb-review NO copy: cart.suggestion.kicker/add/dismiss/qtyName (TL wording) */}
       <p className="mb-2 pr-11 text-[10px] font-semibold tracking-[.06em] text-primary uppercase">
         {t("kicker")}
       </p>
@@ -71,7 +71,17 @@ export function CartSuggestion() {
         />
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-medium">
-            {locale === "no" ? p.nameNo : p.nameEn}
+            {/* The prices below are for the WHOLE offer (unit × suggestedQty),
+                so the quantity has to be on screen — otherwise a 350 kr plate
+                is quoted at 1 400 kr with nothing explaining why. */}
+            {rule.suggestedQty > 1
+              ? t("qtyName", {
+                  qty: rule.suggestedQty,
+                  name: locale === "no" ? p.nameNo : p.nameEn,
+                })
+              : locale === "no"
+                ? p.nameNo
+                : p.nameEn}
           </p>
           {pct === 0 ? (
             <span data-testid="cart-suggestion-net" className="text-sm font-medium tabular-nums">

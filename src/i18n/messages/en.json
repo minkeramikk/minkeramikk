@@ -243,7 +243,8 @@
     "suggestion": {
       "kicker": "Goes well with your set",
       "add": "Add",
-      "dismiss": "Dismiss this suggestion"
+      "dismiss": "Dismiss this suggestion",
+      "qtyName": "{qty} × {name}"
     },
     "discount": {
       "badge": "−{pct}%",
