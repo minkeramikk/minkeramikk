@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync, unlinkSync } from "node:fs";
 import { resolve } from "node:path";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { expect, type Page } from "@playwright/test";
@@ -524,6 +524,59 @@ export interface SeededDiscounts {
  * restore. A failed restore throws loudly instead of swallowing — this is the
  * config the live catalogue serves.
  */
+// ── Crash-safe restore state (review round 2 of Task 15) ────────────────────
+// A heuristic ("does the live scale match the confirmed one?") cannot own
+// `discount_tiers`: Task 7 lets the shop owner edit that scale from
+// /admin/discounts, and the moment they do, it legitimately stops matching
+// `CONFIRMED_TIERS` — a heuristic-driven sweep would silently revert a real
+// commercial decision. A file the seeder itself writes BEFORE mutating, and
+// deletes on a successful restore, has no such blind spot: it exists if and
+// only if a run mutated something and never put it back, regardless of what
+// value was live before. `seedDiscountRule`'s prefix-owned rows keep their
+// own belt (a genuine ownership marker); this is the belt for `settings`
+// flags and the tier rows, which have no owner column to prefix.
+const E2E_RESTORE_FILE = resolve(__dirname, "../.e2e-discount-restore.json");
+
+interface E2ERestoreState {
+  tiers?: {
+    flagBefore: boolean;
+    before: { min_qty: number; pct: number; sort_order: number }[];
+  };
+  rule?: { flagBefore: boolean };
+}
+
+/** Tolerant of a missing OR malformed/truncated file (a crash can cut a
+ *  write mid-flight) — either way, nothing to restore from. Never throws. */
+function readRestoreState(): E2ERestoreState {
+  try {
+    const parsed: unknown = JSON.parse(readFileSync(E2E_RESTORE_FILE, "utf8"));
+    return parsed !== null && typeof parsed === "object" ? (parsed as E2ERestoreState) : {};
+  } catch {
+    return {};
+  }
+}
+
+/** Read-modify-write so `seedDiscountTiers` and `seedDiscountRule` can have
+ *  state pending in the file at the same time (e.g. AC-SC7 nests both). */
+function writeRestoreKey<K extends keyof E2ERestoreState>(key: K, value: E2ERestoreState[K]): void {
+  writeFileSync(E2E_RESTORE_FILE, JSON.stringify({ ...readRestoreState(), [key]: value }));
+}
+
+/** Removes just this key; deletes the file once no key is left in it. */
+function clearRestoreKey(key: keyof E2ERestoreState): void {
+  const state = readRestoreState();
+  delete state[key];
+  if (Object.keys(state).length === 0) {
+    try {
+      unlinkSync(E2E_RESTORE_FILE);
+    } catch {
+      /* already gone */
+    }
+  } else {
+    writeFileSync(E2E_RESTORE_FILE, JSON.stringify(state));
+  }
+}
+
 export async function seedDiscountTiers(
   tiers: { min_qty: number; pct: number }[]
 ): Promise<SeededDiscounts> {
@@ -539,6 +592,11 @@ export async function seedDiscountTiers(
         .eq("id", 1)
         .maybeSingle()
     ).data?.quantity_discounts_enabled ?? false;
+
+  // Crash safety: written BEFORE the mutation below, so a kill between here
+  // and this function's own `restore()` still leaves `sweepE2EDiscounts`
+  // something exact to put back — never a guess.
+  writeRestoreKey("tiers", { flagBefore, before });
 
   const del = await db.from("discount_tiers").delete().gte("min_qty", 0);
   if (del.error) throw del.error;
@@ -579,6 +637,7 @@ export async function seedDiscountTiers(
           );
         }
       }
+      clearRestoreKey("tiers");
     },
   };
 }
@@ -628,6 +687,9 @@ export async function seedDiscountRule(opts: {
       await db.from("settings").select("automations_enabled").eq("id", 1).maybeSingle()
     ).data?.automations_enabled ?? false;
 
+  // Crash safety, same reasoning as seedDiscountTiers above.
+  writeRestoreKey("rule", { flagBefore });
+
   const { data: rule, error } = await db
     .from("discount_rules")
     .insert({
@@ -669,26 +731,26 @@ export async function seedDiscountRule(opts: {
           `[e2e seed] FAILED to delete seeded discount rule ${ruleId}: ${delRes.error.message}`
         );
       }
+      clearRestoreKey("rule");
     },
   };
 }
 
-// The client's confirmed scale (AGENTS.md, GLOBAL-CONSTRAINTS.md:9, ratified
-// 27/8) — the ONLY state `discount_tiers` should ever be in outside of a
-// running test. Every seeded test scale is deliberately different from this
-// one (see cart.spec.ts's own comment on that), precisely so `sweepE2EDiscounts`
-// below can tell "mid-test" from "at rest" apart without an owner column.
-const CONFIRMED_TIERS = [
-  { min_qty: 4, pct: 5 },
-  { min_qty: 6, pct: 8 },
-  { min_qty: 8, pct: 10 },
-  { min_qty: 12, pct: 15 },
-];
-const tierKey = (rows: { min_qty: number; pct: number }[]) =>
-  rows
-    .map((r) => `${r.min_qty}:${r.pct}`)
-    .sort()
-    .join(",");
+/** Type guards so a malformed/partial file (a crash can truncate a write
+ *  mid-flight) is treated as "nothing usable there", never thrown on. */
+function isRuleState(v: E2ERestoreState["rule"]): v is { flagBefore: boolean } {
+  return typeof v === "object" && v !== null && typeof v.flagBefore === "boolean";
+}
+function isTiersState(
+  v: E2ERestoreState["tiers"]
+): v is { flagBefore: boolean; before: { min_qty: number; pct: number; sort_order: number }[] } {
+  return (
+    typeof v === "object" &&
+    v !== null &&
+    typeof v.flagBefore === "boolean" &&
+    Array.isArray(v.before)
+  );
+}
 
 /**
  * R4-SCONTI ② — a run that gets killed (SIGKILL, OOM, a cancelled CI job,
@@ -698,19 +760,22 @@ const tierKey = (rows: { min_qty: number; pct: number }[]) =>
  * public site. Same lezione as `sweepTmpDesigns` (`:255` above: "un run che
  * crasha lascia il design in catalogo"), applied to both discount seeders.
  *
- * Rules: deletes every `discount_rules` row whose name carries
- * `E2E_RULE_PREFIX` (`discount_rule_products` cascades, migration 0034) and,
- * ONLY if it found any, puts `automations_enabled` back to false — never
- * touches the flag when there is nothing to clean, so a legitimate
- * "automations really are on" state is never clobbered. Tolerates
+ * Rules: `E2E_RULE_PREFIX` is a genuine ownership marker (like
+ * `TMP_DESIGN_PREFIX`) — deletes every `discount_rules` row that carries it
+ * (`discount_rule_products` cascades, migration 0034). Tolerates
  * `discount_rules` not existing yet (42P01, migration 0034 not applied
  * anywhere at the time this was written): nothing to sweep from a table that
- * isn't there.
+ * isn't there. The flag restore target comes from `E2E_RESTORE_FILE` when
+ * it has a valid `rule` entry; `false` (migration 0032's own default) is
+ * only a fallback for the case where stray rows exist but the file does
+ * not (e.g. it was lost) — the flag is otherwise left untouched.
  *
- * Tiers: a `discount_tiers` mismatch against `CONFIRMED_TIERS` is, by the
- * invariant above, unambiguous proof of a crash leftover — restored to the
- * confirmed scale with the flag OFF (migration 0032's own default), and
- * left untouched otherwise.
+ * Tiers: restored from `E2E_RESTORE_FILE` ONLY if it still has a `tiers`
+ * entry — never guessed from comparing the live scale to any "expected"
+ * value: Task 7 lets the shop owner edit that scale from /admin/discounts,
+ * so a live scale that differs from whatever this file thinks is "normal"
+ * is not evidence of a crash, it may just be Alessio doing his job (review
+ * round 2). No entry in the file ⇒ nothing is touched.
  *
  * Guarded like every seeder (`assertSeedingAllowed`), and safe to call with
  * nothing to clean — the point is calling it defensively from a `beforeAll`,
@@ -719,47 +784,57 @@ const tierKey = (rows: { min_qty: number; pct: number }[]) =>
 export async function sweepE2EDiscounts(): Promise<void> {
   assertSeedingAllowed();
   const db = adminClient();
+  const state = readRestoreState();
 
   const { data: strayRules, error: selErr } = await db
     .from("discount_rules")
     .select("id")
     .like("name", `${E2E_RULE_PREFIX}%`);
   if (selErr && selErr.code !== "42P01") throw selErr;
-  if (strayRules && strayRules.length > 0) {
-    const flagRes = await db.from("settings").update({ automations_enabled: false }).eq("id", 1);
+
+  const ruleState = isRuleState(state.rule) ? state.rule : undefined;
+  if ((strayRules && strayRules.length > 0) || ruleState) {
+    const flagBefore = ruleState?.flagBefore ?? false;
+    const flagRes = await db.from("settings").update({ automations_enabled: flagBefore }).eq("id", 1);
     if (flagRes.error) {
       throw new Error(
-        `[e2e sweep] FAILED to clear automations_enabled before removing stray rules: ${flagRes.error.message}`
+        `[e2e sweep] FAILED to restore automations_enabled: ${flagRes.error.message}`
       );
     }
-    const delRes = await db
-      .from("discount_rules")
-      .delete()
-      .in("id", strayRules.map((r) => r.id as string));
-    if (delRes.error) {
-      throw new Error(`[e2e sweep] FAILED to delete stray discount rules: ${delRes.error.message}`);
+    if (strayRules && strayRules.length > 0) {
+      const delRes = await db
+        .from("discount_rules")
+        .delete()
+        .in("id", strayRules.map((r) => r.id as string));
+      if (delRes.error) {
+        throw new Error(`[e2e sweep] FAILED to delete stray discount rules: ${delRes.error.message}`);
+      }
     }
+    if (ruleState) clearRestoreKey("rule");
   }
 
-  const { data: tierRows, error: tierErr } = await db.from("discount_tiers").select("min_qty, pct");
-  if (tierErr) throw tierErr;
-  if (tierKey(tierRows ?? []) !== tierKey(CONFIRMED_TIERS)) {
-    const flagRes = await db.from("settings").update({ quantity_discounts_enabled: false }).eq("id", 1);
+  const tiersState = isTiersState(state.tiers) ? state.tiers : undefined;
+  if (tiersState) {
+    const flagRes = await db
+      .from("settings")
+      .update({ quantity_discounts_enabled: tiersState.flagBefore })
+      .eq("id", 1);
     if (flagRes.error) {
       throw new Error(
-        `[e2e sweep] FAILED to clear quantity_discounts_enabled before restoring the confirmed scale: ${flagRes.error.message}`
+        `[e2e sweep] FAILED to restore quantity_discounts_enabled: ${flagRes.error.message}`
       );
     }
     const delT = await db.from("discount_tiers").delete().gte("min_qty", 0);
     if (delT.error) {
-      throw new Error(`[e2e sweep] FAILED to clear discount_tiers before restoring the confirmed scale: ${delT.error.message}`);
+      throw new Error(`[e2e sweep] FAILED to clear discount_tiers before restore: ${delT.error.message}`);
     }
-    const insT = await db
-      .from("discount_tiers")
-      .insert(CONFIRMED_TIERS.map((t, i) => ({ ...t, sort_order: i })));
-    if (insT.error) {
-      throw new Error(`[e2e sweep] FAILED to restore the confirmed discount_tiers scale: ${insT.error.message}`);
+    if (tiersState.before.length > 0) {
+      const insT = await db.from("discount_tiers").insert(tiersState.before);
+      if (insT.error) {
+        throw new Error(`[e2e sweep] FAILED to restore discount_tiers rows: ${insT.error.message}`);
+      }
     }
+    clearRestoreKey("tiers");
   }
 }
 

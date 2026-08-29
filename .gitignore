@@ -64,3 +64,5 @@ scripts/migrate-supabase.py
 vercel-preview
 
 scripts/__pycache__/
+# e2e discount-seed crash recovery (local run state, see e2e/helpers.ts)
+.e2e-discount-restore.json
