@@ -74,18 +74,30 @@ export function CartLinePrice({
   );
 }
 
-/** «4 of this ceramic in your basket → −5% · add 2 more → 8%». */
+/**
+ * «4 of this ceramic in your basket → −5% · add 2 more → 8%».
+ *
+ * `eligible` is the engine's own `LineDiscount.tierEligible` — the single
+ * source of truth for whether the tier scale applies to THIS line. It must be
+ * asked rather than re-derived: `discountConfig.tiers` is loaded by the server
+ * whether or not the feature is switched on, so a nudge reading the scale
+ * directly kept promising "add 4 more → 15%" with the tiers off, and kept
+ * advertising a worse tier on a line already holding a better deal.
+ */
 export function CartDiscountNudge({
   productQty,
   tiers,
   pct,
+  eligible,
 }: {
   productQty: number;
   tiers: DiscountTier[];
   pct: number;
+  eligible: boolean;
 }) {
   const t = useTranslations("cart.discount");
   const up = nextTier(productQty, tiers);
+  if (!eligible) return null;
   if (productQty === 0 || (pct === 0 && !up)) return null;
   return (
     <p data-testid="cart-discount-nudge" className="mt-1 text-[11px] text-muted-foreground">

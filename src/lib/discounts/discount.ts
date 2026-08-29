@@ -100,6 +100,19 @@ export interface LineDiscount {
    * only — the UI must say so rather than imply a line-wide percentage.
    */
   coveredQty: number;
+  /**
+   * Whether the TIER nudge may speak for this line. False when the tiers are
+   * switched off, when the product is outside the inclusion multi-select, or
+   * when the line already carries a deal — in that last case the tier scale is
+   * not just irrelevant, it contradicts the offer ("−50% · add 4 more → 8%"
+   * invites the customer to make things worse).
+   *
+   * It lives here, computed once beside the discount itself, so the two cart
+   * surfaces cannot drift: the nudge asks this instead of re-deriving
+   * eligibility from `discountConfig`, which the server loads in full whether
+   * the feature is on or not.
+   */
+  tierEligible: boolean;
 }
 
 export interface CartDiscount {
@@ -309,6 +322,8 @@ export function computeCartDiscount(
       net: subtract(full, saved),
       quantity: l.quantity,
       coveredQty: source === "none" ? l.quantity : coveredQty,
+      tierEligible:
+        config.tiersEnabled && included(l.productId, config) && source !== "deal",
     };
     if (source === "tier") tierSaves.push(saved);
     if (source === "deal") dealSaves.push(saved);

@@ -334,3 +334,47 @@ describe("a deal covers at most suggestedQty pieces (ADR 0023)", () => {
     expect(tiered.coveredQty).toBe(tiered.quantity);
   });
 });
+
+describe("tierEligible — the single source of truth for the tier nudge", () => {
+  it("is false when the tiers are switched off, even with the scale still in the table", () => {
+    // How the shop actually switches off: /admin/discounts flips the flag and
+    // LEAVES the rows (an empty scale is refused by saveDiscountTiers). The
+    // server loads `tiers` regardless, so the nudge must ask, not re-derive.
+    const d = computeCartDiscount(
+      [line({ id: "a", quantity: 2 })],
+      config({ tiersEnabled: false, tiers: [{ minQty: 2, pct: 12 }, { minQty: 9, pct: 20 }] })
+    ).perLine.a;
+    expect(d.pct).toBe(0);
+    expect(d.tierEligible).toBe(false);
+  });
+
+  it("is false for a product outside the inclusion multi-select", () => {
+    const d = computeCartDiscount(
+      [line({ id: "a", quantity: 8 })],
+      config({ includedProductIds: ["carafe"] })
+    ).perLine.a;
+    expect(d.tierEligible).toBe(false);
+  });
+
+  it("is false on a line already carrying a deal — the tier would contradict the offer", () => {
+    const OFFER = { ...RULE, suggestedProductId: "plate2", suggestedQty: 4, discountPct: 50 };
+    const d = computeCartDiscount(
+      [
+        line({ id: "trigger", quantity: 4 }),
+        line({ id: "deal", productId: "plate2", quantity: 4, dealRuleId: "r1" }),
+      ],
+      config({ automationsEnabled: true, rules: [OFFER], tiersEnabled: true })
+    ).perLine.deal;
+    expect(d.source).toBe("deal");
+    expect(d.tierEligible).toBe(false);
+  });
+
+  it("is true on an ordinary eligible line, below the first tier or above it", () => {
+    const r = computeCartDiscount(
+      [line({ id: "a", quantity: 1 }), line({ id: "b", productId: "other", quantity: 8 })],
+      config({ tiersEnabled: true })
+    );
+    expect(r.perLine.a.tierEligible).toBe(true); // below the scale: the nudge still invites
+    expect(r.perLine.b.tierEligible).toBe(true);
+  });
+});
