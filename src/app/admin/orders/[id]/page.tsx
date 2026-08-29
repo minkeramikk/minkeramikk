@@ -370,6 +370,7 @@ export default async function OrderDetailPage({
                 discountAmount={formatMoney(orderDiscount(order.items), "en")}
                 discountTotal={formatMoney(orderTotal(order.items), "en")}
                 hasDiscount={orderDiscount(order.items).amountCents > 0}
+                discountRatifiedAt={order.discountRatifiedAt}
               />
               <a
                 href={`mailto:${order.email}?subject=${encodeURIComponent(`Order ${order.code}`)}`}

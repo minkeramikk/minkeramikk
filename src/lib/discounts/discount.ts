@@ -122,22 +122,34 @@ export function nextTier(qty: number, tiers: DiscountTier[]): DiscountTier | nul
   return up ?? null;
 }
 
-/** Part ②: the % a rule grants on the line it produced. */
+/**
+ * Part ②: the % a rule grants on the line it produced.
+ *
+ * Re-derives the percentage from the DB config (never trusts a persisted
+ * number), and re-checks the two things a persisted `dealRuleId` can outlive:
+ * the line must still be the rule's suggested product (localStorage lets a
+ * customer forge any enabled rule id onto any line), and the trigger group
+ * must still reach `triggerMinQty` (fixed-mode deals don't recompute this on
+ * their own the way `inherited` does via `qtyByProduct` — see dealPct callers).
+ */
 function dealPct(
   ruleId: string,
+  productId: string | null,
   qtyByProduct: Record<string, number>,
   config: DiscountConfig
 ): number {
   if (!config.automationsEnabled) return 0;
   const rule = config.rules.find((r) => r.id === ruleId);
   if (!rule) return 0; // rule deleted/disabled since the line was added
+  if (productId !== rule.suggestedProductId) return 0; // not entitled to this rule
+  const groupQty = rule.triggerProductIds.reduce(
+    (n, pid) => n + (qtyByProduct[pid] ?? 0),
+    0
+  );
+  if (groupQty < rule.triggerMinQty) return 0; // trigger no longer satisfied
   if (rule.discountMode === "fixed") return rule.discountPct ?? 0;
   if (rule.discountMode === "inherited") {
     if (!config.tiersEnabled) return 0;
-    const groupQty = rule.triggerProductIds.reduce(
-      (n, pid) => n + (qtyByProduct[pid] ?? 0),
-      0
-    );
     return tierFor(groupQty, config.tiers);
   }
   return 0;
@@ -201,7 +213,11 @@ export function firstSuggestion(
     if (!sup || opts.supplierOfProduct(rule.suggestedProductId) !== sup) continue;
 
     // same fixed/inherited/none resolution dealPct() applies to a placed line
-    return { rule, fromLineId: from.id, pct: dealPct(rule.id, qtyByProduct, config) };
+    return {
+      rule,
+      fromLineId: from.id,
+      pct: dealPct(rule.id, rule.suggestedProductId, qtyByProduct, config),
+    };
   }
   return null;
 }
@@ -235,7 +251,7 @@ export function computeCartDiscount(
     let pct = 0;
     let source: LineDiscount["source"] = "none";
     if (l.dealRuleId) {
-      pct = dealPct(l.dealRuleId, qtyByProduct, config);
+      pct = dealPct(l.dealRuleId, l.productId, qtyByProduct, config);
       if (pct > 0) source = "deal";
     }
     if (source === "none" && config.tiersEnabled && included(l.productId, config)) {

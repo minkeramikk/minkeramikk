@@ -36,6 +36,7 @@ export function OrderStatusForm({
   discountAmount,
   discountTotal,
   hasDiscount,
+  discountRatifiedAt,
 }: {
   orderId: string;
   orderCode: string;
@@ -50,6 +51,9 @@ export function OrderStatusForm({
   discountAmount: string;
   discountTotal: string;
   hasDiscount: boolean;
+  /** Same field updateOrderStatus checks before stamping (ADR 0022 / D3) — lets
+   *  the dialog show the ratify note only when confirming would actually ratify. */
+  discountRatifiedAt: string | null;
 }) {
   const [state, formAction, pending] = useActionState(updateOrderStatus, {});
   const [selected, setSelected] = useState<OrderStatus>(currentStatus);
@@ -133,10 +137,11 @@ export function OrderStatusForm({
               <strong>{STATUS_LABEL[selected]}</strong>?
             </p>
 
-            {/* ADR 0022 / D3: gated on the identical condition as the ratify-on-confirm
-                guard in updateOrderStatus, so what the admin reads and what the
-                action does can never diverge. */}
-            {selected === "confirmed" && hasDiscount && (
+            {/* ADR 0022 / D3: same three conditions updateOrderStatus checks before
+                stamping discount_ratified_at — status, hasDiscount, and NOT already
+                ratified — so this note is never shown when confirming would not
+                actually ratify anything. */}
+            {selected === "confirmed" && hasDiscount && !discountRatifiedAt && (
               <p data-testid="ratify-confirm-note" className="text-sm">
                 Confirming also ratifies the discount: {discountSubtotal} −{" "}
                 {discountAmount} = {discountTotal}.

@@ -67,6 +67,32 @@ function payloadWith(itemOverrides: Partial<OrderItemInput>) {
   };
 }
 
+/** A two-item payload: the PLATE trigger line (still in the cart, satisfying
+ *  RULE_ID's triggerMinQty:1) plus a deal line built from item overrides —
+ *  what a real "accept the suggestion" cart looks like. Needed since the
+ *  fix-wave dealPct() now re-checks the trigger group is still met, which a
+ *  deal-line-only payload (no trigger line at all) can never satisfy. */
+function payloadWithTriggerAnd(itemOverrides: Partial<OrderItemInput>) {
+  const base = payloadWith(itemOverrides);
+  return {
+    ...base,
+    items: [
+      {
+        supplierId: "30a18ecc-0b97-4df4-a51d-aae79ee9c674",
+        supplierName: "Vietri",
+        productId: PLATE,
+        productName: "Vietri Flat",
+        unitPriceCents: 50_000,
+        currency: "NOK" as const,
+        quantity: 1,
+        configCode: "MK-A-A-A",
+        configSnapshot: { designName: "Blomster 1" },
+      },
+      ...base.items,
+    ],
+  };
+}
+
 /** Reads the p_items rows the RPC would have received off the mock's captured calls. */
 function capturedRowsFrom(calls: { p_items: OrderItemRow[] }[]): OrderItemRow[] {
   return calls[0].p_items;
@@ -91,15 +117,17 @@ const fixedRuleConfig: DiscountConfig = {
 
 describe("createOrder — the server resolves a deal from the DB config, never the payload", () => {
   it("a deal line is snapshotted with the RULE's percentage, not the browser's", async () => {
+    // Trigger line (plate) must still be in the payload — fix-wave I1/I2:
+    // dealPct() now re-checks the trigger group is still met, not just the %.
     const { db, calls } = makeMockDb();
     const res = await createOrder(
-      payloadWith({ productId: BOAT, appliedRuleId: RULE_ID }),
+      payloadWithTriggerAnd({ productId: BOAT, appliedRuleId: RULE_ID }),
       { config: fixedRuleConfig, db, verify: async () => true, transport: mockTransport() }
     );
     expect(res.ok).toBe(true);
     const rows = capturedRowsFrom(calls);
-    expect(rows[0].discount_pct).toBe(15);
-    expect(rows[0].discount_source).toBe("deal");
+    expect(rows[1].discount_pct).toBe(15);
+    expect(rows[1].discount_source).toBe("deal");
   });
 
   it("an unknown or disabled rule id gives no discount, not a crash — and never a literal 0 (CHECK constraint trap)", async () => {
@@ -116,17 +144,34 @@ describe("createOrder — the server resolves a deal from the DB config, never t
     expect(rows[0].discount_pct).not.toBe(0);
   });
 
+  it("D7 — a rule id unknown to an ENABLED config (deleted between add-to-cart and checkout) gives no discount, never a literal 0", async () => {
+    // EMPTY_CONFIG in the test above only exercises dealPct's automationsEnabled
+    // early return; this exercises the `if (!rule) return 0` branch ADR 0023
+    // describes explicitly (a rule deleted after the line was added).
+    const { db, calls } = makeMockDb();
+    const res = await createOrder(
+      payloadWithTriggerAnd({ productId: BOAT, appliedRuleId: UNKNOWN_RULE_ID }),
+      { config: fixedRuleConfig, db, verify: async () => true, transport: mockTransport() }
+    );
+    expect(res.ok).toBe(true);
+    const rows = capturedRowsFrom(calls);
+    // toBeFalsy()/not.toBe(0) alone would also pass a literal 0, which aborts
+    // the whole insert under migration 0032's CHECK — toBeNull() is the point.
+    expect(rows[1].discount_pct).toBeNull();
+    expect(rows[1].discount_pct).not.toBe(0);
+  });
+
   it("a fixed deal survives the tiers being switched off", async () => {
     const { db, calls } = makeMockDb();
     const config: DiscountConfig = { ...fixedRuleConfig, tiersEnabled: false };
     const res = await createOrder(
-      payloadWith({ productId: BOAT, appliedRuleId: RULE_ID }),
+      payloadWithTriggerAnd({ productId: BOAT, appliedRuleId: RULE_ID }),
       { config, db, verify: async () => true, transport: mockTransport() }
     );
     expect(res.ok).toBe(true);
     const rows = capturedRowsFrom(calls);
-    expect(rows[0].discount_pct).toBe(15);
-    expect(rows[0].discount_source).toBe("deal");
+    expect(rows[1].discount_pct).toBe(15);
+    expect(rows[1].discount_source).toBe("deal");
   });
 
   it("a rule that resolves to 'inherited' with tiers off yields no discount", async () => {

@@ -180,6 +180,12 @@ function itemsTable(items: MailItem[], theme: ThemeTokens, locale: "no" | "en") 
  * `var()` or `color-mix()`, so every theme colour in this file already
  * arrives as inline hex (see the `ThemeTokens` param) — this one just isn't
  * themeable, since it isn't a `settings` token to begin with.
+ *
+ * Derivation: NOT the `color-mix(in oklab, var(--discount), black 34%)` the
+ * on-page discount badges use (that formula yields `#455c3c`, noticeably
+ * darker) — this value is roughly `color-mix(in oklab, var(--discount),
+ * black 18%)` of `--discount: #7da46f`. Re-derive from that ratio, not 34%,
+ * on a brand change.
  */
 const DISCOUNT_HEX = "#5d7d52";
 
@@ -197,10 +203,10 @@ const COPY = {
     shippingLabel: "Frakt med forsikring",
     shippingIncluded: "Inkludert",
     shippingToBeConfirmed: "Beregnes",
-    discountLabel: "Mengderabatt",
+    discountLabel: "Mengderabatt", // TODO:nb-review
     // R4-SCONTI · same sentence as cart.discount.note
     indicative:
-      "Rabatten er veiledende — vi bekrefter endelig pris sammen med bestillingen.",
+      "Rabatten er veiledende — vi bekrefter endelig pris sammen med bestillingen.", // TODO:nb-review
     noteLabel: "Din beskjed til verkstedet", // TODO:nb-review
     textLabel: "Tekst på keramikken", // TODO:nb-review
     legalIntro:

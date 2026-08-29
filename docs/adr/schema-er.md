@@ -290,8 +290,10 @@ Niente GIN su `config_snapshot`: nessuna query dentro il jsonb prevista.
   (`discount_pct`/`discount_cents`/`discount_source`); la ratifica del negozio è
   `orders.discount_ratified_at`, gemello di `paid_at` (ADR 0021).
 - `discount_rules` / `discount_rule_products` (ADR 0023, estende ADR 0022): fondamenta
-  dati per le automazioni "chi ha X → suggerisci Y" — solo schema in questo task,
-  nessuna UI admin né logica di matching nel carrello. Il gruppo trigger è un
+  dati per le automazioni "chi ha X → suggerisci Y", con UI admin di authoring e
+  logica di matching nel carrello spedite in questo ramo (v. ADR 0023 — Perimetro);
+  nessuna colonna `deal_rule_id` su `order_items`, lo snapshot ordine congela solo
+  `discount_pct`/`discount_cents`/`discount_source`. Il gruppo trigger è un
   multi-select di prodotti (`discount_rule_products`, PK composita `(rule_id,
   product_id)`, stessa forma di `design_products`), mai una serie. Tre modalità di
   sconto sul prodotto suggerito (`discount_mode`: `fixed` indipendente dai tier |

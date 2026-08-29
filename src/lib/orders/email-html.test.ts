@@ -179,4 +179,24 @@ describe("discounted emails (R4-SCONTI)", () => {
     const m = adminEmail({ ...baseAdminParams, items: [discounted] });
     expect(m.text).toContain("-10%");
   });
+
+  it("D5 — shipping reads the NET total, not the gross: an item whose gross clears the threshold but whose net (after its discount) does not shows 'to be confirmed', never 'included'", () => {
+    // gross = 100 000 øre (exactly the 1 000 NOK default threshold, so a
+    // gross-based read would show it included); net after the 10% discount
+    // is 90 000 øre, below the threshold — D5 says the shop confirms shipping
+    // by hand in that case.
+    const item: MailItem = {
+      productName: "Deluxe tallerken",
+      quantity: 1,
+      unitPriceCents: 100_000,
+      currency: "NOK",
+      configCode: "MK-A-b1",
+      discountPct: 10,
+      discountCents: 10_000,
+    };
+    const m = customerEmail({ ...baseParams, items: [item] });
+    expect(m.html).toContain("Beregnes");
+    expect(m.text).toContain("Beregnes");
+    expect(m.html).not.toContain("Inkludert");
+  });
 });

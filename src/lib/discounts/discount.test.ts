@@ -138,6 +138,50 @@ const opts = {
   supplierOfProduct: () => "sup1",
 };
 
+describe("computeCartDiscount — deal entitlement (I1/I2 fix-wave)", () => {
+  const cfg = () => config({ automationsEnabled: true, rules: [RULE] });
+
+  it("a legitimate deal line with its trigger present keeps its percentage", () => {
+    const lines = [
+      line({ id: "a", productId: "plate", quantity: 4 }),
+      line({ id: "b", productId: "boat", quantity: 1, dealRuleId: "r1" }),
+    ];
+    const r = computeCartDiscount(lines, cfg());
+    expect(r.perLine.b.pct).toBe(15);
+    expect(r.perLine.b.source).toBe("deal");
+  });
+
+  it("I1 — a fixed deal line whose trigger line has been removed resolves to 0", () => {
+    // the plate that triggered the deal is gone; only the boat line remains,
+    // still carrying the dealRuleId from when the trigger was present.
+    const lines = [line({ id: "b", productId: "boat", quantity: 1, dealRuleId: "r1" })];
+    const r = computeCartDiscount(lines, cfg());
+    expect(r.perLine.b.pct).toBe(0);
+    expect(r.perLine.b.source).toBe("none");
+  });
+
+  it("I2 — a line carrying a dealRuleId for a rule that suggests a different product gets no discount", () => {
+    // the trigger is satisfied, but this line (plate, qty 1 so it can't also
+    // qualify for a quantity tier on its own) is not the rule's suggested
+    // product (boat) — a forged/mismatched localStorage id.
+    const lines = [line({ id: "a", productId: "plate", quantity: 1, dealRuleId: "r1" })];
+    const r = computeCartDiscount(lines, cfg());
+    expect(r.perLine.a.pct).toBe(0);
+    expect(r.perLine.a.source).toBe("none");
+  });
+
+  it("inherited mode still resolves to the group's current tier via computeCartDiscount", () => {
+    const inherited = { ...RULE, discountMode: "inherited" as const, discountPct: null };
+    const lines = [
+      line({ id: "a", productId: "plate", quantity: 8 }),
+      line({ id: "b", productId: "boat", quantity: 1, dealRuleId: "r1" }),
+    ];
+    const r = computeCartDiscount(lines, config({ automationsEnabled: true, rules: [inherited] }));
+    expect(r.perLine.b.pct).toBe(10);
+    expect(r.perLine.b.source).toBe("deal");
+  });
+});
+
 describe("firstSuggestion", () => {
   const cfg = (over = {}) =>
     config({ automationsEnabled: true, rules: [RULE], ...over });

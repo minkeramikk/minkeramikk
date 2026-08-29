@@ -142,6 +142,9 @@ export function removeLine(cart: Cart, id: string): Cart {
   return cart.filter((l) => l.id !== id);
 }
 
+// M3, fix wave: zero production callers since R4-SCONTI (computeCartDiscount
+// owns the discounted totals now) — retained only because cart.test.ts and
+// shipping.test.ts still exercise these two directly.
 export function lineSubtotal(line: CartLine): Money {
   return multiply(money(line.unitPriceCents, line.currency), line.quantity);
 }

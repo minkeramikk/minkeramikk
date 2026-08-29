@@ -39,11 +39,13 @@ config live nel browser e **ri-derivata dal DB lato server** prima di essere
 congelata sullo snapshot — lo stesso confine di fiducia di ADR 0022 (d): il server
 possiede lo sconto.
 
-**Perimetro (questo task).** Migration 0034 pone solo le fondamenta di dati: due
-tabelle (`discount_rules`, `discount_rule_products`) e una RPC di replace atomico per
-il gruppo trigger. Nessuna UI admin, nessuna logica di matching nel carrello, nessuna
-colonna `deal_rule_id` su `order_items` — tutto rimandato ai task successivi della card
-R4-SCONTI.
+**Perimetro.** Questo ramo spedisce, oltre alle fondamenta dati (migration 0034: due
+tabelle e la RPC di replace atomico per il gruppo trigger), anche l'UI admin di
+authoring delle regole (`discount-rules-editor.tsx`, `saveDiscountRule`) e la logica
+di matching nel carrello (`firstSuggestion`, `CartSuggestion`) — non più rimandate ai
+task successivi. Resta fuori solo `deal_rule_id` come colonna su `order_items`: la
+riga di carrello porta l'id regola in memoria, ma lo snapshot ordine congela solo
+`discount_pct`/`discount_cents`/`discount_source`, mai l'id della regola.
 
 **Alternative scartate:**
 - *Una regola che punta a una serie* — il cliente ha tagliato la dipendenza il 28/8; un
