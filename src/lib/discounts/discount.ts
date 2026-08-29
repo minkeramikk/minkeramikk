@@ -143,6 +143,63 @@ function dealPct(
   return 0;
 }
 
+export interface ActiveSuggestion {
+  rule: DiscountRule;
+  /** The line whose design/config the suggested line inherits (ADR 0023 (e)). */
+  fromLineId: string;
+  pct: number;
+}
+
+/**
+ * The ONE suggestion to show, or null. One card at a time (spec-sconti.html §2)
+ * and the first matching rule in the admin's own order wins — no scoring, no
+ * "best offer" heuristic nobody asked for.
+ */
+export function firstSuggestion(
+  lines: DiscountLineInput[],
+  config: DiscountConfig,
+  opts: {
+    dismissedRuleIds: string[];
+    supplierOf: (lineId: string) => string | null;
+    supplierOfProduct: (productId: string) => string | null;
+  }
+): ActiveSuggestion | null {
+  if (!config.automationsEnabled) return null;
+
+  const qtyByProduct: Record<string, number> = {};
+  for (const l of lines) {
+    if (!included(l.productId, config)) continue; // excluded ⇒ never a trigger
+    qtyByProduct[l.productId as string] =
+      (qtyByProduct[l.productId as string] ?? 0) + l.quantity;
+  }
+  const inCart = new Set(lines.map((l) => l.productId).filter(Boolean) as string[]);
+
+  for (const rule of config.rules) {
+    if (opts.dismissedRuleIds.includes(rule.id)) continue;
+    if (inCart.has(rule.suggestedProductId)) continue; // D1
+    const groupQty = rule.triggerProductIds.reduce(
+      (n, pid) => n + (qtyByProduct[pid] ?? 0),
+      0
+    );
+    if (groupQty < rule.triggerMinQty) continue;
+
+    // the line that will lend its config: the biggest trigger line (the one the
+    // customer clearly committed to), first-seen on a tie
+    const from = lines
+      .filter((l) => l.productId && rule.triggerProductIds.includes(l.productId))
+      .sort((a, b) => b.quantity - a.quantity)[0];
+    if (!from) continue;
+
+    // same supplier, or the config code means nothing on the suggested product
+    const sup = opts.supplierOf(from.id);
+    if (!sup || opts.supplierOfProduct(rule.suggestedProductId) !== sup) continue;
+
+    // same fixed/inherited/none resolution dealPct() applies to a placed line
+    return { rule, fromLineId: from.id, pct: dealPct(rule.id, qtyByProduct, config) };
+  }
+  return null;
+}
+
 export function computeCartDiscount(
   lines: DiscountLineInput[],
   config: DiscountConfig
