@@ -89,6 +89,17 @@ export interface LineDiscount {
   full: Money;
   saved: Money;
   net: Money;
+  /** Pieces on the line. */
+  quantity: number;
+  /**
+   * Pieces the discount actually covers. Equal to `quantity` for a tier — the
+   * scale is earned by the whole line. For a DEAL it is capped at the rule's
+   * `suggestedQty` (ADR 0023): «4 × Deep plate at 50%» is an offer on four
+   * pieces, not a 50% licence on the line, so raising the quantity leaves the
+   * extra pieces at full price. `pct` therefore describes the covered pieces
+   * only — the UI must say so rather than imply a line-wide percentage.
+   */
+  coveredQty: number;
 }
 
 export interface CartDiscount {
@@ -133,29 +144,36 @@ export function nextTier(qty: number, tiers: DiscountTier[]): DiscountTier | nul
  * the line must still be the rule's suggested product (localStorage lets a
  * customer forge any enabled rule id onto any line), and the trigger group
  * must still reach `triggerMinQty` (fixed-mode deals don't recompute this on
- * their own the way `inherited` does via `qtyByProduct` — see dealPct callers).
+ * their own the way `inherited` does via `qtyByProduct` — see resolveDeal callers).
  */
-function dealPct(
+/**
+ * The percentage a rule grants AND how many pieces it covers. One function
+ * answers both because one thing decides both: the rule. `suggestedQty` is the
+ * size of the offer, so it is also its ceiling.
+ */
+function resolveDeal(
   ruleId: string,
   productId: string | null,
   qtyByProduct: Record<string, number>,
   config: DiscountConfig
-): number {
-  if (!config.automationsEnabled) return 0;
+): { pct: number; suggestedQty: number } {
+  const none = { pct: 0, suggestedQty: 0 };
+  if (!config.automationsEnabled) return none;
   const rule = config.rules.find((r) => r.id === ruleId);
-  if (!rule) return 0; // rule deleted/disabled since the line was added
-  if (productId !== rule.suggestedProductId) return 0; // not entitled to this rule
+  if (!rule) return none; // rule deleted/disabled since the line was added
+  if (productId !== rule.suggestedProductId) return none; // not entitled to this rule
   const groupQty = rule.triggerProductIds.reduce(
     (n, pid) => n + (qtyByProduct[pid] ?? 0),
     0
   );
-  if (groupQty < rule.triggerMinQty) return 0; // trigger no longer satisfied
-  if (rule.discountMode === "fixed") return rule.discountPct ?? 0;
+  if (groupQty < rule.triggerMinQty) return none; // trigger no longer satisfied
+  const q = rule.suggestedQty;
+  if (rule.discountMode === "fixed") return { pct: rule.discountPct ?? 0, suggestedQty: q };
   if (rule.discountMode === "inherited") {
-    if (!config.tiersEnabled) return 0;
-    return tierFor(groupQty, config.tiers);
+    if (!config.tiersEnabled) return none;
+    return { pct: tierFor(groupQty, config.tiers), suggestedQty: q };
   }
-  return 0;
+  return none;
 }
 
 export interface ActiveSuggestion {
@@ -215,11 +233,11 @@ export function firstSuggestion(
     const sup = opts.supplierOf(from.id);
     if (!sup || opts.supplierOfProduct(rule.suggestedProductId) !== sup) continue;
 
-    // same fixed/inherited/none resolution dealPct() applies to a placed line
+    // same fixed/inherited/none resolution resolveDeal() applies to a placed line
     return {
       rule,
       fromLineId: from.id,
-      pct: dealPct(rule.id, rule.suggestedProductId, qtyByProduct, config),
+      pct: resolveDeal(rule.id, rule.suggestedProductId, qtyByProduct, config).pct,
     };
   }
   return null;
@@ -253,22 +271,44 @@ export function computeCartDiscount(
     // deal wins over tier (a fixed rule deal survives the tiers being off)
     let pct = 0;
     let source: LineDiscount["source"] = "none";
+    // A tier is earned by the whole line; a deal covers at most the pieces the
+    // offer was for (ADR 0023). Without the cap, «4 × Deep plate at 50%» would
+    // hand a customer 50% on twenty pieces simply by raising the quantity.
+    let coveredQty = l.quantity;
     if (l.dealRuleId) {
-      pct = dealPct(l.dealRuleId, l.productId, qtyByProduct, config);
-      if (pct > 0) source = "deal";
+      const deal = resolveDeal(l.dealRuleId, l.productId, qtyByProduct, config);
+      pct = deal.pct;
+      if (pct > 0) {
+        source = "deal";
+        coveredQty = Math.min(l.quantity, deal.suggestedQty);
+      }
     }
     if (source === "none" && config.tiersEnabled && included(l.productId, config)) {
       pct = tierFor(qtyByProduct[l.productId as string] ?? 0, config.tiers);
-      if (pct > 0) source = "tier";
+      if (pct > 0) {
+        source = "tier";
+        coveredQty = l.quantity;
+      }
     }
 
-    const saved = pct > 0 ? percentOf(full, pct) : money(0, l.currency);
+    // The percentage applies to the COVERED pieces, not to the line total. The
+    // amount is what everything downstream reads (build.ts freezes cents,
+    // email-html.ts nets off cents, totals and the shipping threshold sum
+    // cents) — `pct` is only ever a label, never used to re-derive a price, so
+    // capping the base needs no change to the order model.
+    const base =
+      coveredQty === l.quantity
+        ? full
+        : multiply(money(l.unitPriceCents, l.currency), coveredQty);
+    const saved = pct > 0 ? percentOf(base, pct) : money(0, l.currency);
     perLine[l.id] = {
       pct: source === "none" ? 0 : pct,
       source,
       full,
       saved,
       net: subtract(full, saved),
+      quantity: l.quantity,
+      coveredQty: source === "none" ? l.quantity : coveredQty,
     };
     if (source === "tier") tierSaves.push(saved);
     if (source === "deal") dealSaves.push(saved);

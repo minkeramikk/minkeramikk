@@ -255,7 +255,8 @@
       "quantityRow": "Quantity discount",
       "dealRow": "Offer",
       "note": "Discounts shown are indicative — we confirm the final price with your order.",
-      "srNowLabel": "Now:"
+      "srNowLabel": "Now:",
+      "badgeCapped": "−{pct}% on {qty} pcs"
     }
   },
   "order": {

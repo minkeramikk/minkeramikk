@@ -9,7 +9,7 @@ import { nextTier, type DiscountTier, type LineDiscount } from "@/lib/discounts/
  * nudge, shared by CartDrawer (§3.12) and DockedCart (§3.14).
  *
  * TODO:nb-review — the `cart.discount.*` Norwegian copy is the TL's wording
- * (`badge`, `inCart`, `applied`, `nudge`, `srNowLabel`).
+ * (`badge`, `badgeCapped`, `inCart`, `applied`, `nudge`, `srNowLabel`).
  *
  * `d` is looked up 1:1 as `discount.perLine[line.id]` at both call sites, from
  * the very same `cart` array `computeCartDiscount` was just run over in the
@@ -61,7 +61,14 @@ export function CartLinePrice({
           border: "1px solid color-mix(in oklab, var(--discount) 38%, white)",
         }}
       >
-        {t("badge", { pct: d.pct })}
+        {/* A deal covers at most the rule's suggestedQty (ADR 0023), so on a
+            line the customer has grown past the offer a bare «−50%» would be a
+            lie about the line total. Say what is true — «−50% on 4 pcs» — and
+            leave the rest at full price; an "effective" percentage computed
+            over the whole line is arithmetic no shopper reads. */}
+        {d.coveredQty < d.quantity
+          ? t("badgeCapped", { pct: d.pct, qty: d.coveredQty })
+          : t("badge", { pct: d.pct })}
       </span>
     </span>
   );

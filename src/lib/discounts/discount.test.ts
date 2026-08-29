@@ -280,3 +280,57 @@ describe("firstSuggestion", () => {
     expect(s?.fromLineId).toBe("b");
   });
 });
+
+describe("a deal covers at most suggestedQty pieces (ADR 0023)", () => {
+  // «4 × Deep plate at 50%» is an offer on FOUR pieces. Before the cap it was a
+  // 50% licence on the line: accept the suggestion, raise the quantity, and the
+  // whole line went half price. Unit price 35000 øre, so the offer is worth
+  // 50% of 4 × 35000 = 70000 øre — and that number must not move.
+  const OFFER = {
+    ...RULE,
+    suggestedProductId: "plate2",
+    suggestedQty: 4,
+    discountPct: 50,
+  };
+  const cfg = config({ automationsEnabled: true, rules: [OFFER], tiersEnabled: false });
+  const cart = (qty: number) => [
+    line({ id: "trigger", quantity: 4 }), // satisfies triggerMinQty
+    line({ id: "deal", productId: "plate2", unitPriceCents: 35000, quantity: qty, dealRuleId: "r1" }),
+  ];
+
+  it("at exactly suggestedQty: the whole line is covered", () => {
+    const d = computeCartDiscount(cart(4), cfg).perLine.deal;
+    expect(d.source).toBe("deal");
+    expect(d.saved).toEqual(money(70000));
+    expect(d.coveredQty).toBe(4);
+    expect(d.quantity).toBe(4);
+    expect(d.net).toEqual(money(70000)); // 140000 − 70000
+  });
+
+  it("BELOW suggestedQty: only the pieces actually in the cart are covered", () => {
+    const d = computeCartDiscount(cart(2), cfg).perLine.deal;
+    expect(d.saved).toEqual(money(35000)); // 50% of 2 × 35000
+    expect(d.coveredQty).toBe(2);
+  });
+
+  it("ABOVE suggestedQty: the saving stops at the offer, the extra is full price", () => {
+    const d = computeCartDiscount(cart(20), cfg).perLine.deal;
+    expect(d.saved).toEqual(money(70000)); // identical to the qty-4 case
+    expect(d.coveredQty).toBe(4);
+    expect(d.quantity).toBe(20);
+    // the 16 uncovered pieces are charged in full
+    expect(d.net).toEqual(money(20 * 35000 - 70000));
+    // and the invariant the whole engine rests on still holds
+    expect(d.net.amountCents + d.saved.amountCents).toBe(d.full.amountCents);
+  });
+
+  it("a TIER is not capped — the scale is earned by the whole line", () => {
+    const tiered = computeCartDiscount(
+      [line({ id: "a", quantity: 8 })],
+      config({ tiersEnabled: true })
+    ).perLine.a;
+    expect(tiered.source).toBe("tier");
+    expect(tiered.coveredQty).toBe(8);
+    expect(tiered.coveredQty).toBe(tiered.quantity);
+  });
+});
