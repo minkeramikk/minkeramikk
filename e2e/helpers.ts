@@ -611,6 +611,10 @@ export async function seedDiscountTiers(
  * throws loudly instead of swallowing — this is the config the live
  * catalogue serves.
  */
+/** Prefix for every `discount_rules.name` an e2e run creates; `sweepE2EDiscounts`
+ *  owns it — same shape as `TMP_DESIGN_PREFIX` above. */
+const E2E_RULE_PREFIX = "e2e-tmp-rule-";
+
 export async function seedDiscountRule(opts: {
   triggerProductId: string;
   suggestedProductId: string;
@@ -627,7 +631,7 @@ export async function seedDiscountRule(opts: {
   const { data: rule, error } = await db
     .from("discount_rules")
     .insert({
-      name: `E2E rule ${Date.now()}`,
+      name: `${E2E_RULE_PREFIX}${Date.now()}`,
       enabled: true,
       trigger_min_qty: opts.minQty,
       suggested_product_id: opts.suggestedProductId,
@@ -667,6 +671,96 @@ export async function seedDiscountRule(opts: {
       }
     },
   };
+}
+
+// The client's confirmed scale (AGENTS.md, GLOBAL-CONSTRAINTS.md:9, ratified
+// 27/8) — the ONLY state `discount_tiers` should ever be in outside of a
+// running test. Every seeded test scale is deliberately different from this
+// one (see cart.spec.ts's own comment on that), precisely so `sweepE2EDiscounts`
+// below can tell "mid-test" from "at rest" apart without an owner column.
+const CONFIRMED_TIERS = [
+  { min_qty: 4, pct: 5 },
+  { min_qty: 6, pct: 8 },
+  { min_qty: 8, pct: 10 },
+  { min_qty: 12, pct: 15 },
+];
+const tierKey = (rows: { min_qty: number; pct: number }[]) =>
+  rows
+    .map((r) => `${r.min_qty}:${r.pct}`)
+    .sort()
+    .join(",");
+
+/**
+ * R4-SCONTI ② — a run that gets killed (SIGKILL, OOM, a cancelled CI job,
+ * Ctrl-C) between `seedDiscountRule`'s/`seedDiscountTiers`'s flag write and
+ * their own `finally` leaves the live shop showing a stray upsell or a stray
+ * test scale, silently, until a human notices — staging serves the real
+ * public site. Same lezione as `sweepTmpDesigns` (`:255` above: "un run che
+ * crasha lascia il design in catalogo"), applied to both discount seeders.
+ *
+ * Rules: deletes every `discount_rules` row whose name carries
+ * `E2E_RULE_PREFIX` (`discount_rule_products` cascades, migration 0034) and,
+ * ONLY if it found any, puts `automations_enabled` back to false — never
+ * touches the flag when there is nothing to clean, so a legitimate
+ * "automations really are on" state is never clobbered. Tolerates
+ * `discount_rules` not existing yet (42P01, migration 0034 not applied
+ * anywhere at the time this was written): nothing to sweep from a table that
+ * isn't there.
+ *
+ * Tiers: a `discount_tiers` mismatch against `CONFIRMED_TIERS` is, by the
+ * invariant above, unambiguous proof of a crash leftover — restored to the
+ * confirmed scale with the flag OFF (migration 0032's own default), and
+ * left untouched otherwise.
+ *
+ * Guarded like every seeder (`assertSeedingAllowed`), and safe to call with
+ * nothing to clean — the point is calling it defensively from a `beforeAll`,
+ * whether or not the previous run actually crashed.
+ */
+export async function sweepE2EDiscounts(): Promise<void> {
+  assertSeedingAllowed();
+  const db = adminClient();
+
+  const { data: strayRules, error: selErr } = await db
+    .from("discount_rules")
+    .select("id")
+    .like("name", `${E2E_RULE_PREFIX}%`);
+  if (selErr && selErr.code !== "42P01") throw selErr;
+  if (strayRules && strayRules.length > 0) {
+    const flagRes = await db.from("settings").update({ automations_enabled: false }).eq("id", 1);
+    if (flagRes.error) {
+      throw new Error(
+        `[e2e sweep] FAILED to clear automations_enabled before removing stray rules: ${flagRes.error.message}`
+      );
+    }
+    const delRes = await db
+      .from("discount_rules")
+      .delete()
+      .in("id", strayRules.map((r) => r.id as string));
+    if (delRes.error) {
+      throw new Error(`[e2e sweep] FAILED to delete stray discount rules: ${delRes.error.message}`);
+    }
+  }
+
+  const { data: tierRows, error: tierErr } = await db.from("discount_tiers").select("min_qty, pct");
+  if (tierErr) throw tierErr;
+  if (tierKey(tierRows ?? []) !== tierKey(CONFIRMED_TIERS)) {
+    const flagRes = await db.from("settings").update({ quantity_discounts_enabled: false }).eq("id", 1);
+    if (flagRes.error) {
+      throw new Error(
+        `[e2e sweep] FAILED to clear quantity_discounts_enabled before restoring the confirmed scale: ${flagRes.error.message}`
+      );
+    }
+    const delT = await db.from("discount_tiers").delete().gte("min_qty", 0);
+    if (delT.error) {
+      throw new Error(`[e2e sweep] FAILED to clear discount_tiers before restoring the confirmed scale: ${delT.error.message}`);
+    }
+    const insT = await db
+      .from("discount_tiers")
+      .insert(CONFIRMED_TIERS.map((t, i) => ({ ...t, sort_order: i })));
+    if (insT.error) {
+      throw new Error(`[e2e sweep] FAILED to restore the confirmed discount_tiers scale: ${insT.error.message}`);
+    }
+  }
 }
 
 export async function deleteOrder(orderId: string) {

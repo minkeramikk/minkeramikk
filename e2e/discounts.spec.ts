@@ -9,6 +9,7 @@ import {
   loginAdmin,
   seedDiscountRule,
   seedDiscountTiers,
+  sweepE2EDiscounts,
 } from "./helpers";
 
 /**
@@ -62,6 +63,14 @@ async function probeRulesTable(): Promise<boolean> {
 
 test.beforeAll(async () => {
   if (!CAN_SEED) return; // beforeEach skips every test either way; avoid the DB round trip
+
+  // A previous run that got killed mid-test (SIGKILL, OOM, a cancelled CI
+  // job) can leave a stray "e2e-tmp-rule-…" live with automations_enabled
+  // still on, or a leftover test tier scale — staging serves the real public
+  // site, so this cleans up after that BEFORE anything else in this file
+  // seeds a thing. Safe to call with nothing to clean (e2e/helpers.ts).
+  await sweepE2EDiscounts();
+
   hasRulesTable = await probeRulesTable();
   if (!hasRulesTable) return;
 
