@@ -8,7 +8,14 @@ import { nextTier, type DiscountTier, type LineDiscount } from "@/lib/discounts/
  * R4-SCONTI (DESIGN-SYSTEM §3.22) — the discounted price cell and the per-line
  * nudge, shared by CartDrawer (§3.12) and DockedCart (§3.14).
  *
- * TODO:nb-review — the `cart.discount.*` Norwegian copy is the TL's wording.
+ * TODO:nb-review — the `cart.discount.*` Norwegian copy is the TL's wording
+ * (`badge`, `inCart`, `applied`, `nudge`, `srNowLabel`).
+ *
+ * `d` is looked up 1:1 as `discount.perLine[line.id]` at both call sites, from
+ * the very same `cart` array `computeCartDiscount` was just run over in the
+ * same render (`cart-context.tsx`) — so it is never undefined in practice,
+ * unlike the nudge's `?.pct ?? 0`, which reads a *different* map keyed by
+ * product, not line.
  */
 export function CartLinePrice({
   d,
@@ -20,17 +27,29 @@ export function CartLinePrice({
   const t = useTranslations("cart.discount");
   if (d.pct === 0) {
     return (
-      <span data-testid="cart-line-net" className="text-sm font-medium tabular-nums">
+      <span
+        data-testid="cart-line-net"
+        className="text-right text-sm font-medium tabular-nums"
+      >
         {formatMoney(d.full, locale)}
       </span>
     );
   }
   return (
     <span className="flex flex-col items-end gap-0.5">
-      <s data-testid="cart-line-full" className="text-xs text-muted-foreground tabular-nums">
+      {/* aria-hidden: a screen reader that doesn't honour <s> semantics would
+          otherwise announce the crossed-out full price with nothing marking
+          it as superseded — the net price below carries its own sr-only
+          "Now:" prefix so the charged amount stays unambiguous. */}
+      <s
+        aria-hidden="true"
+        data-testid="cart-line-full"
+        className="text-xs text-muted-foreground tabular-nums"
+      >
         {formatMoney(d.full, locale)}
       </s>
       <span data-testid="cart-line-net" className="text-sm font-medium tabular-nums">
+        <span className="sr-only">{t("srNowLabel")} </span>
         {formatMoney(d.net, locale)}
       </span>
       <span

@@ -17,7 +17,6 @@ import type { Currency } from "@/lib/money/money";
 import { useCartContext } from "@/lib/cart/cart-context";
 import {
   cartPieces,
-  cartTotal,
   designLabel,
   itemCount,
   type CartLine,
@@ -309,8 +308,11 @@ export function CeramicsStep({
     const ios = [watch(120, true), watch(40, false)];
     return () => ios.forEach((io) => io.disconnect());
   }, []);
-  const total = cartTotal(cart);
-  const totalSuffix = useShippingTotalSuffix(total);
+  // R4-SCONTI fix-1: the sticky bar can be on screen at the same time as the
+  // docked panel's totals (see the intersection-observer note above) — both
+  // must read the same NET number, never the panel's net beside the bar's
+  // gross.
+  const stickyTotalSuffix = useShippingTotalSuffix(discount.total);
 
   function addSelected() {
     const selected = opened;
@@ -610,7 +612,11 @@ export function CeramicsStep({
             ))}
           </div>
 
-          <div className="mt-3 flex flex-col gap-3 border-t border-border pt-3">
+          {/* R4-SCONTI fix-3: gap-3 dropped — CartTotals now owns a single
+              child here and carries its own internal gap-2, the same value
+              cart-menu.tsx's SheetFooter already used, so the two surfaces
+              stay consistent with each other rather than drifting apart. */}
+          <div className="mt-3 flex flex-col border-t border-border pt-3">
             <CartTotals totalTestId="docked-total" />
 
             {checkoutOpen ? (
@@ -815,8 +821,8 @@ export function CeramicsStep({
           data-testid="sticky-bar-total"
           className="truncate text-base font-semibold tabular-nums"
         >
-          {formatMoney(total, locale)}
-          {totalSuffix}
+          {formatMoney(discount.total, locale)}
+          {stickyTotalSuffix}
         </p>
       </div>
       {/* Same pill as the cart panel's CTA (§3.16) and the same label key, so

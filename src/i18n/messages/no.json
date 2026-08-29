@@ -247,7 +247,8 @@
       "subtotal": "Delsum",
       "quantityRow": "Mengderabatt",
       "dealRow": "Tilbud",
-      "note": "Rabatten er veiledende — vi bekrefter endelig pris sammen med bestillingen."
+      "note": "Rabatten er veiledende — vi bekrefter endelig pris sammen med bestillingen.",
+      "srNowLabel": "Nå:"
     }
   },
   "order": {

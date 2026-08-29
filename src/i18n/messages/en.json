@@ -248,7 +248,8 @@
       "subtotal": "Subtotal",
       "quantityRow": "Quantity discount",
       "dealRow": "Offer",
-      "note": "Discounts shown are indicative — we confirm the final price with your order."
+      "note": "Discounts shown are indicative — we confirm the final price with your order.",
+      "srNowLabel": "Now:"
     }
   },
   "order": {

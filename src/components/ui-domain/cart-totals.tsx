@@ -14,6 +14,9 @@ import { CartShippingRow, useShippingTotalSuffix } from "./cart-shipping-row";
  * `totalTestId` lets the step-3 docked panel keep its own `docked-total`
  * testid (e2e/cart.spec.ts, e2e/order.spec.ts) while the drawer keeps
  * `cart-total`.
+ *
+ * TODO:nb-review — the `cart.discount.*` Norwegian copy is the TL's wording
+ * (`subtotal`, `quantityRow`, `dealRow`, `note`).
  */
 export function CartTotals({
   totalTestId = "cart-total",
