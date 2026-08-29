@@ -10,13 +10,23 @@ import { EMPTY_CONFIG, type DiscountConfig } from "./discount";
  * in the cart anyway). Cached under the EXISTING `catalog` tag rather than a tag
  * of its own: the admin discount actions are rare and already have to revalidate
  * the catalog, and one tag is one less thing to keep in sync.
- *
- * NEVER throws: a broken read degrades to EMPTY_CONFIG (everything off, full
- * prices) instead of taking the shop's cart down.
  */
-export const getDiscountConfig = unstable_cache(loadDiscountConfig, ["discount-config"], {
+const cached = unstable_cache(loadDiscountConfig, ["discount-config"], {
   tags: ["catalog"],
 });
+
+/** Never throws — see the note on loadDiscountConfig. The guard is OUTSIDE the
+ *  cache wrapper on purpose: unstable_cache itself can throw (e.g. called
+ *  outside a request scope), and the inner try/catch cannot see that. A broken
+ *  read degrades to EMPTY_CONFIG (everything off, full prices) instead of
+ *  taking checkout or the cart down. */
+export const getDiscountConfig = async (): Promise<DiscountConfig> => {
+  try {
+    return await cached();
+  } catch {
+    return EMPTY_CONFIG;
+  }
+};
 
 async function loadDiscountConfig(): Promise<DiscountConfig> {
   try {

@@ -47,7 +47,11 @@ export function buildOrderItemRows(
       config_code: i.configCode,
       config_snapshot: i.configSnapshot ?? null,
       quantity: i.quantity,
-      discount_pct: has ? d.pct : null,
+      // Math.round: the SQL casts discount_pct with `::int` (0032:190+). pct is
+      // an integer everywhere today, but part ②'s DiscountRule.discountPct is
+      // a bare `number` — a fractional rule % would abort the insert with
+      // 22P02, same failure class as the discount_pct=0 CHECK trap above.
+      discount_pct: has ? Math.round(d.pct) : null,
       discount_cents: has ? d.saved.amountCents : 0,
       discount_source: has ? d.source : null,
     };

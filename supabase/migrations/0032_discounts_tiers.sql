@@ -9,6 +9,13 @@
 -- PM sequence (corrected — two databases, Makefile:60-77): make db-push-staging
 -- FIRST (unblocks integration tests + e2e seeders of Tasks 7/9/14/15), then
 -- make db-status, then make db-push-prod before the merge, then npm run db:types.
+--
+-- WARNING (Task 5, R4-SCONTI): admin-orders.server.ts's order select now names
+-- discount_pct/discount_cents/discount_source/discount_ratified_at. On any DB
+-- that has not run this migration, PostgREST answers 42703 and listOrders()/
+-- getOrder() swallow it — the admin orders list goes silently EMPTY, no error
+-- shown. So 0032 must reach STAGING before any e2e or `preview` run of this
+-- branch, and PROD before the merge — not "whenever it's convenient".
 
 -- ── the scale ───────────────────────────────────────────────────────────────
 -- One global scale (spec-sconti.html §1: "una scala unica"). Rows, not a jsonb
