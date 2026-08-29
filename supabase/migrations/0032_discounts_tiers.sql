@@ -55,7 +55,7 @@ alter table order_items
   add column if not exists discount_source text;
 
 -- DB half of the ADR's own money/trust-boundary argument. No CHECK on
--- discount_source: 'deal' has no meaning until migration 0033. The pct upper
+-- discount_source: 'deal' has no meaning until migration 0034. The pct upper
 -- bound is 100 (nonsense at any policy), not 90 (the admin form's current
 -- business rule, which may change without a migration).
 alter table order_items
@@ -81,7 +81,7 @@ comment on column orders.discount_ratified_at is
 
 -- ── master switches ─────────────────────────────────────────────────────────
 -- Default FALSE: the card ships dark and Alessio turns each half on when he is
--- ready. automations_enabled is claimed here so 0033 only adds tables.
+-- ready. automations_enabled is claimed here so 0034 only adds tables.
 alter table settings
   add column if not exists quantity_discounts_enabled boolean not null default false,
   add column if not exists automations_enabled        boolean not null default false;

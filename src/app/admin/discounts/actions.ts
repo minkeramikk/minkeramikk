@@ -31,7 +31,10 @@ export async function saveDiscountTiers(
   } catch {
     return { error: "Invalid scale." };
   }
-  const parsed = z.array(tierSchema).max(10).safeParse(raw);
+  // .min(1): an empty scale is not "off" — the enabled flag is the off-switch.
+  // Deleting every row and clicking Save must not silently wipe the client's
+  // contractual scale with no undo.
+  const parsed = z.array(tierSchema).min(1).max(10).safeParse(raw);
   if (!parsed.success) {
     return { error: "Each step needs a quantity of at least 2 and a percentage between 1 and 90." };
   }
@@ -53,13 +56,17 @@ export async function saveDiscountTiers(
   const { error } = await supabase.rpc("replace_discount_tiers", { p_rows: rows });
   if (error) return { error: "Could not save the scale." };
 
+  // Revalidate as soon as the scale itself is committed, BEFORE the settings
+  // write below: if that write then fails, the DB already holds the new scale
+  // and the public cache must not keep serving the old one indefinitely.
+  revalidateTag("catalog"); // public config cache (Task 3)
+
   const { error: sErr } = await supabase
     .from("settings")
     .update({ quantity_discounts_enabled: formData.get("enabled") === "on" })
     .eq("id", 1);
   if (sErr) return { error: "The scale was saved but the switch was not." };
 
-  revalidateTag("catalog"); // public config cache (Task 3)
   revalidatePath("/admin/discounts");
   return { notice: "Saved." };
 }

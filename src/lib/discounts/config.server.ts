@@ -40,7 +40,7 @@ async function loadDiscountConfig(): Promise<DiscountConfig> {
       supabase.from("discount_tiers").select("min_qty, pct").order("min_qty"),
       supabase.from("discount_products").select("product_id"),
       // part ②: discount_rules / discount_rule_products reads go here once
-      // 0033 lands and the two tables are typed (Task 13).
+      // 0034 lands and the two tables are typed (Task 13).
     ]);
 
     return {

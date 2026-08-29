@@ -24,6 +24,20 @@
 -- `create or replace` preserves the existing grants, but the revoke/grant pair
 -- is re-stated below anyway so this file stays self-describing.
 --
+-- PM PRE-CHECK — I could not run this myself: no `psql`, no `pg` package on
+-- this machine, and I will not add a dependency just to run a probe. Before
+-- pushing to either database, run in the SQL editor:
+--
+--   begin; delete from discount_tiers where true; rollback;
+--
+-- Non-destructive (the rollback undoes it) and one round trip. It proves
+-- `where true` actually satisfies pg_safeupdate on this project: if it
+-- succeeds, the push is safe to proceed. If it raises 21000, `where true` is
+-- not the right spelling for whatever pg_safeupdate build is installed here —
+-- do NOT push; the evidence for `where true` is pg_safeupdate's own errhint
+-- ('To delete all rows, use "WHERE true" or similar'), which is strong but
+-- indirect, and this task never got to confirm it against a live session.
+--
 -- PM sequence: make db-push-staging first (unblocks Task 7's save actions and
 -- its integration tests), then make db-status, then make db-push-prod before
 -- the merge, same order as 0032's own header.

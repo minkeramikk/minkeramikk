@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useId, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { saveDiscountTiers, type ActionResult } from "@/app/admin/discounts/actions";
@@ -13,15 +13,6 @@ interface Row {
 
 const initial: ActionResult = {};
 
-// Client-only row ids (never sent to the server — sort_order is derived from
-// the sorted min_qty on submit, cf. saveDiscountTiers). crypto.randomUUID() is
-// available in every browser this admin targets.
-const newRow = (minQty = "", pct = ""): Row => ({
-  key: crypto.randomUUID(),
-  minQty,
-  pct,
-});
-
 export function DiscountTiersEditor({
   initialTiers,
   initialEnabled,
@@ -30,6 +21,18 @@ export function DiscountTiersEditor({
   initialEnabled: boolean;
 }) {
   const [state, formAction, pending] = useActionState(saveDiscountTiers, initial);
+
+  // Client-only row ids (never sent to the server — sort_order is derived from
+  // the sorted min_qty on submit, cf. saveDiscountTiers). crypto.randomUUID()
+  // is undefined outside a secure context (plain http, e.g. a LAN IP during a
+  // real-device responsive check) — useId() + a counter needs neither https
+  // nor a browser API, just React itself.
+  const idBase = useId();
+  const nextRowSeq = useRef(0);
+  function newRow(minQty = "", pct = ""): Row {
+    return { key: `${idBase}-${nextRowSeq.current++}`, minQty, pct };
+  }
+
   const [rows, setRows] = useState<Row[]>(() =>
     initialTiers.length > 0
       ? initialTiers.map((t) => newRow(String(t.minQty), String(t.pct)))
