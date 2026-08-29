@@ -165,6 +165,26 @@ export type Database = {
           },
         ]
       }
+      discount_products: {
+        Row: { product_id: string }
+        Insert: { product_id: string }
+        Update: { product_id?: string }
+        Relationships: [
+          {
+            foreignKeyName: "discount_products_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: true
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      discount_tiers: {
+        Row: { id: string; min_qty: number; pct: number; sort_order: number }
+        Insert: { id?: string; min_qty: number; pct: number; sort_order?: number }
+        Update: { id?: string; min_qty?: number; pct?: number; sort_order?: number }
+        Relationships: []
+      }
       featured_configs: {
         Row: {
           created_at: string | null
@@ -304,6 +324,9 @@ export type Database = {
           config_code: string | null
           config_snapshot: Json | null
           currency_snapshot: string
+          discount_cents: number
+          discount_pct: number | null
+          discount_source: string | null
           id: string
           order_id: string
           price_cents_snapshot: number
@@ -317,6 +340,9 @@ export type Database = {
           config_code?: string | null
           config_snapshot?: Json | null
           currency_snapshot: string
+          discount_cents?: number
+          discount_pct?: number | null
+          discount_source?: string | null
           id?: string
           order_id: string
           price_cents_snapshot: number
@@ -330,6 +356,9 @@ export type Database = {
           config_code?: string | null
           config_snapshot?: Json | null
           currency_snapshot?: string
+          discount_cents?: number
+          discount_pct?: number | null
+          discount_source?: string | null
           id?: string
           order_id?: string
           price_cents_snapshot?: number
@@ -377,6 +406,7 @@ export type Database = {
           country: string | null
           created_at: string
           customer_name: string
+          discount_ratified_at: string | null
           email: string
           id: string
           internal_notes: string | null
@@ -395,6 +425,7 @@ export type Database = {
           country?: string | null
           created_at?: string
           customer_name: string
+          discount_ratified_at?: string | null
           email: string
           id?: string
           internal_notes?: string | null
@@ -413,6 +444,7 @@ export type Database = {
           country?: string | null
           created_at?: string
           customer_name?: string
+          discount_ratified_at?: string | null
           email?: string
           id?: string
           internal_notes?: string | null
@@ -571,24 +603,30 @@ export type Database = {
       }
       settings: {
         Row: {
+          automations_enabled: boolean
           color_accent: string
           color_dark: string
           color_light: string
           id: number
+          quantity_discounts_enabled: boolean
           updated_at: string
         }
         Insert: {
+          automations_enabled?: boolean
           color_accent: string
           color_dark: string
           color_light: string
           id: number
+          quantity_discounts_enabled?: boolean
           updated_at?: string
         }
         Update: {
+          automations_enabled?: boolean
           color_accent?: string
           color_dark?: string
           color_light?: string
           id?: number
+          quantity_discounts_enabled?: boolean
           updated_at?: string
         }
         Relationships: []
@@ -714,6 +752,11 @@ export type Database = {
         Args: { p_design_id: string; p_product_ids: string[] }
         Returns: undefined
       }
+      replace_discount_products: {
+        Args: { p_product_ids: string[] }
+        Returns: undefined
+      }
+      replace_discount_tiers: { Args: { p_rows: Json }; Returns: undefined }
       replace_product_attributes: {
         Args: { p_product_id: string; p_rows: Json }
         Returns: undefined

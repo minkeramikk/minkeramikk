@@ -34,5 +34,6 @@ aggiornamento delle regole in `../../AGENTS.md`.
 | [0019](0019-design-photos-gallery.md) | Galleria foto lifestyle per design: tabella `design_images` + Storage `design-photos/` (F36) | Accepted |
 | [0020](0020-product-photos-and-series.md) | Foto prodotto (cap 2) + serie di raggruppamento allo step 3 | Accepted |
 | [0021](0021-order-lifecycle-v2.md) | Ciclo di vita ordine v2: `shipped`, `contacted` dormiente, `paid_at` come registro pagamento | Accepted |
+| [0022](0022-sconti-quantita-per-prodotto.md) | Sconti quantità per prodotto (aggregazione cross-design), snapshot sulla riga d'ordine, ratifica manuale | Accepted |
 
 Diagramma del modello dati e indici: [schema-er.md](schema-er.md) (deriva da ADR 0004–0008).
