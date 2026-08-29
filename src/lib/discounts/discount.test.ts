@@ -80,7 +80,7 @@ describe("computeCartDiscount — quantity discounts", () => {
   it("excluded products get no discount and do not count toward the aggregate", () => {
     const lines = [line({ id: "a", quantity: 8 })];
     const r = computeCartDiscount(lines, config({ includedProductIds: ["carafe"] }));
-    expect(r.qtyByProduct.plate ?? 0).toBe(0);
+    expect(r.qtyByProduct.plate).toBeUndefined();
     expect(r.perLine.a.pct).toBe(0);
     expect(r.total).toEqual(money(599200));
   });
@@ -106,6 +106,10 @@ describe("computeCartDiscount — quantity discounts", () => {
     const lines = [line({ id: "a", quantity: 5, unitPriceCents: 33333 })];
     const r = computeCartDiscount(lines, config());
     const l = r.perLine.a;
+    // 166 665 øre at 5% = 8 333,25 → 8 333 with ONE rounding on the line total.
+    // A per-unit implementation would compute percentOf(33333,5)=1667 per piece
+    // → 8 335, so this literal is what makes the drift test able to fail at all.
+    expect(l.saved).toEqual(money(8333));
     expect(l.net.amountCents + l.saved.amountCents).toBe(l.full.amountCents);
   });
 

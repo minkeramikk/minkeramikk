@@ -14,6 +14,7 @@
  */
 import {
   money,
+  multiply,
   percentOf,
   subtract,
   sum,
@@ -101,10 +102,10 @@ const included = (productId: string | null, config: DiscountConfig): boolean =>
   (config.includedProductIds.length === 0 ||
     config.includedProductIds.includes(productId));
 
+// minQty >= 2 mirrors the DB CHECK constraint on tiers (supabase/migrations/0032_discounts_tiers.sql).
 const usableTiers = (tiers: DiscountTier[]): DiscountTier[] =>
   tiers
     .filter((t) => t.minQty >= 2 && t.pct > 0)
-    .slice()
     .sort((a, b) => b.minQty - a.minQty);
 
 /** The highest tier the quantity reaches; 0 when it reaches none. */
@@ -116,7 +117,6 @@ export function tierFor(qty: number, tiers: DiscountTier[]): number {
 /** The next threshold up — what the cart nudge points at. Null at the top. */
 export function nextTier(qty: number, tiers: DiscountTier[]): DiscountTier | null {
   const up = usableTiers(tiers)
-    .slice()
     .reverse()
     .find((t) => qty < t.minQty);
   return up ?? null;
@@ -165,7 +165,7 @@ export function computeCartDiscount(
   const dealSaves: Money[] = [];
 
   for (const l of lines) {
-    const full = money(l.unitPriceCents * l.quantity, l.currency);
+    const full = multiply(money(l.unitPriceCents, l.currency), l.quantity);
     fulls.push(full);
 
     // deal wins over tier (a fixed rule deal survives the tiers being off)

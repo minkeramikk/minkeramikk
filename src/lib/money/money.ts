@@ -71,9 +71,10 @@ export function multiply(m: Money, quantity: number): Money {
 }
 
 /**
- * A whole percentage OF an amount, rounded half-up, ONCE, on the amount given
- * (R4-SCONTI / ADR 0022). Callers pass the LINE total, never the unit price:
- * rounding per unit and multiplying drifts by up to `quantity` øre.
+ * A percentage OF an amount (fractional values like 7.5 are accepted, not just
+ * whole ones), rounded half-up, ONCE, on the amount given (R4-SCONTI / ADR
+ * 0022). Callers pass the LINE total, never the unit price: rounding per unit
+ * and multiplying drifts by up to `quantity` øre.
  * `pct` is a percentage, not a fraction: 10 means 10%.
  */
 export function percentOf(m: Money, pct: number): Money {
