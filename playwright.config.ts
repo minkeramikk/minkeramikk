@@ -18,13 +18,17 @@ const realEmail = process.env.MK_E2E_REAL_EMAIL === "1";
 
 // Journeys that carry mobile assertions (public + admin UI). supplier-pdf is an
 // API/route flow and share-set is desktop-only by policy → desktop only.
+// `discounts` (R4-SCONTI ②, part of `make run-e2e`, not core) is included here
+// too, on purpose: without it, neither project's testMatch would ever pick up
+// e2e/discounts.spec.ts (`make run-e2e` passes no spec list — it relies
+// entirely on these two regexes), and the file would run zero tests.
 const MOBILE_JOURNEYS =
-  /(configurator|config-code|cart|order|admin-auth|admin-orders)\.spec\.ts$/;
+  /(configurator|config-code|cart|order|admin-auth|admin-orders|discounts)\.spec\.ts$/;
 // admin-products (F39) is desktop-only on purpose: its drag&drop is native HTML5,
 // which does not fire under touch emulation — on mobile the ↑↓ arrows are the
 // reorder path, and they are covered by the desktop run too.
 const DESKTOP_JOURNEYS =
-  /(configurator|config-code|cart|order|admin-auth|admin-orders|supplier-pdf|share-set|admin-products)\.spec\.ts$/;
+  /(configurator|config-code|cart|order|admin-auth|admin-orders|supplier-pdf|share-set|admin-products|discounts)\.spec\.ts$/;
 
 export default defineConfig({
   testDir: "./e2e",

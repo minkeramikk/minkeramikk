@@ -583,6 +583,92 @@ export async function seedDiscountTiers(
   };
 }
 
+/**
+ * R4-SCONTI ② — seed ONE automation rule between two products of the SAME
+ * supplier (D2: the suggested line inherits the trigger line's config code,
+ * which means nothing across suppliers) and return a restore() that removes
+ * it and puts `settings.automations_enabled` back.
+ *
+ * Same guard and shape as `seedDiscountTiers`: `assertSeedingAllowed()` first
+ * (this writes discount_rules / discount_rule_products / settings, i.e. the
+ * config the PUBLIC site reads), specs gate on `CAN_SEED` with a declared
+ * skip (lezione F07). Writes the tables DIRECTLY with the service-role
+ * client rather than the `replace_discount_rule_products` RPC: this seeder
+ * only ever needs ONE trigger product, so a single insert already does what
+ * the RPC's delete+insert would, and it keeps the spec independent of which
+ * migrations have landed (same reasoning as `seedDiscountTiers`'s own note).
+ *
+ * `discount_mode` is always `'fixed'` — every e2e test that calls this is
+ * about the fixed deal (the `inherited`/`none` modes are engine-level,
+ * covered by `discount.test.ts`). Two rules can be seeded at once (one card
+ * at a time, AC-SC6) as long as each caller restores in LIFO order — nested
+ * try/finally, same idiom as cart.spec.ts's AC-SC3.
+ *
+ * `restore()` puts the flag back FIRST (same reasoning as
+ * `seedDiscountTiers`: the public site reads `automations_enabled` before it
+ * ever looks at `discount_rules`), then deletes the rule row
+ * (`discount_rule_products` cascades, migration 0034). A failed restore
+ * throws loudly instead of swallowing — this is the config the live
+ * catalogue serves.
+ */
+export async function seedDiscountRule(opts: {
+  triggerProductId: string;
+  suggestedProductId: string;
+  minQty: number;
+  pct: number;
+}): Promise<SeededDiscounts> {
+  assertSeedingAllowed();
+  const db = adminClient();
+  const flagBefore =
+    (
+      await db.from("settings").select("automations_enabled").eq("id", 1).maybeSingle()
+    ).data?.automations_enabled ?? false;
+
+  const { data: rule, error } = await db
+    .from("discount_rules")
+    .insert({
+      name: `E2E rule ${Date.now()}`,
+      enabled: true,
+      trigger_min_qty: opts.minQty,
+      suggested_product_id: opts.suggestedProductId,
+      suggested_qty: 1,
+      discount_mode: "fixed",
+      discount_pct: opts.pct,
+    })
+    .select("id")
+    .single();
+  if (error) throw error;
+  const ruleId = (rule as { id: string }).id;
+
+  const linkRes = await db
+    .from("discount_rule_products")
+    .insert({ rule_id: ruleId, product_id: opts.triggerProductId });
+  if (linkRes.error) throw linkRes.error;
+
+  const flagSet = await db.from("settings").update({ automations_enabled: true }).eq("id", 1);
+  if (flagSet.error) throw flagSet.error;
+
+  return {
+    async restore() {
+      const flagRes = await db
+        .from("settings")
+        .update({ automations_enabled: flagBefore })
+        .eq("id", 1);
+      if (flagRes.error) {
+        throw new Error(
+          `[e2e seed] FAILED to restore automations_enabled: ${flagRes.error.message}`
+        );
+      }
+      const delRes = await db.from("discount_rules").delete().eq("id", ruleId);
+      if (delRes.error) {
+        throw new Error(
+          `[e2e seed] FAILED to delete seeded discount rule ${ruleId}: ${delRes.error.message}`
+        );
+      }
+    },
+  };
+}
+
 export async function deleteOrder(orderId: string) {
   if (!orderId) return;
   await adminClient().from("orders").delete().eq("id", orderId);
