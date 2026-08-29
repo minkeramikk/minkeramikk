@@ -567,20 +567,28 @@ function readRestoreState(): E2ERestoreState {
  * Read-modify-write so `seedDiscountTiers` and `seedDiscountRule` can have
  * state pending in the file at the same time (e.g. AC-SC7 nests both).
  *
- * WRITE-IF-ABSENT: a no-op when `key` is already in the file. Each record is
- * a full SNAPSHOT of the pre-mutation flag/rows, not a delta — so when
- * AC-SC6 nests two `seedDiscountRule` calls, the SECOND call's `flagBefore`
- * is `true` (already flipped by the first), and if it overwrote the file,
- * a crash before either `restore()` would "recover" the flag to `true`
- * instead of the real original `false` — the exact stray-config danger this
- * file exists to prevent, just reached through the file instead of a
- * heuristic. The outermost seed's snapshot is always the true original;
- * every nested one is noise, so the fix is to just keep the first.
+ * WRITE-IF-ABSENT, paired with `clearRestoreKey`: whoever WRITES the record
+ * OWNS it, and only the owner ever CLEARS it — never call `clearRestoreKey`
+ * on a key this function returned `false` for. Each record is a full
+ * SNAPSHOT of the pre-mutation flag/rows, not a delta — so when AC-SC6
+ * nests two `seedDiscountRule` calls, the SECOND call's `flagBefore` is
+ * `true` (already flipped by the first); if it wrote the file, a crash
+ * before either `restore()` would "recover" the flag to `true` instead of
+ * the real original `false`. Write-if-absent fixes the write half: the
+ * outermost seed's snapshot is always the true original, every nested one
+ * is noise, so a nested call no-ops here. But writing isn't the whole
+ * story — the OWNERSHIP has to travel with it: if the nested (non-owning)
+ * seeder's `restore()` still unconditionally cleared the key, it would
+ * delete the OUTER seed's still-pending record the moment IT restores,
+ * reopening the same window one level up. Returning whether this call
+ * actually wrote lets each seeder remember whether it owns the key, so
+ * only the true owner's `restore()` clears it.
  */
-function writeRestoreKey<K extends keyof E2ERestoreState>(key: K, value: E2ERestoreState[K]): void {
+function writeRestoreKey<K extends keyof E2ERestoreState>(key: K, value: E2ERestoreState[K]): boolean {
   const state = readRestoreState();
-  if (state[key] !== undefined) return;
+  if (state[key] !== undefined) return false;
   writeFileSync(E2E_RESTORE_FILE, JSON.stringify({ ...state, [key]: value }));
+  return true;
 }
 
 /** Removes just this key; deletes the file once no key is left in it. */
@@ -616,8 +624,10 @@ export async function seedDiscountTiers(
 
   // Crash safety: written BEFORE the mutation below, so a kill between here
   // and this function's own `restore()` still leaves `sweepE2EDiscounts`
-  // something exact to put back — never a guess.
-  writeRestoreKey("tiers", { flagBefore, before });
+  // something exact to put back — never a guess. Remembers whether THIS call
+  // owns the record (write-if-absent: a nested call sharing the key does
+  // not) — only the owner clears it below, see writeRestoreKey's own doc.
+  const ownsTiersRestore = writeRestoreKey("tiers", { flagBefore, before });
 
   const del = await db.from("discount_tiers").delete().gte("min_qty", 0);
   if (del.error) throw del.error;
@@ -658,7 +668,7 @@ export async function seedDiscountTiers(
           );
         }
       }
-      clearRestoreKey("tiers");
+      if (ownsTiersRestore) clearRestoreKey("tiers");
     },
   };
 }
@@ -708,8 +718,10 @@ export async function seedDiscountRule(opts: {
       await db.from("settings").select("automations_enabled").eq("id", 1).maybeSingle()
     ).data?.automations_enabled ?? false;
 
-  // Crash safety, same reasoning as seedDiscountTiers above.
-  writeRestoreKey("rule", { flagBefore });
+  // Crash safety, same reasoning as seedDiscountTiers above — only the
+  // owner (write-if-absent: a nested call sharing the key does not own it)
+  // clears the record below.
+  const ownsRuleRestore = writeRestoreKey("rule", { flagBefore });
 
   const { data: rule, error } = await db
     .from("discount_rules")
@@ -752,7 +764,7 @@ export async function seedDiscountRule(opts: {
           `[e2e seed] FAILED to delete seeded discount rule ${ruleId}: ${delRes.error.message}`
         );
       }
-      clearRestoreKey("rule");
+      if (ownsRuleRestore) clearRestoreKey("rule");
     },
   };
 }
