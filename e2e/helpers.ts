@@ -551,15 +551,36 @@ function readRestoreState(): E2ERestoreState {
   try {
     const parsed: unknown = JSON.parse(readFileSync(E2E_RESTORE_FILE, "utf8"));
     return parsed !== null && typeof parsed === "object" ? (parsed as E2ERestoreState) : {};
-  } catch {
+  } catch (err) {
+    // ENOENT (no file pending) is the common, silent case — anything else
+    // (bad JSON, a crash that truncated a write mid-flight) means a pending
+    // restore may be unreadable RIGHT NOW, which is otherwise indistinguishable
+    // from "nothing was ever pending". Loud so a human has something to notice.
+    if ((err as NodeJS.ErrnoException)?.code !== "ENOENT") {
+      console.warn(`[e2e restore-state] ${E2E_RESTORE_FILE} unreadable, treating as empty:`, err);
+    }
     return {};
   }
 }
 
-/** Read-modify-write so `seedDiscountTiers` and `seedDiscountRule` can have
- *  state pending in the file at the same time (e.g. AC-SC7 nests both). */
+/**
+ * Read-modify-write so `seedDiscountTiers` and `seedDiscountRule` can have
+ * state pending in the file at the same time (e.g. AC-SC7 nests both).
+ *
+ * WRITE-IF-ABSENT: a no-op when `key` is already in the file. Each record is
+ * a full SNAPSHOT of the pre-mutation flag/rows, not a delta — so when
+ * AC-SC6 nests two `seedDiscountRule` calls, the SECOND call's `flagBefore`
+ * is `true` (already flipped by the first), and if it overwrote the file,
+ * a crash before either `restore()` would "recover" the flag to `true`
+ * instead of the real original `false` — the exact stray-config danger this
+ * file exists to prevent, just reached through the file instead of a
+ * heuristic. The outermost seed's snapshot is always the true original;
+ * every nested one is noise, so the fix is to just keep the first.
+ */
 function writeRestoreKey<K extends keyof E2ERestoreState>(key: K, value: E2ERestoreState[K]): void {
-  writeFileSync(E2E_RESTORE_FILE, JSON.stringify({ ...readRestoreState(), [key]: value }));
+  const state = readRestoreState();
+  if (state[key] !== undefined) return;
+  writeFileSync(E2E_RESTORE_FILE, JSON.stringify({ ...state, [key]: value }));
 }
 
 /** Removes just this key; deletes the file once no key is left in it. */
