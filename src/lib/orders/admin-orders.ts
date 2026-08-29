@@ -3,7 +3,7 @@
  * and no server imports, so it is fully unit-testable. The server fetchers live
  * in `admin-orders.server.ts`; the UI imports both.
  */
-import { money, multiply, sum, type Currency, type Money } from "@/lib/money/money";
+import { money, multiply, subtract, sum, type Currency, type Money } from "@/lib/money/money";
 import {
   decodeConfigCode,
   normalizeConfigCode,
@@ -52,6 +52,11 @@ export interface AdminOrderItem {
    *  value from the joined product; null when unavailable (product vanished or
    *  no weight set) → that line is skipped from the PDF weight total. */
   productWeightGrams: number | null;
+  /** R4-SCONTI (ADR 0022): frozen at send time, never recomputed. NULL on a
+   *  legacy (pre-migration) line = no discount. */
+  discountPct: number | null;
+  discountCents: number;
+  discountSource: "tier" | "deal" | null;
 }
 
 export interface AdminOrder {
@@ -71,6 +76,9 @@ export interface AdminOrder {
   paidAt: string | null;
   /** ADR 0021: carrier code, entered by hand before moving to `shipped`. */
   trackingCode: string | null;
+  /** ADR 0022: NULL = the discount is still only indicative, timestamp = the
+   *  shop stands behind it. */
+  discountRatifiedAt: string | null;
   createdAt: string;
   updatedAt: string;
   items: AdminOrderItem[];
@@ -92,6 +100,7 @@ export interface RawOrderRow {
   internal_notes: string | null;
   paid_at: string | null;
   tracking_code: string | null;
+  discount_ratified_at: string | null;
   created_at: string;
   updated_at: string;
   order_items: {
@@ -105,6 +114,9 @@ export interface RawOrderRow {
     config_code: string | null;
     config_snapshot: unknown;
     product_id: string | null;
+    discount_pct: number | null;
+    discount_cents: number | null;
+    discount_source: string | null;
     products: {
       image: string | null;
       slug: string | null;
@@ -129,6 +141,7 @@ export function mapOrderRow(row: RawOrderRow): AdminOrder {
     internalNotes: row.internal_notes,
     paidAt: row.paid_at,
     trackingCode: row.tracking_code,
+    discountRatifiedAt: row.discount_ratified_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     items: (row.order_items ?? []).map((it) => ({
@@ -146,6 +159,9 @@ export function mapOrderRow(row: RawOrderRow): AdminOrder {
       productWeightGrams:
         it.products?.product_attributes?.find((a) => a.key === "weight")
           ?.value_num ?? null,
+      discountPct: it.discount_pct ?? null,
+      discountCents: it.discount_cents ?? 0,
+      discountSource: (it.discount_source as "tier" | "deal" | null) ?? null,
     })),
   };
 }
@@ -168,14 +184,28 @@ export function orderSuppliers(items: AdminOrderItem[]): string[] {
   return out;
 }
 
-/** Grand total as Money. Single currency per order (ADR 0005); empty → 0 NOK. */
-export function orderTotal(items: AdminOrderItem[]): Money {
+/** Gross: Σ (unit × qty), before any discount. */
+export function orderSubtotal(items: AdminOrderItem[]): Money {
   if (items.length === 0) return money(0);
   const currency = items[0].currency;
   return sum(
     items.map((i) => multiply(money(i.priceCentsSnapshot, currency), i.quantity)),
     currency
   );
+}
+
+/** The discount FROZEN on the lines (ADR 0022) — never recomputed from the
+ *  current tiers: a historic order keeps the deal it was given. */
+export function orderDiscount(items: AdminOrderItem[]): Money {
+  if (items.length === 0) return money(0);
+  const currency = items[0].currency;
+  return sum(items.map((i) => money(i.discountCents, currency)), currency);
+}
+
+/** What the shop actually gets: subtotal − discount. Every existing caller
+ *  (detail total, list column, "open orders value" KPI) wants this one. */
+export function orderTotal(items: AdminOrderItem[]): Money {
+  return subtract(orderSubtotal(items), orderDiscount(items));
 }
 
 export interface OrderKpis {

@@ -17,6 +17,7 @@ const ORDER: AdminOrder = {
   internalNotes: "ring back",
   paidAt: null,
   trackingCode: null,
+  discountRatifiedAt: null,
   createdAt: "2026-06-08T09:30:00.000Z",
   updatedAt: "2026-06-08T09:30:00.000Z",
   items: [
@@ -32,6 +33,9 @@ const ORDER: AdminOrder = {
       productImage: null,
       productSlug: null,
       productWeightGrams: 800,
+      discountPct: null,
+      discountCents: 0,
+      discountSource: null,
       configSnapshot: {
         designName: "Krabbe",
         customNote: "brown dog with white spots",
@@ -54,6 +58,9 @@ const ORDER: AdminOrder = {
       productImage: null,
       productSlug: null,
       productWeightGrams: null,
+      discountPct: null,
+      discountCents: 0,
+      discountSource: null,
       configSnapshot: { designName: "Amalfi Dyr", selections: [] },
     },
   ],

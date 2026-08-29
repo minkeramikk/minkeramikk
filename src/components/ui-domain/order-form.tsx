@@ -78,6 +78,7 @@ export function OrderForm({
             configCode: l.configCode,
             configSnapshot: l.configSnapshot,
             productSlug: l.productSlug,
+            appliedRuleId: l.dealRuleId,
           })),
         }),
       });

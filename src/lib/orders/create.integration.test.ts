@@ -8,7 +8,16 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { createOrder } from "./create";
+import { EMPTY_CONFIG } from "@/lib/discounts/discount";
 import type { EmailMessage, EmailTransport } from "./email";
+
+// R4-SCONTI: migration 0032 (discount_tiers/discount_products) is written but
+// not applied to any database yet, and getDiscountConfig() uses Next's
+// unstable_cache, which throws outside a real Next.js request context (as
+// here, under plain vitest). Every createOrder() call below injects
+// `config: EMPTY_CONFIG` via the deps object instead of hitting the DB/cache —
+// deals/tiers themselves are covered at the unit level (orders.test.ts,
+// discount.test.ts), not here.
 
 function loadEnv() {
   try {
@@ -84,6 +93,7 @@ describe.skipIf(!hasEnv)("createOrder (integration)", () => {
       verify: async () => true,
       transport,
       db,
+      config: EMPTY_CONFIG,
     });
     expect(res.ok).toBe(true);
     if (!res.ok) return;
@@ -109,8 +119,8 @@ describe.skipIf(!hasEnv)("createOrder (integration)", () => {
   it("two submits get two distinct codes (sequence, concurrency-safe)", async () => {
     const { transport } = mockTransport();
     const [a, b] = await Promise.all([
-      createOrder(payload(), { verify: async () => true, transport, db }),
-      createOrder(payload(), { verify: async () => true, transport, db }),
+      createOrder(payload(), { verify: async () => true, transport, db, config: EMPTY_CONFIG }),
+      createOrder(payload(), { verify: async () => true, transport, db, config: EMPTY_CONFIG }),
     ]);
     expect(a.ok && b.ok).toBe(true);
     if (a.ok) created.push(a.code);
@@ -124,6 +134,7 @@ describe.skipIf(!hasEnv)("createOrder (integration)", () => {
       verify: async () => false,
       transport,
       db,
+      config: EMPTY_CONFIG,
     });
     expect(res.ok).toBe(false);
     if (!res.ok) expect(res.status).toBe(400);

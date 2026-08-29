@@ -65,6 +65,10 @@ export const orderItemSchema = z.object({
    *  Optional + not persisted (no order_items column) — absent rows just drop
    *  out of the set link. */
   productSlug: z.string().optional(),
+  /** R4-SCONTI ②: the automation rule this line came from. An OPAQUE ID — the
+   *  server looks up the percentage itself. A price or a percentage sent by the
+   *  browser is never persisted (ADR 0022). */
+  appliedRuleId: z.string().uuid().optional(),
 });
 
 export type OrderItemInput = z.infer<typeof orderItemSchema>;
