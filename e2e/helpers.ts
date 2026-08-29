@@ -710,6 +710,8 @@ export async function seedDiscountRule(opts: {
   suggestedProductId: string;
   minQty: number;
   pct: number;
+  /** Pieces the offer covers, and therefore its CAP (ADR 0023). Default 1. */
+  suggestedQty?: number;
 }): Promise<SeededDiscounts> {
   assertSeedingAllowed();
   const db = adminClient();
@@ -730,7 +732,7 @@ export async function seedDiscountRule(opts: {
       enabled: true,
       trigger_min_qty: opts.minQty,
       suggested_product_id: opts.suggestedProductId,
-      suggested_qty: 1,
+      suggested_qty: opts.suggestedQty ?? 1,
       discount_mode: "fixed",
       discount_pct: opts.pct,
     })

@@ -133,11 +133,14 @@ const drawer = (page: Page) => page.getByTestId("cart-drawer");
 test("AC-SC4: the suggestion appears at the threshold, shows both prices, and adds the ceramic", async ({
   page,
 }) => {
+  // suggestedQty 2: the card prices the WHOLE offer (unit × 2), so it must name
+  // the quantity or a 350 kr plate reads as quoted at 700 kr for no reason.
   const seeded = await seedDiscountRule({
     triggerProductId,
     suggestedProductId,
     minQty: 2,
     pct: 15,
+    suggestedQty: 2,
   });
   try {
     await page.goto(step3);
@@ -155,6 +158,7 @@ test("AC-SC4: the suggestion appears at the threshold, shows both prices, and ad
 
     await expect(card.getByTestId("cart-suggestion-full")).toBeVisible(); // full price, struck through
     await expect(card.getByTestId("cart-suggestion-net")).toBeVisible(); // discounted price
+    await expect(card).toContainText("2 ×"); // the offer's quantity is on screen
     await card.getByTestId("cart-suggestion-add").click();
     await expect(drawer(page).getByTestId("cart-line")).toHaveCount(2);
     await expect(card).toHaveCount(0); // never suggested twice — the suggested product is now in the cart
@@ -246,6 +250,7 @@ test("AC-SC7: a fixed deal survives the tiers being switched off", async ({ page
       suggestedProductId,
       minQty: 2,
       pct: 15,
+      suggestedQty: 2,
     });
     try {
       await page.goto(step3);
@@ -260,8 +265,18 @@ test("AC-SC7: a fixed deal survives the tiers being switched off", async ({ page
       }).toPass({ timeout: 15_000 });
 
       await card.getByTestId("cart-suggestion-add").click();
-      await expect(drawer(page).getByTestId("cart-deal-total")).toBeVisible();
+      const dealTotal = drawer(page).getByTestId("cart-deal-total");
+      await expect(dealTotal).toBeVisible();
       await expect(drawer(page).getByTestId("cart-discount-total")).toHaveCount(0); // no tier row: tiers are off
+
+      // The offer covers suggestedQty pieces and no more (ADR 0023). Grow the
+      // deal line past it: the saving must NOT move, and the badge must stop
+      // claiming a line-wide percentage.
+      const dealLine = drawer(page).getByTestId("cart-line").last();
+      const savedBefore = await dealTotal.innerText();
+      await dealLine.getByLabel("+").click();
+      await expect(dealLine.getByTestId("cart-discount-badge")).toContainText("2");
+      await expect(dealTotal).toHaveText(savedBefore);
     } finally {
       await seeded.restore();
     }
