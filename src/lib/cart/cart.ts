@@ -100,6 +100,13 @@ export interface CartLine {
    * badge, no error. No migration.
    */
   pieces?: number;
+  /**
+   * R4-SCONTI ② — the automation rule this line was added from. Only the ID
+   * travels: the percentage is looked up from the live config (browser) and
+   * re-derived from the DB (server), so a stale localStorage cart can never
+   * dictate a price. Optional/back-compatible like `layers`: no migration.
+   */
+  dealRuleId?: string;
 }
 
 export type Cart = CartLine[];
