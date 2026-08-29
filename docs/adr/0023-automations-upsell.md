@@ -53,7 +53,7 @@ riga di carrello porta l'id regola in memoria, ma lo snapshot ordine congela sol
 - *Salvare la percentuale scontata sulla riga di carrello* — un prezzo che il browser
   potrebbe modificare; stessa obiezione di ADR 0022 (d).
 - *Un modale/popup per il suggerimento* — rifiutato dal cliente per iscritto (vale per
-  ogni step della card, non solo per questo task di solo-schema).
+  ogni step della card, non solo per questo ramo).
 - *Un motore di regole generico con condizioni e operatori* — tre campi (gruppo,
   quantità minima, sconto) coprono ogni regola che Alessio ha scritto finora; un DSL
   sarebbe un prodotto che nessuno ha chiesto.
@@ -64,10 +64,11 @@ riga di carrello porta l'id regola in memoria, ma lo snapshot ordine congela sol
 - (+) `discount_rule_products` segue esattamente la stessa convenzione di
   `discount_products` (ADR 0022) e `design_products` (ADR 0017): tabella di join,
   replace atomico via RPC, RLS pubblica in lettura.
-- (−) Il vincolo «stesso fornitore» (e) non è imposto da un trigger DB in questo task
+- (−) Il vincolo «stesso fornitore» (e) non è imposto da un trigger DB
   (a differenza di `design_products_same_supplier`, 0021): il prodotto suggerito è
-  scelto in admin, dove la UI dei task successivi può filtrare per fornitore; se in
-  futuro serve un'invarianza a livello DB, è un trigger additivo separato.
+  scelto in admin, dove la UI filtra per fornitore (`suggestedSharesSupplier` in
+  `src/app/admin/discounts/actions.ts`); se in futuro serve un'invarianza a livello
+  DB, è un trigger additivo separato.
 - (?) Se in futuro serve una vera clausola "e manca Y" (D1 nella sua forma generale),
   è una tabella di join in più — non prevista qui perché nessuna regola scritta finora
   la richiede.

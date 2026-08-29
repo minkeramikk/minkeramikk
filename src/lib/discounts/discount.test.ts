@@ -161,13 +161,17 @@ describe("computeCartDiscount — deal entitlement (I1/I2 fix-wave)", () => {
   });
 
   it("I2 — a line carrying a dealRuleId for a rule that suggests a different product gets no discount", () => {
-    // the trigger is satisfied, but this line (plate, qty 1 so it can't also
-    // qualify for a quantity tier on its own) is not the rule's suggested
-    // product (boat) — a forged/mismatched localStorage id.
-    const lines = [line({ id: "a", productId: "plate", quantity: 1, dealRuleId: "r1" })];
+    // trigger genuinely satisfied by a separate plate ×4 line (no dealRuleId);
+    // a THIRD, non-suggested product (carafe) carries the forged/mismatched
+    // dealRuleId. Only the entitlement guard can zero it — the trigger guard
+    // already passed — so this proves the guard independently of I1.
+    const lines = [
+      line({ id: "a", productId: "plate", quantity: 4 }),
+      line({ id: "c", productId: "carafe", unitPriceCents: 120000, quantity: 1, dealRuleId: "r1" }),
+    ];
     const r = computeCartDiscount(lines, cfg());
-    expect(r.perLine.a.pct).toBe(0);
-    expect(r.perLine.a.source).toBe("none");
+    expect(r.perLine.c.pct).toBe(0);
+    expect(r.perLine.c.source).toBe("none");
   });
 
   it("inherited mode still resolves to the group's current tier via computeCartDiscount", () => {
