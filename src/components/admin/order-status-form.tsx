@@ -32,6 +32,10 @@ export function OrderStatusForm({
   customerLocale,
   currentTracking,
   paidAt,
+  discountSubtotal,
+  discountAmount,
+  discountTotal,
+  hasDiscount,
 }: {
   orderId: string;
   orderCode: string;
@@ -40,6 +44,12 @@ export function OrderStatusForm({
   customerLocale: "no" | "en";
   currentTracking: string | null;
   paidAt: string | null;
+  /** Pre-formatted by the server page (Money VO) — this is a client component
+   *  and must not re-derive money formatting itself. */
+  discountSubtotal: string;
+  discountAmount: string;
+  discountTotal: string;
+  hasDiscount: boolean;
 }) {
   const [state, formAction, pending] = useActionState(updateOrderStatus, {});
   const [selected, setSelected] = useState<OrderStatus>(currentStatus);
@@ -122,6 +132,16 @@ export function OrderStatusForm({
               Change status from <strong>{STATUS_LABEL[currentStatus]}</strong> to{" "}
               <strong>{STATUS_LABEL[selected]}</strong>?
             </p>
+
+            {/* ADR 0022 / D3: gated on the identical condition as the ratify-on-confirm
+                guard in updateOrderStatus, so what the admin reads and what the
+                action does can never diverge. */}
+            {selected === "confirmed" && hasDiscount && (
+              <p data-testid="ratify-confirm-note" className="text-sm">
+                Confirming also ratifies the discount: {discountSubtotal} −{" "}
+                {discountAmount} = {discountTotal}.
+              </p>
+            )}
 
             {selected === "shipped" && (
               <label className="flex flex-col gap-1 text-sm">
