@@ -71,7 +71,15 @@ export function sheetOffer(
     supplierOfProduct: opts.supplierOfProduct,
     currentConfigCode: candidate.configCode ?? null,
   })[0];
-  if (unlocked) return { kind: "unlocked", suggestion: unlocked };
+  if (unlocked) {
+    // rule.suggested is the product card the block draws — name, price,
+    // image. The cart can afford the engine's laxness here because it renders
+    // a LIST and OfferRow drops an undrawable row (cart-suggestion.tsx:97-98);
+    // the sheet has a SINGLE block, so an unlocked offer whose card cannot be
+    // drawn is a dead end — render nothing rather than a broken block.
+    if (!unlocked.rule.suggested) return null;
+    return { kind: "unlocked", suggestion: unlocked };
+  }
 
   // An excluded product neither triggers nor donates (ADR 0022). The unlocked
   // branch gets this for free — activeSuggestions never counts it into the
@@ -83,6 +91,13 @@ export function sheetOffer(
   // Locked: the first rule, in the admin's order, that this product could
   // unlock. Same filters as the engine, minus the trigger — that is the one
   // being projected forward.
+  //
+  // D1 and D2 below are re-derived rather than shared with activeSuggestions
+  // (discount.ts:302 and :328-329) — activeSuggestions can only ever see a
+  // trigger that is already met, so it has nothing to project forward, and
+  // extracting a shared predicate means surgery on an engine that shipped
+  // last week and is still under review. Any change to those two filters in
+  // discount.ts must be mirrored here by hand.
   for (const rule of config.rules) {
     if (!rule.triggerProductIds.includes(candidate.productId)) continue;
     if (!rule.suggested) continue;
