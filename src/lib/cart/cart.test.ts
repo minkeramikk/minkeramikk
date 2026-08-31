@@ -172,3 +172,26 @@ describe("cart line layers (F19)", () => {
     expect(cart[0].layers).toHaveLength(2);
   });
 });
+
+describe("bundle transaction (R4-upsell, D-C2)", () => {
+  const baseLine = vietriFlat;
+  const suggestedLine = servering;
+
+  it("a bundle folded line by line merges onto what the cart already holds", () => {
+    // The customer already has 2 of the base product in this configuration.
+    const existing = addToCart([], { ...baseLine, quantity: 2 });
+    const folded = [{ ...baseLine, quantity: 4 }, suggestedLine].reduce(
+      (c, l) => addToCart(c, l),
+      existing
+    );
+
+    // 2 + 4 on ONE row — not two rows for the same product::config.
+    expect(folded).toHaveLength(2);
+    expect(
+      folded.find((l) => l.productId === baseLine.productId)?.quantity
+    ).toBe(6);
+    expect(folded.some((l) => l.productId === suggestedLine.productId)).toBe(
+      true
+    );
+  });
+});

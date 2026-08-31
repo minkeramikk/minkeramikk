@@ -87,4 +87,22 @@ describe("buildSuggestionLine", () => {
     };
     expect(buildSuggestionLine(broken, FROM_LINE)).toBeNull();
   });
+
+  it("accepts a donor that is not in the cart yet — no cast, no fake id", () => {
+    const donor = {
+      supplierId: "s1",
+      supplierName: "Vietri",
+      configCode: "MK-X",
+      configSnapshot: null,
+      layers: [{ src: "a.png" }],
+    };
+    const line = buildSuggestionLine(SUGGESTION, donor);
+    expect(line?.configCode).toBe("MK-X");
+    expect(line?.supplierId).toBe("s1");
+    expect(line?.dealRuleId).toBe(SUGGESTION.rule.id);
+    // and still nothing about price travels on the line
+    expect(
+      Object.keys(line ?? {}).some((k) => /pct|percent|discount|saved|amount/i.test(k))
+    ).toBe(false);
+  });
 });
