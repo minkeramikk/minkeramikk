@@ -30,3 +30,14 @@ export const NO_VIPPS: VippsSettings = { qrImage: null, number: null, link: null
 export function hasVippsDetails(v: VippsSettings): boolean {
   return Boolean(v.qrImage || v.number);
 }
+
+/**
+ * The deposit, as a percentage of the order total. NOT a new business rule and
+ * NOT a settable field: it is quoted from the sale terms the shop already
+ * publishes (`legal.terms.body` §5 / «5. Betaling» — «depositum tilsvarende 50%
+ * av totalsummen […] Kunden vil dog få to fakturaer»). It lives here as a
+ * constant precisely so it cannot drift from that text on its own: changing the
+ * split means editing the terms, which is an i18n change, and this line has to
+ * be edited in the same breath.
+ */
+export const DEPOSIT_PCT = 50;

@@ -287,6 +287,9 @@
       "numberLabel": "Vippsnummer",
       "recipient": "Min Keramikk AS",
       "scanHint": "Skann koden med Vipps-appen, eller søk opp nummeret manuelt.",
+      "lookupHint": "Søk opp nummeret i Vipps-appen — QR-koden kan ikke skannes fra denne skjermen.",
+      "depositLabel": "Forskudd nå ({pct} %)",
+      "balanceLabel": "Resten før frakt",
       "qrAlt": "Vipps QR-kode",
       "warningLabel": "Viktig:",
       "warning": "skriv bestillingsnummeret i meldingsfeltet i Vipps, ellers finner vi ikke betalingen din."

@@ -33,13 +33,22 @@ async function loadVippsSettings(): Promise<VippsSettings> {
   }
 }
 
+/**
+ * `revalidate: 300` is load-bearing, not belt-and-braces: these three fields are
+ * configured OUT OF BAND — by hand, in SQL — and there is no back-office action
+ * to call `revalidateTag("vipps")` when they change. Tag-only invalidation would
+ * mean a running server never notices the shop being switched on, and the
+ * payment block would stay hidden until the next deploy with nothing to explain
+ * why. Five minutes of staleness on a read this cheap is the right trade. The
+ * tag stays for the day an admin page exists.
+ */
 const cached = unstable_cache(loadVippsSettings, ["vipps-settings"], {
   tags: ["vipps"],
+  revalidate: 300,
 });
 
 /**
- * Cached under the `vipps` tag; the back-office save calls
- * `revalidateTag("vipps")`. The guard is OUTSIDE the cache wrapper because
+ * The guard is OUTSIDE the cache wrapper because
  * `unstable_cache` itself throws when called outside a request scope — which
  * is exactly what happens on the email path (sent from a route handler's
  * post-response work), and a themed payment block must never break an order

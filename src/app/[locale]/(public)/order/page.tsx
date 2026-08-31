@@ -5,11 +5,12 @@ import { Button } from "@/components/ui/button";
 import { CartLineThumb } from "@/components/ui-domain/cart-line-thumb";
 import { resolveSetPreviews } from "@/lib/orders/set-preview";
 import { getVippsSettings } from "@/lib/orders/vipps.server";
-import { hasVippsDetails } from "@/lib/orders/vipps";
+import { DEPOSIT_PCT, hasVippsDetails } from "@/lib/orders/vipps";
 import { shippingStatus } from "@/lib/cart/shipping";
 import {
   formatMoney,
   money,
+  percentOf,
   subtract,
   sum,
   type Currency,
@@ -18,7 +19,7 @@ import {
 import { assetUrl } from "@/lib/storage";
 import { siteUrl } from "@/lib/site";
 import { OrderShareButton } from "./share-button";
-import { CopyOrderCode } from "./copy-code";
+import { CopyValue } from "./copy-code";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("order");
@@ -50,8 +51,9 @@ const TOTAL_RE = /^\d{1,9}$/;
  * empty state.
  *
  * TODO:nb-review — most Norwegian copy here is the TL's own (mockup-takk.html);
- * `order.shippingToBeConfirmed`, `order.discountLabel` and
- * `order.payment.qrAlt` are ours and want the client's eye.
+ * `order.shippingToBeConfirmed`, `order.discountLabel`, `order.payment.qrAlt`,
+ * `order.payment.lookupHint`, `order.payment.depositLabel` and
+ * `order.payment.balanceLabel` are ours and want the client's eye.
  */
 export default async function OrderConfirmationPage({
   params,
@@ -94,13 +96,21 @@ export default async function OrderConfirmationPage({
     lines.map((l) => l.price),
     currency
   );
+  // NO fallback to the subtotal: on a discounted order that would quote the
+  // gross and tell the customer to send MORE than he owes over Vipps, which is
+  // the one thing this page exists to get right. Without a valid `total=` the
+  // figure is simply not shown — the email stays the document that carries it.
   const netTotal: Money | null = TOTAL_RE.test(total ?? "")
     ? money(Number(total), currency)
-    : lines.length > 0
-      ? subtotal
-      : null;
+    : null;
   const saved = netTotal ? subtract(subtotal, netTotal) : money(0, currency);
   const discounted = saved.amountCents > 0;
+
+  // The deposit is quoted from the sale terms (§5), never computed by the shop:
+  // 50% now, the rest before shipping. `balance` is the SUBTRACTION, not a
+  // second percentOf, so the two halves always add back up to the total.
+  const deposit = netTotal ? percentOf(netTotal, DEPOSIT_PCT) : null;
+  const balance = netTotal && deposit ? subtract(netTotal, deposit) : null;
 
   // CA-3 landing convention: ?step=3&set=… (set= is only resolved on step 3).
   const shareUrl = set
@@ -151,7 +161,7 @@ export default async function OrderConfirmationPage({
           >
             {code}
           </p>
-          <CopyOrderCode code={code} />
+          <CopyValue value={code} testId="order-copy-code" className="-mb-2" />
         </div>
         {netTotal && (
           <div className="bg-card px-4 py-4" data-testid="order-total">
@@ -179,7 +189,32 @@ export default async function OrderConfirmationPage({
           <h2 className="text-[15px] font-semibold">{t("payment.title")}</h2>
           <p className="mt-1 text-xs text-muted-foreground">{t("payment.lead")}</p>
 
-          <div className="mt-3.5 flex items-center gap-4">
+          {/* What is due NOW, and what is not. It belongs to «how you pay», not
+              to «what your order costs» — the block above stays the price of
+              the order, so the page still informs instead of demanding. */}
+          {deposit && balance && (
+            <dl
+              className="mt-3 flex flex-col gap-1 border-b border-border pb-3"
+              data-testid="order-deposit"
+            >
+              <div className="flex items-baseline justify-between gap-3 text-sm">
+                <dt>{t("payment.depositLabel", { pct: DEPOSIT_PCT })}</dt>
+                <dd className="font-semibold tabular-nums">
+                  {formatMoney(deposit, locale)}
+                </dd>
+              </div>
+              <div className="flex items-baseline justify-between gap-3 text-xs text-muted-foreground">
+                <dt>{t("payment.balanceLabel")}</dt>
+                <dd className="tabular-nums">{formatMoney(balance, locale)}</dd>
+              </div>
+            </dl>
+          )}
+
+          {/* Below sm the QR is useless — you cannot scan a code shown by the
+              phone you are holding — so the NUMBER leads and the QR follows,
+              smaller, with a hint that says to look the number up. From sm up
+              the QR leads and is scanned by a phone. Same markup, `order-*`. */}
+          <div className="mt-3.5 flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
             {vipps.qrImage && (
               // eslint-disable-next-line @next/next/no-img-element -- shop-uploaded asset from storage
               <img
@@ -187,27 +222,39 @@ export default async function OrderConfirmationPage({
                 alt={t("payment.qrAlt")}
                 width={118}
                 height={118}
-                className="size-[118px] shrink-0 rounded-md border border-border bg-white object-contain p-1"
+                className="order-2 size-[92px] shrink-0 self-start rounded-md border border-border bg-white object-contain p-1 sm:order-1 sm:size-[118px] sm:self-auto"
                 data-testid="order-vipps-qr"
               />
             )}
-            <div className="flex min-w-0 flex-col gap-0.5">
+            <div className="order-1 flex min-w-0 flex-col gap-0.5 sm:order-2">
               {vipps.number && (
                 <>
                   <span className="text-[11px] uppercase tracking-[0.07em] text-muted-foreground">
                     {t("payment.numberLabel")}
                   </span>
-                  <b
-                    className="text-[26px] font-semibold tabular-nums"
-                    data-testid="order-vipps-number"
-                  >
-                    {vipps.number}
-                  </b>
+                  <span className="flex flex-wrap items-center gap-x-4">
+                    <b
+                      className="text-[26px] font-semibold tabular-nums"
+                      data-testid="order-vipps-number"
+                    >
+                      {vipps.number}
+                    </b>
+                    <CopyValue
+                      value={vipps.number}
+                      testId="order-copy-vipps"
+                      className="sm:hidden"
+                    />
+                  </span>
                 </>
               )}
               <span className="text-xs text-muted-foreground">
                 {t("payment.recipient")}
               </span>
+              {vipps.number && (
+                <span className="mt-1 text-xs text-muted-foreground sm:hidden">
+                  {t("payment.lookupHint")}
+                </span>
+              )}
               {vipps.qrImage && (
                 <span className="mt-1 hidden text-xs text-muted-foreground sm:block">
                   {t("payment.scanHint")}
@@ -322,7 +369,13 @@ export default async function OrderConfirmationPage({
           </ul>
           {/* The lines re-price at full catalogue price; the net total is the
               server's. When they differ, the gap is named rather than silently
-              swallowed — otherwise the rows would not add up to the total. */}
+              swallowed — otherwise the rows would not add up to the total.
+              Known and accepted (TL, 2026-08-31): the gap is DERIVED, so a
+              catalogue price edited after the order would invent a discount
+              that never existed, and a product that no longer resolves makes it
+              go negative — the row then hides itself and the rows quietly stop
+              summing to the total. The page lives for seconds and the email is
+              the document; not worth a snapshot to fix. */}
           {discounted && (
             <div
               className="mt-2.5 flex justify-between text-xs"

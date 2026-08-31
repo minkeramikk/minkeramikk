@@ -288,6 +288,9 @@
       "numberLabel": "Vipps number",
       "recipient": "Min Keramikk AS",
       "scanHint": "Scan the code with the Vipps app, or look the number up manually.",
+      "lookupHint": "Look the number up in the Vipps app — the QR code cannot be scanned from this screen.",
+      "depositLabel": "Deposit now ({pct}%)",
+      "balanceLabel": "Remainder before shipping",
       "qrAlt": "Vipps QR code",
       "warningLabel": "Important:",
       "warning": "write the order number in the message field in Vipps, otherwise we cannot match your payment."
