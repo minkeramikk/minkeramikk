@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
 import { useCart } from "./use-cart";
+import type { NewCartLine } from "./cart";
 import {
   computeCartDiscount,
   activeSuggestions,
@@ -44,6 +45,11 @@ type CartApi = ReturnType<typeof useCart> & {
   setCurrentConfigCode: (code: string | null) => void;
   /** Part ②: add the suggested ceramic wearing the trigger line's design. */
   acceptSuggestion: (suggestion: ActiveSuggestion) => void;
+  /**
+   * R4-upsell: add a not-yet-in-cart base line together with the offer it
+   * unlocks, in one gesture.
+   */
+  acceptBundle: (base: NewCartLine, suggestion: ActiveSuggestion) => void;
 };
 
 const CartContext = createContext<CartApi | null>(null);
@@ -139,6 +145,20 @@ export function CartProvider({
     [cart]
   );
 
+  /**
+   * The bundle: the line the customer configured plus the offer's own line, added
+   * together. The base line doubles as the suggestion's donor, so the suggested
+   * ceramic inherits the design on screen (ADR 0023 (e)) without the base line
+   * ever having to exist in the cart first.
+   */
+  const acceptBundle = useCallback(
+    (base: NewCartLine, suggestion: ActiveSuggestion) => {
+      const extra = buildSuggestionLine(suggestion, base); // `base` IS the donor
+      cart.addMany(extra ? [base, extra] : [base]);
+    },
+    [cart]
+  );
+
   const value = useMemo<CartApi>(
     () => ({
       ...cart,
@@ -152,6 +172,7 @@ export function CartProvider({
       dismissSuggestions,
       setCurrentConfigCode,
       acceptSuggestion,
+      acceptBundle,
     }),
     [
       cart,
@@ -161,6 +182,7 @@ export function CartProvider({
       suggestions,
       dismissSuggestions,
       acceptSuggestion,
+      acceptBundle,
     ]
   );
 

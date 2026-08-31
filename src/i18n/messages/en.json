@@ -260,6 +260,12 @@
       "badgeCapped": "−{pct}% on {qty} pcs",
       "dealNudge": "add {missing} more for −{pct}%"
     },
+    "sheetOffer": {
+      "kicker": "Offer",
+      "kickerUnlocked": "Offer unlocked",
+      "unlock": "Add {missing} more to unlock",
+      "addBoth": "Add both · {total}"
+    },
     "addedWithPct": "Added to your basket · −{pct}%"
   },
   "order": {

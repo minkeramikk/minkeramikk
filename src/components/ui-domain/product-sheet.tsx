@@ -11,7 +11,7 @@ import { PhotoLightbox } from "@/components/ui-domain/photo-lightbox";
 import { CLOSE_DISC } from "@/components/ui-domain/close-disc";
 import { assetUrl } from "@/lib/storage";
 import { PRODUCT_THUMB_WIDTH } from "@/lib/asset-variants";
-import { formatMoney, money } from "@/lib/money/money";
+import { formatMoney, money, multiply } from "@/lib/money/money";
 import { displayPhotos } from "@/lib/catalog/product-photos";
 import { ATTR_ICON } from "@/components/ui-domain/attribute-icons";
 import {
@@ -19,6 +19,8 @@ import {
   formatAttributeValue,
   publicAttributes,
 } from "@/lib/catalog/product-attributes";
+import { SheetOfferBlock } from "@/components/ui-domain/sheet-offer-block";
+import type { SheetOffer } from "@/lib/discounts/sheet-offer";
 import type { CartLayer } from "@/lib/cart/cart";
 import type { CeramicProduct } from "@/app/[locale]/(public)/configurator/ceramics-step";
 import { cn } from "@/lib/utils";
@@ -47,6 +49,8 @@ export function ProductSheet({
   onQty,
   onAdd,
   designLayers,
+  offer,
+  onAddBoth,
 }: {
   /** null = nothing selected; the sheet renders nothing at all. */
   product: CeramicProduct | null;
@@ -59,6 +63,13 @@ export function ProductSheet({
   onAdd: () => void;
   /** F37: current config layers (empty → no composed pair rendered). */
   designLayers: CartLayer[];
+  /** R4-UPSELL-MODALE (§3.24): null → the sheet renders exactly as it did
+   *  before this offer block existed (AC5). The ONE caller (ceramics-step.tsx)
+   *  always computes this, so it is required rather than optional (F4). */
+  offer: SheetOffer | null;
+  /** Adds the whole bundle (this product + the suggested one) atomically and
+   *  closes the sheet. Always wired by the one caller — required (F4). */
+  onAddBoth: () => void;
 }) {
   // TODO:nb-review NO copy: productSheet.close
   const tCfg = useTranslations("configurator");
@@ -288,6 +299,22 @@ export function ProductSheet({
               </p>
             )}
 
+            {/* R4-UPSELL-MODALE (§3.24): absent entirely when there is no
+                offer to show — `offer` is null for every caller that has not
+                wired Task 4 yet, so the sheet stays byte-identical (AC5). */}
+            {offer && (
+              <SheetOfferBlock
+                offer={offer}
+                currentName={name}
+                currentUnitPriceCents={p.priceCents}
+                currency={p.currency}
+                qty={qty}
+                locale={locale}
+                onSetQty={onQty}
+                onAddBoth={onAddBoth}
+              />
+            )}
+
             {/* Buy row — sticky at the bottom of the scroller on mobile (§3.19),
                 static in the desktop column where `mt-auto` pins it to the end. */}
             <div className="sticky bottom-0 mt-auto flex items-center gap-2.5 bg-card pt-2.5 shadow-[0_-8px_12px_-8px_color-mix(in_oklab,var(--foreground)_15%,transparent)] sm:static sm:shadow-none">
@@ -325,7 +352,13 @@ export function ProductSheet({
                 data-testid="add-to-cart"
                 onClick={onAdd}
               >
-                {tCart("add")}
+                {/* D-Q1: the total rides along ONLY when the offer block is on
+                    screen, where it exists to be compared with the bundle's
+                    own total. With no second figure beside it, it would only
+                    lengthen a button already tight at 360px in English. */}
+                {offer
+                  ? `${tCart("add")} · ${formatMoney(multiply(money(p.priceCents, p.currency), qty), locale)}`
+                  : tCart("add")}
               </Button>
             </div>
           </div>

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import {
+  addManyToCart,
   addToCart,
   removeLine,
   updateQuantity,
@@ -50,6 +51,15 @@ export function useCart() {
   const add = useCallback((line: NewCartLine) => {
     setCart((c) => addToCart(c, line));
   }, []);
+  /**
+   * Add several lines in ONE state update. Two `add()` calls are two renders and
+   * a cart the customer can see in an intermediate state — with a bundle that
+   * means the base line appearing alone for a frame before its discounted
+   * companion. One `setCart`, one render, one cart.
+   */
+  const addMany = useCallback((lines: NewCartLine[]) => {
+    setCart((c) => addManyToCart(c, lines));
+  }, []);
   const setQuantity = useCallback((id: string, qty: number) => {
     setCart((c) => updateQuantity(c, id, qty));
   }, []);
@@ -67,5 +77,5 @@ export function useCart() {
     }
   }, []);
 
-  return { cart, hydrated, add, setQuantity, remove, clear };
+  return { cart, hydrated, add, addMany, setQuantity, remove, clear };
 }
