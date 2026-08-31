@@ -259,6 +259,12 @@
       "badgeCapped": "−{pct} % på {qty} stk",
       "dealNudge": "legg til {missing} til for −{pct} %"
     },
+    "sheetOffer": {
+      "kicker": "Tilbud",
+      "kickerUnlocked": "Tilbud låst opp",
+      "unlock": "Legg til {missing} til for å låse opp",
+      "addBoth": "Legg til begge · {total}"
+    },
     "addedWithPct": "Lagt i handlekurven · −{pct} %"
   },
   "order": {
