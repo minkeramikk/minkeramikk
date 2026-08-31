@@ -81,6 +81,13 @@ export interface DiscountLineInput {
   quantity: number;
   /** Part ②: the rule this line was added from. The % is looked up, never sent. */
   dealRuleId?: string;
+  /**
+   * The line's configurator code. Only the suggestion donor reads it, to prefer
+   * the design the customer is looking at right now over the merely biggest
+   * line. Optional: a cart saved before this existed simply never matches, and
+   * the donor falls back to quantity as it always did.
+   */
+  configCode?: string;
 }
 
 export interface LineDiscount {
@@ -245,16 +252,41 @@ export interface ActiveSuggestion {
  * and the first matching rule in the admin's own order wins — no scoring, no
  * "best offer" heuristic nobody asked for.
  */
-export function firstSuggestion(
+/**
+ * How many offers the cart may show at once (TL ruling, 2026-08-31). Beyond
+ * this the block stops being a suggestion and becomes a catalogue; rules past
+ * the cap are simply not shown, with no error and no reordering.
+ */
+export const MAX_SUGGESTIONS = 3;
+
+/**
+ * Every offer the cart can show right now, in the admin's own order.
+ *
+ * Ordered, not ranked: no scoring and no "best offer" heuristic — the shop
+ * decides precedence by arranging its rules, and the cart honours that. Was
+ * `firstSuggestion` returning one; showing a single card meant the second rule
+ * an admin configured was reachable only by dismissing the first, so most
+ * customers never saw it and the admin page promised what the shop did not
+ * deliver.
+ *
+ * The filters are unchanged: a product already in the cart is skipped (D1), the
+ * suggested product must share the donor's supplier (D2), the trigger group must
+ * be satisfied, and an excluded product neither triggers nor donates.
+ */
+export function activeSuggestions(
   lines: DiscountLineInput[],
   config: DiscountConfig,
   opts: {
-    dismissedRuleIds: string[];
     supplierOf: (lineId: string) => string | null;
     supplierOfProduct: (productId: string) => string | null;
+    /**
+     * The configuration the customer is looking at on step 3, when there is
+     * one. Null in the drawer at steps 1-2, where no design is on screen.
+     */
+    currentConfigCode?: string | null;
   }
-): ActiveSuggestion | null {
-  if (!config.automationsEnabled) return null;
+): ActiveSuggestion[] {
+  if (!config.automationsEnabled) return [];
 
   const qtyByProduct: Record<string, number> = {};
   for (const l of lines) {
@@ -264,8 +296,9 @@ export function firstSuggestion(
   }
   const inCart = new Set(lines.map((l) => l.productId).filter(Boolean) as string[]);
 
+  const out: ActiveSuggestion[] = [];
   for (const rule of config.rules) {
-    if (opts.dismissedRuleIds.includes(rule.id)) continue;
+    if (out.length >= MAX_SUGGESTIONS) break;
     if (inCart.has(rule.suggestedProductId)) continue; // D1
     const groupQty = rule.triggerProductIds.reduce(
       (n, pid) => n + (qtyByProduct[pid] ?? 0),
@@ -273,43 +306,41 @@ export function firstSuggestion(
     );
     if (groupQty < rule.triggerMinQty) continue;
 
-    // the line that will lend its config: the biggest trigger line (the one the
-    // customer clearly committed to), first-seen on a tie. Same population that
-    // fed groupQty — an excluded line never triggers, so it can't donate either.
-    const from = lines
+    // The line that lends its config. Biggest first, first-seen on a tie — but
+    // if the customer is looking at a configuration on step 3 and one of the
+    // candidates wears it, that one wins: guessing "the biggest" hands them an
+    // Amalfi offer while they are studying Juletre.
+    const byQty = lines
       .filter(
         (l) =>
           l.productId &&
           rule.triggerProductIds.includes(l.productId) &&
           included(l.productId, config)
       )
-      .sort((a, b) => b.quantity - a.quantity)[0];
+      .sort((a, b) => b.quantity - a.quantity);
+    const from =
+      (opts.currentConfigCode
+        ? byQty.find((l) => l.configCode === opts.currentConfigCode)
+        : undefined) ?? byQty[0];
     if (!from) continue;
 
     // same supplier, or the config code means nothing on the suggested product
     const sup = opts.supplierOf(from.id);
     if (!sup || opts.supplierOfProduct(rule.suggestedProductId) !== sup) continue;
 
-    // same fixed/inherited/none resolution resolveDeal() applies to a placed line
-    return {
-      rule,
-      fromLineId: from.id,
-      // The card quotes the offer at ITS OWN size, so it sits exactly on the
-      // floor by construction — `applies` is the only outcome that can price a
-      // suggestion, and anything else means there is nothing to show.
-      pct: (() => {
-        const d = resolveDeal(
-          rule.id,
-          rule.suggestedProductId,
-          rule.suggestedQty,
-          qtyByProduct,
-          config
-        );
-        return d.kind === "applies" ? d.pct : 0;
-      })(),
-    };
+    // The card quotes the offer at ITS OWN size, so it sits exactly on the floor
+    // by construction — `applies` is the only outcome that can price a
+    // suggestion, and anything else means there is nothing to show.
+    const d = resolveDeal(
+      rule.id,
+      rule.suggestedProductId,
+      rule.suggestedQty,
+      qtyByProduct,
+      config
+    );
+    out.push({ rule, fromLineId: from.id, pct: d.kind === "applies" ? d.pct : 0 });
   }
-  return null;
+  return out;
 }
 
 export function computeCartDiscount(

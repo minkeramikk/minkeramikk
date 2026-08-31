@@ -205,8 +205,29 @@ export function CeramicsStep({
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  const { cart, hydrated, add, setQuantity, remove, clear, discount, discountConfig } =
-    useCartContext();
+  const {
+    cart,
+    hydrated,
+    add,
+    setQuantity,
+    remove,
+    clear,
+    discount,
+    discountConfig,
+    setCurrentConfigCode,
+  } = useCartContext();
+
+  /**
+   * Tell the cart which configuration is on screen, so an offer borrows the
+   * design the customer is actually looking at rather than the merely biggest
+   * trigger line (TL ruling 2026-08-31). Cleared on unmount: in the drawer at
+   * steps 1-2 there is no current configuration and the donor falls back to
+   * quantity, exactly as before.
+   */
+  useEffect(() => {
+    setCurrentConfigCode(configCode);
+    return () => setCurrentConfigCode(null);
+  }, [configCode, setCurrentConfigCode]);
 
   /**
    * R4-STEP3: id of the product whose `ProductSheet` is OPEN — no preselection

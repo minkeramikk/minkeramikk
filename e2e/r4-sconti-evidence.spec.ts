@@ -556,3 +556,116 @@ test.describe("R4-SCONTI evidence — an offer is not owed below its own size", 
     });
   }
 });
+
+
+/**
+ * ADR 0024 — the offers block as a LIST.
+ *
+ * Three shots per locale, and the middle one is the point: with several offers
+ * on screen you can see at a glance whether this reads as a list or as a
+ * flyer. The third proves the block SHORTENS when one is taken rather than
+ * emptying or reshuffling — D1 removes the accepted offer and leaves the rest.
+ */
+test.describe("R4-SCONTI evidence — offers are a list", () => {
+  test.skip(!CAN_SEED, "MK_E2E_SEED=1 richiesto: semina regole upsell");
+  test.describe.configure({ timeout: 120_000 });
+
+  for (const locale of ["no", "en"] as const) {
+    test(`one offer, then several, then one taken (${locale.toUpperCase()}) @390`, async ({
+      page,
+    }) => {
+      const db = adminClient();
+      const { data: designs } = await db
+        .from("designs")
+        .select("id, slug, supplier_id")
+        .eq("active", true)
+        .order("sort_order");
+      let slug = "";
+      let triggerId = "";
+      let suggestedId = "";
+      for (const d of designs ?? []) {
+        const trigger = await firstProductOfDesignSupplier(d.id, d.supplier_id);
+        if (!trigger) continue;
+        const { data: others } = await db
+          .from("products")
+          .select("id")
+          .eq("supplier_id", d.supplier_id)
+          .eq("visible", true)
+          .neq("id", trigger.id)
+          .order("sort_order")
+          .limit(1);
+        if (others && others.length > 0) {
+          slug = d.slug;
+          triggerId = trigger.id;
+          suggestedId = others[0].id;
+          break;
+        }
+      }
+      test.skip(!slug, "needs two visible products of one supplier");
+
+      const vis = (id: string) => page.locator(`[data-testid="${id}"]:visible`);
+      const a = await seedDiscountRule({
+        triggerProductId: triggerId,
+        suggestedProductId: suggestedId,
+        minQty: 1,
+        pct: 10,
+      });
+      try {
+        await page.setViewportSize(PHONE);
+        await page.goto(`/${locale}/configurator?design=${slug}&step=3`);
+        await addFirstCeramic(page);
+        // The row COUNT goes inside the poll, not after it: the config is
+        // cached for `revalidate: 10`, so a run started seconds after another
+        // one's restore can still be served the previous test's rules.
+        await expect(async () => {
+          await page.reload();
+          await expect(vis("cart-suggestion-row")).toHaveCount(1);
+        }).toPass({ timeout: 20_000 });
+        await vis("cart-suggestion").scrollIntoViewIfNeeded();
+        await page.screenshot({ path: `${OUT}/offers-one-390-${locale}.png` });
+
+        // a second and a third rule on the same trigger: the block grows
+        const b = await seedDiscountRule({
+          triggerProductId: triggerId,
+          suggestedProductId: suggestedId,
+          minQty: 1,
+          pct: 20,
+          suggestedQty: 2,
+        });
+        const c = await seedDiscountRule({
+          triggerProductId: triggerId,
+          suggestedProductId: suggestedId,
+          minQty: 1,
+          pct: 30,
+          suggestedQty: 4,
+        });
+        try {
+          await expect(async () => {
+            await page.reload();
+            await expect(vis("cart-suggestion-row")).toHaveCount(3);
+          }).toPass({ timeout: 20_000 });
+          await expect(vis("cart-suggestion")).toHaveCount(1); // ONE block
+          // fullPage for this one: three rows do not fit a 390×844 viewport,
+          // and half a list cannot answer "list or flyer?", which is the whole
+          // question this shot exists to settle.
+          await page.screenshot({
+            path: `${OUT}/offers-three-390-${locale}.png`,
+            fullPage: true,
+          });
+
+          // take one: it leaves the list, the others stay
+          await vis("cart-suggestion-add").first().click();
+          await expect(vis("cart-suggestion")).toHaveCount(0);
+          // the block is gone; frame the basket where it used to be
+          await vis("cart-list").scrollIntoViewIfNeeded();
+          await page.screenshot({ path: `${OUT}/offers-after-add-390-${locale}.png` });
+        } finally {
+          await c.restore();
+          await b.restore();
+        }
+      } finally {
+        await a.restore();
+      }
+    });
+  }
+});

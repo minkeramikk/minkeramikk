@@ -4,7 +4,7 @@ import { createContext, useCallback, useContext, useMemo, useState, type ReactNo
 import { useCart } from "./use-cart";
 import {
   computeCartDiscount,
-  firstSuggestion,
+  activeSuggestions,
   type ActiveSuggestion,
   type CartDiscount,
   type DiscountConfig,
@@ -31,13 +31,19 @@ type CartApi = ReturnType<typeof useCart> & {
   discountConfig: DiscountConfig;
   /** R4-SCONTI: computed ONCE here — every surface reads the same object. */
   discount: CartDiscount;
-  /** Part ②: rules the visitor closed in this session (never persisted). */
-  dismissedRuleIds: string[];
-  dismissRule: (ruleId: string) => void;
-  /** Part ②: the ONE upsell suggestion to show, or null (Task 11). */
-  suggestion: ActiveSuggestion | null;
+  /**
+   * Part ②: the offers the cart can show right now, in the admin's order and
+   * capped (MAX_SUGGESTIONS). Empty once the visitor closes the block.
+   */
+  suggestions: ActiveSuggestion[];
+  /** The ✕ closes the WHOLE block, not one offer — closing a card to reveal the
+   *  next is the behaviour the list replaced. Session-only, never persisted. */
+  dismissSuggestions: () => void;
+  /** Step 3 tells the cart which configuration is on screen, so an offer can
+   *  borrow the design the customer is actually looking at. Null elsewhere. */
+  setCurrentConfigCode: (code: string | null) => void;
   /** Part ②: add the suggested ceramic wearing the trigger line's design. */
-  acceptSuggestion: () => void;
+  acceptSuggestion: (suggestion: ActiveSuggestion) => void;
 };
 
 const CartContext = createContext<CartApi | null>(null);
@@ -51,11 +57,10 @@ export function CartProvider({
 }) {
   const cart = useCart();
   const [open, setOpen] = useState(false);
-  const [dismissedRuleIds, setDismissed] = useState<string[]>([]);
+  const [suggestionsDismissed, setSuggestionsDismissed] = useState(false);
+  const [currentConfigCode, setCurrentConfigCode] = useState<string | null>(null);
 
-  const dismissRule = useCallback((ruleId: string) => {
-    setDismissed((d) => (d.includes(ruleId) ? d : [...d, ruleId]));
-  }, []);
+  const dismissSuggestions = useCallback(() => setSuggestionsDismissed(true), []);
 
   const discount = useMemo(
     () =>
@@ -87,36 +92,52 @@ export function CartProvider({
     [config.rules]
   );
 
-  const suggestion = useMemo(
+  const suggestions = useMemo(
     () =>
-      firstSuggestion(
-        cart.cart.map((l) => ({
-          id: l.id,
-          productId: l.productId,
-          unitPriceCents: l.unitPriceCents,
-          currency: l.currency,
-          quantity: l.quantity,
-          dealRuleId: l.dealRuleId,
-        })),
-        config,
-        { dismissedRuleIds, supplierOf, supplierOfProduct }
-      ),
-    [cart.cart, config, dismissedRuleIds, supplierOf, supplierOfProduct]
+      suggestionsDismissed
+        ? []
+        : activeSuggestions(
+            cart.cart.map((l) => ({
+              id: l.id,
+              productId: l.productId,
+              unitPriceCents: l.unitPriceCents,
+              currency: l.currency,
+              quantity: l.quantity,
+              dealRuleId: l.dealRuleId,
+              configCode: l.configCode,
+            })),
+            config,
+            { supplierOf, supplierOfProduct, currentConfigCode }
+          ),
+    [
+      cart.cart,
+      config,
+      suggestionsDismissed,
+      currentConfigCode,
+      supplierOf,
+      supplierOfProduct,
+    ]
   );
 
   /**
    * Add the suggested ceramic wearing the design of the line that triggered the
    * rule (ADR 0023 (e)) — inheritance contract lives in `buildSuggestionLine`
-   * (unit-tested), so this hook is just wiring.
+   * (unit-tested), so this hook is just wiring. It takes the offer explicitly:
+   * with a list on screen the caller knows which one was clicked, and having it
+   * re-derive "the current one" is how a click lands on the wrong row.
    */
-  const acceptSuggestion = useCallback(() => {
-    if (!suggestion) return;
-    const from = cart.cart.find((l) => l.id === suggestion.fromLineId);
-    if (!from) return;
-    const line = buildSuggestionLine(suggestion, from);
-    if (!line) return;
-    cart.add(line);
-  }, [suggestion, cart]);
+  const acceptSuggestion = useCallback(
+    (suggestion: ActiveSuggestion) => {
+      const from = cart.cart.find((l) => l.id === suggestion.fromLineId);
+      if (!from) return;
+      const line = buildSuggestionLine(suggestion, from);
+      if (!line) return;
+      cart.add(line);
+      // No dismissal here: D1 drops the accepted offer from the list on the next
+      // render because its product is now in the cart, and the others stay.
+    },
+    [cart]
+  );
 
   const value = useMemo<CartApi>(
     () => ({
@@ -127,12 +148,20 @@ export function CartProvider({
       closeCart: () => setOpen(false),
       discountConfig: config,
       discount,
-      dismissedRuleIds,
-      dismissRule,
-      suggestion,
+      suggestions,
+      dismissSuggestions,
+      setCurrentConfigCode,
       acceptSuggestion,
     }),
-    [cart, open, config, discount, dismissedRuleIds, dismissRule, suggestion, acceptSuggestion]
+    [
+      cart,
+      open,
+      config,
+      discount,
+      suggestions,
+      dismissSuggestions,
+      acceptSuggestion,
+    ]
   );
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

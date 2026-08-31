@@ -1,6 +1,6 @@
 # ADR 0023 — Automazioni & upsell (regole «chi ha X → suggerisci Y»)
 
-**Stato**: Accepted · 2026-08-29. Estende [ADR 0022](0022-sconti-quantita-per-prodotto.md)
+**Stato**: Accepted · «una card alla volta» superata da [ADR 0024](0024-offerte-lista.md) (2026-08-31) · 2026-08-29. Estende [ADR 0022](0022-sconti-quantita-per-prodotto.md)
 (sconti quantità per prodotto), non la sostituisce.
 
 ## Contesto

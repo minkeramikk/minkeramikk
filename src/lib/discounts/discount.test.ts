@@ -3,7 +3,8 @@ import { money, subtract } from "@/lib/money/money";
 import {
   cartSaved,
   computeCartDiscount,
-  firstSuggestion,
+  activeSuggestions,
+  MAX_SUGGESTIONS,
   nextTier,
   tierFor,
   EMPTY_CONFIG,
@@ -134,12 +135,6 @@ const RULE = {
   discountPct: 15,
 };
 
-const opts = {
-  dismissedRuleIds: [] as string[],
-  supplierOf: () => "sup1",
-  supplierOfProduct: () => "sup1",
-};
-
 describe("computeCartDiscount — deal entitlement (I1/I2 fix-wave)", () => {
   const cfg = () => config({ automationsEnabled: true, rules: [RULE] });
 
@@ -188,100 +183,104 @@ describe("computeCartDiscount — deal entitlement (I1/I2 fix-wave)", () => {
   });
 });
 
-describe("firstSuggestion", () => {
-  const cfg = (over = {}) =>
-    config({ automationsEnabled: true, rules: [RULE], ...over });
-
-  it("fires once the trigger group reaches the minimum quantity", () => {
-    expect(firstSuggestion([line({ id: "a", quantity: 3 })], cfg(), opts)).toBeNull();
-    const s = firstSuggestion([line({ id: "a", quantity: 4 })], cfg(), opts);
-    expect(s?.rule.id).toBe("r1");
-    expect(s?.pct).toBe(15);
-    expect(s?.fromLineId).toBe("a");
+describe("activeSuggestions — a list, in the admin's order", () => {
+  const opts = {
+    supplierOf: () => "sup1",
+    supplierOfProduct: () => "sup1",
+  };
+  // Rules differ only by the product they suggest, so precedence can only come
+  // from their ORDER in config.rules — if a test passes because one of them is
+  // "better", the engine has grown a heuristic it must not have.
+  const ruleFor = (id: string, suggested: string): DiscountRule => ({
+    ...RULE,
+    id,
+    suggestedProductId: suggested,
   });
+  const cfg = (rules: DiscountRule[]) =>
+    config({ automationsEnabled: true, rules, tiersEnabled: false });
+  const trigger = [line({ id: "t", quantity: RULE.triggerMinQty })];
 
-  it("counts the group ACROSS lines and designs, like the tiers do", () => {
-    const lines = [line({ id: "a", quantity: 2 }), line({ id: "b", quantity: 2 })];
-    expect(firstSuggestion(lines, cfg(), opts)?.rule.id).toBe("r1");
-  });
-
-  it("never fires when the suggested product is already in the cart (D1)", () => {
-    const lines = [line({ id: "a", quantity: 4 }), line({ id: "b", productId: "boat" })];
-    expect(firstSuggestion(lines, cfg(), opts)).toBeNull();
-  });
-
-  it("never fires for a dismissed rule", () => {
-    const s = firstSuggestion([line({ id: "a", quantity: 4 })], cfg(), {
-      ...opts,
-      dismissedRuleIds: ["r1"],
-    });
-    expect(s).toBeNull();
-  });
-
-  it("never fires across suppliers (D2)", () => {
-    const s = firstSuggestion([line({ id: "a", quantity: 4 })], cfg(), {
-      ...opts,
-      supplierOfProduct: () => "sup2",
-    });
-    expect(s).toBeNull();
-  });
-
-  it("an EXCLUDED product never triggers a rule", () => {
-    const s = firstSuggestion(
-      [line({ id: "a", quantity: 4 })],
-      cfg({ includedProductIds: ["carafe"] }),
-      opts
-    );
-    expect(s).toBeNull();
-  });
-
-  it("returns ONE suggestion even when two rules match — the first by sort order", () => {
-    const second = { ...RULE, id: "r2", suggestedProductId: "bowl" };
-    expect(firstSuggestion([line({ id: "a", quantity: 4 })], cfg({ rules: [RULE, second] }), opts)?.rule.id).toBe("r1");
-  });
-
-  it("mode=inherited resolves to the group's current tier, and to 0 with the tiers off", () => {
-    const inherited = { ...RULE, discountMode: "inherited" as const, discountPct: null };
-    expect(firstSuggestion([line({ id: "a", quantity: 8 })], cfg({ rules: [inherited] }), opts)?.pct).toBe(10);
+  it("no candidate: an empty list, never null", () => {
+    expect(activeSuggestions(trigger, cfg([]), opts)).toEqual([]);
+    // trigger not yet satisfied
     expect(
-      firstSuggestion([line({ id: "a", quantity: 8 })], cfg({ rules: [inherited], tiersEnabled: false }), opts)?.pct
-    ).toBe(0);
+      activeSuggestions(
+        [line({ id: "t", quantity: RULE.triggerMinQty - 1 })],
+        cfg([ruleFor("r1", "boat")]),
+        opts
+      )
+    ).toEqual([]);
   });
 
-  it("a FIXED deal survives the tiers being switched off", () => {
-    expect(firstSuggestion([line({ id: "a", quantity: 4 })], cfg({ tiersEnabled: false }), opts)?.pct).toBe(15);
+  it("one candidate: one offer", () => {
+    const out = activeSuggestions(trigger, cfg([ruleFor("r1", "boat")]), opts);
+    expect(out).toHaveLength(1);
+    expect(out[0].rule.id).toBe("r1");
   });
 
-  it("gives nothing when automations are off", () => {
-    expect(firstSuggestion([line({ id: "a", quantity: 4 })], cfg({ automationsEnabled: false }), opts)).toBeNull();
+  it("three candidates: three offers, in the admin's order", () => {
+    const rules = [ruleFor("r1", "boat"), ruleFor("r2", "bowl"), ruleFor("r3", "mug")];
+    const out = activeSuggestions(trigger, cfg(rules), opts);
+    expect(out.map((o) => o.rule.id)).toEqual(["r1", "r2", "r3"]);
   });
 
-  it("the donor line is filtered by inclusion too — an excluded line can't supply the config (review fix R1)", () => {
-    // plate is included and alone crosses triggerMinQty; carafe is excluded and
-    // contributes nothing to groupQty, but its raw quantity (100) is bigger, so
-    // an inclusion-blind donor scan would wrongly pick it.
-    const rule = { ...RULE, triggerProductIds: ["plate", "carafe"] };
-    const lines = [
-      line({ id: "a", productId: "plate", quantity: 4 }),
-      line({ id: "b", productId: "carafe", quantity: 100 }),
-    ];
-    const s = firstSuggestion(
-      lines,
-      cfg({ rules: [rule], includedProductIds: ["plate"] }),
-      opts
+  it("more than the cap: the first MAX_SUGGESTIONS only, the rest silently unshown", () => {
+    const rules = Array.from({ length: MAX_SUGGESTIONS + 2 }, (_, i) =>
+      ruleFor(`r${i}`, `p${i}`)
     );
-    expect(s?.fromLineId).toBe("a");
+    const out = activeSuggestions(trigger, cfg(rules), opts);
+    expect(out).toHaveLength(MAX_SUGGESTIONS);
+    expect(out.map((o) => o.rule.id)).toEqual(
+      rules.slice(0, MAX_SUGGESTIONS).map((r) => r.id)
+    );
   });
 
-  it("a line with no productId is never a donor", () => {
-    const lines = [
-      line({ id: "a", productId: null, quantity: 4 }),
-      line({ id: "b", productId: "plate", quantity: 4 }),
+  it("keeps the filters it always had: in-cart (D1), cross-supplier (D2), excluded", () => {
+    const rules = [ruleFor("r1", "boat")];
+    // D1 — already in the cart
+    expect(
+      activeSuggestions([...trigger, line({ id: "b", productId: "boat" })], cfg(rules), opts)
+    ).toEqual([]);
+    // D2 — the suggested product belongs to another supplier
+    expect(
+      activeSuggestions(trigger, cfg(rules), { ...opts, supplierOfProduct: () => "sup2" })
+    ).toEqual([]);
+    // excluded products never trigger
+    expect(
+      activeSuggestions(trigger, config({ automationsEnabled: true, rules, includedProductIds: ["other"] }), opts)
+    ).toEqual([]);
+  });
+
+  describe("which line donates the design", () => {
+    const rules = [ruleFor("r1", "boat")];
+    const cart = [
+      line({ id: "big", quantity: 8, configCode: "MK-AMALFI" }),
+      line({ id: "small", quantity: 2, configCode: "MK-JULETRE" }),
     ];
-    const s = firstSuggestion(lines, cfg(), opts);
-    expect(s?.fromLineId).toBe("b");
+
+    it("with no current configuration: the biggest trigger line, as before", () => {
+      const [out] = activeSuggestions(cart, cfg(rules), opts);
+      expect(out.fromLineId).toBe("big");
+    });
+
+    it("with a current configuration that matches: that line, even if smaller", () => {
+      const [out] = activeSuggestions(cart, cfg(rules), {
+        ...opts,
+        currentConfigCode: "MK-JULETRE",
+      });
+      expect(out.fromLineId).toBe("small");
+    });
+
+    it("with a current configuration nothing matches: back to the biggest", () => {
+      const [out] = activeSuggestions(cart, cfg(rules), {
+        ...opts,
+        currentConfigCode: "MK-NOT-IN-CART",
+      });
+      expect(out.fromLineId).toBe("big");
+    });
   });
 });
+
 
 describe("an offer is owed on exactly its own size — both edges (ADR 0023)", () => {
   // Every expectation below is DERIVED from these three, so a reviewer can

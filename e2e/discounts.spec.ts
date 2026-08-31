@@ -168,44 +168,66 @@ test("AC-SC4: the suggestion appears at the threshold, shows both prices, and ad
   }
 });
 
-test("AC-SC5: dismissing hides it and it does not come back", async ({ page }) => {
-  const seeded = await seedDiscountRule({
+test("AC-SC5: the ✕ closes the whole block, and it does not come back", async ({ page }) => {
+  // Semantics changed with the list (2026-08-31): the ✕ used to discard ONE
+  // offer to reveal the next — that is the behaviour the list replaced. It now
+  // closes the block. Two rules, so "closed the block" is distinguishable from
+  // "closed the first offer".
+  const ruleA = await seedDiscountRule({
     triggerProductId,
     suggestedProductId,
-    minQty: 2,
-    pct: 15,
+    minQty: 1,
+    pct: 10,
   });
   try {
-    await page.goto(step3);
-    await addFirstCeramic(page);
-    await openCart(page);
-    await drawer(page).getByLabel("+").first().click(); // reach the threshold
-    const card = drawer(page).getByTestId("cart-suggestion");
-    await expect(async () => {
-      await page.reload();
+    const ruleB = await seedDiscountRule({
+      triggerProductId,
+      suggestedProductId,
+      minQty: 1,
+      pct: 20,
+    });
+    try {
+      await page.goto(step3);
+      await addFirstCeramic(page);
       await openCart(page);
-      await expect(card).toBeVisible();
-    }).toPass({ timeout: 15_000 });
+      const block = drawer(page).getByTestId("cart-suggestion");
+      await expect(async () => {
+        await page.reload();
+        await openCart(page);
+        await expect(block).toBeVisible();
+      }).toPass({ timeout: 15_000 });
+      await expect(block.getByTestId("cart-suggestion-row")).toHaveCount(2);
 
-    await card.getByTestId("cart-suggestion-dismiss").click();
-    await expect(card).toHaveCount(0);
+      await block.getByTestId("cart-suggestion-dismiss").click();
+      // the BLOCK is gone — not one row of it
+      await expect(block).toHaveCount(0);
 
-    // Session-scoped (never persisted, cart-context.tsx), not reload-scoped:
-    // still gone after closing and reopening the drawer within the same page.
-    await page.keyboard.press("Escape");
-    await expect(drawer(page)).toBeHidden();
-    await openCart(page);
-    await expect(drawer(page).getByTestId("cart-suggestion")).toHaveCount(0);
+      // Session-scoped (never persisted, cart-context.tsx), not reload-scoped:
+      // still gone after closing and reopening the drawer within the same page.
+      await page.keyboard.press("Escape");
+      await expect(drawer(page)).toBeHidden();
+      await openCart(page);
+      await expect(drawer(page).getByTestId("cart-suggestion")).toHaveCount(0);
+    } finally {
+      await ruleB.restore();
+    }
   } finally {
-    await seeded.restore();
+    await ruleA.restore();
   }
 });
 
-test("AC-SC6: only ONE card at a time, and never a dialog", async ({ page }) => {
-  // Two rules, both triggered by the same product presence (minQty 1) and
-  // both suggesting the same second product — the engine (firstSuggestion,
-  // discount.ts) can only ever return ONE match by construction, so this
-  // proves that structural guarantee holds end to end, not just in isolation.
+
+test("AC-SC6: several offers, ONE block, and still never a dialog", async ({ page }) => {
+  // The spec changed on 2026-08-31: offers are a LIST, capped at
+  // MAX_SUGGESTIONS, not one card at a time. What this test defends is what
+  // survived that change — the offers live in a SINGLE block, and the block is
+  // never a dialog. Both rules trigger on presence (minQty 1) so the list has
+  // more than one row without needing four products of one supplier.
+  //
+  // The CAP itself is unit-tested (discount.test.ts, mutation-checked): proving
+  // it here would need four distinct visible products under one supplier, which
+  // this catalogue cannot promise, and a test that skips on catalogue shape
+  // defends nothing.
   const ruleA = await seedDiscountRule({
     triggerProductId,
     suggestedProductId,
@@ -223,16 +245,21 @@ test("AC-SC6: only ONE card at a time, and never a dialog", async ({ page }) => 
       await page.goto(step3);
       await addFirstCeramic(page); // qty 1 already meets minQty:1 for BOTH rules
       await openCart(page);
-      const card = drawer(page).getByTestId("cart-suggestion");
+      const block = drawer(page).getByTestId("cart-suggestion");
       await expect(async () => {
         await page.reload();
         await openCart(page);
-        await expect(card).toBeVisible();
+        await expect(block).toBeVisible();
       }).toPass({ timeout: 15_000 });
 
-      await expect(card).toHaveCount(1);
+      // one block…
+      await expect(block).toHaveCount(1);
+      // …holding both offers, each its own row
+      await expect(block.getByTestId("cart-suggestion-row")).toHaveCount(2);
+      // …with a single ✕ for the lot
+      await expect(block.getByTestId("cart-suggestion-dismiss")).toHaveCount(1);
       // The drawer itself is a Radix Sheet (= a dialog, by design) — the
-      // assertion here is that the suggestion did not add a SECOND one.
+      // assertion here is that the offers did not add a SECOND one.
       await expect(page.getByRole("dialog")).toHaveCount(1);
     } finally {
       await ruleB.restore();
@@ -241,6 +268,7 @@ test("AC-SC6: only ONE card at a time, and never a dialog", async ({ page }) => 
     await ruleA.restore();
   }
 });
+
 
 test("AC-SC7: a fixed deal survives the tiers being switched off", async ({ page }) => {
   const off = await seedDiscountTiers([]); // tiers explicitly OFF (also clears the flag)
