@@ -100,6 +100,13 @@ export interface CartLine {
    * badge, no error. No migration.
    */
   pieces?: number;
+  /**
+   * R4-SCONTI ② — the automation rule this line was added from. Only the ID
+   * travels: the percentage is looked up from the live config (browser) and
+   * re-derived from the DB (server), so a stale localStorage cart can never
+   * dictate a price. Optional/back-compatible like `layers`: no migration.
+   */
+  dealRuleId?: string;
 }
 
 export type Cart = CartLine[];
@@ -135,6 +142,9 @@ export function removeLine(cart: Cart, id: string): Cart {
   return cart.filter((l) => l.id !== id);
 }
 
+// M3, fix wave: zero production callers since R4-SCONTI (computeCartDiscount
+// owns the discounted totals now) — retained only because cart.test.ts and
+// shipping.test.ts still exercise these two directly.
 export function lineSubtotal(line: CartLine): Money {
   return multiply(money(line.unitPriceCents, line.currency), line.quantity);
 }

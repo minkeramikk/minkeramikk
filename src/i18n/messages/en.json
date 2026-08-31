@@ -108,7 +108,8 @@
     },
     "stickyBar": {
       "title": "Your order",
-      "pieces": "{count, plural, one {# piece} other {# pieces}}"
+      "pieces": "{count, plural, one {# piece} other {# pieces}}",
+      "saved": "saved {amount}"
     },
     "steps": {
       "design": "1. Design",
@@ -239,7 +240,27 @@
     "colourBadge": {
       "custom": "Custom colours",
       "studio": "Studio colours"
-    }
+    },
+    "suggestion": {
+      "kicker": "Goes well with your set",
+      "add": "Add",
+      "dismiss": "Dismiss this suggestion",
+      "qtyName": "{qty} × {name}"
+    },
+    "discount": {
+      "badge": "−{pct}%",
+      "inCart": "{qty} of this ceramic in your basket",
+      "applied": "−{pct}%",
+      "nudge": "add {missing} more → {pct}%",
+      "subtotal": "Subtotal",
+      "quantityRow": "Quantity discount",
+      "dealRow": "Offer",
+      "note": "Discounts shown are indicative — we confirm the final price with your order.",
+      "srNowLabel": "Now:",
+      "badgeCapped": "−{pct}% on {qty} pcs",
+      "dealNudge": "add {missing} more for −{pct}%"
+    },
+    "addedWithPct": "Added to your basket · −{pct}%"
   },
   "order": {
     "title": "Order",

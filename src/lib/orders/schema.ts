@@ -47,9 +47,16 @@ export const orderItemSchema = z.object({
   supplierName: z.string().min(1),
   productId: z.string().uuid().nullable(),
   productName: z.string().min(1),
-  unitPriceCents: z.number().int().nonnegative(),
+  // Upper bounds are a trust-boundary guard, not a business rule: the discount
+  // engine (computeCartDiscount, called before the RPC) runs money() /
+  // multiply() on these, which throw InvalidAmountError past
+  // Number.MAX_SAFE_INTEGER. Without a cap here, a pathological payload turns
+  // that throw into an unhandled 500 on POST /api/orders instead of this
+  // schema's gentle 400. 1,000,000.00 NOK and 10,000 units are already far
+  // past any real order.
+  unitPriceCents: z.number().int().nonnegative().max(100_000_000),
   currency: z.enum(CURRENCIES),
-  quantity: z.number().int().positive(),
+  quantity: z.number().int().positive().max(10_000),
   configCode: z.string().min(1),
   // The snapshot is trusted-by-shape EXCEPT the free-text note and inscription,
   // which are sanitised + length-checked here (AC7, F38). passthrough keeps
@@ -65,6 +72,10 @@ export const orderItemSchema = z.object({
    *  Optional + not persisted (no order_items column) — absent rows just drop
    *  out of the set link. */
   productSlug: z.string().optional(),
+  /** R4-SCONTI ②: the automation rule this line came from. An OPAQUE ID — the
+   *  server looks up the percentage itself. A price or a percentage sent by the
+   *  browser is never persisted (ADR 0022). */
+  appliedRuleId: z.string().uuid().optional(),
 });
 
 export type OrderItemInput = z.infer<typeof orderItemSchema>;

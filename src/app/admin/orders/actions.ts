@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { getAdminUser } from "@/lib/auth/admin";
 import { createClient } from "@/lib/supabase/server";
 import { getOrder } from "@/lib/orders/admin-orders.server";
+import { orderDiscount } from "@/lib/orders/admin-orders";
 import { sendStatusEmail } from "@/lib/orders/email";
 import { canEmail } from "@/lib/orders/status-email";
 import { ORDER_STATUSES } from "@/lib/orders/order-status";
@@ -61,10 +62,25 @@ export async function updateOrderStatus(
     return { error: "Add a tracking code, or confirm shipping without one." };
   }
 
+  // ADR 0022 / D3 — «Alessio ratifica alla conferma»: confirming an order IS the
+  // ratification. Guarded three ways: only on `confirmed`, only once, and only
+  // when there is something to ratify (an order at full price gets no
+  // timestamp — it would be noise, not information). Only ever SET, never
+  // cleared here: an admin who walks a status back keeps the ratification they
+  // gave. Undo is the explicit toggle (toggleDiscountRatified).
+  const ratifies =
+    status === "confirmed" &&
+    !order.discountRatifiedAt &&
+    orderDiscount(order.items).amountCents > 0;
+
   const supabase = await createClient();
   const { error } = await supabase
     .from("orders")
-    .update({ status, ...(trackingCode ? { tracking_code: trackingCode } : {}) })
+    .update({
+      status,
+      ...(trackingCode ? { tracking_code: trackingCode } : {}),
+      ...(ratifies ? { discount_ratified_at: new Date().toISOString() } : {}),
+    })
     .eq("id", id);
   if (error) return { error: "Failed to update status. Please try again." };
 
@@ -156,6 +172,33 @@ export async function toggleOrderPaid(formData: FormData): Promise<void> {
   await supabase
     .from("orders")
     .update({ paid_at: parsed.data.paid ? null : new Date().toISOString() })
+    .eq("id", parsed.data.id);
+
+  revalidatePath(`/admin/orders/${parsed.data.id}`);
+  revalidatePath("/admin");
+}
+
+const ratifiedSchema = z.object({
+  id: z.string().uuid(),
+  /** Current state, submitted so the toggle is idempotent per render. */
+  ratified: z.boolean(),
+});
+
+/** ADR 0022 — the shop stands behind the discount it showed. No email of its own. */
+export async function toggleDiscountRatified(formData: FormData): Promise<void> {
+  if (!(await getAdminUser())) return;
+  const parsed = ratifiedSchema.safeParse({
+    id: formData.get("id"),
+    ratified: formData.get("ratified") === "1",
+  });
+  if (!parsed.success) return;
+
+  const supabase = await createClient();
+  await supabase
+    .from("orders")
+    .update({
+      discount_ratified_at: parsed.data.ratified ? null : new Date().toISOString(),
+    })
     .eq("id", parsed.data.id);
 
   revalidatePath(`/admin/orders/${parsed.data.id}`);

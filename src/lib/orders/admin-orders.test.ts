@@ -5,7 +5,9 @@ import {
   configuratorPathFromCode,
   filterOrders,
   mapOrderRow,
+  orderDiscount,
   orderMatchesQuery,
+  orderSubtotal,
   orderSuppliers,
   orderTotal,
   summarizeItems,
@@ -15,6 +17,7 @@ import {
 } from "./admin-orders";
 import { decodeSetParam } from "@/lib/cart/set-code";
 import type { CodecDesign } from "@/lib/configurator/config-code";
+import { money } from "@/lib/money/money";
 
 function item(p: Partial<AdminOrderItem> = {}): AdminOrderItem {
   return {
@@ -30,6 +33,9 @@ function item(p: Partial<AdminOrderItem> = {}): AdminOrderItem {
     productImage: p.productImage ?? null,
     productSlug: p.productSlug ?? null,
     productWeightGrams: p.productWeightGrams ?? null,
+    discountPct: p.discountPct ?? null,
+    discountCents: p.discountCents ?? 0,
+    discountSource: p.discountSource ?? null,
   };
 }
 
@@ -49,6 +55,7 @@ function order(p: Partial<AdminOrder> = {}): AdminOrder {
     internalNotes: p.internalNotes ?? null,
     paidAt: p.paidAt ?? null,
     trackingCode: p.trackingCode ?? null,
+    discountRatifiedAt: p.discountRatifiedAt ?? null,
     createdAt: p.createdAt ?? "2026-06-04T09:14:00Z",
     updatedAt: p.updatedAt ?? "2026-06-04T09:14:00Z",
     items: p.items ?? [item()],
@@ -61,14 +68,15 @@ describe("mapOrderRow", () => {
       id: "o1", code: "MK-1", customer_name: "A", email: "a@b.no", phone: null,
       address: null, zipcode: null, country: null,
       message: null, locale: "no", status: "weird", internal_notes: null,
-      paid_at: null, tracking_code: null,
+      paid_at: null, tracking_code: null, discount_ratified_at: null,
       created_at: "2026-06-04T09:14:00Z", updated_at: "2026-06-04T09:14:00Z",
       order_items: [
         { id: "i1", supplier_id: "s1", supplier_name_snapshot: "Vietri",
           product_name_snapshot: "Flat", price_cents_snapshot: 50000,
           currency_snapshot: "NOK", quantity: 2, config_code: "MK-A-K3",
           config_snapshot: { designName: "Blomster 1", selections: [] },
-          product_id: "p1", products: { image: "products/flat.png", slug: "flat", product_attributes: [{ key: "weight", value_num: 800 }] } },
+          product_id: "p1", products: { image: "products/flat.png", slug: "flat", product_attributes: [{ key: "weight", value_num: 800 }] },
+          discount_pct: null, discount_cents: 0, discount_source: null },
       ],
     };
     const o = mapOrderRow(raw);
@@ -83,7 +91,7 @@ describe("mapOrderRow", () => {
       id: "o2", code: "MK-2", customer_name: "A", email: "a@b.no", phone: null,
       address: null, zipcode: null, country: null,
       message: null, locale: "no", status: "new", internal_notes: null,
-      paid_at: null, tracking_code: null,
+      paid_at: null, tracking_code: null, discount_ratified_at: null,
       created_at: "2026-06-04T09:14:00Z", updated_at: "2026-06-04T09:14:00Z",
       order_items: [
         // product still linked → photo path resolved
@@ -91,19 +99,22 @@ describe("mapOrderRow", () => {
           product_name_snapshot: "Flat", price_cents_snapshot: 50000,
           currency_snapshot: "NOK", quantity: 1, config_code: null,
           config_snapshot: null,
-          product_id: "p1", products: { image: "products/flat.png", slug: "flat", product_attributes: [{ key: "weight", value_num: 800 }] } },
+          product_id: "p1", products: { image: "products/flat.png", slug: "flat", product_attributes: [{ key: "weight", value_num: 800 }] },
+          discount_pct: null, discount_cents: 0, discount_source: null },
         // product deleted/reimported (product_id NULL) → degrade, no photo
         { id: "i2", supplier_id: "s1", supplier_name_snapshot: "Vietri",
           product_name_snapshot: "Bowl", price_cents_snapshot: 30000,
           currency_snapshot: "NOK", quantity: 1, config_code: null,
           config_snapshot: null,
-          product_id: null, products: null },
+          product_id: null, products: null,
+          discount_pct: null, discount_cents: 0, discount_source: null },
         // linked product without an image → degrade, no photo
         { id: "i3", supplier_id: "s1", supplier_name_snapshot: "Vietri",
           product_name_snapshot: "Mug", price_cents_snapshot: 20000,
           currency_snapshot: "NOK", quantity: 1, config_code: null,
           config_snapshot: null,
-          product_id: "p3", products: { image: null, slug: "mug", product_attributes: null } },
+          product_id: "p3", products: { image: null, slug: "mug", product_attributes: null },
+          discount_pct: null, discount_cents: 0, discount_source: null },
       ],
     };
     const o = mapOrderRow(raw);
@@ -250,6 +261,7 @@ describe("mapOrderRow — payment and tracking (ADR 0021)", () => {
     id: "o1", code: "MK-1", customer_name: "A", email: "a@b.no", phone: null,
     address: null, zipcode: null, country: null, message: null, locale: "no",
     status: "new", internal_notes: null, paid_at: null, tracking_code: null,
+    discount_ratified_at: null,
     created_at: "2026-06-04T09:14:00Z", updated_at: "2026-06-04T09:14:00Z",
     order_items: [], ...over,
   });
@@ -292,5 +304,34 @@ describe("computeKpis — v2 buckets", () => {
     expect(k.inProductionCount).toBe(1);
     // new + confirmed + in_production (50000 each) + shipped (20000)
     expect(k.openValue.amountCents).toBe(170000);
+  });
+});
+
+describe("order totals with discounts (R4-SCONTI)", () => {
+  const it_ = (over = {}) => ({
+    id: "i1", supplierId: "s", supplierName: "Vietri", productName: "Plate",
+    priceCentsSnapshot: 74900, currency: "NOK" as const, quantity: 8,
+    configCode: null, configSnapshot: null, productImage: null, productSlug: null,
+    productWeightGrams: null, discountPct: null, discountCents: 0,
+    discountSource: null, ...over,
+  });
+
+  it("a legacy line (no discount columns) has subtotal == total", () => {
+    const items = [it_()];
+    expect(orderSubtotal(items)).toEqual(orderTotal(items));
+    expect(orderDiscount(items)).toEqual(money(0));
+  });
+
+  it("a discounted line: total is net, discount is the frozen amount", () => {
+    const items = [it_({ discountPct: 10, discountCents: 59920, discountSource: "tier" })];
+    expect(orderSubtotal(items)).toEqual(money(599200));
+    expect(orderDiscount(items)).toEqual(money(59920));
+    expect(orderTotal(items)).toEqual(money(539280));
+  });
+
+  it("the frozen amount is used verbatim — never recomputed from the percentage", () => {
+    // A historic order whose 10% was rounded differently: the shop's number wins.
+    const items = [it_({ discountPct: 10, discountCents: 60000, discountSource: "tier" })];
+    expect(orderTotal(items)).toEqual(money(539200));
   });
 });

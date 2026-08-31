@@ -10,27 +10,43 @@ import type { CartLayer } from "@/lib/cart/cart";
  *
  * Backward-compatible: a line saved before F19 has no `layers`, so we fall back
  * to the colour chip (first selection hex) — no crash, no migration.
+ *
+ * `compact` puts the two side by side at 38px instead of stacked at 48
+ * (DESIGN-SYSTEM §3.23, mockup variant A): in the offers list a stacked pair
+ * made a 93px row and three of them a wall. Both images stay — the ceramic says
+ * what you are buying, the design says what it wears — so neither is decoration
+ * that could be dropped instead.
  */
 export function CartLineThumb({
   layers,
   hex,
   plateImage,
   className,
+  compact = false,
 }: {
   layers?: CartLayer[];
   hex?: string;
   plateImage?: string;
   className?: string;
+  compact?: boolean;
 }) {
   const composed = layers && layers.length > 0;
+  const box = compact ? "size-[38px]" : "size-12";
 
   return (
-    <div className={cn("flex shrink-0 flex-col items-center gap-1", className)}>
+    <div
+      className={cn(
+        "flex shrink-0 items-center gap-1",
+        compact ? "flex-row" : "flex-col",
+        className
+      )}
+    >
       <span
         aria-hidden
         data-testid={composed ? "cart-thumb" : "cart-thumb-chip"}
         className={cn(
-          "relative block size-12 overflow-hidden rounded-md border border-border",
+          "relative block overflow-hidden rounded-md border border-border",
+          box,
           composed ? "bg-card" : "bg-muted"
         )}
         style={!composed && hex ? { backgroundColor: hex } : undefined}
@@ -54,7 +70,7 @@ export function CartLineThumb({
           alt=""
           aria-hidden
           data-testid="cart-plate"
-          className="size-12 rounded-md border border-border bg-card object-contain p-1"
+          className={cn("rounded-md border border-border bg-card object-contain p-1", box)}
         />
       )}
     </div>

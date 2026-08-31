@@ -19,19 +19,11 @@ import { OrderForm } from "@/components/ui-domain/order-form";
 import { CartLineThumb } from "@/components/ui-domain/cart-line-thumb";
 import { CartLineRecap } from "@/components/ui-domain/cart-line-recap";
 import { SetBadge } from "@/components/ui-domain/set-badge";
-import {
-  CartShippingRow,
-  useShippingTotalSuffix,
-} from "@/components/ui-domain/cart-shipping-row";
+import { CartLinePrice, CartDiscountNudge } from "@/components/ui-domain/cart-discount-row";
+import { CartSuggestion } from "@/components/ui-domain/cart-suggestion";
+import { CartTotals } from "@/components/ui-domain/cart-totals";
 import { useCartContext } from "@/lib/cart/cart-context";
-import {
-  cartTotal,
-  designLabel,
-  itemCount,
-  lineSubtotal,
-  type CartLine,
-} from "@/lib/cart/cart";
-import { formatMoney } from "@/lib/money/money";
+import { designLabel, itemCount, type CartLine } from "@/lib/cart/cart";
 import { cn } from "@/lib/utils";
 import { useEffect, useRef, useState } from "react";
 
@@ -52,14 +44,13 @@ export function CartMenu() {
   const t = useTranslations("cart");
   const to = useTranslations("order");
   const locale = useLocale() as "no" | "en";
-  const { cart, hydrated, setQuantity, remove, clear, open, setOpen } =
+  const { cart, hydrated, setQuantity, remove, clear, open, setOpen, discount, discountConfig } =
     useCartContext();
   // drawer has two phases: the cart list and the checkout form
   const [view, setView] = useState<"cart" | "checkout">("cart");
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const count = itemCount(cart);
-  const totalSuffix = useShippingTotalSuffix(cartTotal(cart));
   // gate count on hydration to avoid SSR/client mismatch (cart starts empty)
   const liveCount = hydrated ? count : 0;
 
@@ -203,9 +194,21 @@ export function CartMenu() {
                             {t("remove")}
                           </button>
                         </div>
+                        <CartDiscountNudge
+                          productQty={
+                            line.productId ? discount.qtyByProduct[line.productId] ?? 0 : 0
+                          }
+                          tiers={discountConfig.tiers}
+                          pct={discount.perLine[line.id]?.pct ?? 0}
+                          eligible={discount.perLine[line.id]?.tierEligible ?? false}
+                          pendingDeal={discount.perLine[line.id]?.pendingDeal}
+                        />
                       </div>
-                      <span className="shrink-0 text-right text-sm font-medium tabular-nums">
-                        {formatMoney(lineSubtotal(line), locale)}
+                      <span className="shrink-0 text-right">
+                        <CartLinePrice
+                          d={discount.perLine[line.id]}
+                          locale={locale}
+                        />
                       </span>
                     </div>
 
@@ -245,20 +248,12 @@ export function CartMenu() {
                 ))}
               </div>
 
+              <div className="px-4">
+                <CartSuggestion />
+              </div>
+
               <SheetFooter className="border-t border-border">
-                <CartShippingRow total={cartTotal(cart)} />
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">
-                    {t("total")}
-                  </span>
-                  <span
-                    data-testid="cart-total"
-                    className="text-lg font-semibold tabular-nums"
-                  >
-                    {formatMoney(cartTotal(cart), locale)}
-                    {totalSuffix}
-                  </span>
-                </div>
+                <CartTotals />
                 {/* R-EXTRA AC8: stessa pillola dello stack step 3
                     (`docked-checkout` in ceramics-step.tsx) — il drawer era
                     rimasto l'ultimo punto d'invio ordine col bottone pieno

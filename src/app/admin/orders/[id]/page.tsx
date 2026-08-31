@@ -7,6 +7,8 @@ import { getOrder, getCodecDesigns } from "@/lib/orders/admin-orders.server";
 import {
   buildReplicaSet,
   configuratorPathFromCode,
+  orderDiscount,
+  orderSubtotal,
   orderTotal,
   type AdminOrderItem,
 } from "@/lib/orders/admin-orders";
@@ -19,7 +21,13 @@ import type { OrderStatus } from "@/lib/orders/order-status";
 import { formatMoney } from "@/lib/money/money";
 import { OrderStatusForm } from "@/components/admin/order-status-form";
 import { PaidBadge } from "@/components/ui-domain/paid-badge";
-import { toggleOrderPaid, updateOrderNotes, updateOrderTracking } from "../actions";
+import { DiscountRatifiedBadge } from "@/components/ui-domain/discount-badge";
+import {
+  toggleDiscountRatified,
+  toggleOrderPaid,
+  updateOrderNotes,
+  updateOrderTracking,
+} from "../actions";
 
 export const dynamic = "force-dynamic";
 
@@ -181,11 +189,29 @@ export default async function OrderDetailPage({
                 </div>
               ))}
 
-              <div className="mt-3 flex items-center justify-end gap-3 border-t border-border pt-3">
-                <span className="text-sm text-muted-foreground">Total</span>
-                <span data-testid="detail-total" className="text-lg font-semibold tabular-nums">
-                  {formatMoney(orderTotal(order.items), "en")}
-                </span>
+              <div className="mt-3 flex flex-col items-end gap-1 border-t border-border pt-3">
+                {orderDiscount(order.items).amountCents > 0 && (
+                  <>
+                    <div className="flex w-full items-center justify-end gap-3 text-sm text-muted-foreground">
+                      <span>Subtotal</span>
+                      <span data-testid="detail-subtotal" className="tabular-nums">
+                        {formatMoney(orderSubtotal(order.items), "en")}
+                      </span>
+                    </div>
+                    <div className="flex w-full items-center justify-end gap-3 text-sm font-medium">
+                      <span>Discount</span>
+                      <span data-testid="detail-discount" className="tabular-nums">
+                        −{formatMoney(orderDiscount(order.items), "en")}
+                      </span>
+                    </div>
+                  </>
+                )}
+                <div className="flex w-full items-center justify-end gap-3">
+                  <span className="text-sm text-muted-foreground">Total</span>
+                  <span data-testid="detail-total" className="text-lg font-semibold tabular-nums">
+                    {formatMoney(orderTotal(order.items), "en")}
+                  </span>
+                </div>
               </div>
               <p className="mt-2 text-xs text-muted-foreground">
                 The config code reopens the exact design in the configurator — handy on the
@@ -272,6 +298,36 @@ export default async function OrderDetailPage({
                 </form>
               </div>
 
+              {/* R4-SCONTI: only when the order actually carries a discount — an
+                  undiscounted order must not grow a control that means nothing. */}
+              {orderDiscount(order.items).amountCents > 0 && (
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
+                  <div>
+                    <DiscountRatifiedBadge ratifiedAt={order.discountRatifiedAt} />
+                    {order.discountRatifiedAt && (
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {fmtDateTime(order.discountRatifiedAt)}
+                      </p>
+                    )}
+                  </div>
+                  <form action={toggleDiscountRatified} data-testid="ratify-form">
+                    <input type="hidden" name="id" value={order.id} />
+                    <input
+                      type="hidden"
+                      name="ratified"
+                      value={order.discountRatifiedAt ? "1" : "0"}
+                    />
+                    <button
+                      type="submit"
+                      data-testid="ratify-toggle"
+                      className="rounded-lg border border-border px-3 py-1.5 text-sm"
+                    >
+                      {order.discountRatifiedAt ? "Un-ratify" : "Ratify discount"}
+                    </button>
+                  </form>
+                </div>
+              )}
+
               <form
                 action={updateOrderTracking}
                 data-testid="tracking-form"
@@ -310,6 +366,11 @@ export default async function OrderDetailPage({
                 customerLocale={order.locale === "en" ? "en" : "no"}
                 currentTracking={order.trackingCode}
                 paidAt={order.paidAt}
+                discountSubtotal={formatMoney(orderSubtotal(order.items), "en")}
+                discountAmount={formatMoney(orderDiscount(order.items), "en")}
+                discountTotal={formatMoney(orderTotal(order.items), "en")}
+                hasDiscount={orderDiscount(order.items).amountCents > 0}
+                discountRatifiedAt={order.discountRatifiedAt}
               />
               <a
                 href={`mailto:${order.email}?subject=${encodeURIComponent(`Order ${order.code}`)}`}

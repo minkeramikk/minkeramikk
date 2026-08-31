@@ -107,7 +107,8 @@
     },
     "stickyBar": {
       "title": "Din bestilling",
-      "pieces": "{count, plural, one {# del} other {# deler}}"
+      "pieces": "{count, plural, one {# del} other {# deler}}",
+      "saved": "spart {amount}"
     },
     "steps": {
       "design": "1. Design",
@@ -238,7 +239,27 @@
     "colourBadge": {
       "custom": "Egendefinerte farger",
       "studio": "Studioets farger"
-    }
+    },
+    "suggestion": {
+      "kicker": "Passer til settet ditt",
+      "add": "Legg til",
+      "dismiss": "Skjul dette forslaget",
+      "qtyName": "{qty} × {name}"
+    },
+    "discount": {
+      "badge": "−{pct} %",
+      "inCart": "{qty} av denne keramikken i kurven",
+      "applied": "−{pct} %",
+      "nudge": "legg til {missing} til → {pct} %",
+      "subtotal": "Delsum",
+      "quantityRow": "Mengderabatt",
+      "dealRow": "Tilbud",
+      "note": "Rabatten er veiledende — vi bekrefter endelig pris sammen med bestillingen.",
+      "srNowLabel": "Nå:",
+      "badgeCapped": "−{pct} % på {qty} stk",
+      "dealNudge": "legg til {missing} til for −{pct} %"
+    },
+    "addedWithPct": "Lagt i handlekurven · −{pct} %"
   },
   "order": {
     "title": "Bestill",

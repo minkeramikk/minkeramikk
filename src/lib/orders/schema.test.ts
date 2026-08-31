@@ -70,6 +70,27 @@ describe("orderPayloadSchema — customNote sanitisation (AC7)", () => {
   });
 });
 
+describe("orderPayloadSchema — quantity/unitPriceCents bounds (M5, fix wave)", () => {
+  it("rejects an absurd quantity with a gentle 400, not a crash downstream in multiply()", () => {
+    const p = payload(undefined);
+    p.items[0].quantity = 1_000_000;
+    const result = orderPayloadSchema.safeParse(p);
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects an absurd unitPriceCents the same way", () => {
+    const p = payload(undefined);
+    p.items[0].unitPriceCents = Number.MAX_SAFE_INTEGER;
+    const result = orderPayloadSchema.safeParse(p);
+    expect(result.success).toBe(false);
+  });
+
+  it("still accepts an ordinary quantity/price", () => {
+    const result = orderPayloadSchema.safeParse(payload(undefined));
+    expect(result.success).toBe(true);
+  });
+});
+
 describe("cleanCustomText (untrusted read path — TL mandate 1+2)", () => {
   it("trims, strips control chars, and truncates to the cap", () => {
     const forged = "\x00\x07" + "x".repeat(500);

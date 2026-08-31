@@ -2,10 +2,12 @@ import "server-only";
 
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import type { Json } from "@/lib/supabase/types";
-import { orderPayloadSchema } from "./schema";
+import { orderPayloadSchema, type OrderItemInput } from "./schema";
 import { buildOrderItemRows } from "./build";
 import { verifyTurnstile } from "./turnstile";
 import { sendOrderEmails, type EmailTransport } from "./email";
+import { computeCartDiscount, type DiscountConfig } from "@/lib/discounts/discount";
+import { getDiscountConfig } from "@/lib/discounts/config.server";
 
 export type CreateOrderResult =
   | { ok: true; code: string }
@@ -23,6 +25,7 @@ export async function createOrder(
     verify?: (token: string) => Promise<boolean>;
     transport?: EmailTransport;
     db?: ReturnType<typeof createServiceRoleClient>;
+    config?: DiscountConfig;
   } = {}
 ): Promise<CreateOrderResult> {
   const parsed = orderPayloadSchema.safeParse(rawBody);
@@ -36,6 +39,24 @@ export async function createOrder(
     return { ok: false, status: 400, error: "turnstile failed" };
   }
 
+  // R4-SCONTI (ADR 0022) — the discount is MONEY crossing a trust boundary, so
+  // the server computes its own, from the DB config, with the same pure engine
+  // the browser used. Nothing about the price comes from the payload except the
+  // catalogue unit price and the rule ID (opaque, looked up here).
+  const discountConfig = deps.config ?? (await getDiscountConfig());
+  const keyOf = (_i: OrderItemInput, idx: number) => String(idx);
+  const discount = computeCartDiscount(
+    payload.items.map((i, idx) => ({
+      id: String(idx),
+      productId: i.productId,
+      unitPriceCents: i.unitPriceCents,
+      currency: i.currency,
+      quantity: i.quantity,
+      dealRuleId: i.appliedRuleId,
+    })),
+    discountConfig
+  );
+
   const db = deps.db ?? createServiceRoleClient();
   const { data: code, error } = await db.rpc("create_order", {
     p_customer_name: payload.customerName,
@@ -43,7 +64,7 @@ export async function createOrder(
     p_phone: payload.phone || "",
     p_message: payload.message || "",
     p_locale: payload.locale,
-    p_items: buildOrderItemRows(payload.items) as unknown as Json,
+    p_items: buildOrderItemRows(payload.items, discount, keyOf) as unknown as Json,
     p_address: payload.address || "",
     p_zipcode: payload.zipcode || "",
     p_country: payload.country || "",
@@ -61,6 +82,7 @@ export async function createOrder(
         customerEmail: payload.email,
         locale: payload.locale,
         items: payload.items,
+        discount,
       },
       deps.transport
     );

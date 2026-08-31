@@ -32,6 +32,11 @@ export function OrderStatusForm({
   customerLocale,
   currentTracking,
   paidAt,
+  discountSubtotal,
+  discountAmount,
+  discountTotal,
+  hasDiscount,
+  discountRatifiedAt,
 }: {
   orderId: string;
   orderCode: string;
@@ -40,6 +45,15 @@ export function OrderStatusForm({
   customerLocale: "no" | "en";
   currentTracking: string | null;
   paidAt: string | null;
+  /** Pre-formatted by the server page (Money VO) — this is a client component
+   *  and must not re-derive money formatting itself. */
+  discountSubtotal: string;
+  discountAmount: string;
+  discountTotal: string;
+  hasDiscount: boolean;
+  /** Same field updateOrderStatus checks before stamping (ADR 0022 / D3) — lets
+   *  the dialog show the ratify note only when confirming would actually ratify. */
+  discountRatifiedAt: string | null;
 }) {
   const [state, formAction, pending] = useActionState(updateOrderStatus, {});
   const [selected, setSelected] = useState<OrderStatus>(currentStatus);
@@ -122,6 +136,17 @@ export function OrderStatusForm({
               Change status from <strong>{STATUS_LABEL[currentStatus]}</strong> to{" "}
               <strong>{STATUS_LABEL[selected]}</strong>?
             </p>
+
+            {/* ADR 0022 / D3: same three conditions updateOrderStatus checks before
+                stamping discount_ratified_at — status, hasDiscount, and NOT already
+                ratified — so this note is never shown when confirming would not
+                actually ratify anything. */}
+            {selected === "confirmed" && hasDiscount && !discountRatifiedAt && (
+              <p data-testid="ratify-confirm-note" className="text-sm">
+                Confirming also ratifies the discount: {discountSubtotal} −{" "}
+                {discountAmount} = {discountTotal}.
+              </p>
+            )}
 
             {selected === "shipped" && (
               <label className="flex flex-col gap-1 text-sm">

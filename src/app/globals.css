@@ -20,6 +20,7 @@
   --color-status-shipped: var(--status-shipped);
   --color-status-delivered: var(--status-delivered);
   --color-status-paid: var(--status-paid);
+  --color-discount: var(--discount);
   --color-sidebar-ring: var(--ring);
   --color-sidebar-border: var(--ink-muted);
   --color-sidebar-accent-foreground: var(--ink-foreground);
@@ -113,6 +114,7 @@
   --status-delivered: #7da46f;
   /* payment register (ADR 0021): paid only — unpaid uses --muted-foreground */
   --status-paid: #7da46f;
+  --discount: #7da46f; /* R4-SCONTI: a saving is good news — same family as --status-paid */
 
   /* shape & elevation */
   --radius: 16px;

@@ -8,7 +8,7 @@
  * builder returns BOTH `text` (the plain fallback, unchanged from F05) and
  * `html`, so the message is sent multipart.
  */
-import { formatMoney, money, type Currency } from "@/lib/money/money";
+import { formatMoney, money, subtract, sum, type Currency } from "@/lib/money/money";
 import { shippingStatus } from "@/lib/cart/shipping";
 import type { ThemeTokens } from "@/lib/theme";
 
@@ -22,6 +22,10 @@ export interface MailItem {
   customNote?: string;
   /** F38: customer inscription on the ceramic. Rendered escaped, only when non-empty. */
   customText?: string;
+  /** R4-SCONTI: the discount FROZEN on the order line (ADR 0022). Absent on a
+   *  full-price line and on every order created before the card. */
+  discountPct?: number;
+  discountCents?: number;
 }
 
 export interface RenderedEmail {
@@ -37,21 +41,35 @@ export const esc = (s: string) =>
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
 
+const lineFull = (i: MailItem) => money(i.unitPriceCents * i.quantity, i.currency as Currency);
+const lineNet = (i: MailItem) =>
+  money(i.unitPriceCents * i.quantity - (i.discountCents ?? 0), i.currency as Currency);
+
+/**
+ * R4-SCONTI: `total`/`totalMoney` are the NET total (subtotal − discount), not
+ * the gross — the cart's shipping threshold reads the net (D5) and the email
+ * must agree with it (`shippingStatus(totalMoney)` below).
+ */
 function totals(items: MailItem[], locale: "no" | "en") {
+  const currency = (items[0]?.currency ?? "NOK") as Currency;
   const lines = items
-    .map(
-      (i) =>
-        `- ${i.quantity}× ${i.productName} [${i.configCode}] — ${formatMoney(
-          money(i.unitPriceCents * i.quantity, i.currency as Currency),
-          locale
-        )}`
-    )
+    .map((i) => {
+      const base = `- ${i.quantity}× ${i.productName} [${i.configCode}] — ${formatMoney(
+        lineFull(i),
+        locale
+      )}`;
+      return i.discountPct
+        ? `${base} → ${formatMoney(lineNet(i), locale)} (-${i.discountPct}%)`
+        : base;
+    })
     .join("\n");
-  const totalMoney = money(
-    items.reduce((n, i) => n + i.unitPriceCents * i.quantity, 0),
-    (items[0]?.currency ?? "NOK") as Currency
+  const subtotal = sum(items.map(lineFull), currency);
+  const discount = money(
+    items.reduce((n, i) => n + (i.discountCents ?? 0), 0),
+    currency
   );
-  return { lines, total: formatMoney(totalMoney, locale), totalMoney };
+  const totalMoney = subtract(subtotal, discount);
+  return { lines, subtotal, discount, total: formatMoney(totalMoney, locale), totalMoney };
 }
 
 /**
@@ -143,16 +161,33 @@ function itemsTable(items: MailItem[], theme: ThemeTokens, locale: "no" | "en") 
         }</td>
       <td style="padding:8px 0;border-bottom:1px solid ${esc(
         theme.light
-      )};font-size:14px;text-align:right;white-space:nowrap;">${esc(
-        formatMoney(
-          money(i.unitPriceCents * i.quantity, i.currency as Currency),
-          locale
-        )
-      )}</td></tr>`
+      )};font-size:14px;text-align:right;white-space:nowrap;">${
+        i.discountPct
+          ? `<s style="opacity:.55;font-size:12px;">${esc(
+              formatMoney(lineFull(i), locale)
+            )}</s><br>${esc(formatMoney(lineNet(i), locale))} <span style="color:${DISCOUNT_HEX};font-weight:600;">−${i.discountPct}%</span>`
+          : esc(formatMoney(lineFull(i), locale))
+      }</td></tr>`
     )
     .join("");
   return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:8px 0;">${rows}</table>`;
 }
+
+/**
+ * R4-SCONTI: the darkened `--discount` token (`globals.css`), inlined as a
+ * literal hex. Email HTML is the one place "no hardcoded colours" (ADR 0008)
+ * yields to the medium: Gmail/Outlook strip <style> and never resolve
+ * `var()` or `color-mix()`, so every theme colour in this file already
+ * arrives as inline hex (see the `ThemeTokens` param) — this one just isn't
+ * themeable, since it isn't a `settings` token to begin with.
+ *
+ * Derivation: NOT the `color-mix(in oklab, var(--discount), black 34%)` the
+ * on-page discount badges use (that formula yields `#455c3c`, noticeably
+ * darker) — this value is roughly `color-mix(in oklab, var(--discount),
+ * black 18%)` of `--discount: #7da46f`. Re-derive from that ratio, not 34%,
+ * on a brand change.
+ */
+const DISCOUNT_HEX = "#5d7d52";
 
 const COPY = {
   no: {
@@ -168,6 +203,10 @@ const COPY = {
     shippingLabel: "Frakt med forsikring",
     shippingIncluded: "Inkludert",
     shippingToBeConfirmed: "Beregnes",
+    discountLabel: "Mengderabatt", // TODO:nb-review
+    // R4-SCONTI · same sentence as cart.discount.note
+    indicative:
+      "Rabatten er veiledende — vi bekrefter endelig pris sammen med bestillingen.", // TODO:nb-review
     noteLabel: "Din beskjed til verkstedet", // TODO:nb-review
     textLabel: "Tekst på keramikken", // TODO:nb-review
     legalIntro:
@@ -188,6 +227,10 @@ const COPY = {
     shippingLabel: "Insured shipping",
     shippingIncluded: "Included",
     shippingToBeConfirmed: "To be confirmed",
+    discountLabel: "Quantity discount",
+    // R4-SCONTI · same sentence as cart.discount.note
+    indicative:
+      "Discounts shown are indicative — we confirm the final price with your order.",
     noteLabel: "Your note to the workshop",
     textLabel: "Inscription on the ceramic",
     legalIntro:
@@ -223,15 +266,20 @@ export function customerEmail(params: {
         c.legalPrivacy
       )}</a>.</div>`
     : undefined;
-  const { lines, total, totalMoney } = totals(params.items, params.locale);
-  // R3-B4: the shipping entry travels in the recap too — textual status only,
-  // no new arithmetic (the shop confirms the shipping cost by hand).
+  const { lines, total, totalMoney, discount } = totals(params.items, params.locale);
+  const discounted = discount.amountCents > 0;
+  // R3-B4/R4-SCONTI: the shipping entry travels in the recap too — textual
+  // status only, no new arithmetic (the shop confirms the shipping cost by
+  // hand). `totalMoney` is the NET total (D5), so this agrees with the cart.
   const shippingValue = shippingStatus(totalMoney).included
     ? c.shippingIncluded
     : c.shippingToBeConfirmed;
   const text =
     `${c.greeting(params.name)}\n\n${c.thanks} ${c.codeLabel}: ${params.code}.\n\n` +
-    `${lines}\n\n${c.shippingLabel}: ${shippingValue}\n${c.totalLabel}: ${total}\n\n${c.custom}\n` +
+    `${lines}\n\n` +
+    (discounted ? `${c.discountLabel}: -${formatMoney(discount, params.locale)}\n` : "") +
+    `${c.shippingLabel}: ${shippingValue}\n${c.totalLabel}: ${total}\n\n${c.custom}\n` +
+    (discounted ? `${c.indicative}\n` : "") +
     (params.setUrl ? `\n${c.reopen}: ${params.setUrl}\n` : "") +
     `\nMin Keramikk`;
 
@@ -245,7 +293,15 @@ export function customerEmail(params: {
       params.theme.accent
     )};margin-top:4px;">${esc(params.code)}</div></div>`;
 
-  const totalRow = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+  const discountRow = discounted
+    ? `<tr><td style="padding-top:8px;font-size:13px;opacity:.75;">${esc(
+        c.discountLabel
+      )}</td><td style="padding-top:8px;font-size:13px;opacity:.75;text-align:right;color:${DISCOUNT_HEX};">−${esc(
+        formatMoney(discount, params.locale)
+      )}</td></tr>`
+    : "";
+
+  const totalRow = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0">${discountRow}<tr>
     <td style="padding-top:8px;font-size:13px;opacity:.75;">${esc(
       c.shippingLabel
     )}</td>
@@ -258,6 +314,12 @@ export function customerEmail(params: {
     <td style="padding-top:8px;font-size:15px;font-weight:bold;text-align:right;">${esc(
       total
     )}</td></tr></table>`;
+
+  const indicativeNote = discounted
+    ? `<p style="margin:8px 0 0;font-size:11px;text-align:center;opacity:.6;">${esc(
+        c.indicative
+      )}</p>`
+    : "";
 
   const reopenBtn = params.setUrl
     ? `<div style="margin:22px 0 4px;"><a href="${esc(
@@ -273,6 +335,7 @@ export function customerEmail(params: {
     ${codeBox}
     ${itemsTable(params.items, params.theme, params.locale)}
     ${totalRow}
+    ${indicativeNote}
     <p style="margin:18px 0 0;">${esc(c.custom)}</p>
     ${reopenBtn}`;
 
