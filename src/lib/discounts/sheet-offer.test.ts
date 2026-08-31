@@ -183,6 +183,17 @@ it("an EXCLUDED product never triggers — not even the locked state", () => {
   expect(sheetOffer([], config, candidate(9), opts)).toBeNull(); // would be unlocked
 });
 
+it("F2 — an EXCLUDED product hosts no offer even once OTHER lines already meet the trigger", () => {
+  // The rule's trigger group spans two products; the cart's "mug" line alone
+  // already meets it, but the sheet is open on "plate" — excluded, so it must
+  // neither trigger NOR host the panel, even though the deal genuinely applies
+  // to whoever it does trigger for.
+  const r = rule({ triggerProductIds: ["plate", "mug"], triggerMinQty: 4 });
+  const config = { ...cfg(r), includedProductIds: ["mug"] };
+  const inCart = [{ id: "l1", productId: "mug", unitPriceCents: UNIT, currency: "NOK" as const, quantity: 4 }];
+  expect(sheetOffer(inCart, config, candidate(1), opts)).toBeNull();
+});
+
 it("F3 — the locked panel reports the rule the engine will actually deliver, not the loop's own candidate", () => {
   // Two rules both triggered by "plate", admin order [A, B]. A's suggested
   // product is already in the cart (D1), so A can never actually be offered —

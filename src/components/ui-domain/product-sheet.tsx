@@ -49,7 +49,7 @@ export function ProductSheet({
   onQty,
   onAdd,
   designLayers,
-  offer = null,
+  offer,
   onAddBoth,
 }: {
   /** null = nothing selected; the sheet renders nothing at all. */
@@ -63,12 +63,13 @@ export function ProductSheet({
   onAdd: () => void;
   /** F37: current config layers (empty → no composed pair rendered). */
   designLayers: CartLayer[];
-  /** R4-UPSELL-MODALE (§3.24): null/omitted → the sheet renders exactly as it
-   *  did before this offer block existed (AC5). */
-  offer?: SheetOffer | null;
+  /** R4-UPSELL-MODALE (§3.24): null → the sheet renders exactly as it did
+   *  before this offer block existed (AC5). The ONE caller (ceramics-step.tsx)
+   *  always computes this, so it is required rather than optional (F4). */
+  offer: SheetOffer | null;
   /** Adds the whole bundle (this product + the suggested one) atomically and
-   *  closes the sheet — required only when `offer` can resolve to "unlocked". */
-  onAddBoth?: () => void;
+   *  closes the sheet. Always wired by the one caller — required (F4). */
+  onAddBoth: () => void;
 }) {
   // TODO:nb-review NO copy: productSheet.close
   const tCfg = useTranslations("configurator");
@@ -310,7 +311,7 @@ export function ProductSheet({
                 qty={qty}
                 locale={locale}
                 onSetQty={onQty}
-                onAddBoth={onAddBoth ?? (() => {})}
+                onAddBoth={onAddBoth}
               />
             )}
 

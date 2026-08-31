@@ -111,15 +111,17 @@ export function sheetOffer(
 ): SheetOffer | null {
   if (!config.automationsEnabled) return null;
 
+  // An excluded product neither triggers nor donates (ADR 0022) — checked
+  // above BOTH branches (F2). "The unlocked branch gets this for free" was
+  // only ever true of the TRIGGER contribution (activeSuggestions never
+  // counts an excluded product into the trigger group): with the cart already
+  // past the threshold on OTHER lines, activeSuggestions can still hand back
+  // a suggestion for an excluded candidate, and the price on it is genuine —
+  // but an excluded product still has no business hosting the panel.
+  if (!included(candidate.productId, config)) return null;
+
   const unlocked = offerAt(lines, config, candidate, candidate.quantity, opts);
   if (unlocked) return { kind: "unlocked", suggestion: unlocked };
-
-  // An excluded product neither triggers nor donates (ADR 0022). The unlocked
-  // branch gets this for free — activeSuggestions never counts it into the
-  // trigger group — but the locked branch below computes its own trigger, so it
-  // has to say it out loud, or the sheet would promise an offer that the cart
-  // then refuses to honour.
-  if (!included(candidate.productId, config)) return null;
 
   // Locked: the first rule, in the admin's order, that this product could
   // still unlock. `neededQty` is arithmetic offerAt cannot do (it takes a
