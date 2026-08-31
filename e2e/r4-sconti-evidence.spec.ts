@@ -458,3 +458,101 @@ test.describe("R4-SCONTI evidence — the sticky bar declares the saving", () =>
     });
   }
 });
+
+/**
+ * Giro garanzia — the offer's FLOOR, before and after.
+ *
+ * An offer of N pieces is not owed below N. The two shots are the same line on
+ * either side of that edge: the deal active at the offer's own size, then the
+ * same line one piece short, where the discount is correctly gone and the nudge
+ * says why in the rule's own numbers. Without the second shot the price simply
+ * changes while the customer presses «−», which reads as broken.
+ *
+ * Nothing here is hardcoded to a particular offer: the rule is seeded with the
+ * values below and the assertions read them back, so changing them changes the
+ * shot, not the test.
+ */
+test.describe("R4-SCONTI evidence — an offer is not owed below its own size", () => {
+  test.skip(!CAN_SEED, "MK_E2E_SEED=1 richiesto: semina una regola upsell");
+  test.describe.configure({ timeout: 90_000 });
+
+  const OFFER_QTY = 2;
+  const OFFER_PCT = 15;
+
+  for (const locale of ["no", "en"] as const) {
+    test(`deal at the offer, then one piece short (${locale.toUpperCase()}) @390`, async ({
+      page,
+    }) => {
+      // Same design-anchored pair discovery discounts.spec.ts uses (D2: a rule
+      // cannot cross suppliers), so the trigger product is the one step 3
+      // actually renders first.
+      const db = adminClient();
+      const { data: designs } = await db
+        .from("designs")
+        .select("id, slug, supplier_id")
+        .eq("active", true)
+        .order("sort_order");
+      let slug = "";
+      let triggerId = "";
+      let suggestedId = "";
+      for (const d of designs ?? []) {
+        const trigger = await firstProductOfDesignSupplier(d.id, d.supplier_id);
+        if (!trigger) continue;
+        const { data: others } = await db
+          .from("products")
+          .select("id")
+          .eq("supplier_id", d.supplier_id)
+          .eq("visible", true)
+          .neq("id", trigger.id)
+          .order("sort_order")
+          .limit(1);
+        if (others && others.length > 0) {
+          slug = d.slug;
+          triggerId = trigger.id;
+          suggestedId = others[0].id;
+          break;
+        }
+      }
+      test.skip(!slug, "needs two visible products of one supplier");
+      const seeded = await seedDiscountRule({
+        triggerProductId: triggerId,
+        suggestedProductId: suggestedId,
+        minQty: 2,
+        pct: OFFER_PCT,
+        suggestedQty: OFFER_QTY,
+      });
+      try {
+        await page.setViewportSize(PHONE);
+        await page.goto(`/${locale}/configurator?design=${slug}&step=3`);
+        await addFirstCeramic(page);
+        await page.getByTestId("docked-qty-inc").first().click(); // reach the trigger
+        // The step-3 docked panel is mounted TWICE (desktop column + mobile
+        // section) and both carry the same testids, so every query here is
+        // scoped to the VISIBLE one — an unscoped getByTestId trips Playwright's
+        // strict mode. (Deferred minor D4 of the final review, met in the wild.)
+        const vis = (id: string) => page.locator(`[data-testid="${id}"]:visible`);
+        const card = vis("cart-suggestion");
+        await expect(async () => {
+          await page.reload();
+          await expect(card).toBeVisible();
+        }).toPass({ timeout: 20_000 });
+        await card.getByTestId("cart-suggestion-add").click();
+
+        // (a) the deal ON, at exactly the offer's size
+        const dealLine = vis("cart-line").last();
+        await expect(dealLine.locator('[data-testid="cart-discount-badge"]')).toBeVisible();
+        await page.screenshot({ path: `${OUT}/deal-at-offer-390-${locale}.png` });
+
+        // (b) one piece short: the discount is gone and the nudge explains it
+        await dealLine.locator('[data-testid="docked-qty-dec"]').click();
+        await expect(dealLine.locator('[data-testid="cart-discount-badge"]')).toHaveCount(0);
+        const nudge = dealLine.locator('[data-testid="cart-deal-nudge"]');
+        await expect(nudge).toBeVisible();
+        await expect(nudge).toContainText(String(OFFER_PCT));
+        await page.screenshot({ path: `${OUT}/deal-below-offer-390-${locale}.png` });
+      } finally {
+        await seeded.restore();
+      }
+    });
+  }
+});

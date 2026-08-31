@@ -201,6 +201,7 @@ export function CartMenu() {
                           tiers={discountConfig.tiers}
                           pct={discount.perLine[line.id]?.pct ?? 0}
                           eligible={discount.perLine[line.id]?.tierEligible ?? false}
+                          pendingDeal={discount.perLine[line.id]?.pendingDeal}
                         />
                       </div>
                       <span className="shrink-0 text-right">

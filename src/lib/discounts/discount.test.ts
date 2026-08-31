@@ -9,6 +9,7 @@ import {
   EMPTY_CONFIG,
   type DiscountConfig,
   type DiscountLineInput,
+  type DiscountRule,
 } from "./discount";
 
 const TIERS = [
@@ -282,57 +283,84 @@ describe("firstSuggestion", () => {
   });
 });
 
-describe("a deal covers at most suggestedQty pieces (ADR 0023)", () => {
-  // «4 × Deep plate at 50%» is an offer on FOUR pieces. Before the cap it was a
-  // 50% licence on the line: accept the suggestion, raise the quantity, and the
-  // whole line went half price. Unit price 35000 øre, so the offer is worth
-  // 50% of 4 × 35000 = 70000 øre — and that number must not move.
-  const OFFER = {
+describe("an offer is owed on exactly its own size — both edges (ADR 0023)", () => {
+  // Every expectation below is DERIVED from these three, so a reviewer can
+  // change them and the tests still hold. If editing a fixture breaks a test,
+  // a value was hardcoded and the test is lying about what it checks.
+  const UNIT = 35000;
+  const saving = (q: number, pct: number) => money(Math.round((UNIT * q * pct) / 100));
+
+  const offer = (over: Partial<DiscountRule> = {}): DiscountRule => ({
     ...RULE,
     suggestedProductId: "plate2",
-    suggestedQty: 4,
-    discountPct: 50,
-  };
-  const cfg = config({ automationsEnabled: true, rules: [OFFER], tiersEnabled: false });
+    ...over,
+  });
+  const cfgFor = (rule: DiscountRule, over: Partial<DiscountConfig> = {}) =>
+    config({ automationsEnabled: true, rules: [rule], tiersEnabled: false, ...over });
   const cart = (qty: number) => [
-    line({ id: "trigger", quantity: 4 }), // satisfies triggerMinQty
-    line({ id: "deal", productId: "plate2", unitPriceCents: 35000, quantity: qty, dealRuleId: "r1" }),
+    line({ id: "trigger", quantity: RULE.triggerMinQty }), // trigger always satisfied
+    line({ id: "deal", productId: "plate2", unitPriceCents: UNIT, quantity: qty, dealRuleId: RULE.id }),
   ];
 
-  it("at exactly suggestedQty: the whole line is covered", () => {
-    const d = computeCartDiscount(cart(4), cfg).perLine.deal;
-    expect(d.source).toBe("deal");
-    expect(d.saved).toEqual(money(70000));
-    expect(d.coveredQty).toBe(4);
-    expect(d.quantity).toBe(4);
-    expect(d.net).toEqual(money(70000)); // 140000 − 70000
+  describe.each([
+    ["fixed", offer({ suggestedQty: 4, discountMode: "fixed", discountPct: 50 }), 50, {}],
+    ["fixed, a different offer entirely", offer({ suggestedQty: 3, discountMode: "fixed", discountPct: 20 }), 20, {}],
+    // `inherited` takes its percentage from the trigger group's current tier:
+    // the group holds RULE.triggerMinQty (4) pieces, which the scale prices at 5%.
+    ["inherited", offer({ suggestedQty: 2, discountMode: "inherited", discountPct: null }), tierFor(RULE.triggerMinQty, TIERS), { tiersEnabled: true }],
+  ])("%s", (_label, rule, pct, cfgOver) => {
+    const q = rule.suggestedQty;
+    const cfg = cfgFor(rule, cfgOver);
+
+    it("BELOW the offer: no deal at all, the line falls through to the ordinary path", () => {
+      const d = computeCartDiscount(cart(q - 1), cfg).perLine.deal;
+      expect(d.source).not.toBe("deal");
+      expect(d.saved).toEqual(money(0));
+      // and the customer is told what is missing, in the RULE's own numbers
+      expect(d.pendingDeal).toEqual({ missing: 1, pct });
+    });
+
+    it("EXACTLY at the offer: the whole line is covered", () => {
+      const d = computeCartDiscount(cart(q), cfg).perLine.deal;
+      expect(d.source).toBe("deal");
+      expect(d.saved).toEqual(saving(q, pct));
+      expect(d.coveredQty).toBe(q);
+      expect(d.pendingDeal).toBeUndefined();
+    });
+
+    it("ABOVE the offer: the saving stops at the offer, the extra is full price", () => {
+      const above = q + 7;
+      const d = computeCartDiscount(cart(above), cfg).perLine.deal;
+      expect(d.source).toBe("deal");
+      expect(d.saved).toEqual(saving(q, pct)); // identical to the exact case
+      expect(d.coveredQty).toBe(q);
+      expect(d.quantity).toBe(above);
+      expect(d.net.amountCents + d.saved.amountCents).toBe(d.full.amountCents);
+    });
   });
 
-  it("BELOW suggestedQty: only the pieces actually in the cart are covered", () => {
-    const d = computeCartDiscount(cart(2), cfg).perLine.deal;
-    expect(d.saved).toEqual(money(35000)); // 50% of 2 × 35000
-    expect(d.coveredQty).toBe(2);
+  it("suggestedQty 1 (a presence rule): any quantity >= 1 clears the floor", () => {
+    const rule = offer({ suggestedQty: 1, discountMode: "fixed", discountPct: 30 });
+    const cfg = cfgFor(rule);
+    for (const qty of [1, 2, 9]) {
+      const d = computeCartDiscount(cart(qty), cfg).perLine.deal;
+      expect(d.source).toBe("deal");
+      expect(d.saved).toEqual(saving(1, 30)); // one piece, always
+      expect(d.pendingDeal).toBeUndefined();
+    }
   });
 
-  it("ABOVE suggestedQty: the saving stops at the offer, the extra is full price", () => {
-    const d = computeCartDiscount(cart(20), cfg).perLine.deal;
-    expect(d.saved).toEqual(money(70000)); // identical to the qty-4 case
-    expect(d.coveredQty).toBe(4);
-    expect(d.quantity).toBe(20);
-    // the 16 uncovered pieces are charged in full
-    expect(d.net).toEqual(money(20 * 35000 - 70000));
-    // and the invariant the whole engine rests on still holds
-    expect(d.net.amountCents + d.saved.amountCents).toBe(d.full.amountCents);
-  });
-
-  it("a TIER is not capped — the scale is earned by the whole line", () => {
-    const tiered = computeCartDiscount(
-      [line({ id: "a", quantity: 8 })],
-      config({ tiersEnabled: true })
-    ).perLine.a;
-    expect(tiered.source).toBe("tier");
-    expect(tiered.coveredQty).toBe(8);
-    expect(tiered.coveredQty).toBe(tiered.quantity);
+  it("below the floor the line still earns its TIER — the fallback already existed", () => {
+    // A rule that wants more pieces than the cart holds: no deal, and the line
+    // carries on down the ordinary tier branch rather than to full price.
+    const hungry = offer({ suggestedQty: 99, discountMode: "fixed", discountPct: 50 });
+    const d = computeCartDiscount(
+      cart(8),
+      cfgFor(hungry, { tiersEnabled: true })
+    ).perLine.deal;
+    expect(d.source).toBe("tier");
+    expect(d.pct).toBe(tierFor(8, TIERS));
+    expect(d.pendingDeal?.missing).toBe(99 - 8);
   });
 });
 

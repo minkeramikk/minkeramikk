@@ -256,7 +256,8 @@
       "dealRow": "Tilbud",
       "note": "Rabatten er veiledende — vi bekrefter endelig pris sammen med bestillingen.",
       "srNowLabel": "Nå:",
-      "badgeCapped": "−{pct} % på {qty} stk"
+      "badgeCapped": "−{pct} % på {qty} stk",
+      "dealNudge": "legg til {missing} til for −{pct} %"
     },
     "addedWithPct": "Lagt i handlekurven · −{pct} %"
   },

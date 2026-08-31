@@ -113,6 +113,14 @@ export interface LineDiscount {
    * the feature is on or not.
    */
   tierEligible: boolean;
+  /**
+   * Set when the line carries a rule whose offer it does not yet REACH — the
+   * customer accepted "N pieces at X%" and then went below N. The discount is
+   * correctly absent; without saying so the price simply changes and the shop
+   * looks broken. Carries the rule's own numbers so the nudge can explain in
+   * the offer's terms rather than the tier scale's.
+   */
+  pendingDeal?: { missing: number; pct: number };
 }
 
 export interface CartDiscount {
@@ -160,17 +168,31 @@ export function nextTier(qty: number, tiers: DiscountTier[]): DiscountTier | nul
  * their own the way `inherited` does via `qtyByProduct` — see resolveDeal callers).
  */
 /**
- * The percentage a rule grants AND how many pieces it covers. One function
- * answers both because one thing decides both: the rule. `suggestedQty` is the
- * size of the offer, so it is also its ceiling.
+ * Whether a rule's offer applies to this line, and on what terms.
+ *
+ * `suggestedQty` is the SIZE of the offer, so it is both of its edges: an offer
+ * of N pieces is not owed below N and does not grow above it. The admin writes
+ * "N pieces at X%"; the shop honours exactly that. Everything the decision
+ * needs lives here — the four guards below plus the two edges — so no caller
+ * has to re-derive half of it.
+ *
+ * `short` is not a failure: it is the offer standing, unmet. The caller lets
+ * the line fall through to the ordinary tier path and tells the customer what
+ * is missing, which is why the numbers travel with it.
  */
+type DealResolution =
+  | { kind: "none" }
+  | { kind: "short"; missing: number; pct: number }
+  | { kind: "applies"; pct: number; suggestedQty: number };
+
 function resolveDeal(
   ruleId: string,
   productId: string | null,
+  quantity: number,
   qtyByProduct: Record<string, number>,
   config: DiscountConfig
-): { pct: number; suggestedQty: number } {
-  const none = { pct: 0, suggestedQty: 0 };
+): DealResolution {
+  const none: DealResolution = { kind: "none" };
   if (!config.automationsEnabled) return none;
   const rule = config.rules.find((r) => r.id === ruleId);
   if (!rule) return none; // rule deleted/disabled since the line was added
@@ -180,13 +202,23 @@ function resolveDeal(
     0
   );
   if (groupQty < rule.triggerMinQty) return none; // trigger no longer satisfied
-  const q = rule.suggestedQty;
-  if (rule.discountMode === "fixed") return { pct: rule.discountPct ?? 0, suggestedQty: q };
-  if (rule.discountMode === "inherited") {
+
+  let pct = 0;
+  if (rule.discountMode === "fixed") pct = rule.discountPct ?? 0;
+  else if (rule.discountMode === "inherited") {
     if (!config.tiersEnabled) return none;
-    return { pct: tierFor(groupQty, config.tiers), suggestedQty: q };
+    pct = tierFor(groupQty, config.tiers);
   }
-  return none;
+  if (pct <= 0) return none; // mode "none", or an inherited tier that pays nothing
+
+  // The floor. Below the offer's own size there is no offer — reducing the
+  // quantity after accepting must not keep the percentage on pieces the rule
+  // never covered. Same rule for every mode and every suggestedQty; with
+  // suggestedQty 1 (a presence rule) any quantity >= 1 clears it.
+  if (quantity < rule.suggestedQty) {
+    return { kind: "short", missing: rule.suggestedQty - quantity, pct };
+  }
+  return { kind: "applies", pct, suggestedQty: rule.suggestedQty };
 }
 
 /**
@@ -262,7 +294,19 @@ export function firstSuggestion(
     return {
       rule,
       fromLineId: from.id,
-      pct: resolveDeal(rule.id, rule.suggestedProductId, qtyByProduct, config).pct,
+      // The card quotes the offer at ITS OWN size, so it sits exactly on the
+      // floor by construction — `applies` is the only outcome that can price a
+      // suggestion, and anything else means there is nothing to show.
+      pct: (() => {
+        const d = resolveDeal(
+          rule.id,
+          rule.suggestedProductId,
+          rule.suggestedQty,
+          qtyByProduct,
+          config
+        );
+        return d.kind === "applies" ? d.pct : 0;
+      })(),
     };
   }
   return null;
@@ -300,12 +344,25 @@ export function computeCartDiscount(
     // offer was for (ADR 0023). Without the cap, «4 × Deep plate at 50%» would
     // hand a customer 50% on twenty pieces simply by raising the quantity.
     let coveredQty = l.quantity;
+    let pendingDeal: LineDiscount["pendingDeal"];
     if (l.dealRuleId) {
-      const deal = resolveDeal(l.dealRuleId, l.productId, qtyByProduct, config);
-      pct = deal.pct;
-      if (pct > 0) {
+      const deal = resolveDeal(
+        l.dealRuleId,
+        l.productId,
+        l.quantity,
+        qtyByProduct,
+        config
+      );
+      if (deal.kind === "applies") {
+        pct = deal.pct;
         source = "deal";
         coveredQty = Math.min(l.quantity, deal.suggestedQty);
+      } else if (deal.kind === "short") {
+        // Below the offer's floor: no deal, and the line simply carries on to
+        // the tier branch below like any other — that fallback already exists,
+        // nothing is built for it here. The shortfall travels so the customer
+        // can be told why the price moved.
+        pendingDeal = { missing: deal.missing, pct: deal.pct };
       }
     }
     if (source === "none" && config.tiersEnabled && included(l.productId, config)) {
@@ -336,6 +393,7 @@ export function computeCartDiscount(
       coveredQty: source === "none" ? l.quantity : coveredQty,
       tierEligible:
         config.tiersEnabled && included(l.productId, config) && source !== "deal",
+      pendingDeal,
     };
     if (source === "tier") tierSaves.push(saved);
     if (source === "deal") dealSaves.push(saved);

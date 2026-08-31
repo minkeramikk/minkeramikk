@@ -257,7 +257,8 @@
       "dealRow": "Offer",
       "note": "Discounts shown are indicative — we confirm the final price with your order.",
       "srNowLabel": "Now:",
-      "badgeCapped": "−{pct}% on {qty} pcs"
+      "badgeCapped": "−{pct}% on {qty} pcs",
+      "dealNudge": "add {missing} more for −{pct}%"
     },
     "addedWithPct": "Added to your basket · −{pct}%"
   },

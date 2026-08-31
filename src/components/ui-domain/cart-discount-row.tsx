@@ -9,7 +9,8 @@ import { nextTier, type DiscountTier, type LineDiscount } from "@/lib/discounts/
  * nudge, shared by CartDrawer (§3.12) and DockedCart (§3.14).
  *
  * TODO:nb-review — the `cart.discount.*` Norwegian copy is the TL's wording
- * (`badge`, `badgeCapped`, `inCart`, `applied`, `nudge`, `srNowLabel`).
+ * (`badge`, `badgeCapped`, `inCart`, `applied`, `nudge`, `dealNudge`,
+ * `srNowLabel`).
  *
  * `d` is looked up 1:1 as `discount.perLine[line.id]` at both call sites, from
  * the very same `cart` array `computeCartDiscount` was just run over in the
@@ -89,14 +90,32 @@ export function CartDiscountNudge({
   tiers,
   pct,
   eligible,
+  pendingDeal,
 }: {
   productQty: number;
   tiers: DiscountTier[];
   pct: number;
   eligible: boolean;
+  pendingDeal?: { missing: number; pct: number };
 }) {
   const t = useTranslations("cart.discount");
   const up = nextTier(productQty, tiers);
+  // An offer the line no longer reaches speaks FIRST and on its own terms, in
+  // the rule's numbers rather than the tier scale's. It is deliberately outside
+  // the `eligible` gate below: that gate is about the TIER scale, and this
+  // message must still appear when the tiers are switched off or the product is
+  // outside the inclusion list — the offer is unrelated to either.
+  if (pendingDeal) {
+    return (
+      <p
+        data-testid="cart-deal-nudge"
+        className="mt-1 text-[11px] font-medium"
+        style={{ color: "color-mix(in oklab, var(--discount), black 34%)" }}
+      >
+        {t("dealNudge", { missing: pendingDeal.missing, pct: pendingDeal.pct })}
+      </p>
+    );
+  }
   if (!eligible) return null;
   if (productQty === 0 || (pct === 0 && !up)) return null;
   return (

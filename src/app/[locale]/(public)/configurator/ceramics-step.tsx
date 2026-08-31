@@ -578,6 +578,7 @@ export function CeramicsStep({
                     tiers={discountConfig.tiers}
                     pct={discount.perLine[line.id]?.pct ?? 0}
                     eligible={discount.perLine[line.id]?.tierEligible ?? false}
+                    pendingDeal={discount.perLine[line.id]?.pendingDeal}
                   />
                 </div>
                 <div className="flex shrink-0 flex-col items-end justify-between self-stretch">
