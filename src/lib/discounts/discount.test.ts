@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { money } from "@/lib/money/money";
+import { money, subtract } from "@/lib/money/money";
 import {
+  cartSaved,
   computeCartDiscount,
   firstSuggestion,
   nextTier,
@@ -376,5 +377,49 @@ describe("tierEligible — the single source of truth for the tier nudge", () =>
     );
     expect(r.perLine.a.tierEligible).toBe(true); // below the scale: the nudge still invites
     expect(r.perLine.b.tierEligible).toBe(true);
+  });
+});
+
+describe("cartSaved — what the sticky bar declares", () => {
+  const run = (lines: DiscountLineInput[], c: DiscountConfig) =>
+    cartSaved(computeCartDiscount(lines, c));
+
+  it("is zero when nothing is discounted", () => {
+    expect(run([line({ id: "a", quantity: 1 })], EMPTY_CONFIG)).toEqual(money(0));
+  });
+
+  it("counts a tier", () => {
+    // 8 × 74900 = 599200, the ×8 step is 10%
+    expect(run([line({ id: "a", quantity: 8 })], config({ tiersEnabled: true }))).toEqual(
+      money(59920)
+    );
+  });
+
+  it("counts a deal", () => {
+    const OFFER = { ...RULE, suggestedProductId: "plate2", suggestedQty: 4, discountPct: 50 };
+    const saved = run(
+      [
+        line({ id: "trigger", quantity: 4 }),
+        line({ id: "deal", productId: "plate2", unitPriceCents: 35000, quantity: 4, dealRuleId: "r1" }),
+      ],
+      config({ automationsEnabled: true, rules: [OFFER], tiersEnabled: false })
+    );
+    expect(saved).toEqual(money(70000)); // 50% of 4 × 35000
+  });
+
+  it("counts a tier and a deal TOGETHER — the bar shows one number", () => {
+    const OFFER = { ...RULE, suggestedProductId: "plate2", suggestedQty: 4, discountPct: 50 };
+    const r = computeCartDiscount(
+      [
+        line({ id: "trigger", quantity: 8 }), // earns the ×8 tier: 10% of 599200 = 59920
+        line({ id: "deal", productId: "plate2", unitPriceCents: 35000, quantity: 4, dealRuleId: "r1" }),
+      ],
+      config({ automationsEnabled: true, rules: [OFFER], tiersEnabled: true })
+    );
+    expect(r.tierSaved).toEqual(money(59920));
+    expect(r.dealSaved).toEqual(money(70000));
+    // the bar must not show one of the two, nor their sum computed twice
+    expect(cartSaved(r)).toEqual(money(129920));
+    expect(cartSaved(r)).toEqual(subtract(r.subtotal, r.total));
   });
 });

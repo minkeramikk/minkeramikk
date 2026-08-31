@@ -189,6 +189,18 @@ function resolveDeal(
   return none;
 }
 
+/**
+ * What the basket saves in total — tier and deal together.
+ *
+ * Derived rather than summed from `tierSaved + dealSaved` so it cannot drift
+ * from the total the customer is actually shown: `total` is what they pay,
+ * `subtotal` is what the lines add up to, and the gap between the two IS the
+ * saving by construction.
+ */
+export function cartSaved(d: CartDiscount): Money {
+  return subtract(d.subtotal, d.total);
+}
+
 export interface ActiveSuggestion {
   rule: DiscountRule;
   /** The line whose design/config the suggested line inherits (ADR 0023 (e)). */

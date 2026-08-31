@@ -107,7 +107,8 @@
     },
     "stickyBar": {
       "title": "Din bestilling",
-      "pieces": "{count, plural, one {# del} other {# deler}}"
+      "pieces": "{count, plural, one {# del} other {# deler}}",
+      "saved": "spart {amount}"
     },
     "steps": {
       "design": "1. Design",
@@ -256,7 +257,8 @@
       "note": "Rabatten er veiledende — vi bekrefter endelig pris sammen med bestillingen.",
       "srNowLabel": "Nå:",
       "badgeCapped": "−{pct} % på {qty} stk"
-    }
+    },
+    "addedWithPct": "Lagt i handlekurven · −{pct} %"
   },
   "order": {
     "title": "Bestill",

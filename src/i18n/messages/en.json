@@ -108,7 +108,8 @@
     },
     "stickyBar": {
       "title": "Your order",
-      "pieces": "{count, plural, one {# piece} other {# pieces}}"
+      "pieces": "{count, plural, one {# piece} other {# pieces}}",
+      "saved": "saved {amount}"
     },
     "steps": {
       "design": "1. Design",
@@ -257,7 +258,8 @@
       "note": "Discounts shown are indicative — we confirm the final price with your order.",
       "srNowLabel": "Now:",
       "badgeCapped": "−{pct}% on {qty} pcs"
-    }
+    },
+    "addedWithPct": "Added to your basket · −{pct}%"
   },
   "order": {
     "title": "Order",

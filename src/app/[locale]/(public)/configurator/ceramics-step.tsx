@@ -19,11 +19,13 @@ import {
   cartPieces,
   designLabel,
   itemCount,
+  lineKey,
   type CartLine,
   type CartLayer,
   type ConfigSnapshot,
 } from "@/lib/cart/cart";
 import { encodeSetParam, SET_LINK_BUDGET } from "@/lib/cart/set-code";
+import { cartSaved } from "@/lib/discounts/discount";
 import { SetBadge } from "@/components/ui-domain/set-badge";
 import { CartLineRecap } from "@/components/ui-domain/cart-line-recap";
 import { useShippingTotalSuffix } from "@/components/ui-domain/cart-shipping-row";
@@ -226,6 +228,11 @@ export function CeramicsStep({
   }
   /** §3.20: "added to basket" pill, auto-dismissed after ~1.8s. */
   const [toast, setToast] = useState(false);
+  /** R4-SCONTI: the id of the line the toast is confirming, so it can name that
+   *  line's percentage. Read at RENDER time, not in the handler: `discount` is
+   *  recomputed from the new cart on the next render, so in the handler it
+   *  still describes the basket as it was BEFORE the add. */
+  const [addedLineId, setAddedLineId] = useState<string | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [qty, setQty] = useState(1);
   /** Desktop + mobile inline: expands the order form in the cart panel. */
@@ -314,10 +321,16 @@ export function CeramicsStep({
   // must read the same NET number, never the panel's net beside the bar's
   // gross.
   const stickyTotalSuffix = useShippingTotalSuffix(discount.total);
+  /** R4-SCONTI: what the basket saves in total — tier and deal together. Taken
+   *  from the engine (subtotal − total) rather than added up here, so the bar
+   *  can never disagree with the drawer. */
+  const barSaved = cartSaved(discount);
+  /** The percentage of the line the toast is confirming, 0 when it has none. */
+  const addedPct = addedLineId ? discount.perLine[addedLineId]?.pct ?? 0 : 0;
 
-  function addSelected() {
+  function addSelected(): string | null {
     const selected = opened;
-    if (!selected) return;
+    if (!selected) return null;
     add({
       productId: selected.id,
       productNameNo: selected.nameNo,
@@ -337,6 +350,8 @@ export function CeramicsStep({
       pieces: selected.pieces,
     });
     setQty(1);
+    // Same identity addToCart() derives, so the toast can look the line up.
+    return lineKey(selected.id, configCode);
   }
 
   /** §3.20: add → close the sheet FIRST, then show the toast. */
@@ -344,7 +359,7 @@ export function CeramicsStep({
     // The sheet stays mounted (and its CTA clickable) through the 180-220ms
     // exit animation: without this a double-tap would add the product twice.
     if (!sheetOpenRef.current) return;
-    addSelected();
+    setAddedLineId(addSelected());
     setSheet(false);
     setToast(true);
     if (toastTimer.current) clearTimeout(toastTimer.current);
@@ -828,6 +843,24 @@ export function CeramicsStep({
           {formatMoney(discount.total, locale)}
           {stickyTotalSuffix}
         </p>
+        {/* R4-SCONTI: the total above is already NET, so without this line the
+            bar quietly shows less than the rows add up to and the customer only
+            finds out by opening the drawer — after deciding. A discount found
+            after the decision is a refund, not an incentive.
+            Rendered ONLY when there is something to declare, so with no
+            discount the bar keeps exactly the height it has today. It sits on
+            its OWN line rather than beside the total: `stickyTotalSuffix`
+            («+ frakt») already lives up there, and at 360 in English the two
+            would collide. */}
+        {barSaved.amountCents > 0 && (
+          <p
+            data-testid="sticky-bar-saved"
+            className="truncate text-[11px] font-medium tabular-nums"
+            style={{ color: "color-mix(in oklab, var(--discount), black 34%)" }}
+          >
+            {tc("stickyBar.saved", { amount: formatMoney(barSaved, locale) })}
+          </p>
+        )}
       </div>
       {/* Same pill as the cart panel's CTA (§3.16) and the same label key, so
           R-PAY reskins both from one place. It carries the arrow because it
@@ -1082,7 +1115,11 @@ export function CeramicsStep({
           >
             {/* decorative: screen readers would read it as "check mark" */}
             <span aria-hidden>✓</span>
-            {t("added")}
+            {/* R4-SCONTI: the toast lands in the instant AFTER the decision, so
+                it is the cheapest place to say the discount applied — one
+                string, no layout. Silent when the line has none, so an
+                undiscounted add reads exactly as it does today. */}
+            {addedPct > 0 ? t("addedWithPct", { pct: addedPct }) : t("added")}
           </span>
         )}
       </div>

@@ -385,3 +385,76 @@ test.describe("admin: an order that actually carries a discount", () => {
     await page.screenshot({ path: `${OUT}/admin-order-deal-1280.png`, fullPage: true });
   });
 });
+
+/**
+ * Giro garanzia — the mobile order bar declaring the saving (mockup variant A).
+ *
+ * Four shots, and the point of them is the NARROW case: at 360 the bar already
+ * balances a non-shrinking piece count against a truncating title, and the
+ * free-shipping suffix («+ frakt» / «+ shipping») shares the total's line. The
+ * saving row is what was added between those two, so 360 in ENGLISH with a
+ * discount AND the suffix on screen is the shot that proves it fits — English
+ * is the worst case, its words are longer.
+ *
+ * The pair without a discount is not decoration: the requirement is that the
+ * bar keeps EXACTLY the height it has today when there is nothing to declare,
+ * and two shots side by side are how a human checks that in a second.
+ */
+test.describe("R4-SCONTI evidence — the sticky bar declares the saving", () => {
+  test.skip(!CAN_SEED, "MK_E2E_SEED=1 richiesto: semina una scala sconti");
+  test.describe.configure({ timeout: 90_000 });
+
+  const NARROW = { width: 360, height: 780 };
+  const PHONE360 = { width: 390, height: 844 };
+
+  for (const locale of ["no", "en"] as const) {
+    test(`sticky bar @360 + @390, ${locale.toUpperCase()}, with and without a discount`, async ({
+      page,
+    }) => {
+      const design = await firstActiveDesign();
+      const step3 = `/${locale}/configurator?design=${design.slug}&step=3`;
+
+      // (a) NO discount first: the bar as it ships today, the height baseline.
+      const off = await seedDiscountTiers([]);
+      try {
+        await page.setViewportSize(NARROW);
+        await page.goto(step3);
+        await addFirstCeramic(page);
+        await expect(page.getByTestId("step3-sticky-bar")).toBeVisible();
+        await expect(page.getByTestId("sticky-bar-saved")).toHaveCount(0);
+        await page.screenshot({ path: `${OUT}/sticky-bar-plain-360-${locale}.png` });
+      } finally {
+        await off.restore();
+      }
+
+      // (b) WITH a discount. A 2-piece step keeps the basket under the
+      // free-shipping threshold, so the suffix and the saving are on screen
+      // together — which is the collision the row was placed to avoid.
+      const seeded = await seedDiscountTiers([{ min_qty: 2, pct: 12 }]);
+      try {
+        await page.goto(step3);
+        // The basket is deliberately NOT reset between (a) and (b): the cart
+        // persists in localStorage, so the piece added above plus this one make
+        // TWO — the tier's threshold — while the net total stays under the
+        // 1 000 kr free-shipping mark. That is the only combination that puts
+        // the suffix and the saving on screen together, which is the whole
+        // point of this shot. A third piece would clear the threshold, the
+        // suffix would vanish, and the evidence would stop proving anything.
+        await addFirstCeramic(page);
+        await expect(async () => {
+          await page.reload();
+          await expect(page.getByTestId("sticky-bar-saved")).toBeVisible();
+        }).toPass({ timeout: 20_000 });
+        // both messages on screen together — the collision case
+        await expect(page.getByTestId("sticky-bar-total")).toContainText(/frakt|shipping/);
+        await page.screenshot({ path: `${OUT}/sticky-bar-saved-360-${locale}.png` });
+
+        await page.setViewportSize(PHONE360);
+        await expect(page.getByTestId("sticky-bar-saved")).toBeVisible();
+        await page.screenshot({ path: `${OUT}/sticky-bar-saved-390-${locale}.png` });
+      } finally {
+        await seeded.restore();
+      }
+    });
+  }
+});
