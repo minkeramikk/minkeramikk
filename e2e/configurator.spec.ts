@@ -169,7 +169,7 @@ test("AC5 (mobile): no horizontal overflow, touch targets ≥44px", async ({
   expect(panelBox!.width).toBeLessThanOrEqual(page.viewportSize()!.width);
 });
 
-test("R2-1a: changing the cover default in F10 changes the step-1 cover", async ({
+test("R2-1a: changing the cover default in F10 changes the step-1 cover @admin-setup", async ({
   page,
 }) => {
   const db = adminClient();
@@ -366,7 +366,7 @@ test("R-EXTRA: the next-step pills are real buttons and walk the funnel", async 
 test.describe("R2-3+R2-4 expandable card", () => {
   test.skip(!ADMIN_READY, "needs ADMIN_EMAIL + ADMIN_PASSWORD + service role");
 
-  test("typed admin attrs → step-3 card expands with inline add + spec chips", async ({ page }, testInfo) => {
+  test("typed admin attrs → step-3 card expands with inline add + spec chips @admin-setup", async ({ page }, testInfo) => {
     const design = await firstActiveDesignWithId();
     const { data: d, error: dErr } = await adminClient()
       .from("designs")
@@ -501,7 +501,7 @@ test.describe("R2-3+R2-4 expandable card", () => {
 test.describe("R2-2b custom notes", () => {
   test.skip(!ADMIN_READY, "needs ADMIN_EMAIL + ADMIN_PASSWORD + service role");
 
-  test("flagged design shows the note block; custom mode reveals a focused textarea; note rides URL", async ({
+  test("flagged design shows the note block; custom mode reveals a focused textarea; note rides URL @admin-setup", async ({
     page,
   }) => {
     // (a) Discover the first active design (needs id for admin URL, slug for public URL).
@@ -587,7 +587,7 @@ test.describe("R2-2b custom notes", () => {
    * visible as soon as the block renders, so we never assert `.toBeFocused()`
    * (the field must stay unfocused by default — that IS the requirement).
    */
-  test("flagged design shows the inscription block with a visible (unfocused) input; text rides URL", async ({
+  test("flagged design shows the inscription block with a visible (unfocused) input; text rides URL @admin-setup", async ({
     page,
   }) => {
     // (a) Discover the first active design (needs id for admin URL, slug for public URL).
@@ -669,7 +669,7 @@ test.describe("R2-2b custom notes", () => {
 test.describe("R2-7 bilingual design name", () => {
   test.skip(!ADMIN_READY, "needs ADMIN_EMAIL + ADMIN_PASSWORD + service role");
 
-  test("admin sets NO≠EN → configurator shows the name per-locale", async ({ page }) => {
+  test("admin sets NO≠EN → configurator shows the name per-locale @admin-setup", async ({ page }) => {
     const design = await firstActiveDesignWithId();
     await loginAdmin(page);
     await page.goto(`/admin/designs/${design.id}`);

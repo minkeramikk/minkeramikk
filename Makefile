@@ -41,9 +41,15 @@ check-node:
 build: check-node
 	NEXT_PUBLIC_TURNSTILE_SITE_KEY= npm run build
 
-# gate per ogni PR — desktop + mobile dei 6 journey core
+# gate per ogni PR — desktop + mobile dei 6 journey core.
+# I test taggati @admin-setup sono ESCLUSI dal gate (decisione TL 2026-08-29): sono
+# test-panino che pilotano la UI admin per preparare dati e poi asseriscono su AC del
+# pubblico (chip, toast, flag) — non proteggono un journey, e il piu' grasso sforava i
+# 30s in una run intera lasciando il DB sporco quando il finally veniva troncato.
+# Restano nella suite full (`make run-e2e`), che NON filtra.
 run-e2e-core: build
-	npx playwright test $(CORE_SPECS) --project=desktop --project=mobile
+	npx playwright test $(CORE_SPECS) --project=desktop --project=mobile \
+		--grep-invert "@admin-setup"
 
 # suite intera (no email, no evidence) — gate manuale prima di `preview` / go-live
 run-e2e: build
