@@ -132,7 +132,17 @@ export function SheetOfferBlock({
                 {formatMoney(full, locale)}
               </s>
             )}
-            <span>{formatMoney(net, locale)}</span>
+            <span>
+              {/* Same recipe as the cart's rows: the struck-through full price is
+                  aria-hidden, so without this the screen reader announces a bare
+                  number with nothing marking it as the reduced one. Tied to the
+                  same condition as the <s>, since "Now:" says nothing when there
+                  is no "before". */}
+              {suggestion.pct > 0 && (
+                <span className="sr-only">{tDiscount("srNowLabel")} </span>
+              )}
+              {formatMoney(net, locale)}
+            </span>
             {suggestion.pct > 0 && (
               <span
                 className="rounded-full px-2 py-0.5 text-[10px] font-semibold whitespace-nowrap"
