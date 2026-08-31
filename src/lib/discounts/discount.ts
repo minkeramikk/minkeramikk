@@ -139,7 +139,7 @@ export interface CartDiscount {
   total: Money;
 }
 
-const included = (productId: string | null, config: DiscountConfig): boolean =>
+export const included = (productId: string | null, config: DiscountConfig): boolean =>
   productId !== null &&
   (config.includedProductIds.length === 0 ||
     config.includedProductIds.includes(productId));
