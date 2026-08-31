@@ -129,6 +129,26 @@ describe.each([
     const out = sheetOffer([], cfg(noCard), candidate(1), opts);
     expect(out).toBeNull();
   });
+
+  it("F1 — discountMode 'none' pays nothing: null locked AND null unlocked", () => {
+    const noPayout: DiscountRule = { ...r, discountMode: "none", discountPct: null };
+    expect(sheetOffer([], cfg(noPayout), candidate(1), opts)).toBeNull(); // would be locked
+    expect(sheetOffer([], cfg(noPayout), candidate(q), opts)).toBeNull(); // would be unlocked
+  });
+
+  it("F1 — 'inherited' with the tier scale off pays nothing: null in both states", () => {
+    const inherited: DiscountRule = { ...r, discountMode: "inherited" };
+    const config = { ...cfg(inherited), tiersEnabled: false };
+    expect(sheetOffer([], config, candidate(1), opts)).toBeNull();
+    expect(sheetOffer([], config, candidate(q), opts)).toBeNull();
+  });
+
+  it("F1 — 'inherited' with the tier scale on and a matching tier: still offered", () => {
+    const inherited: DiscountRule = { ...r, discountMode: "inherited" };
+    const config = { ...cfg(inherited), tiersEnabled: true, tiers: [{ minQty: 2, pct: 20 }] };
+    expect(sheetOffer([], config, candidate(1), opts)?.kind).toBe("locked");
+    expect(expectUnlocked(sheetOffer([], config, candidate(q), opts)).pct).toBe(20);
+  });
 });
 
 it("no rule applies: null, and the sheet renders exactly as today", () => {
@@ -161,4 +181,31 @@ it("an EXCLUDED product never triggers — not even the locked state", () => {
   const config = { ...cfg(rule()), includedProductIds: ["deep"] };
   expect(sheetOffer([], config, candidate(1), opts)).toBeNull(); // would be locked
   expect(sheetOffer([], config, candidate(9), opts)).toBeNull(); // would be unlocked
+});
+
+it("F3 — the locked panel reports the rule the engine will actually deliver, not the loop's own candidate", () => {
+  // Two rules both triggered by "plate", admin order [A, B]. A's suggested
+  // product is already in the cart (D1), so A can never actually be offered —
+  // but only the ENGINE knows that; a loop re-deriving D1 on its own candidate
+  // would have skipped straight to B and reported ITS threshold (2), not A's (6).
+  const ruleA = rule({
+    id: "rA", triggerProductIds: ["plate"], triggerMinQty: 6,
+    suggestedProductId: "vase", suggestedQty: 1,
+    suggested: { id: "vase", slug: "vase", nameNo: "Vase", nameEn: "Vase", priceCents: 30000, currency: "NOK", image: null, pieces: 1, supplierId: "s1" },
+  });
+  const ruleB = rule({
+    id: "rB", triggerProductIds: ["plate"], triggerMinQty: 2,
+    suggestedProductId: "mug", suggestedQty: 1, discountPct: 15,
+    suggested: { id: "mug", slug: "mug", nameNo: "Krus", nameEn: "Mug", priceCents: 20000, currency: "NOK", image: null, pieces: 1, supplierId: "s1" },
+  });
+  const config = { ...EMPTY_CONFIG, automationsEnabled: true, rules: [ruleA, ruleB] };
+  const inCart = [{ id: "v", productId: "vase", unitPriceCents: 30000, currency: "NOK" as const, quantity: 1 }];
+
+  const locked = sheetOffer(inCart, config, candidate(1), opts);
+  expect(locked).toEqual({ kind: "locked", rule: ruleB, neededQty: 6, missing: 5 });
+
+  // Stepping to EXACTLY the quantity the locked panel promised must deliver
+  // the SAME rule — the governing promise, checked end to end.
+  const unlocked = expectUnlocked(sheetOffer(inCart, config, candidate(6), opts));
+  expect(unlocked.rule.id).toBe(ruleB.id);
 });

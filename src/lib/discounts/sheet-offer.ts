@@ -27,31 +27,45 @@ export type SheetOffer =
   | { kind: "unlocked"; suggestion: ActiveSuggestion }
   | { kind: "locked"; rule: DiscountRule; neededQty: number; missing: number };
 
-export function sheetOffer(
+type Candidate = {
+  /** Identity of the line the customer is about to add. */
+  id: string;
+  productId: string;
+  quantity: number;
+  unitPriceCents: number;
+  currency: Currency;
+  configCode?: string;
+};
+
+type Opts = {
+  supplierOf: (lineId: string) => string | null;
+  supplierOfProduct: (productId: string) => string | null;
+};
+
+/**
+ * What the engine would offer if the candidate line held `quantity` pieces —
+ * the single place both states consult the engine, so neither can advertise
+ * anything the engine would not actually deliver at that quantity.
+ *
+ * Beyond running `activeSuggestions`, this holds the two guards that make an
+ * offer drawable and worth having: `rule.suggested` must resolve to a card
+ * (F4 — the sheet has one block, not a cart's droppable list) and `pct` must
+ * be > 0 (F1 — `discountMode: "none"`, or "inherited" paying nothing, is a
+ * real admin configuration, not a bug; it must never read as an offer).
+ */
+function offerAt(
   lines: DiscountLineInput[],
   config: DiscountConfig,
-  candidate: {
-    /** Identity of the line the customer is about to add. */
-    id: string;
-    productId: string;
-    quantity: number;
-    unitPriceCents: number;
-    currency: Currency;
-    configCode?: string;
-  },
-  opts: {
-    supplierOf: (lineId: string) => string | null;
-    supplierOfProduct: (productId: string) => string | null;
-  }
-): SheetOffer | null {
-  if (!config.automationsEnabled) return null;
-
+  candidate: Candidate,
+  quantity: number,
+  opts: Opts
+): ActiveSuggestion | null {
   const hypothetical: DiscountLineInput = {
     id: candidate.id,
     productId: candidate.productId,
     unitPriceCents: candidate.unitPriceCents,
     currency: candidate.currency,
-    quantity: candidate.quantity,
+    quantity,
     configCode: candidate.configCode,
   };
 
@@ -59,7 +73,7 @@ export function sheetOffer(
   // so it goes LAST: activeSuggestions prefers the biggest trigger line, and
   // ties resolve first-seen, so passing the current configCode makes it win
   // outright (ADR 0024 §6).
-  const unlocked = activeSuggestions([...lines, hypothetical], config, {
+  const suggestion = activeSuggestions([...lines, hypothetical], config, {
     // The hypothetical line has no identity in the caller's real supplierOf
     // (it is not a cart line yet), so that lookup legitimately misses for it —
     // fall back to the product-keyed lookup only then. Trying supplierOf(id)
@@ -71,15 +85,34 @@ export function sheetOffer(
     supplierOfProduct: opts.supplierOfProduct,
     currentConfigCode: candidate.configCode ?? null,
   })[0];
-  if (unlocked) {
-    // rule.suggested is the product card the block draws — name, price,
-    // image. The cart can afford the engine's laxness here because it renders
-    // a LIST and OfferRow drops an undrawable row (cart-suggestion.tsx:97-98);
-    // the sheet has a SINGLE block, so an unlocked offer whose card cannot be
-    // drawn is a dead end — render nothing rather than a broken block.
-    if (!unlocked.rule.suggested) return null;
-    return { kind: "unlocked", suggestion: unlocked };
-  }
+  if (!suggestion) return null;
+
+  // rule.suggested is the product card the block draws — name, price, image.
+  // The cart can afford the engine's laxness here because it renders a LIST
+  // and OfferRow drops an undrawable row (cart-suggestion.tsx:97-98); the
+  // sheet has a SINGLE block, so an unlocked offer whose card cannot be drawn
+  // is a dead end — render nothing rather than a broken block.
+  if (!suggestion.rule.suggested) return null;
+
+  // A rule the shop configured to pay nothing (`discountMode: "none"`, or
+  // "inherited" with the tier scale off/unreached) is not an offer. Without
+  // this the sheet could promise "Offer" and unlock into a suggestion at full
+  // price — nothing was actually unlocked (F1).
+  if (suggestion.pct <= 0) return null;
+
+  return suggestion;
+}
+
+export function sheetOffer(
+  lines: DiscountLineInput[],
+  config: DiscountConfig,
+  candidate: Candidate,
+  opts: Opts
+): SheetOffer | null {
+  if (!config.automationsEnabled) return null;
+
+  const unlocked = offerAt(lines, config, candidate, candidate.quantity, opts);
+  if (unlocked) return { kind: "unlocked", suggestion: unlocked };
 
   // An excluded product neither triggers nor donates (ADR 0022). The unlocked
   // branch gets this for free — activeSuggestions never counts it into the
@@ -89,21 +122,15 @@ export function sheetOffer(
   if (!included(candidate.productId, config)) return null;
 
   // Locked: the first rule, in the admin's order, that this product could
-  // unlock. Same filters as the engine, minus the trigger — that is the one
-  // being projected forward.
-  //
-  // D1 and D2 below are re-derived rather than shared with activeSuggestions
-  // (discount.ts:302 and :328-329) — activeSuggestions can only ever see a
-  // trigger that is already met, so it has nothing to project forward, and
-  // extracting a shared predicate means surgery on an engine that shipped
-  // last week and is still under review. Any change to those two filters in
-  // discount.ts must be mirrored here by hand.
+  // still unlock. `neededQty` is arithmetic offerAt cannot do (it takes a
+  // quantity, it doesn't invent one) — everything about whether the resulting
+  // offer is real comes from projecting AT that quantity and trusting what
+  // comes back, rule included: at neededQty the engine may prefer a different,
+  // earlier rule (its own D1/D2 can rule THIS rule's candidate out while an
+  // overlapping one still fires), and that is the one the customer will
+  // actually see, so it is the one reported here (F3).
   for (const rule of config.rules) {
     if (!rule.triggerProductIds.includes(candidate.productId)) continue;
-    if (!rule.suggested) continue;
-    if (lines.some((l) => l.productId === rule.suggestedProductId)) continue; // D1
-    const sup = opts.supplierOfProduct(candidate.productId);
-    if (!sup || opts.supplierOfProduct(rule.suggestedProductId) !== sup) continue; // D2
 
     // How many the STEPPER needs, given what the cart already contributes.
     // The mockup's fixed «Take N» assumes an empty cart and would ask for more
@@ -119,7 +146,10 @@ export function sheetOffer(
       .reduce((n, l) => n + l.quantity, 0);
     const neededQty = Math.max(1, rule.triggerMinQty - inCartGroup);
     if (candidate.quantity >= neededQty) continue; // would already be unlocked
-    return { kind: "locked", rule, neededQty, missing: neededQty - candidate.quantity };
+
+    const projected = offerAt(lines, config, candidate, neededQty, opts);
+    if (!projected) continue;
+    return { kind: "locked", rule: projected.rule, neededQty, missing: neededQty - candidate.quantity };
   }
   return null;
 }
