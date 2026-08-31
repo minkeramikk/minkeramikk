@@ -5,6 +5,7 @@ import {
   CAN_SEED,
   adminClient,
   addFirstCeramic,
+  ceramicCards,
   deleteOrder,
   firstActiveDesign,
   firstProductOfDesignSupplier,
@@ -665,6 +666,117 @@ test.describe("R4-SCONTI evidence — offers are a list", () => {
         }
       } finally {
         await a.restore();
+      }
+    });
+  }
+});
+
+/**
+ * R4-UPSELL-MODALE — the offer block INSIDE the product sheet (§3.24), not
+ * the cart's own suggestion card the blocks above already cover: dimmed and
+ * locked below the rule's own threshold, both bundle rows plus «Add both»
+ * once unlocked, and the cart after that one gesture — the actual proof of
+ * AC3 (the base ceramic AND the discounted suggestion land in one add, never
+ * screenshotted before this task).
+ *
+ * Reuses `discoverTriggerAndSuggested()` (①/② discovery above, D2: rule and
+ * candidate must share a supplier) instead of a third copy of that lookup —
+ * only the locale in its `step3` URL is swapped per iteration.
+ *
+ * One seed per locale, both breakpoints inside the SAME seed/restore (same
+ * shape as "customer cart: tiers" above): cheaper than seeding twice, and the
+ * `localStorage.clear()` between the two passes keeps the SECOND pass's
+ * locked shot honest — a bundle already added at 390 would satisfy the
+ * trigger before the 1280 pass ever opens the sheet.
+ *
+ * Every lookup is scoped `[data-testid="…"]:visible`: `sheet-offer-*` live
+ * inside the ONE Radix-portalled `ProductSheet` (never duplicated — see the
+ * "ONE Radix Dialog" note in product-sheet.tsx), but `cart-line` / `cart-list`
+ * are not — the step-3 docked panel is mounted twice (desktop rail + mobile
+ * section, same testids), so an unscoped query trips Playwright's strict
+ * mode the moment both are in the DOM together (met in the wild on this
+ * branch already, see the "offer is not owed below its own size" block).
+ */
+test.describe("R4-UPSELL-MODALE evidence — the sheet offer block", () => {
+  test.skip(!CAN_SEED, "MK_E2E_SEED=1 richiesto: semina una regola upsell nel catalogo reale");
+  test.describe.configure({ timeout: 120_000 });
+
+  for (const locale of ["no", "en"] as const) {
+    test(`sheet offer locked, unlocked, add both (${locale.toUpperCase()}) @390 + @1280`, async ({
+      page,
+    }) => {
+      const found = await discoverTriggerAndSuggested();
+      test.skip(!found, "needs two visible products of one supplier");
+      if (!found) return;
+      const step3 = found.step3.replace("/no/configurator", `/${locale}/configurator`);
+
+      const seeded = await seedDiscountRule({
+        triggerProductId: found.triggerProductId,
+        suggestedProductId: found.suggestedProductId,
+        minQty: 2,
+        pct: 15,
+      });
+      try {
+        const vis = (id: string) => page.locator(`[data-testid="${id}"]:visible`);
+
+        for (const [vp, vpLabel] of [
+          [PHONE, "390"],
+          [DESKTOP, "1280"],
+        ] as const) {
+          await page.setViewportSize(vp);
+          await page.goto(step3);
+          // Fresh basket for this pass: a bundle added in the PREVIOUS
+          // breakpoint's "add both" would already satisfy the trigger and
+          // the locked state would never appear.
+          await page.evaluate(() => localStorage.clear());
+
+          // config.server.ts caches the discount config for up to 10s —
+          // reload-and-retry, same idiom as every other seed in this file,
+          // so the sheet is never opened against a still-stale read.
+          await expect(async () => {
+            await page.reload();
+            await page.getByTestId("ceramics-step").waitFor();
+            await ceramicCards(page).first().click();
+            await expect(page.getByTestId("product-sheet")).toBeVisible();
+            await expect(vis("sheet-offer-locked")).toBeVisible();
+          }).toPass({ timeout: 20_000 });
+
+          // (a) LOCKED — dimmed block, below the rule's own threshold, the
+          // unlock CTA in the same frame as the qty stepper it will raise.
+          await vis("sheet-offer").scrollIntoViewIfNeeded();
+          await page.screenshot({
+            path: `${OUT}/sheet-offer-locked-${vpLabel}-${locale}.png`,
+            fullPage: true,
+          });
+
+          // (b) UNLOCKED — the unlock button raises the stepper straight to
+          // the rule's own quantity (D-Q2: the block's shortcut IS the
+          // missing number); both bundle rows plus «Add both» in frame.
+          await vis("sheet-offer-unlock").click();
+          await expect(vis("sheet-offer-base")).toBeVisible();
+          await expect(vis("sheet-offer-extra")).toBeVisible();
+          await expect(vis("sheet-offer-add-both")).toBeVisible();
+          await vis("sheet-offer").scrollIntoViewIfNeeded();
+          await page.screenshot({
+            path: `${OUT}/sheet-offer-unlocked-${vpLabel}-${locale}.png`,
+            fullPage: true,
+          });
+
+          // (c) ADD BOTH — one gesture, two lines: the configured ceramic
+          // AND the discounted suggestion (AC3). «Add both» closes the sheet
+          // itself (showAddedToast → setSheet(false)); the cart panel is
+          // what proves the second line actually landed.
+          await vis("sheet-offer-add-both").click();
+          await expect(page.getByTestId("product-sheet")).toBeHidden();
+          await expect(vis("cart-line")).toHaveCount(2);
+          await vis("cart-list").scrollIntoViewIfNeeded();
+          await page.screenshot({
+            path: `${OUT}/sheet-offer-cart-after-add-both-${vpLabel}-${locale}.png`,
+            fullPage: true,
+          });
+        }
+      } finally {
+        await seeded.restore();
       }
     });
   }
