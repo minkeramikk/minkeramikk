@@ -132,6 +132,17 @@ export function addToCart(cart: Cart, line: NewCartLine): Cart {
   return [...cart, { ...line, id, quantity: qty }];
 }
 
+/**
+ * Fold several lines into the cart, one after another. The bundle add (a
+ * configured ceramic plus its discounted upsell) must be ONE state update, so
+ * the fold lives here as a pure function: the hook only hands it to setCart,
+ * and the merge stays the reducer's business rather than growing a second,
+ * divergent way of putting a line in the cart.
+ */
+export function addManyToCart(cart: Cart, lines: NewCartLine[]): Cart {
+  return lines.reduce((acc, l) => addToCart(acc, l), cart);
+}
+
 /** Set a line's quantity; quantity ≤ 0 removes the line. */
 export function updateQuantity(cart: Cart, id: string, quantity: number): Cart {
   if (quantity <= 0) return removeLine(cart, id);

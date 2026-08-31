@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  addManyToCart,
   addToCart,
   cartPieces,
   cartTotal,
@@ -177,13 +178,13 @@ describe("bundle transaction (R4-upsell, D-C2)", () => {
   const baseLine = vietriFlat;
   const suggestedLine = servering;
 
-  it("a bundle folded line by line merges onto what the cart already holds", () => {
+  it("addManyToCart merges the base line onto what the cart already holds, and adds the suggestion as a new row", () => {
     // The customer already has 2 of the base product in this configuration.
     const existing = addToCart([], { ...baseLine, quantity: 2 });
-    const folded = [{ ...baseLine, quantity: 4 }, suggestedLine].reduce(
-      (c, l) => addToCart(c, l),
-      existing
-    );
+    const folded = addManyToCart(existing, [
+      { ...baseLine, quantity: 4 },
+      suggestedLine,
+    ]);
 
     // 2 + 4 on ONE row — not two rows for the same product::config.
     expect(folded).toHaveLength(2);
@@ -193,5 +194,15 @@ describe("bundle transaction (R4-upsell, D-C2)", () => {
     expect(folded.some((l) => l.productId === suggestedLine.productId)).toBe(
       true
     );
+  });
+
+  it("addManyToCart folds lines in order: a later line with the same key accumulates onto the earlier one, not a fresh row", () => {
+    const folded = addManyToCart([], [
+      { ...baseLine, quantity: 2 },
+      { ...baseLine, quantity: 3 },
+    ]);
+
+    expect(folded).toHaveLength(1);
+    expect(folded[0].quantity).toBe(5);
   });
 });

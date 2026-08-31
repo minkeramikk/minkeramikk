@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import {
+  addManyToCart,
   addToCart,
   removeLine,
   updateQuantity,
@@ -57,10 +58,7 @@ export function useCart() {
    * companion. One `setCart`, one render, one cart.
    */
   const addMany = useCallback((lines: NewCartLine[]) => {
-    // Every line goes through addToCart, in sequence: the lineKey merge belongs to
-    // the reducer, and adding several at once must not become a second, divergent
-    // way of putting a line in the cart (D-C2).
-    setCart((c) => lines.reduce((acc, l) => addToCart(acc, l), c));
+    setCart((c) => addManyToCart(c, lines));
   }, []);
   const setQuantity = useCallback((id: string, qty: number) => {
     setCart((c) => updateQuantity(c, id, qty));
