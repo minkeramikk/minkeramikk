@@ -115,6 +115,10 @@
   /* payment register (ADR 0021): paid only — unpaid uses --muted-foreground */
   --status-paid: #7da46f;
   --discount: #7da46f; /* R4-SCONTI: a saving is good news — same family as --status-paid */
+  /* R4-TAKK: the one "read this or it breaks" notice colour (DESIGN-SYSTEM
+     §2.1). Not a status and not --destructive: nothing has gone wrong, the
+     customer simply must not skip the step. Tints via color-mix, as usual. */
+  --warn: #b26a00;
 
   /* shape & elevation */
   --radius: 16px;

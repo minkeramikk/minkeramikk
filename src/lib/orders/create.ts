@@ -10,7 +10,15 @@ import { computeCartDiscount, type DiscountConfig } from "@/lib/discounts/discou
 import { getDiscountConfig } from "@/lib/discounts/config.server";
 
 export type CreateOrderResult =
-  | { ok: true; code: string }
+  | {
+      ok: true;
+      code: string;
+      /** R4-TAKK: the NET total the server just computed and snapshotted, in
+       *  minor units. Handed back so the thank-you page can show the very same
+       *  figure the customer email quotes, without re-deriving it from a `set=`
+       *  param that carries no deal rules (and so no deal discount). */
+      totalCents: number;
+    }
   | { ok: false; status: 400 | 500; error: string };
 
 /**
@@ -90,5 +98,5 @@ export async function createOrder(
     console.error(`order ${code} created but email failed`, e);
   }
 
-  return { ok: true, code: code as string };
+  return { ok: true, code: code as string, totalCents: discount.total.amountCents };
 }
