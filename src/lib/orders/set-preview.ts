@@ -12,8 +12,9 @@ import {
   type CodecDesign,
 } from "@/lib/configurator/config-code";
 import { getPreviewLayers, type SelectedCategory } from "@/lib/configurator/preview";
+import { multiply, type Money } from "@/lib/money/money";
 
-/** One recap row for the confirmation page — mini-plate layers, no prices. */
+/** One recap row for the confirmation page — mini-plate layers + line price. */
 export interface SetPreviewLine {
   designName: string;
   productName: string;
@@ -22,6 +23,10 @@ export interface SetPreviewLine {
   layers: { src: string; recolor: boolean }[];
   /** Chosen ceramic photo (F19 plate thumb), already a URL. */
   plateImage: string | null;
+  /** R4-TAKK: line total at the LIVE catalogue price (unit × qty), full price.
+   *  The `set=` param carries no money by design (CA-3), so any discount is
+   *  reconciled by the page against the authoritative total it is handed. */
+  price: Money;
 }
 
 /**
@@ -92,6 +97,7 @@ export async function resolveSetPreviews(
       plateImage: product.image
         ? assetUrl(product.image, { width: PRODUCT_THUMB_WIDTH })
         : null,
+      price: multiply(product.price, entry.qty),
     });
   }
   return lines;

@@ -705,6 +705,9 @@ export type Database = {
           id: number
           quantity_discounts_enabled: boolean
           updated_at: string
+          vipps_link: string | null
+          vipps_number: string | null
+          vipps_qr_image: string | null
         }
         Insert: {
           automations_enabled?: boolean
@@ -714,6 +717,9 @@ export type Database = {
           id: number
           quantity_discounts_enabled?: boolean
           updated_at?: string
+          vipps_link?: string | null
+          vipps_number?: string | null
+          vipps_qr_image?: string | null
         }
         Update: {
           automations_enabled?: boolean
@@ -723,6 +729,9 @@ export type Database = {
           id?: number
           quantity_discounts_enabled?: boolean
           updated_at?: string
+          vipps_link?: string | null
+          vipps_number?: string | null
+          vipps_qr_image?: string | null
         }
         Relationships: []
       }

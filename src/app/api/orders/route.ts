@@ -15,5 +15,10 @@ export async function POST(request: Request) {
   if (!result.ok) {
     return NextResponse.json({ error: result.error }, { status: result.status });
   }
-  return NextResponse.json({ code: result.code }, { status: 201 });
+  // R4-TAKK: `total` (minor units) rides along so the confirmation page shows
+  // the server's figure, not one recomputed from the URL.
+  return NextResponse.json(
+    { code: result.code, total: result.totalCents },
+    { status: 201 }
+  );
 }

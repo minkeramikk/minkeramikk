@@ -122,13 +122,15 @@ export interface ProductCard {
   nameNo: string;
   nameEn: string;
   image: string | null;
+  /** R4-TAKK: live catalogue price, so the confirmation recap can show money. */
+  price: Money;
 }
 
 async function loadProductsBySlug(): Promise<Record<string, ProductCard>> {
   const supabase = createPublicClient();
   const { data, error } = await supabase
     .from("products")
-    .select("slug, name_no, name_en, image")
+    .select("slug, name_no, name_en, image, price_cents, currency")
     .eq("visible", true);
   if (error) throw error;
   const out: Record<string, ProductCard> = {};
@@ -138,6 +140,7 @@ async function loadProductsBySlug(): Promise<Record<string, ProductCard>> {
       nameNo: p.name_no,
       nameEn: p.name_en,
       image: p.image,
+      price: money(p.price_cents, p.currency as Currency),
     };
   }
   return out;

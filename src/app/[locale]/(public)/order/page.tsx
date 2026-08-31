@@ -4,8 +4,21 @@ import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import { CartLineThumb } from "@/components/ui-domain/cart-line-thumb";
 import { resolveSetPreviews } from "@/lib/orders/set-preview";
+import { getVippsSettings } from "@/lib/orders/vipps.server";
+import { hasVippsDetails } from "@/lib/orders/vipps";
+import { shippingStatus } from "@/lib/cart/shipping";
+import {
+  formatMoney,
+  money,
+  subtract,
+  sum,
+  type Currency,
+  type Money,
+} from "@/lib/money/money";
+import { assetUrl } from "@/lib/storage";
 import { siteUrl } from "@/lib/site";
 import { OrderShareButton } from "./share-button";
+import { CopyOrderCode } from "./copy-code";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("order");
@@ -13,13 +26,32 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 type Params = Promise<{ locale: string }>;
-type SearchParams = Promise<{ code?: string; set?: string }>;
+type SearchParams = Promise<{ code?: string; set?: string; total?: string }>;
+
+/** `total=` is minor units, written by the order form from the SERVER's figure. */
+const TOTAL_RE = /^\d{1,9}$/;
 
 /**
- * Order confirmation (F05 + F30-B). Stateless: it never reads the orders table
- * — the code comes from the URL and the set recap is recomposed from the CA-3
- * `set=` param against the public catalog. Degrades cleanly: no `set=` → just
- * the code; no `code=` → empty state.
+ * Order confirmation — the "takk-side" (F05 + F30-B + R4-TAKK).
+ *
+ * ⚠️ THIS PAGE DOES NOT ASK FOR MONEY (TL ruling, 2026-08-30). The shop is paid
+ * in two instalments — deposit after we confirm the design by hand, balance
+ * before shipping — so at this moment the design is not confirmed yet. A "pay
+ * now" button here would collect before confirmation, and every design change
+ * would turn into a refund. The page INFORMS: how much, how to pay, what
+ * happens next. Hence «Totalt for bestillingen» (not «Å betale»), «Slik betaler
+ * du» (not «Betal med Vipps»), and QR + number as DATA, never as a CTA.
+ *
+ * Still stateless: it never reads the orders table. The code and the total come
+ * from the URL, the recap is recomposed from the CA-3 `set=` param against the
+ * public catalog, and the Vipps details come from `settings`. Degrades cleanly
+ * at every step: no Vipps settings → the payment block disappears whole and the
+ * page still reads complete; no `set=` → code and total only; no `code=` →
+ * empty state.
+ *
+ * TODO:nb-review — most Norwegian copy here is the TL's own (mockup-takk.html);
+ * `order.shippingToBeConfirmed`, `order.discountLabel` and
+ * `order.payment.qrAlt` are ours and want the client's eye.
  */
 export default async function OrderConfirmationPage({
   params,
@@ -28,10 +60,12 @@ export default async function OrderConfirmationPage({
   params: Params;
   searchParams: SearchParams;
 }) {
-  const { locale } = await params;
-  const { code, set } = await searchParams;
+  const { locale: rawLocale } = await params;
+  const { code, set, total } = await searchParams;
+  const locale = rawLocale === "no" ? "no" : "en";
   const t = await getTranslations("order");
   const ta = await getTranslations("actions");
+  const tc = await getTranslations("common");
 
   if (!code) {
     return (
@@ -45,63 +79,283 @@ export default async function OrderConfirmationPage({
     );
   }
 
-  const lines = await resolveSetPreviews(set, locale === "no" ? "no" : "en");
+  const [lines, vipps] = await Promise.all([
+    resolveSetPreviews(set, locale),
+    getVippsSettings(),
+  ]);
+
+  // Money. The `set=` param carries codes/slugs/quantities only (CA-3), so the
+  // lines re-price at the LIVE catalogue price — full price, no deal rules. The
+  // authoritative net total therefore travels separately, computed by the
+  // server at order creation; the gap between the two IS the discount, so the
+  // page never re-runs the engine and can never disagree with the email.
+  const currency: Currency = lines[0]?.price.currency ?? "NOK";
+  const subtotal = sum(
+    lines.map((l) => l.price),
+    currency
+  );
+  const netTotal: Money | null = TOTAL_RE.test(total ?? "")
+    ? money(Number(total), currency)
+    : lines.length > 0
+      ? subtotal
+      : null;
+  const saved = netTotal ? subtract(subtotal, netTotal) : money(0, currency);
+  const discounted = saved.amountCents > 0;
+
   // CA-3 landing convention: ?step=3&set=… (set= is only resolved on step 3).
   const shareUrl = set
     ? `${siteUrl()}/${locale}/configurator?step=3&set=${set}`
     : null;
 
+  const steps = [
+    { key: "received", done: true },
+    { key: "confirm", done: false },
+    { key: "deposit", done: false },
+    { key: "paint", done: false },
+    { key: "ship", done: false },
+  ] as const;
+
   return (
     <section
-      className="mx-auto max-w-xl px-4 py-16 text-center"
+      className="mx-auto flex max-w-2xl flex-col gap-5 px-4 py-12"
       data-testid="order-confirmation"
     >
-      <h1 className="font-heading text-3xl">{t("confirmTitle")}</h1>
-      <p className="mt-3 text-muted-foreground">{t("confirmBody", { code })}</p>
+      {/* ① confirmation */}
+      <div className="flex flex-col items-center gap-2 text-center">
+        <span
+          aria-hidden
+          className="grid size-12 place-items-center rounded-full text-xl"
+          style={{
+            background: "color-mix(in oklab, var(--discount) 22%, white)",
+            color: "color-mix(in oklab, var(--discount), black 34%)",
+          }}
+        >
+          ✓
+        </span>
+        <h1 className="font-heading text-2xl">{t("confirmTitle")}</h1>
+        <p className="max-w-[34ch] text-sm text-muted-foreground">
+          {t("confirmLead")}
+        </p>
+      </div>
 
-      {/* big code + save invite */}
-      <p
-        className="mt-8 inline-block rounded-xl bg-muted px-8 py-4 font-mono text-3xl font-bold tracking-wide text-primary"
-        data-testid="order-code"
-      >
-        {code}
-      </p>
-      <p className="mt-3 text-sm text-muted-foreground">{t("saveInvite")}</p>
+      {/* ② order number + total — the two facts the customer needs in hand
+          when he opens Vipps. Same size: neither outranks the other. */}
+      <div className="grid gap-px overflow-hidden rounded-lg border border-border bg-border sm:grid-cols-2">
+        <div className="bg-card px-4 py-4">
+          <p className="text-[11px] uppercase tracking-[0.07em] text-muted-foreground">
+            {t("codeLabel")}
+          </p>
+          <p
+            className="mt-0.5 text-[27px] font-semibold tabular-nums"
+            data-testid="order-code"
+          >
+            {code}
+          </p>
+          <CopyOrderCode code={code} />
+        </div>
+        {netTotal && (
+          <div className="bg-card px-4 py-4" data-testid="order-total">
+            <p className="text-[11px] uppercase tracking-[0.07em] text-muted-foreground">
+              {t("totalLabel")}
+            </p>
+            <p className="mt-0.5 text-[27px] font-semibold tabular-nums">
+              {formatMoney(netTotal, locale)}
+            </p>
+            <p className="mt-0.5 text-[11.5px] text-muted-foreground">
+              {shippingStatus(netTotal).included
+                ? t("shippingIncluded")
+                : t("shippingToBeConfirmed")}
+            </p>
+          </div>
+        )}
+      </div>
 
-      {/* set recap — mini-plates, NO prices (F30-B) */}
+      {/* ③ how to pay — hidden WHOLE when nothing is configured (AC2) */}
+      {hasVippsDetails(vipps) && (
+        <div
+          className="rounded-lg border border-border bg-card p-4"
+          data-testid="order-payment"
+        >
+          <h2 className="text-[15px] font-semibold">{t("payment.title")}</h2>
+          <p className="mt-1 text-xs text-muted-foreground">{t("payment.lead")}</p>
+
+          <div className="mt-3.5 flex items-center gap-4">
+            {vipps.qrImage && (
+              // eslint-disable-next-line @next/next/no-img-element -- shop-uploaded asset from storage
+              <img
+                src={assetUrl(vipps.qrImage)}
+                alt={t("payment.qrAlt")}
+                width={118}
+                height={118}
+                className="size-[118px] shrink-0 rounded-md border border-border bg-white object-contain p-1"
+                data-testid="order-vipps-qr"
+              />
+            )}
+            <div className="flex min-w-0 flex-col gap-0.5">
+              {vipps.number && (
+                <>
+                  <span className="text-[11px] uppercase tracking-[0.07em] text-muted-foreground">
+                    {t("payment.numberLabel")}
+                  </span>
+                  <b
+                    className="text-[26px] font-semibold tabular-nums"
+                    data-testid="order-vipps-number"
+                  >
+                    {vipps.number}
+                  </b>
+                </>
+              )}
+              <span className="text-xs text-muted-foreground">
+                {t("payment.recipient")}
+              </span>
+              {vipps.qrImage && (
+                <span className="mt-1 hidden text-xs text-muted-foreground sm:block">
+                  {t("payment.scanHint")}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* The single point where a manual payment actually breaks: a payment
+              with no order number in the message is money the shop cannot
+              attribute. It is a coloured box INSIDE the payment block, not a
+              line of small print — do not demote it for looks. */}
+          <div
+            className="mt-3.5 rounded-md border p-3.5"
+            data-testid="order-vipps-melding"
+            style={{
+              background: "color-mix(in oklab, var(--warn) 12%, white)",
+              borderColor: "color-mix(in oklab, var(--warn) 34%, white)",
+            }}
+          >
+            <p
+              className="text-xs"
+              style={{ color: "color-mix(in oklab, var(--warn), black 30%)" }}
+            >
+              <b className="font-semibold">{t("payment.warningLabel")}</b>{" "}
+              {t("payment.warning")}
+            </p>
+            <span
+              className="mt-2 inline-block rounded-sm border border-dashed bg-white px-2.5 py-0.5 font-semibold tabular-nums text-foreground"
+              style={{ borderColor: "color-mix(in oklab, var(--warn) 46%, white)" }}
+            >
+              {code}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* ④ what happens now */}
+      <div className="rounded-lg border border-border bg-card p-4" data-testid="order-steps">
+        <h2 className="mb-3.5 text-[15px] font-semibold">{t("steps.title")}</h2>
+        {steps.map((s, i) => (
+          <div key={s.key} className="relative flex gap-3 pb-4 last:pb-0">
+            {i < steps.length - 1 && (
+              <span
+                aria-hidden
+                className="absolute left-[9px] top-[22px] bottom-0.5 w-0.5 bg-border"
+              />
+            )}
+            <span
+              aria-hidden
+              className="z-[1] grid size-5 shrink-0 place-items-center rounded-full border-2 border-border bg-background text-[10px]"
+              style={
+                s.done
+                  ? {
+                      background: "var(--discount)",
+                      borderColor: "var(--discount)",
+                      color: "white",
+                    }
+                  : undefined
+              }
+            >
+              {s.done ? "✓" : ""}
+            </span>
+            <span>
+              <b className="block text-[13.5px] font-medium">
+                {t(`steps.${s.key}Title`)}
+              </b>
+              <span className="text-xs text-muted-foreground">
+                {t(`steps.${s.key}Desc`)}
+              </span>
+            </span>
+          </div>
+        ))}
+      </div>
+
+      {/* ⑤ recap */}
       {lines.length > 0 && (
-        <div className="mt-10 text-left" data-testid="order-recap">
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+        <div
+          className="rounded-lg border border-border bg-card p-4"
+          data-testid="order-recap"
+        >
+          <h2 className="mb-2.5 text-[13px] uppercase tracking-[0.06em] text-muted-foreground">
             {t("recapTitle")}
           </h2>
-          <ul className="flex flex-col gap-3">
+          <ul>
             {lines.map((l, i) => (
               <li
                 key={i}
                 data-testid="order-recap-line"
-                className="flex items-center gap-3 rounded-lg border border-border bg-card p-3"
+                className="flex items-center gap-2.5 border-b border-border py-2 last:border-0"
               >
                 <CartLineThumb
+                  compact
                   layers={l.layers.length > 0 ? l.layers : undefined}
                   plateImage={l.plateImage ?? undefined}
                 />
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-xs font-medium">
                     {l.qty}× {l.productName}
                   </p>
                   {l.designName && (
-                    <p className="truncate text-xs text-muted-foreground">
+                    <p className="truncate text-[11.5px] text-muted-foreground">
                       {l.designName}
                     </p>
                   )}
                 </div>
+                <span className="text-xs tabular-nums">
+                  {formatMoney(l.price, locale)}
+                </span>
               </li>
             ))}
           </ul>
+          {/* The lines re-price at full catalogue price; the net total is the
+              server's. When they differ, the gap is named rather than silently
+              swallowed — otherwise the rows would not add up to the total. */}
+          {discounted && (
+            <div
+              className="mt-2.5 flex justify-between text-xs"
+              data-testid="order-recap-discount"
+              style={{ color: "color-mix(in oklab, var(--discount), black 34%)" }}
+            >
+              <span>{t("discountLabel")}</span>
+              <span className="tabular-nums">−{formatMoney(saved, locale)}</span>
+            </div>
+          )}
+          {netTotal && (
+            <div className="mt-2.5 flex justify-between border-t border-border pt-2.5 text-sm font-semibold tabular-nums">
+              <span>{t("recapTotal")}</span>
+              <span data-testid="order-recap-total">
+                {formatMoney(netTotal, locale)}
+              </span>
+            </div>
+          )}
         </div>
       )}
 
-      <div className="mt-10 flex flex-wrap justify-center gap-3">
+      <p className="text-center text-xs text-muted-foreground">
+        {t("contactQuestion")}
+        <br />
+        <a
+          href={`mailto:${tc("email")}`}
+          className="font-medium text-primary underline-offset-2 hover:underline"
+        >
+          {tc("email")}
+        </a>
+      </p>
+
+      <div className="flex flex-wrap justify-center gap-3">
         {shareUrl && <OrderShareButton url={shareUrl} />}
         <Button asChild variant="outline" className="rounded-mk px-8">
           <Link href="/configurator">{ta("newDesign")}</Link>

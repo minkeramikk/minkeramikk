@@ -86,7 +86,10 @@ export function OrderForm({
         setStatus("error");
         return; // cart preserved
       }
-      const { code } = (await res.json()) as { code: string };
+      const { code, total } = (await res.json()) as {
+        code: string;
+        total?: number;
+      };
       // F30-B: carry the set (CA-3 codec) so the confirmation page can recap it
       // with mini-plates + a share link — built BEFORE onSuccess clears the cart.
       const set = encodeSetParam(
@@ -99,6 +102,11 @@ export function OrderForm({
       onSuccess();
       const qs = new URLSearchParams({ code });
       if (set) qs.set("set", set);
+      // R4-TAKK: the SERVER's net total (minor units), so the thank-you page
+      // and the confirmation email quote the same figure. Display only — the
+      // page never charges anything, so a hand-edited value misleads nobody
+      // but its author.
+      if (typeof total === "number") qs.set("total", String(total));
       router.push(`/order?${qs.toString()}`);
     } catch {
       setStatus("error");
