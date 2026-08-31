@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { useLocale, useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
@@ -23,9 +23,11 @@ import {
   type CartLine,
   type CartLayer,
   type ConfigSnapshot,
+  type NewCartLine,
 } from "@/lib/cart/cart";
 import { encodeSetParam, SET_LINK_BUDGET } from "@/lib/cart/set-code";
-import { cartSaved } from "@/lib/discounts/discount";
+import { cartSaved, type DiscountLineInput } from "@/lib/discounts/discount";
+import { sheetOffer, type SheetOffer } from "@/lib/discounts/sheet-offer";
 import { SetBadge } from "@/components/ui-domain/set-badge";
 import { CartLineRecap } from "@/components/ui-domain/cart-line-recap";
 import { useShippingTotalSuffix } from "@/components/ui-domain/cart-shipping-row";
@@ -215,6 +217,7 @@ export function CeramicsStep({
     discount,
     discountConfig,
     setCurrentConfigCode,
+    acceptBundle,
   } = useCartContext();
 
   /**
@@ -284,6 +287,62 @@ export function CeramicsStep({
 
   const opened = products.find((p) => p.id === openId) ?? null;
 
+  /**
+   * R4-UPSELL-MODALE: same two lookups the cart context builds for the
+   * existing suggestion feature (`cart-context.tsx`) — not a second
+   * implementation. `supplierOf` reads a real cart line's own field.
+   * `supplierOfProduct` covers a product that is not a cart line yet: every
+   * product in `products` already belongs to `design.supplierId` (the step is
+   * filtered to one supplier before it renders), so that answers the OPEN
+   * product directly; a rule's `suggested` card carries its own supplier for
+   * everything else (mirrors cart-context's `supplierOfProduct`).
+   */
+  const supplierOf = useCallback(
+    (lineId: string) => cart.find((l) => l.id === lineId)?.supplierId ?? null,
+    [cart]
+  );
+  const supplierOfProduct = useCallback(
+    (productId: string) =>
+      products.some((p) => p.id === productId)
+        ? design.supplierId
+        : (discountConfig.rules.find((r) => r.suggested?.id === productId)?.suggested
+            ?.supplierId ?? null),
+    [products, design.supplierId, discountConfig.rules]
+  );
+
+  const discountLines: DiscountLineInput[] = useMemo(
+    () =>
+      cart.map((l) => ({
+        id: l.id,
+        productId: l.productId,
+        unitPriceCents: l.unitPriceCents,
+        currency: l.currency,
+        quantity: l.quantity,
+        dealRuleId: l.dealRuleId,
+        configCode: l.configCode,
+      })),
+    [cart]
+  );
+
+  /** R4-UPSELL-MODALE: the offer for the product whose sheet is open, given
+   *  the quantity currently on the stepper — null renders nothing (AC5). */
+  const offer: SheetOffer | null = useMemo(() => {
+    if (!opened) return null;
+    return sheetOffer(
+      discountLines,
+      discountConfig,
+      {
+        id: lineKey(opened.id, configCode),
+        productId: opened.id,
+        quantity: qty,
+        unitPriceCents: opened.priceCents,
+        currency: opened.currency,
+        configCode,
+      },
+      { supplierOf, supplierOfProduct }
+    );
+  }, [opened, discountLines, discountConfig, qty, configCode, supplierOf, supplierOfProduct]);
+
   // Focus restore on close lives in `ProductSheet` (§3.19 is its contract).
 
   function openProduct(id: string) {
@@ -349,10 +408,14 @@ export function CeramicsStep({
   /** The percentage of the line the toast is confirming, 0 when it has none. */
   const addedPct = addedLineId ? discount.perLine[addedLineId]?.pct ?? 0 : 0;
 
-  function addSelected(): string | null {
-    const selected = opened;
-    if (!selected) return null;
-    add({
+  /**
+   * R4-UPSELL-MODALE: the ONE `NewCartLine` shape for the open product, shared
+   * by «Add to basket» (V7) and «Add both» — the latter also uses it as the
+   * bundle's donor line (ADR 0023 (e)), so a second, drifted construction here
+   * would silently give the two buttons different lines.
+   */
+  function buildBaseLine(selected: CeramicProduct): NewCartLine {
+    return {
       productId: selected.id,
       productNameNo: selected.nameNo,
       productNameEn: selected.nameEn,
@@ -369,22 +432,49 @@ export function CeramicsStep({
         : undefined,
       productSlug: selected.slug,
       pieces: selected.pieces,
-    });
+    };
+  }
+
+  function addSelected(): string | null {
+    const selected = opened;
+    if (!selected) return null;
+    add(buildBaseLine(selected));
     setQty(1);
     // Same identity addToCart() derives, so the toast can look the line up.
     return lineKey(selected.id, configCode);
   }
 
   /** §3.20: add → close the sheet FIRST, then show the toast. */
-  function addOpened() {
-    // The sheet stays mounted (and its CTA clickable) through the 180-220ms
-    // exit animation: without this a double-tap would add the product twice.
-    if (!sheetOpenRef.current) return;
-    setAddedLineId(addSelected());
+  function showAddedToast(lineId: string | null) {
+    setAddedLineId(lineId);
     setSheet(false);
     setToast(true);
     if (toastTimer.current) clearTimeout(toastTimer.current);
     toastTimer.current = setTimeout(() => setToast(false), 1800);
+  }
+
+  function addOpened() {
+    // The sheet stays mounted (and its CTA clickable) through the 180-220ms
+    // exit animation: without this a double-tap would add the product twice.
+    if (!sheetOpenRef.current) return;
+    showAddedToast(addSelected());
+  }
+
+  /**
+   * R4-UPSELL-MODALE: «Add both» — the base line plus the offer's suggested
+   * line, in one gesture (`acceptBundle`, one state update). The toast names
+   * the SUGGESTED line's percentage (D-Q1), so `addedLineId` points at it —
+   * its identity is the same `lineKey` the bundle's own line gets, since it
+   * inherits the base line's `configCode` (ADR 0023 (e)).
+   */
+  function addBoth() {
+    if (!sheetOpenRef.current) return;
+    if (!opened || !offer || offer.kind !== "unlocked") return;
+    const suggested = offer.suggestion.rule.suggested;
+    if (!suggested) return;
+    acceptBundle(buildBaseLine(opened), offer.suggestion);
+    setQty(1);
+    showAddedToast(lineKey(suggested.id, configCode));
   }
 
   // ── CA-3 C: share the basket as a stateless link (?step=3&set=…) ──
@@ -1115,6 +1205,8 @@ export function CeramicsStep({
         onQty={setQty}
         onAdd={addOpened}
         designLayers={designLayers}
+        offer={offer}
+        onAddBoth={addBoth}
       />
 
       {/* §3.20: visible confirmation, replacing the old sr-only announcement.
