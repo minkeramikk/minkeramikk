@@ -159,7 +159,17 @@ const paidSchema = z.object({
   paid: z.boolean(),
 });
 
-/** "Register payment" — sets or clears orders.paid_at. No email of its own. */
+/** "Register payment" — sets or clears orders.paid_at.
+ *
+ *  R4-MAIL-JOURNEY §C: SETTING it sends the customer the payment-registered
+ *  mail. This is the one moment in the flow where the customer has just sent
+ *  real money by hand over Vipps, typing an order code into a free-text field,
+ *  and until now got nothing back.
+ *
+ *  Clearing it sends NOTHING: the mail follows the payment being registered,
+ *  not every write of the column. And, like every admin-triggered mail, it is
+ *  sent SYNCHRONOUSLY — Alessio can wait a second, and R4-ORDERS-PLUS needs the
+ *  real outcome of the send for its activity log. */
 export async function toggleOrderPaid(formData: FormData): Promise<void> {
   if (!(await getAdminUser())) return;
   const parsed = paidSchema.safeParse({
@@ -168,11 +178,39 @@ export async function toggleOrderPaid(formData: FormData): Promise<void> {
   });
   if (!parsed.success) return;
 
+  // `paid` is the CURRENT state, so the toggle is idempotent per render:
+  // currently paid → we are clearing; currently unpaid → we are registering.
+  const registering = !parsed.data.paid;
+  const paidAt = registering ? new Date().toISOString() : null;
+
   const supabase = await createClient();
-  await supabase
+  const { error } = await supabase
     .from("orders")
-    .update({ paid_at: parsed.data.paid ? null : new Date().toISOString() })
+    .update({ paid_at: paidAt })
     .eq("id", parsed.data.id);
+  if (error) return;
+
+  if (registering) {
+    const order = await getOrder(parsed.data.id);
+    // No mail for a cancelled order (R4-MAIL-JOURNEY §A), and never one that
+    // could fail the toggle — the timestamp is already persisted.
+    if (order && order.status !== "cancelled") {
+      try {
+        await sendStatusEmail({
+          kind: "paid",
+          status: order.status,
+          code: order.code,
+          customerName: order.customerName,
+          customerEmail: order.email,
+          locale: order.locale === "en" ? "en" : "no",
+          trackingCode: order.trackingCode,
+          paidAt,
+        });
+      } catch (e) {
+        console.error(`order ${order.code}: payment saved but email failed`, e);
+      }
+    }
+  }
 
   revalidatePath(`/admin/orders/${parsed.data.id}`);
   revalidatePath("/admin");

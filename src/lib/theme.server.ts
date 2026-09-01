@@ -41,15 +41,21 @@ export const getThemeTokens = unstable_cache(loadThemeTokens, ["theme-tokens"], 
 });
 
 /**
- * Theme tokens for code paths that may run OUTSIDE a Next request context
- * (F30 emails, sent from server actions/tests where `unstable_cache`'s
- * incremental cache is absent). Falls back to the defaults instead of throwing
- * — a themed email is best-effort, it must never break order creation.
+ * Theme tokens for code paths that may run OUTSIDE a Next request context —
+ * F30 emails, now sent from `after()` (R4-MAIL-JOURNEY §E) and from server
+ * actions and tests.
+ *
+ * `unstable_cache` THROWS there. The old fallback was DEFAULT_THEME, which
+ * meant every such mail left in the default purple instead of the shop's
+ * brown, silently and forever. So the fallback is now an UNCACHED read of the
+ * same row: one extra query on a path that sends an email anyway.
+ * `loadThemeTokens` never throws (it has its own try/catch and returns
+ * DEFAULT_THEME), so a themed email still cannot break anything.
  */
 export async function getThemeTokensSafe(): Promise<ThemeTokens> {
   try {
     return await getThemeTokens();
   } catch {
-    return DEFAULT_THEME;
+    return loadThemeTokens();
   }
 }

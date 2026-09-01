@@ -54,5 +54,13 @@ test("invio reale: un ordine genera la conferma e invia alla casella dedicata", 
   createdCodes.push(code);
   expect(code).toMatch(/^MK-\d+$/);
 
+  // R4-MAIL-JOURNEY §E: the sends now run in `after()`, i.e. AFTER this POST
+  // returned. Without an explicit wait, afterAll would delete the order (and
+  // the run could end) while the server is still rendering the mails — the old
+  // "submit returned, therefore it was sent" assumption is now a race. There is
+  // nothing observable to poll from here (no inbox access), so this is a plain
+  // wait, deliberately generous: this spec is opt-in and runs once.
+  await page.waitForTimeout(5000);
+
   console.log(`[order-email] ordine ${code} inviato a ${TO} — controlla la inbox.`);
 });

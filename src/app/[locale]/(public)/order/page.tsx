@@ -15,6 +15,7 @@ import {
   type Currency,
   type Money,
 } from "@/lib/money/money";
+import { JOURNEY_STEPS } from "@/lib/orders/order-journey";
 import { assetUrl } from "@/lib/storage";
 import { siteUrl } from "@/lib/site";
 import { OrderShareButton } from "./share-button";
@@ -111,12 +112,11 @@ export default async function OrderConfirmationPage({
     ? `${siteUrl()}/${locale}/configurator?step=3&set=${set}`
     : null;
 
-  const steps = [
-    { key: "received", done: true },
-    { key: "paid", done: false },
-    { key: "production", done: false },
-    { key: "shipped", done: false },
-  ] as const;
+  // R4-MAIL-JOURNEY: keys and order come from the shared module, so this page
+  // and the emails cannot tell two different stories. The page is stateless by
+  // design (it never reads the orders table), so it always stands on the first
+  // step: the order has just been received.
+  const current = 0;
 
   return (
     <section
@@ -267,9 +267,9 @@ export default async function OrderConfirmationPage({
       {/* ④ what happens now */}
       <div className="rounded-lg border border-border bg-card p-4" data-testid="order-steps">
         <h2 className="mb-3.5 text-[15px] font-semibold">{t("steps.title")}</h2>
-        {steps.map((s, i) => (
-          <div key={s.key} className="relative flex gap-3 pb-4 last:pb-0">
-            {i < steps.length - 1 && (
+        {JOURNEY_STEPS.map((key, i) => (
+          <div key={key} className="relative flex gap-3 pb-4 last:pb-0">
+            {i < JOURNEY_STEPS.length - 1 && (
               <span
                 aria-hidden
                 className="absolute left-[9px] top-[22px] bottom-0.5 w-0.5 bg-border"
@@ -279,7 +279,7 @@ export default async function OrderConfirmationPage({
               aria-hidden
               className="z-[1] grid size-5 shrink-0 place-items-center rounded-full border-2 border-border bg-background text-[10px]"
               style={
-                s.done
+                i <= current
                   ? {
                       background: "var(--discount)",
                       borderColor: "var(--discount)",
@@ -288,14 +288,14 @@ export default async function OrderConfirmationPage({
                   : undefined
               }
             >
-              {s.done ? "✓" : ""}
+              {i <= current ? "✓" : ""}
             </span>
             <span>
               <b className="block text-[13.5px] font-medium">
-                {t(`steps.${s.key}Title`)}
+                {t(`steps.${key}Title`)}
               </b>
               <span className="text-xs text-muted-foreground">
-                {t(`steps.${s.key}Desc`)}
+                {t(`steps.${key}Desc`)}
               </span>
             </span>
           </div>

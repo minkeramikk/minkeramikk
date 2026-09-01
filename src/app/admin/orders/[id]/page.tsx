@@ -293,10 +293,20 @@ export default async function OrderDetailPage({
                     data-testid="paid-toggle"
                     className="rounded-lg border border-border px-3 py-1.5 text-sm"
                   >
-                    {order.paidAt ? "Undo payment" : "Register payment"}
+                    {order.paidAt ? "Undo payment" : "Register payment & email customer"}
                   </button>
                 </form>
               </div>
+
+              {/* R4-MAIL-JOURNEY §C: registering the payment mails the
+                  customer; undoing it mails nothing. The button says so
+                  because this toggle — unlike a status change — has no confirm
+                  dialog to say it in. */}
+              <p className="mt-2 w-full text-xs text-muted-foreground">
+                {order.paidAt
+                  ? "Undoing sends no email."
+                  : "Sends the “payment registered” email to the customer."}
+              </p>
 
               {/* R4-SCONTI: only when the order actually carries a discount — an
                   undiscounted order must not grow a control that means nothing. */}

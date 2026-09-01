@@ -12,6 +12,7 @@ import { formatMoney, money, subtract, sum, type Currency } from "@/lib/money/mo
 import { shippingStatus } from "@/lib/cart/shipping";
 import { assetUrl } from "@/lib/storage";
 import { hasVippsDetails, type VippsSettings } from "./vipps";
+import { JOURNEY_STEPS } from "./order-journey";
 import type { ThemeTokens } from "@/lib/theme";
 
 export interface MailItem {
@@ -190,6 +191,139 @@ function itemsTable(items: MailItem[], theme: ThemeTokens, locale: "no" | "en") 
  * on a brand change.
  */
 const DISCOUNT_HEX = "#5d7d52";
+
+/**
+ * R4-MAIL-JOURNEY: the journey copy for the emails. Word for word the same
+ * sentences as `order.steps.*` in the next-intl dictionaries — the page
+ * resolves those keys, the mails resolve these, because a mail renders outside
+ * a request context (same reason `COPY` above exists at all).
+ * TODO:nb-review — Norwegian from mockup-mail-stepper.html, client's eye wanted.
+ */
+const JOURNEY_COPY = {
+  no: {
+    title: "Hvor bestillingen din står",
+    asOf: "Status",
+    now: "nå",
+    locale: "nb-NO",
+    steps: {
+      received: { title: "Bestillingen er mottatt", desc: "Kvitteringen ligger i innboksen din." },
+      paid: { title: "Betalingen er registrert", desc: "Vi har mottatt betalingen din." },
+      production: { title: "Keramikken lages for hånd", desc: "Håndmalt hos keramikerne våre i Italia." },
+      shipped: { title: "Sendt med forsikret frakt", desc: "Du får sporingsnummer på e-post." },
+    },
+  },
+  en: {
+    title: "Where your order stands",
+    asOf: "Status",
+    now: "now",
+    locale: "en-GB",
+    steps: {
+      received: { title: "Order received", desc: "Your receipt is in your inbox." },
+      paid: { title: "Payment registered", desc: "We have received your payment." },
+      production: { title: "Your ceramics are being made", desc: "Hand-painted by our ceramicists in Italy." },
+      shipped: { title: "Shipped, fully insured", desc: "You will get a tracking number by email." },
+    },
+  },
+} as const;
+
+/** "1. september 2026" / "1 September 2026" — the day the mail was written. */
+function journeyDate(locale: "no" | "en", at: Date): string {
+  return new Intl.DateTimeFormat(JOURNEY_COPY[locale].locale, {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(at);
+}
+
+/**
+ * The order journey, email-safe (R4-MAIL-JOURNEY §B). NOT the page component:
+ * that one draws its rail with absolute positioning and Tailwind classes, and
+ * neither exists in Outlook. Shared with the page is the DATA (order-journey.ts),
+ * never the markup.
+ *
+ * Dots, ticks and rail are characters, borders and backgrounds — ZERO images:
+ * most mail clients block remote images and this list has to read anyway.
+ * Colours are hex literals for the same reason `DISCOUNT_HEX` is.
+ *
+ * Two accepted degradations, both deliberate:
+ *  - old Outlook ignores `border-radius`, so the dots render square. Fine: the
+ *    tick and the text still say everything.
+ *  - the rail under each dot is a fixed 13px stub, not a line stretched to the
+ *    row's height: stretching it needs absolute positioning, which email HTML
+ *    does not have. On a two-line step the stub stops short — accepted.
+ *
+ * `current` is the index from `currentStep()`; every step up to it is done, the
+ * one AT it is the last thing that happened and carries the "· nå" marker.
+ */
+export function journeyHtml(
+  theme: ThemeTokens,
+  locale: "no" | "en",
+  current: number,
+  at: Date
+): string {
+  const c = JOURNEY_COPY[locale];
+  const rows = JOURNEY_STEPS.map((key, i) => {
+    const s = c.steps[key];
+    const done = i <= current;
+    const isNow = i === current;
+    const dot = done
+      ? `background:${DISCOUNT_HEX};border:2px solid ${DISCOUNT_HEX};color:#ffffff;`
+      : `background:#ffffff;border:2px solid ${esc(theme.light)};color:#ffffff;`;
+    const rail =
+      i < JOURNEY_STEPS.length - 1
+        ? `<table role="presentation" cellpadding="0" cellspacing="0" align="center"><tr><td width="2" height="13" style="width:2px;height:13px;background:${esc(
+            theme.light
+          )};font-size:0;line-height:0;">&nbsp;</td></tr></table>`
+        : "";
+    return `<tr>
+      <td width="20" valign="top" style="width:20px;padding:0 11px 0 0;">
+        <table role="presentation" cellpadding="0" cellspacing="0" width="20" style="width:20px;"><tr>
+          <td align="center" width="20" height="20" style="width:20px;height:20px;border-radius:50%;font-family:Helvetica,Arial,sans-serif;font-size:11px;line-height:20px;${dot}">${
+            done ? "&#10003;" : "&nbsp;"
+          }</td></tr></table>${rail}
+      </td>
+      <td valign="top" style="padding-bottom:13px;font-family:Helvetica,Arial,sans-serif;">
+        <div style="font-size:13px;font-weight:${done ? "bold" : "normal"};color:${esc(
+          theme.dark
+        )};">${esc(s.title)}${
+          isNow
+            ? ` <span style="color:${esc(theme.accent)};font-weight:bold;">· ${esc(c.now)}</span>`
+            : ""
+        }</div>
+        <div style="font-size:12px;color:${esc(theme.dark)};opacity:.7;">${esc(s.desc)}</div>
+      </td></tr>`;
+  }).join("");
+
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:18px 0 6px;border:1px solid ${esc(
+    theme.light
+  )};border-radius:10px;"><tr><td style="padding:15px 16px;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+      <td style="font-family:Helvetica,Arial,sans-serif;font-size:14px;font-weight:bold;color:${esc(
+        theme.dark
+      )};">${esc(c.title)}</td>
+      <td align="right" style="font-family:Helvetica,Arial,sans-serif;font-size:11px;color:${esc(
+        theme.dark
+      )};opacity:.65;white-space:nowrap;">${esc(c.asOf)} ${esc(journeyDate(locale, at))}</td>
+    </tr></table>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:12px;">${rows}</table>
+  </td></tr></table>`;
+}
+
+/** Plain-text twin: the text/plain part must carry the journey too. */
+export function journeyText(
+  locale: "no" | "en",
+  current: number,
+  at: Date
+): string {
+  const c = JOURNEY_COPY[locale];
+  const lines = JOURNEY_STEPS.map((key, i) => {
+    const s = c.steps[key];
+    const box = i <= current ? "[x]" : "[ ]";
+    const now = i === current ? ` · ${c.now}` : "";
+    return `${box} ${s.title}${now} — ${s.desc}`;
+  });
+  return `\n${c.title} (${c.asOf} ${journeyDate(locale, at)})\n${lines.join("\n")}\n`;
+}
 
 /**
  * R4-TAKK-MAIL: the `--warn` box of the thank-you page (`--warn: #b26a00`,
@@ -371,8 +505,15 @@ export function customerEmail(params: {
   /** R4-TAKK-MAIL: Vipps details, read server-side by the caller (email.ts).
    *  Absent/empty → the payment block is simply not rendered. */
   vipps?: VippsSettings;
+  /** R4-MAIL-JOURNEY: the moment the mail is written — the journey block is a
+   *  snapshot and says so ("Status 1. september"). Injected so tests are
+   *  deterministic; defaults to now. */
+  journeyAt?: Date;
 }): RenderedEmail {
   const c = COPY[params.locale];
+  // A freshly created order is on the first step by definition: it has just
+  // been received. No status is read here — this mail IS the receipt.
+  const at = params.journeyAt ?? new Date();
   // Null unless there is something to show: the block is all-or-nothing.
   const vipps = params.vipps && hasVippsDetails(params.vipps) ? params.vipps : null;
   const legalHtml = params.baseUrl
@@ -399,6 +540,7 @@ export function customerEmail(params: {
   const text =
     `${c.greeting(params.name)}\n\n${c.thanks} ${c.codeLabel}: ${params.code}.\n` +
     (vipps ? paymentText(vipps, params.code, c) : "") +
+    journeyText(params.locale, 0, at) +
     `\n${lines}\n\n` +
     (discounted ? `${c.discountLabel}: -${formatMoney(discount, params.locale)}\n` : "") +
     `${c.shippingLabel}: ${shippingValue}\n${c.totalLabel}: ${total}\n\n${c.custom}\n` +
@@ -457,6 +599,7 @@ export function customerEmail(params: {
   const bodyHtml = `<p style="margin:0 0 4px;">${esc(c.greeting(params.name))}</p>
     ${codeBox}
     ${vipps ? paymentHtml(vipps, params.code, params.theme, c) : ""}
+    ${journeyHtml(params.theme, params.locale, 0, at)}
     ${itemsTable(params.items, params.theme, params.locale)}
     ${totalRow}
     ${indicativeNote}
