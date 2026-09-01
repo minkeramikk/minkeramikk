@@ -7,6 +7,8 @@ import { createClient } from "@/lib/supabase/server";
 import { getOrder } from "@/lib/orders/admin-orders.server";
 import { orderDiscount } from "@/lib/orders/admin-orders";
 import { sendStatusEmail } from "@/lib/orders/email";
+import { recordOrderEvent } from "@/lib/orders/order-events.server";
+import type { EmailOutcome } from "@/lib/orders/order-events";
 import { canEmail } from "@/lib/orders/status-email";
 import { ORDER_STATUSES } from "@/lib/orders/order-status";
 
@@ -85,9 +87,13 @@ export async function updateOrderStatus(
   if (error) return { error: "Failed to update status. Please try again." };
 
   let notice = `Status set to ${status}.`;
+  // R4-ORDERS-PLUS: three values, not two. `skipped` covers "the admin
+  // unticked it", "this status does not mail at all" (EMAIL_STATUSES lost
+  // `confirmed` in R4-MAIL-JOURNEY) and "sendStatusEmail had nothing to send".
+  let email: EmailOutcome = "skipped";
   if (sendEmail && canEmail(status)) {
     try {
-      await sendStatusEmail({
+      const sent = await sendStatusEmail({
         status,
         code: order.code,
         customerName: order.customerName,
@@ -96,12 +102,24 @@ export async function updateOrderStatus(
         trackingCode: tracking,
         paidAt: order.paidAt,
       });
-      notice += ` Email sent to ${order.email}.`;
+      // false = the status does not notify: not a failure, nothing to send.
+      if (sent) {
+        email = `sent:${order.email}`;
+        notice += ` Email sent to ${order.email}.`;
+      }
     } catch (e) {
+      email = "failed";
       console.error(`order ${order.code}: status saved but email failed`, e);
       notice += " The status was saved but the email could not be sent.";
     }
   }
+
+  // The log. `order.status` was read BEFORE the update, so `from` is the real
+  // one. Never throws (order-events.server.ts): the status is already saved.
+  await recordOrderEvent(id, "status_changed", { from: order.status, to: status, email });
+  // "dialog or form" (card §B): a tracking code typed in the confirm dialog is
+  // a tracking save like any other, and belongs in the register the same way.
+  if (trackingCode) await recordOrderEvent(id, "tracking_set", { code: trackingCode });
 
   revalidatePath(`/admin/orders/${id}`);
   revalidatePath("/admin");
@@ -144,10 +162,15 @@ export async function updateOrderTracking(formData: FormData): Promise<void> {
   if (!parsed.success) return;
 
   const supabase = await createClient();
-  await supabase
+  const { error } = await supabase
     .from("orders")
     .update({ tracking_code: parsed.data.trackingCode || null })
     .eq("id", parsed.data.id);
+  if (error) return;
+
+  // An empty code is a CLEARING, and the renderer says so rather than printing
+  // an empty code (order-events.ts).
+  await recordOrderEvent(parsed.data.id, "tracking_set", { code: parsed.data.trackingCode });
 
   revalidatePath(`/admin/orders/${parsed.data.id}`);
   revalidatePath("/admin");
@@ -191,6 +214,11 @@ export async function toggleOrderPaid(formData: FormData): Promise<void> {
   if (error) return;
 
   if (registering) {
+    // R4-ORDERS-PLUS: this mail is the only new one in the project — without
+    // its outcome in the log it would also be the only one whose fate is
+    // invisible. A cancelled order (or one that can no longer be read) mails
+    // nothing, which is `skipped`: nothing was sent.
+    let email: EmailOutcome = "skipped";
     const order = await getOrder(parsed.data.id);
     // No mail for a cancelled order (R4-MAIL-JOURNEY §A), and never one that
     // could fail the toggle — the timestamp is already persisted.
@@ -206,10 +234,17 @@ export async function toggleOrderPaid(formData: FormData): Promise<void> {
           trackingCode: order.trackingCode,
           paidAt,
         });
+        email = `sent:${order.email}`;
       } catch (e) {
+        email = "failed";
         console.error(`order ${order.code}: payment saved but email failed`, e);
       }
     }
+    await recordOrderEvent(parsed.data.id, "payment_registered", { email });
+  } else {
+    // Undoing sends nothing (R4-MAIL-JOURNEY §C), so the meta is empty by
+    // decision — not by omission.
+    await recordOrderEvent(parsed.data.id, "payment_cleared", {});
   }
 
   revalidatePath(`/admin/orders/${parsed.data.id}`);
