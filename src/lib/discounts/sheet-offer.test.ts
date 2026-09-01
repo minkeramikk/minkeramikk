@@ -159,8 +159,22 @@ it("automations off: null", () => {
   expect(sheetOffer([], { ...cfg(rule()), automationsEnabled: false }, candidate(9), opts)).toBeNull();
 });
 
-it("D1 — the suggested product is already in the cart: null, not even locked", () => {
+it("D1 (ADR 0025) — the suggested product bought at full price no longer hides the offer", () => {
+  // It used to return null here: the old D1 was "the suggested product is in the
+  // cart", so buying the ceramic at full price switched its own offer off. Now
+  // only the offer's own discounted line closes it, so the sheet still shows the
+  // way to unlock it.
   const inCart = [{ id: "d", productId: "deep", unitPriceCents: 35000, currency: "NOK" as const, quantity: 1 }];
+  expect(sheetOffer(inCart, cfg(rule()), candidate(1), opts)).toEqual({
+    kind: "locked", rule: rule(), neededQty: 4, missing: 3,
+  });
+});
+
+it("D1 (ADR 0025) — an offer already TAKEN in full is gone", () => {
+  const inCart = [
+    { id: "l1", productId: "plate", unitPriceCents: UNIT, currency: "NOK" as const, quantity: 4 },
+    { id: "d", productId: "deep", unitPriceCents: 35000, currency: "NOK" as const, quantity: 4, dealRuleId: "r1" },
+  ];
   expect(sheetOffer(inCart, cfg(rule()), candidate(1), opts)).toBeNull();
 });
 
@@ -196,13 +210,14 @@ it("F2 — an EXCLUDED product hosts no offer even once OTHER lines already meet
 
 it("F3 — the locked panel reports the rule the engine will actually deliver, not the loop's own candidate", () => {
   // Two rules both triggered by "plate", admin order [A, B]. A's suggested
-  // product is already in the cart (D1), so A can never actually be offered —
-  // but only the ENGINE knows that; a loop re-deriving D1 on its own candidate
-  // would have skipped straight to B and reported ITS threshold (2), not A's (6).
+  // product belongs to another supplier (D2), so A can never actually be offered
+  // — but only the ENGINE knows that; a loop re-deriving the filters on its own
+  // candidate would have skipped straight to B and reported ITS threshold (2),
+  // not A's (6).
   const ruleA = rule({
     id: "rA", triggerProductIds: ["plate"], triggerMinQty: 6,
     suggestedProductId: "vase", suggestedQty: 1,
-    suggested: { id: "vase", slug: "vase", nameNo: "Vase", nameEn: "Vase", priceCents: 30000, currency: "NOK", image: null, pieces: 1, supplierId: "s1" },
+    suggested: { id: "vase", slug: "vase", nameNo: "Vase", nameEn: "Vase", priceCents: 30000, currency: "NOK", image: null, pieces: 1, supplierId: "s2" },
   });
   const ruleB = rule({
     id: "rB", triggerProductIds: ["plate"], triggerMinQty: 2,
@@ -210,13 +225,14 @@ it("F3 — the locked panel reports the rule the engine will actually deliver, n
     suggested: { id: "mug", slug: "mug", nameNo: "Krus", nameEn: "Mug", priceCents: 20000, currency: "NOK", image: null, pieces: 1, supplierId: "s1" },
   });
   const config = { ...EMPTY_CONFIG, automationsEnabled: true, rules: [ruleA, ruleB] };
-  const inCart = [{ id: "v", productId: "vase", unitPriceCents: 30000, currency: "NOK" as const, quantity: 1 }];
+  const inCart: never[] = [];
+  const byProduct = { ...opts, supplierOfProduct: (pid: string) => (pid === "vase" ? "s2" : "s1") };
 
-  const locked = sheetOffer(inCart, config, candidate(1), opts);
+  const locked = sheetOffer(inCart, config, candidate(1), byProduct);
   expect(locked).toEqual({ kind: "locked", rule: ruleB, neededQty: 6, missing: 5 });
 
   // Stepping to EXACTLY the quantity the locked panel promised must deliver
   // the SAME rule — the governing promise, checked end to end.
-  const unlocked = expectUnlocked(sheetOffer(inCart, config, candidate(6), opts));
+  const unlocked = expectUnlocked(sheetOffer(inCart, config, candidate(6), byProduct));
   expect(unlocked.rule.id).toBe(ruleB.id);
 });
