@@ -104,8 +104,13 @@ describe("parseEmailOutcome", () => {
 
 describe("formatEventAt", () => {
   it("is readable, never raw ISO", () => {
+    // en-GB's short month is 3 or 4 letters ("Aug", but "Sept"), so the shape
+    // is asserted loosely enough to survive every month of the year.
     expect(formatEventAt("2026-08-28T12:02:00.000Z")).toMatch(
-      /^\d{2} \w{3} \d{4}, \d{2}:\d{2}$/
+      /^\d{2} \w{3,4} \d{4}, \d{2}:\d{2}$/
+    );
+    expect(formatEventAt("2026-09-01T23:56:00.000Z")).toMatch(
+      /^\d{2} \w{3,4} \d{4}, \d{2}:\d{2}$/
     );
   });
 });
