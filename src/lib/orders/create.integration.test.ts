@@ -90,6 +90,10 @@ describe.skipIf(!hasEnv)("createOrder (integration)", () => {
     expect(res.code).toMatch(/^MK-\d+$/);
     created.push(res.code);
 
+    // R4-MAIL-JOURNEY §E: the sends are deferred to `after()` in the route
+    // handler, so the test performs them itself.
+    await res.sendEmails();
+
     // customer + admin email
     expect(sent).toHaveLength(2);
     expect(sent[0].subject).toContain(res.code);

@@ -202,3 +202,39 @@ describe("createOrder — the server resolves a deal from the DB config, never t
     expect(rows[0].discount_pct).toBeNull();
   });
 });
+
+describe("R4-MAIL-JOURNEY §E — the emails leave AFTER the response", () => {
+  it("createOrder sends nothing by itself; the thunk does", async () => {
+    const { db } = makeMockDb();
+    const sent: EmailMessage[] = [];
+    const transport: EmailTransport = { async send(m) { sent.push(m); } };
+
+    const res = await createOrder(
+      payloadWith({}),
+      { config: EMPTY_CONFIG, db, verify: async () => true, transport }
+    );
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+
+    // nothing yet: the customer already has their response
+    expect(sent).toHaveLength(0);
+
+    await res.sendEmails();
+    // customer + admin
+    expect(sent).toHaveLength(2);
+  });
+
+  it("a failing transport never escapes the thunk — a persisted order stays persisted", async () => {
+    const { db } = makeMockDb();
+    const transport: EmailTransport = {
+      async send() { throw new Error("resend is down"); },
+    };
+    const res = await createOrder(
+      payloadWith({}),
+      { config: EMPTY_CONFIG, db, verify: async () => true, transport }
+    );
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+    await expect(res.sendEmails()).resolves.toBeUndefined();
+  });
+});

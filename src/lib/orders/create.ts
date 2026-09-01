@@ -18,6 +18,12 @@ export type CreateOrderResult =
        *  figure the customer email quotes, without re-deriving it from a `set=`
        *  param that carries no deal rules (and so no deal discount). */
       totalCents: number;
+      /** R4-MAIL-JOURNEY §E: the sends, NOT yet performed. The route handler
+       *  hands this to `after()` so the customer gets the confirmation page
+       *  without waiting on three emails. `createOrder` must NOT call `after()`
+       *  itself — it is also called from tests, outside any request scope; the
+       *  tests call this thunk directly and stay synchronous. Never throws. */
+      sendEmails: () => Promise<void>;
     }
   | { ok: false; status: 400 | 500; error: string };
 
@@ -81,22 +87,34 @@ export async function createOrder(
     return { ok: false, status: 500, error: "could not create order" };
   }
 
-  // emails must not fail the order (it's already persisted)
-  try {
-    await sendOrderEmails(
-      {
-        code: code as string,
-        customerName: payload.customerName,
-        customerEmail: payload.email,
-        locale: payload.locale,
-        items: payload.items,
-        discount,
-      },
-      deps.transport
-    );
-  } catch (e) {
-    console.error(`order ${code} created but email failed`, e);
-  }
+  const orderCode = code as string;
 
-  return { ok: true, code: code as string, totalCents: discount.total.amountCents };
+  // Deferred, not fired: see `sendEmails` on CreateOrderResult. The try/catch is
+  // INSIDE the thunk because an error thrown in `after()` surfaces to nobody —
+  // without this a lost email is invisible. The order code is in the log line
+  // precisely so the loss is chaseable.
+  const sendEmails = async () => {
+    try {
+      await sendOrderEmails(
+        {
+          code: orderCode,
+          customerName: payload.customerName,
+          customerEmail: payload.email,
+          locale: payload.locale,
+          items: payload.items,
+          discount,
+        },
+        deps.transport
+      );
+    } catch (e) {
+      console.error(`order ${orderCode} created but email failed`, e);
+    }
+  };
+
+  return {
+    ok: true,
+    code: orderCode,
+    totalCents: discount.total.amountCents,
+    sendEmails,
+  };
 }
