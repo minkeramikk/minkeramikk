@@ -68,47 +68,50 @@ const write = (name: string, mail: { html: string; text: string }) => {
 };
 
 async function main() {
-const theme = await shopTheme();
+  const theme = await shopTheme();
 
-for (const locale of ["no", "en"] as const) {
-  // ① conferma d'ordine (con e senza i dati Vipps: il blocco è all-or-nothing)
-  write(`1-confirmation-${locale}`, customerEmail({
-    name: "Kari Nordmann", code: CODE, locale, items,
-    setUrl: "https://minkeramikk.no/no/configurator?step=3&set=demo",
-    theme, baseUrl: "https://minkeramikk.no", vipps: VIPPS, journeyAt: AT,
-  }));
-  write(`1-confirmation-no-vipps-${locale}`, customerEmail({
-    name: "Kari Nordmann", code: CODE, locale, items, setUrl: null,
-    theme, baseUrl: "https://minkeramikk.no", vipps: NO_VIPPS, journeyAt: AT,
-  }));
+  for (const locale of ["no", "en"] as const) {
+    // ① conferma d'ordine (con e senza i dati Vipps: il blocco è all-or-nothing)
+    write(`1-confirmation-${locale}`, customerEmail({
+      name: "Kari Nordmann", code: CODE, locale, items,
+      setUrl: "https://minkeramikk.no/no/configurator?step=3&set=demo",
+      theme, baseUrl: "https://minkeramikk.no", vipps: VIPPS, journeyAt: AT,
+    }));
+    write(`1-confirmation-no-vipps-${locale}`, customerEmail({
+      name: "Kari Nordmann", code: CODE, locale, items, setUrl: null,
+      theme, baseUrl: "https://minkeramikk.no", vipps: NO_VIPPS, journeyAt: AT,
+    }));
 
-  // ② pagamento registrato (la mail nuova) — stato ancora `new`, paid_at scritto
-  write(`2-paid-${locale}`, statusEmail({
-    kind: "paid", status: "new", code: CODE, customerName: "Kari", locale,
+    // ② pagamento registrato (la mail nuova) — stato ancora `new`, paid_at scritto
+    write(`2-paid-${locale}`, statusEmail({
+      kind: "paid", status: "new", code: CODE, customerName: "Kari", locale,
+      paidAt: PAID_AT, theme, baseUrl: "https://minkeramikk.no", journeyAt: AT,
+    })!);
+
+    // ③ in produzione
+    write(`3-production-${locale}`, statusEmail({
+      status: "in_production", code: CODE, customerName: "Kari", locale,
+      paidAt: PAID_AT, theme, baseUrl: "https://minkeramikk.no", journeyAt: AT,
+    })!);
+
+    // ④ spedita, col tracking
+    write(`4-shipped-${locale}`, statusEmail({
+      status: "shipped", code: CODE, customerName: "Kari", locale,
+      paidAt: PAID_AT, trackingCode: "NO123456789",
+      theme, baseUrl: "https://minkeramikk.no", journeyAt: AT,
+    })!);
+  }
+
+  // R4-MAIL-JOURNEY, Decision 4: the rail is a fixed stub, so its worst case is a
+  // step whose description wraps. This render exists to SHOW that cost — it is
+  // evidence, not a state the shop can be in.
+  write("5-rail-worstcase-no", statusEmail({
+    status: "in_production", code: CODE, customerName: "Kari", locale: "no",
     paidAt: PAID_AT, theme, baseUrl: "https://minkeramikk.no", journeyAt: AT,
-  })!);
-
-  // ③ in produzione
-  write(`3-production-${locale}`, statusEmail({
-    status: "in_production", code: CODE, customerName: "Kari", locale,
-    paidAt: PAID_AT, theme, baseUrl: "https://minkeramikk.no", journeyAt: AT,
-  })!);
-
-  // ④ spedita, col tracking
-  write(`4-shipped-${locale}`, statusEmail({
-    status: "shipped", code: CODE, customerName: "Kari", locale,
-    paidAt: PAID_AT, trackingCode: "NO123456789",
-    theme, baseUrl: "https://minkeramikk.no", journeyAt: AT,
   })!);
 }
 
-// R4-MAIL-JOURNEY, Decision 4: the rail is a fixed stub, so its worst case is a
-// step whose description wraps. This render exists to SHOW that cost — it is
-// evidence, not a state the shop can be in.
-write("5-rail-worstcase-no", statusEmail({
-  status: "in_production", code: CODE, customerName: "Kari", locale: "no",
-  paidAt: PAID_AT, theme, baseUrl: "https://minkeramikk.no", journeyAt: AT,
-})!);
-}
-
-main();
+main().catch((e) => {
+  console.error(e);
+  process.exitCode = 1;
+});
