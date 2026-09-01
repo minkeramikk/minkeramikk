@@ -228,41 +228,54 @@ describe("R4-SCONTI saveDiscountRule — validation (no DB call)", () => {
   // C2 — the regression the TL caught in review. Without the z.preprocess fix
   // in actions.ts, z.coerce.number() turns "" into 0 and min(1) rejects it
   // with a "percentage" error — even though this rule is refused for an
-  // UNRELATED reason (self-suggestion). Proves the empty field never reaches
-  // the number rules as 0.
+  // UNRELATED reason (an empty trigger group). Proves the empty field never
+  // reaches the number rules as 0.
+  //
+  // R4-SCONTI-2: the unrelated refusal used to be self-suggestion. That is a
+  // legal rule now (ADR 0025), so the empty trigger group plays its part.
   it("does not misreport an empty percentage as invalid on a non-fixed rule", async () => {
     const res = await saveDiscountRule(
       {},
       fd({
-        name: "Inherited self-suggest",
+        name: "Inherited, no trigger group",
         enabled: "on",
         triggerMinQty: "2",
-        triggerProductIds: JSON.stringify([PROD_A]),
-        suggestedProductId: PROD_A, // trips the self-suggest refusal instead
+        triggerProductIds: JSON.stringify([]), // trips the empty-group refusal
+        suggestedProductId: PROD_B,
         suggestedQty: "1",
         discountMode: "inherited",
         discountPct: "",
       })
     );
-    expect(res.error).toMatch(/own trigger group/i);
+    expect(res.error).toMatch(/trigger group/i);
     expect(res.error).not.toMatch(/percentage/i);
   });
 
-  it("refuses a rule that suggests a product from its own trigger group", async () => {
-    const res = await saveDiscountRule(
-      {},
-      fd({
-        name: "Self-suggest",
-        enabled: "on",
-        triggerMinQty: "2",
-        triggerProductIds: JSON.stringify([PROD_A]),
-        suggestedProductId: PROD_A,
-        suggestedQty: "1",
-        discountMode: "none",
-        discountPct: "",
-      })
-    );
-    expect(res.error).toMatch(/own trigger group/i);
+  // R4-SCONTI-2 §B, first lock: «buy 4 plates, 4 more at half price» used to be
+  // refused right here. With the full-price pool (ADR 0025) the rule is safe —
+  // its own discounted pieces cannot re-trigger it — so validation must let it
+  // through. It gets no further than the DB in this suite; what matters is that
+  // it is NOT rejected for suggesting a product from its own trigger group.
+  it("accepts a rule that suggests a product from its own trigger group", async () => {
+    // Reaching the DB IS the proof. Every refusal in this describe returns
+    // `{ error }` before createClient() is ever called (see the file header),
+    // so a rule still refused by zod would come back as a value; this one
+    // instead runs on into the supplier lookup and dies on the stubbed client.
+    await expect(
+      saveDiscountRule(
+        {},
+        fd({
+          name: "Same-product upsell",
+          enabled: "on",
+          triggerMinQty: "4",
+          triggerProductIds: JSON.stringify([PROD_A]),
+          suggestedProductId: PROD_A,
+          suggestedQty: "4",
+          discountMode: "fixed",
+          discountPct: "50",
+        })
+      )
+    ).rejects.toThrow();
   });
 
   it("refuses an empty trigger group", async () => {
