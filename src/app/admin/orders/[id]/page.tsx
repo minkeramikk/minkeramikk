@@ -20,6 +20,7 @@ import {
 import type { OrderStatus } from "@/lib/orders/order-status";
 import { formatMoney } from "@/lib/money/money";
 import { OrderStatusForm } from "@/components/admin/order-status-form";
+import { OrderMessageForm } from "@/components/admin/order-message-form";
 import { PaidBadge } from "@/components/ui-domain/paid-badge";
 import { DiscountRatifiedBadge } from "@/components/ui-domain/discount-badge";
 import {
@@ -382,13 +383,14 @@ export default async function OrderDetailPage({
                 hasDiscount={orderDiscount(order.items).amountCents > 0}
                 discountRatifiedAt={order.discountRatifiedAt}
               />
-              <a
-                href={`mailto:${order.email}?subject=${encodeURIComponent(`Order ${order.code}`)}`}
-                data-testid="email-customer"
-                className="mt-2 block rounded-lg border border-border px-3 py-2 text-center text-sm"
-              >
-                Email the customer
-              </a>
+              {/* R4-ORDERS-PLUS voce A: was a `mailto:`, which sent whatever the
+                  admin's own mail client felt like sending — unbranded, from a
+                  personal address, and invisible to the log. */}
+              <OrderMessageForm
+                orderId={order.id}
+                orderCode={order.code}
+                customerEmail={order.email}
+              />
               {/* R2-6 D: reopen this order as a basket (set codec is URL-safe →
                   raw param). Disabled when no line carries a config code/slug. */}
               {replica.param ? (

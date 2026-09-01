@@ -6,7 +6,7 @@ import { getAdminUser } from "@/lib/auth/admin";
 import { createClient } from "@/lib/supabase/server";
 import { getOrder } from "@/lib/orders/admin-orders.server";
 import { orderDiscount } from "@/lib/orders/admin-orders";
-import { sendStatusEmail } from "@/lib/orders/email";
+import { sendCustomMessage, sendStatusEmail } from "@/lib/orders/email";
 import { recordOrderEvent } from "@/lib/orders/order-events.server";
 import type { EmailOutcome } from "@/lib/orders/order-events";
 import { canEmail } from "@/lib/orders/status-email";
@@ -124,6 +124,60 @@ export async function updateOrderStatus(
   revalidatePath(`/admin/orders/${id}`);
   revalidatePath("/admin");
   return { notice };
+}
+
+const messageSchema = z.object({
+  id: z.string().uuid(),
+  subject: z.string().trim().min(1, { error: "Write a subject." }).max(200),
+  body: z.string().trim().min(1, { error: "Write a message." }).max(5000),
+});
+
+/**
+ * R4-ORDERS-PLUS voce A — the free-text message to the customer, from inside
+ * the order. Replaces the `mailto:` link, so what the admin sees in the box is
+ * exactly what leaves: same branded shell, same sender, same transport as every
+ * other customer mail.
+ *
+ * SYNCHRONOUS on purpose (card §B, note 2): Alessio can wait a second, and the
+ * activity log can only say "sent" if somebody actually waited for the send.
+ * On failure nothing is logged — nothing was sent — and the admin is told right
+ * here, which is the other half of why this mail is not deferred.
+ */
+export async function sendCustomerMessage(
+  _prev: ActionResult,
+  formData: FormData
+): Promise<ActionResult> {
+  if (!(await getAdminUser())) return { error: "Not authorized." };
+
+  const parsed = messageSchema.safeParse({
+    id: formData.get("id"),
+    subject: formData.get("subject"),
+    body: formData.get("body"),
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid message." };
+  }
+  const { id, subject, body } = parsed.data;
+
+  const order = await getOrder(id);
+  if (!order) return { error: "Order not found." };
+
+  try {
+    await sendCustomMessage({
+      to: order.email,
+      subject,
+      body,
+      customerName: order.customerName,
+    });
+  } catch (e) {
+    console.error(`order ${order.code}: custom message failed`, e);
+    return { error: "The message could not be sent. Nothing was logged." };
+  }
+
+  await recordOrderEvent(id, "custom_email_sent", { subject, to: order.email });
+
+  revalidatePath(`/admin/orders/${id}`);
+  return { notice: `Email sent to ${order.email}.` };
 }
 
 const notesSchema = z.object({
