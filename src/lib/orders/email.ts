@@ -6,7 +6,7 @@ import { siteUrl } from "@/lib/site";
 import { encodeSetParam } from "@/lib/cart/set-code";
 import { customerEmail, adminEmail, type MailItem } from "./email-html";
 import { getVippsSettings } from "./vipps.server";
-import { statusEmail } from "./status-email";
+import { statusEmail, type MailKind } from "./status-email";
 import type { OrderStatus } from "./order-status";
 import type { OrderItemInput } from "./schema";
 import type { CartDiscount } from "@/lib/discounts/discount";
@@ -78,6 +78,8 @@ export function defaultTransport(): EmailTransport {
 export async function sendStatusEmail(
   params: {
     status: OrderStatus;
+    /** R4-MAIL-JOURNEY: "paid" for the payment mail; omitted for status mails. */
+    kind?: MailKind;
     code: string;
     customerName: string;
     customerEmail: string;
