@@ -226,8 +226,12 @@ describe("R4-MAIL-JOURNEY §E — the emails leave AFTER the response", () => {
 
   it("a failing transport never escapes the thunk — a persisted order stays persisted", async () => {
     const { db } = makeMockDb();
+    let calls = 0;
     const transport: EmailTransport = {
-      async send() { throw new Error("resend is down"); },
+      async send() {
+        calls++;
+        throw new Error("resend is down");
+      },
     };
     const res = await createOrder(
       payloadWith({}),
@@ -236,5 +240,8 @@ describe("R4-MAIL-JOURNEY §E — the emails leave AFTER the response", () => {
     expect(res.ok).toBe(true);
     if (!res.ok) return;
     await expect(res.sendEmails()).resolves.toBeUndefined();
+    // the send was actually attempted (and its failure swallowed) — not just
+    // never invoked, which would also satisfy the assertion above
+    expect(calls).toBe(1);
   });
 });
