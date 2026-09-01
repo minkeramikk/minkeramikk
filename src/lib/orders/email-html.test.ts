@@ -304,3 +304,57 @@ describe("payment block (R4-TAKK-MAIL)", () => {
     expect(m.html).not.toContain("vipps-qr");
   });
 });
+
+describe("journey block in the customer email (R4-MAIL-JOURNEY)", () => {
+  const at = new Date("2026-09-01T10:00:00Z");
+
+  it("lists the four steps in order, in HTML and in plain text", () => {
+    const mail = customerEmail({
+      name: "Kari",
+      code: "MK-2302",
+      locale: "no",
+      items,
+      setUrl: null,
+      theme,
+      journeyAt: at,
+    });
+    for (const s of [
+      "Bestillingen er mottatt",
+      "Betalingen er registrert",
+      "Keramikken lages for hånd",
+      "Sendt med forsikret frakt",
+    ]) {
+      expect(mail.html).toContain(s);
+      expect(mail.text).toContain(s);
+    }
+  });
+
+  it("carries the frozen 'as of' date, so a mail reopened later still reads true", () => {
+    const mail = customerEmail({
+      name: "Kari", code: "MK-2302", locale: "no", items, setUrl: null, theme,
+      journeyAt: at,
+    });
+    expect(mail.html).toContain("Status 1. september 2026");
+    expect(mail.text).toContain("Status 1. september 2026");
+  });
+
+  it("marks only 'received' as done on a fresh order, and marks it as now", () => {
+    const mail = customerEmail({
+      name: "Kari", code: "MK-2302", locale: "en", items, setUrl: null, theme,
+      journeyAt: at,
+    });
+    expect(mail.text).toContain("[x] Order received");
+    expect(mail.text).toContain("· now");
+    expect(mail.text).toContain("[ ] Payment registered");
+    expect(mail.text).toContain("Status 1 September 2026");
+  });
+
+  it("draws dots and ticks WITHOUT images — a client with images off still reads it", () => {
+    const mail = customerEmail({
+      name: "Kari", code: "MK-2302", locale: "no", items, setUrl: null, theme,
+      journeyAt: at,
+    });
+    expect(mail.html).not.toContain("<img");
+    expect(mail.html).toContain("#5d7d52"); // the green comes from a background, not a picture
+  });
+});
