@@ -344,6 +344,20 @@ export function ProductSheet({
               </p>
             )}
 
+            {/* §3.26: the scale, then the offers, then the buy row — the
+                prototype's own order (mockup-sconti-scheda.html): the scale is
+                the last thing between the description and the controls that
+                change the number it reads. */}
+            <DiscountLadder
+              ladder={ladder}
+              excluded={ladderExcluded}
+              unitPriceCents={p.priceCents}
+              currency={p.currency}
+              locale={locale}
+              inCart={inCartQty}
+              onSetQty={onQty}
+            />
+
             {/* §3.24: absent entirely when there is nothing to show — an empty
                 list renders no node, so the sheet stays byte-identical (AC5). */}
             <SheetOfferBlock
@@ -353,18 +367,6 @@ export function ProductSheet({
               takenRuleIds={takenRuleIds}
               onSetQty={onQty}
               onTake={onTakeOffer}
-            />
-
-            {/* §3.26: the scale sits ON the selector — the only place a number
-                is chosen is the only place the scale can change a mind. */}
-            <DiscountLadder
-              ladder={ladder}
-              excluded={ladderExcluded}
-              unitPriceCents={p.priceCents}
-              currency={p.currency}
-              locale={locale}
-              inCart={inCartQty}
-              onSetQty={onQty}
             />
 
             {/* Why the scale is ahead of the selector. Also the accessible
