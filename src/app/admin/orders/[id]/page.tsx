@@ -4,6 +4,8 @@ import { AdminShell } from "@/components/shell/admin-shell";
 import { LabPdfActions } from "@/components/admin/lab-pdf-actions";
 import { OrderStatusBadge } from "@/components/ui-domain/order-status-badge";
 import { getOrder, getCodecDesigns } from "@/lib/orders/admin-orders.server";
+import { getOrderEvents } from "@/lib/orders/order-events.server";
+import { timeline } from "@/lib/orders/order-events";
 import {
   buildReplicaSet,
   configuratorPathFromCode,
@@ -21,6 +23,7 @@ import type { OrderStatus } from "@/lib/orders/order-status";
 import { formatMoney } from "@/lib/money/money";
 import { OrderStatusForm } from "@/components/admin/order-status-form";
 import { OrderMessageForm } from "@/components/admin/order-message-form";
+import { OrderTimeline } from "@/components/admin/order-timeline";
 import { PaidBadge } from "@/components/ui-domain/paid-badge";
 import { DiscountRatifiedBadge } from "@/components/ui-domain/discount-badge";
 import {
@@ -61,7 +64,13 @@ export default async function OrderDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [order, codecDesigns] = await Promise.all([getOrder(id), getCodecDesigns()]);
+  // R4-ORDERS-PLUS: the events ride along in the same parallel fetch — the
+  // register must not add a round trip to opening an order.
+  const [order, codecDesigns, events] = await Promise.all([
+    getOrder(id),
+    getCodecDesigns(),
+    getOrderEvents(id),
+  ]);
   if (!order) notFound();
 
   const groups = groupBySupplier(order.items);
@@ -240,6 +249,14 @@ export default async function OrderDetailPage({
                   Save note
                 </button>
               </form>
+            </section>
+
+            {/* R4-ORDERS-PLUS §B: the register. «Order created» is synthetic, so
+                this section is never empty — not even on an order that predates
+                the log. */}
+            <section className="rounded-lg border border-border bg-card p-5">
+              <h2 className="mb-3 text-base font-semibold">Activity</h2>
+              <OrderTimeline rows={timeline(order.createdAt, events)} />
             </section>
           </div>
 
