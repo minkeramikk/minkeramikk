@@ -5,12 +5,11 @@ import { Button } from "@/components/ui/button";
 import { CartLineThumb } from "@/components/ui-domain/cart-line-thumb";
 import { resolveSetPreviews } from "@/lib/orders/set-preview";
 import { getVippsSettings } from "@/lib/orders/vipps.server";
-import { DEPOSIT_PCT, hasVippsDetails } from "@/lib/orders/vipps";
+import { hasVippsDetails } from "@/lib/orders/vipps";
 import { shippingStatus } from "@/lib/cart/shipping";
 import {
   formatMoney,
   money,
-  percentOf,
   subtract,
   sum,
   type Currency,
@@ -35,13 +34,13 @@ const TOTAL_RE = /^\d{1,9}$/;
 /**
  * Order confirmation — the "takk-side" (F05 + F30-B + R4-TAKK).
  *
- * ⚠️ THIS PAGE DOES NOT ASK FOR MONEY (TL ruling, 2026-08-30). The shop is paid
- * in two instalments — deposit after we confirm the design by hand, balance
- * before shipping — so at this moment the design is not confirmed yet. A "pay
- * now" button here would collect before confirmation, and every design change
- * would turn into a refund. The page INFORMS: how much, how to pay, what
- * happens next. Hence «Totalt for bestillingen» (not «Å betale»), «Slik betaler
- * du» (not «Betal med Vipps»), and QR + number as DATA, never as a CTA.
+ * ⚠️ THIS PAGE DOES NOT ASK FOR MONEY (TL ruling, 2026-08-30). The customer
+ * does pay now — one payment, by hand over Vipps, right after the order — but
+ * the design is not confirmed yet and the final price can still change, so a
+ * "pay now" button here would collect against a figure that may move and turn
+ * every design change into a refund. The page INFORMS: how much, how to pay,
+ * what happens next. Hence «Totalt for bestillingen» (not «Å betale»), «Slik
+ * betaler du» (not «Betal med Vipps»), and QR + number as DATA, never a CTA.
  *
  * Still stateless: it never reads the orders table. The code and the total come
  * from the URL, the recap is recomposed from the CA-3 `set=` param against the
@@ -50,10 +49,11 @@ const TOTAL_RE = /^\d{1,9}$/;
  * page still reads complete; no `set=` → code and total only; no `code=` →
  * empty state.
  *
- * TODO:nb-review — most Norwegian copy here is the TL's own (mockup-takk.html);
+ * TODO:nb-review — most Norwegian copy here is the TL's own (mockup-takk.html,
+ * the four journey steps from mockup-mail-stepper.html);
  * `order.shippingToBeConfirmed`, `order.discountLabel`, `order.payment.qrAlt`,
- * `order.payment.lookupHint`, `order.payment.depositLabel` and
- * `order.payment.balanceLabel` are ours and want the client's eye.
+ * `order.payment.lookupHint` and `order.payment.lead` are ours and want the
+ * client's eye.
  */
 export default async function OrderConfirmationPage({
   params,
@@ -106,12 +106,6 @@ export default async function OrderConfirmationPage({
   const saved = netTotal ? subtract(subtotal, netTotal) : money(0, currency);
   const discounted = saved.amountCents > 0;
 
-  // The deposit is quoted from the sale terms (§5), never computed by the shop:
-  // 50% now, the rest before shipping. `balance` is the SUBTRACTION, not a
-  // second percentOf, so the two halves always add back up to the total.
-  const deposit = netTotal ? percentOf(netTotal, DEPOSIT_PCT) : null;
-  const balance = netTotal && deposit ? subtract(netTotal, deposit) : null;
-
   // CA-3 landing convention: ?step=3&set=… (set= is only resolved on step 3).
   const shareUrl = set
     ? `${siteUrl()}/${locale}/configurator?step=3&set=${set}`
@@ -119,10 +113,9 @@ export default async function OrderConfirmationPage({
 
   const steps = [
     { key: "received", done: true },
-    { key: "confirm", done: false },
-    { key: "deposit", done: false },
-    { key: "paint", done: false },
-    { key: "ship", done: false },
+    { key: "paid", done: false },
+    { key: "production", done: false },
+    { key: "shipped", done: false },
   ] as const;
 
   return (
@@ -188,27 +181,6 @@ export default async function OrderConfirmationPage({
         >
           <h2 className="text-[15px] font-semibold">{t("payment.title")}</h2>
           <p className="mt-1 text-xs text-muted-foreground">{t("payment.lead")}</p>
-
-          {/* What is due NOW, and what is not. It belongs to «how you pay», not
-              to «what your order costs» — the block above stays the price of
-              the order, so the page still informs instead of demanding. */}
-          {deposit && balance && (
-            <dl
-              className="mt-3 flex flex-col gap-1 border-b border-border pb-3"
-              data-testid="order-deposit"
-            >
-              <div className="flex items-baseline justify-between gap-3 text-sm">
-                <dt>{t("payment.depositLabel", { pct: DEPOSIT_PCT })}</dt>
-                <dd className="font-semibold tabular-nums">
-                  {formatMoney(deposit, locale)}
-                </dd>
-              </div>
-              <div className="flex items-baseline justify-between gap-3 text-xs text-muted-foreground">
-                <dt>{t("payment.balanceLabel")}</dt>
-                <dd className="tabular-nums">{formatMoney(balance, locale)}</dd>
-              </div>
-            </dl>
-          )}
 
           {/* Below sm the QR is useless — you cannot scan a code shown by the
               phone you are holding — so the NUMBER leads and the QR follows,

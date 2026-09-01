@@ -3,8 +3,8 @@
  * and the order email both render from this shape, and the email builder must
  * stay unit-testable (email-html.ts imports nothing server-only).
  *
- * The shop is paid BY HAND, in two instalments (deposit after we confirm the
- * design, balance before shipping). These details are INFORMATION, never a
+ * The shop is paid BY HAND, once, right after the order (Vipps → we start
+ * production → we ship). These details are INFORMATION, never a
  * charge: no amount and no message travel with them, which is exactly why the
  * customer has to type the order number into the Vipps "melding" field himself.
  *
@@ -30,14 +30,3 @@ export const NO_VIPPS: VippsSettings = { qrImage: null, number: null, link: null
 export function hasVippsDetails(v: VippsSettings): boolean {
   return Boolean(v.qrImage || v.number);
 }
-
-/**
- * The deposit, as a percentage of the order total. NOT a new business rule and
- * NOT a settable field: it is quoted from the sale terms the shop already
- * publishes (`legal.terms.body` §5 / «5. Betaling» — «depositum tilsvarende 50%
- * av totalsummen […] Kunden vil dog få to fakturaer»). It lives here as a
- * constant precisely so it cannot drift from that text on its own: changing the
- * split means editing the terms, which is an i18n change, and this line has to
- * be edited in the same breath.
- */
-export const DEPOSIT_PCT = 50;
