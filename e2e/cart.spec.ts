@@ -265,6 +265,83 @@ test.describe("R4-SCONTI — quantity discounts", () => {
     }
   });
 
+
+  test("AC-SC11: the ladder in the sheet counts CART + SELECTOR", async ({ page }) => {
+    // Two steps far from the production scale, so an unseeded read cannot pass
+    // by coincidence: 3 in the basket + 1 on the stepper = 4 → the ×4 step.
+    const seeded = await seedDiscountTiers([
+      { min_qty: 4, pct: 11 },
+      { min_qty: 9, pct: 17 },
+    ]);
+    try {
+      await page.goto(step3);
+      // three pieces of the first ceramic into the basket, sheet closed
+      await addFirstCeramic(page);
+      await openCart(page);
+      const plus = drawer(page).getByLabel("+").first();
+      await plus.click();
+      await plus.click();
+      await expect(page.getByTestId("cart-badge")).toHaveText("3");
+      await page.keyboard.press("Escape");
+
+      await expect(async () => {
+        await page.reload();
+        await ceramicCards(page).first().click();
+        const sheet = page.getByTestId("product-sheet");
+        await expect(sheet).toBeVisible();
+        // 3 + 1: the ladder is already on the first step, and says why
+        await expect(sheet.getByTestId("discount-ladder")).toBeVisible();
+        await expect(sheet.getByTestId("sheet-unit-full")).toBeVisible();
+        await expect(sheet.getByTestId("sheet-unit-badge")).toContainText("11");
+        await expect(sheet.getByTestId("sheet-in-cart")).toContainText("3");
+      }).toPass({ timeout: 20_000 });
+    } finally {
+      await seeded.restore();
+    }
+  });
+
+  test("AC-SC12: a step sets the quantity, up AND down, and adds nothing", async ({ page }) => {
+    const seeded = await seedDiscountTiers([
+      { min_qty: 3, pct: 7 },
+      { min_qty: 9, pct: 19 },
+    ]);
+    try {
+      await page.goto(step3);
+      const badgeBefore = await page.getByTestId("cart-button").innerText();
+      await expect(async () => {
+        await page.reload();
+        await ceramicCards(page).first().click();
+        await expect(page.getByTestId("discount-ladder")).toBeVisible();
+      }).toPass({ timeout: 20_000 });
+
+      const sheet = page.getByTestId("product-sheet");
+      const steps = sheet.getByTestId("ladder-step");
+      await steps.nth(1).click(); // up to the second step
+      await expect(sheet.getByTestId("qty-value")).toHaveText("9");
+      await steps.nth(0).click(); // and back DOWN to the first
+      await expect(sheet.getByTestId("qty-value")).toHaveText("3");
+      // the scale picks a quantity, it does not buy
+      expect(await page.getByTestId("cart-button").innerText()).toBe(badgeBefore);
+    } finally {
+      await seeded.restore();
+    }
+  });
+
+  test("AC-SC14: no scale → no ladder, and no empty frame", async ({ page }) => {
+    const off = await seedDiscountTiers([]); // clears the rows AND the flag
+    try {
+      await expect(async () => {
+        await page.goto(step3);
+        await ceramicCards(page).first().click();
+        await expect(page.getByTestId("product-sheet")).toBeVisible();
+        await expect(page.getByTestId("discount-ladder")).toHaveCount(0);
+        await expect(page.getByTestId("ladder-excluded")).toHaveCount(0);
+      }).toPass({ timeout: 20_000 });
+    } finally {
+      await off.restore();
+    }
+  });
+
   test("AC-SC9: switched off from admin — the flag is false but the tier rows stay", async ({
     page,
   }) => {
