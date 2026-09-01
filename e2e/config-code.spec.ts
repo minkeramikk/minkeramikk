@@ -40,5 +40,8 @@ test("AC4: an invalid ?code= drops the param without crashing", async ({ page })
   // page alive, fell back to the design, bad code dropped from the URL
   await expect(page.getByTestId("details-step")).toBeVisible();
   await expect(page).toHaveURL(/step=2/);
-  expect(page.url()).not.toContain("code=MK-ZZZ");
+  // POLLED, not read once: dropping the param is a `router.replace` that lands
+  // AFTER the step is on screen, so a single read raced it and this test failed
+  // roughly one run in two — in both directions, alone and in the full gate.
+  await expect.poll(() => page.url()).not.toContain("code=MK-ZZZ");
 });
