@@ -10,6 +10,8 @@
  */
 import { formatMoney, money, subtract, sum, type Currency } from "@/lib/money/money";
 import { shippingStatus } from "@/lib/cart/shipping";
+import { assetUrl } from "@/lib/storage";
+import { hasVippsDetails, type VippsSettings } from "./vipps";
 import type { ThemeTokens } from "@/lib/theme";
 
 export interface MailItem {
@@ -189,12 +191,43 @@ function itemsTable(items: MailItem[], theme: ThemeTokens, locale: "no" | "en") 
  */
 const DISCOUNT_HEX = "#5d7d52";
 
+/**
+ * R4-TAKK-MAIL: the `--warn` box of the thank-you page (`--warn: #b26a00`,
+ * DESIGN-SYSTEM §2.1 / §2.2), inlined as literal hex for exactly the reason
+ * DISCOUNT_HEX above is: mail clients strip <style> and resolve neither
+ * `var()` nor `color-mix()`, so the four tints the page mixes at render time
+ * have to be written out here by hand.
+ *
+ * Derivation — the page's own ratios, `color-mix(in oklab, ...)` of
+ * `var(--warn)`: 12% on white (background), 34% on white (border), `black 30%`
+ * (text), 46% on white (the dashed chip). Re-derive from those same ratios if
+ * `--warn` ever changes; do not eyeball a replacement.
+ */
+const WARN_BG = "#f7ede4";
+const WARN_BORDER = "#e7ccb3";
+const WARN_TEXT = "#6d3f00";
+const WARN_DASH = "#deba99";
+
 const COPY = {
   no: {
     customerSubject: (c: string) => `Din bestilling ${c} — Min Keramikk`,
     greeting: (n: string) => `Hei ${n},`,
     thanks: "Takk for bestillingen din!",
     codeLabel: "Bestillingskode",
+    // R4-TAKK-MAIL · word-for-word the copy already approved on the thank-you
+    // page (`order.payment.*` in no.json): same promise, same wording.
+    payTitle: "Slik betaler du", // TODO:nb-review
+    payLead:
+      "Du betaler beløpet over med Vipps — her er detaljene du trenger. Designet bekrefter vi med deg etterpå.", // TODO:nb-review
+    payNumberLabel: "Vippsnummer", // TODO:nb-review
+    payRecipient: "Min Keramikk AS",
+    payQrAlt: "Vipps QR-kode", // TODO:nb-review
+    payWarningLabel: "Viktig:", // TODO:nb-review
+    payWarning:
+      "skriv bestillingsnummeret i meldingsfeltet i Vipps, ellers finner vi ikke betalingen din.", // TODO:nb-review
+    // Not on the page (there the chip sits under the warning and needs no
+    // label); the plain-text part has no layout, so the line needs naming.
+    payMeldingLabel: "Melding i Vipps", // TODO:nb-review
     custom:
       "Dette er en spesialbestilling — vi tar kontakt for å bekrefte designet før noe skal betales.",
     reopen: "Åpne settet ditt på nytt",
@@ -220,6 +253,16 @@ const COPY = {
     greeting: (n: string) => `Hi ${n},`,
     thanks: "Thank you for your order!",
     codeLabel: "Order code",
+    payTitle: "How to pay",
+    payLead:
+      "You pay the amount above with Vipps — here are the details you need. We will confirm the design with you afterwards.",
+    payNumberLabel: "Vipps number",
+    payRecipient: "Min Keramikk AS",
+    payQrAlt: "Vipps QR code",
+    payWarningLabel: "Important:",
+    payWarning:
+      "write the order number in the message field in Vipps, otherwise we cannot match your payment.",
+    payMeldingLabel: "Message in Vipps",
     custom:
       "This is a custom order — we'll get in touch to confirm the design before anything is paid.",
     reopen: "Reopen your set",
@@ -241,6 +284,80 @@ const COPY = {
   },
 } as const;
 
+type Copy = (typeof COPY)[keyof typeof COPY];
+
+/**
+ * R4-TAKK-MAIL: the payment block, the mail half of the thank-you page's «Slik
+ * betaler du». The page promises «you will shortly get an email with your
+ * receipt AND the payment details» — this is those details.
+ *
+ * The hierarchy is DELIBERATELY THE OPPOSITE of the page's: many mail clients
+ * block remote images by default, so the QR is the secondary variant here and
+ * the NUMBER carries the block. Number, recipient and the melding warning are
+ * text — never baked into the image, never conditional on it — so the mail
+ * stays payable with images turned off. Keep it that way.
+ *
+ * Degrades exactly like the page: `hasVippsDetails` false → nothing is
+ * rendered and the mail still reads as a complete receipt.
+ */
+function paymentHtml(
+  vipps: VippsSettings,
+  code: string,
+  theme: ThemeTokens,
+  c: Copy
+): string {
+  const numberCell = `<td valign="top" style="font-family:Helvetica,Arial,sans-serif;">${
+    vipps.number
+      ? `<div style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;opacity:.6;">${esc(
+          c.payNumberLabel
+        )}</div>
+        <div style="font-size:26px;font-weight:bold;line-height:1.2;color:${esc(
+          theme.dark
+        )};">${esc(vipps.number)}</div>`
+      : ""
+  }<div style="font-size:12px;opacity:.7;padding-top:2px;">${esc(
+    c.payRecipient
+  )}</div></td>`;
+  // Fixed width/height: a blocked image must leave a predictable hole, not
+  // collapse the two-column row onto itself.
+  const qrCell = vipps.qrImage
+    ? `<td valign="top" align="right" width="104" style="width:104px;"><img src="${esc(
+        assetUrl(vipps.qrImage)
+      )}" width="104" height="104" alt="${esc(
+        c.payQrAlt
+      )}" style="display:block;border:1px solid ${esc(
+        theme.light
+      )};border-radius:8px;background:#ffffff;width:104px;height:104px;"></td>`
+    : "";
+  return `<div style="margin:18px 0;padding:16px;background:${esc(
+    theme.light
+  )};border-radius:10px;">
+    <div style="font-size:15px;font-weight:bold;">${esc(c.payTitle)}</div>
+    <p style="margin:4px 0 0;font-size:12px;line-height:1.5;opacity:.75;">${esc(
+      c.payLead
+    )}</p>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:12px;"><tr>${numberCell}${qrCell}</tr></table>
+    <div style="margin-top:14px;padding:12px 14px;background:${WARN_BG};border:1px solid ${WARN_BORDER};border-radius:8px;">
+      <p style="margin:0;font-size:12px;line-height:1.5;color:${WARN_TEXT};"><b>${esc(
+        c.payWarningLabel
+      )}</b> ${esc(c.payWarning)}</p>
+      <div style="margin-top:8px;"><span style="display:inline-block;padding:3px 10px;background:#ffffff;border:1px dashed ${WARN_DASH};border-radius:4px;font-family:monospace;font-size:14px;font-weight:bold;color:${esc(
+        theme.dark
+      )};">${esc(code)}</span></div>
+    </div>
+  </div>`;
+}
+
+/** Plain-text twin of `paymentHtml` — the text/plain part must be payable too. */
+function paymentText(vipps: VippsSettings, code: string, c: Copy): string {
+  return (
+    `\n${c.payTitle}\n${c.payLead}\n` +
+    (vipps.number ? `${c.payNumberLabel}: ${vipps.number}\n` : "") +
+    `${c.payRecipient}\n` +
+    `${c.payWarningLabel} ${c.payWarning}\n${c.payMeldingLabel}: ${code}\n`
+  );
+}
+
 /** Customer confirmation, in their locale, with the CA-3 reopen-set link. */
 export function customerEmail(params: {
   name: string;
@@ -251,8 +368,13 @@ export function customerEmail(params: {
   theme: ThemeTokens;
   /** Absolute site origin (siteUrl()): enables the logo + policy links. */
   baseUrl?: string;
+  /** R4-TAKK-MAIL: Vipps details, read server-side by the caller (email.ts).
+   *  Absent/empty → the payment block is simply not rendered. */
+  vipps?: VippsSettings;
 }): RenderedEmail {
   const c = COPY[params.locale];
+  // Null unless there is something to show: the block is all-or-nothing.
+  const vipps = params.vipps && hasVippsDetails(params.vipps) ? params.vipps : null;
   const legalHtml = params.baseUrl
     ? `<div style="margin-top:10px;opacity:.7;line-height:1.5;">${esc(
         c.legalIntro
@@ -275,8 +397,9 @@ export function customerEmail(params: {
     ? c.shippingIncluded
     : c.shippingToBeConfirmed;
   const text =
-    `${c.greeting(params.name)}\n\n${c.thanks} ${c.codeLabel}: ${params.code}.\n\n` +
-    `${lines}\n\n` +
+    `${c.greeting(params.name)}\n\n${c.thanks} ${c.codeLabel}: ${params.code}.\n` +
+    (vipps ? paymentText(vipps, params.code, c) : "") +
+    `\n${lines}\n\n` +
     (discounted ? `${c.discountLabel}: -${formatMoney(discount, params.locale)}\n` : "") +
     `${c.shippingLabel}: ${shippingValue}\n${c.totalLabel}: ${total}\n\n${c.custom}\n` +
     (discounted ? `${c.indicative}\n` : "") +
@@ -333,6 +456,7 @@ export function customerEmail(params: {
 
   const bodyHtml = `<p style="margin:0 0 4px;">${esc(c.greeting(params.name))}</p>
     ${codeBox}
+    ${vipps ? paymentHtml(vipps, params.code, params.theme, c) : ""}
     ${itemsTable(params.items, params.theme, params.locale)}
     ${totalRow}
     ${indicativeNote}
