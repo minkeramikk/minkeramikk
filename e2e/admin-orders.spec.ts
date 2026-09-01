@@ -139,17 +139,23 @@ test("AC1: the status select offers shipped and hides contacted", async ({ page 
   await expect(options.filter({ hasText: "Contacted" })).toHaveCount(0);
 });
 
+// R4-MAIL-JOURNEY §D retired the `confirmed` mail (EMAIL_STATUSES is
+// ["in_production", "shipped"] now: confirmed and in_production landed on the
+// same journey dot, and two mails showing an identical bar are worse than one
+// mail fewer). This test still drove `confirmed` and waited for a preview that
+// no longer exists. The AC it defends is the opt-OUT checkbox, not that
+// particular status, so it moves to a status that still writes to the customer.
 test("AC2: unticking the checkbox changes the status and sends nothing", async ({ page }) => {
   await loginAdmin(page);
   await page.goto(`/admin/orders/${seeded.orderId}`);
-  await page.getByTestId("status-select").selectOption("confirmed");
+  await page.getByTestId("status-select").selectOption("in_production");
   await page.getByTestId("status-save").click();
   await expect(page.getByTestId("email-preview")).toBeVisible();
   await expect(page.getByTestId("send-email")).toBeChecked(); // opt-out, not opt-in
   await page.getByTestId("send-email").uncheck();
   await page.getByTestId("status-confirm").click();
 
-  await expect(page.getByTestId("order-detail")).toHaveAttribute("data-status", "confirmed");
+  await expect(page.getByTestId("order-detail")).toHaveAttribute("data-status", "in_production");
   await expect(page.getByTestId("status-notice")).not.toContainText("Email sent");
 });
 
