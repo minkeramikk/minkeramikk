@@ -146,3 +146,22 @@ describe("orderPayloadSchema — customText sanitisation (F38 AC3/AC5)", () => {
     expect(result.success).toBe(true);
   });
 });
+
+describe("orderPayloadSchema — poststed (R4-ORDERS-PLUS voce C)", () => {
+  const withCity = (city: unknown) => ({ ...payload("ok"), city });
+
+  it("accepts a city, and trims it", () => {
+    const r = orderPayloadSchema.safeParse(withCity("  Oslo  "));
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.city).toBe("Oslo");
+  });
+
+  it("stays OPTIONAL, like the rest of the address before launch", () => {
+    expect(orderPayloadSchema.safeParse(payload("ok")).success).toBe(true);
+    expect(orderPayloadSchema.safeParse(withCity("")).success).toBe(true);
+  });
+
+  it("refuses an absurd city instead of letting it reach the label", () => {
+    expect(orderPayloadSchema.safeParse(withCity("x".repeat(81))).success).toBe(false);
+  });
+});

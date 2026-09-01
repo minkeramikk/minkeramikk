@@ -178,6 +178,7 @@
     "phone": "Telefonnummer",
     "address": "Leveringsadresse",
     "zipcode": "Postnummer",
+    "city": "Poststed",
     "country": "Land",
     "message": "Melding",
     "submit": "Bestill",

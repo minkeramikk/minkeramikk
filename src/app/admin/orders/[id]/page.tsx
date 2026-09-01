@@ -271,11 +271,14 @@ export default async function OrderDetailPage({
                 </a>
               </p>
               {order.phone && <p className="text-sm">{order.phone}</p>}
-              {(order.address || order.zipcode || order.country) && (
+              {(order.address || order.zipcode || order.city || order.country) && (
                 <p data-testid="customer-address" className="mt-2 text-sm text-muted-foreground">
                   {order.address}
                   {order.address && <br />}
-                  {[order.zipcode, order.country].filter(Boolean).join(" ")}
+                  {/* R4-ORDERS-PLUS voce C: postnummer, poststed, land — in the
+                      order a label carries them. Orders from before the column
+                      have city NULL and simply read as they always did. */}
+                  {[order.zipcode, order.city, order.country].filter(Boolean).join(" ")}
                 </p>
               )}
               <p className="mt-2 text-xs text-muted-foreground">

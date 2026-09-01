@@ -82,6 +82,7 @@ export async function createOrder(
     p_address: payload.address || "",
     p_zipcode: payload.zipcode || "",
     p_country: payload.country || "",
+    p_city: payload.city || "",
   });
   if (error || !code) {
     return { ok: false, status: 500, error: "could not create order" };

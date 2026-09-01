@@ -48,6 +48,7 @@ function order(p: Partial<AdminOrder> = {}): AdminOrder {
     phone: p.phone ?? null,
     address: p.address ?? null,
     zipcode: p.zipcode ?? null,
+    city: p.city ?? null,
     country: p.country ?? null,
     message: p.message ?? null,
     locale: p.locale ?? "no",
@@ -66,7 +67,7 @@ describe("mapOrderRow", () => {
   it("maps snake_case rows and tolerates an unknown status", () => {
     const raw: RawOrderRow = {
       id: "o1", code: "MK-1", customer_name: "A", email: "a@b.no", phone: null,
-      address: null, zipcode: null, country: null,
+      address: null, zipcode: null, city: null, country: null,
       message: null, locale: "no", status: "weird", internal_notes: null,
       paid_at: null, tracking_code: null, discount_ratified_at: null,
       created_at: "2026-06-04T09:14:00Z", updated_at: "2026-06-04T09:14:00Z",
@@ -89,7 +90,7 @@ describe("mapOrderRow", () => {
   it("resolves productImage from the joined product (F32 visual recap)", () => {
     const raw: RawOrderRow = {
       id: "o2", code: "MK-2", customer_name: "A", email: "a@b.no", phone: null,
-      address: null, zipcode: null, country: null,
+      address: null, zipcode: null, city: null, country: null,
       message: null, locale: "no", status: "new", internal_notes: null,
       paid_at: null, tracking_code: null, discount_ratified_at: null,
       created_at: "2026-06-04T09:14:00Z", updated_at: "2026-06-04T09:14:00Z",
@@ -259,7 +260,7 @@ describe("buildReplicaSet", () => {
 describe("mapOrderRow — payment and tracking (ADR 0021)", () => {
   const raw = (over: Partial<RawOrderRow> = {}): RawOrderRow => ({
     id: "o1", code: "MK-1", customer_name: "A", email: "a@b.no", phone: null,
-    address: null, zipcode: null, country: null, message: null, locale: "no",
+    address: null, zipcode: null, city: null, country: null, message: null, locale: "no",
     status: "new", internal_notes: null, paid_at: null, tracking_code: null,
     discount_ratified_at: null,
     created_at: "2026-06-04T09:14:00Z", updated_at: "2026-06-04T09:14:00Z",

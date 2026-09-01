@@ -38,6 +38,7 @@ export interface LabPdfShipTo {
   email: string | null;
   address: string | null;
   zipcode: string | null;
+  city: string | null;
   country: string | null;
   phone: string | null;
 }
@@ -100,6 +101,7 @@ export function buildLabPdfDoc(
       email: order.email,
       address: order.address,
       zipcode: order.zipcode,
+      city: order.city,
       country: order.country,
       phone: order.phone,
     },
