@@ -5,6 +5,7 @@ import { getThemeTokensSafe } from "@/lib/theme.server";
 import { siteUrl } from "@/lib/site";
 import { encodeSetParam } from "@/lib/cart/set-code";
 import { customerEmail, adminEmail, type MailItem } from "./email-html";
+import { getVippsSettings } from "./vipps.server";
 import { statusEmail } from "./status-email";
 import type { OrderStatus } from "./order-status";
 import type { OrderItemInput } from "./schema";
@@ -164,7 +165,13 @@ export async function sendOrderEmails(
   },
   transport: EmailTransport = defaultTransport()
 ): Promise<void> {
-  const theme = await getThemeTokensSafe();
+  // R4-TAKK-MAIL: the payment details the thank-you page promises the mail
+  // will carry. `getVippsSettings` never throws (it swallows a missing row, a
+  // missing 0035 and an unreachable DB into NO_VIPPS, and its own
+  // `unstable_cache` guard covers being called outside a request scope), so
+  // this await cannot break an order that is already persisted — same
+  // contract as `getThemeTokensSafe` next to it.
+  const [theme, vipps] = await Promise.all([getThemeTokensSafe(), getVippsSettings()]);
   const items = params.items.map((i, idx) => toMailItem(i, idx, params.discount));
 
   const customer = customerEmail({
@@ -175,6 +182,7 @@ export async function sendOrderEmails(
     setUrl: reopenSetUrl(params.items, params.locale, params.code),
     theme,
     baseUrl: siteUrl(),
+    vipps,
   });
   await transport.send({
     to: params.customerEmail,

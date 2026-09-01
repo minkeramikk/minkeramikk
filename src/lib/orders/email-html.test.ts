@@ -1,5 +1,6 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeAll } from "vitest";
 import { customerEmail, adminEmail, supplierEmail, type MailItem } from "./email-html";
+import { NO_VIPPS, type VippsSettings } from "./vipps";
 import type { ThemeTokens } from "@/lib/theme";
 
 const theme: ThemeTokens = { light: "#fbe9e4", dark: "#2b2330", accent: "#7d4f9c" };
@@ -198,5 +199,108 @@ describe("discounted emails (R4-SCONTI)", () => {
     expect(m.html).toContain("Beregnes");
     expect(m.text).toContain("Beregnes");
     expect(m.html).not.toContain("Inkludert");
+  });
+});
+
+/**
+ * R4-TAKK-MAIL: the mail's payment block. The load-bearing assertion is not
+ * "the block renders" but "it survives images being blocked" — so every test
+ * here checks the TEXT facts (number, recipient, order code, melding warning),
+ * never the <img>.
+ */
+describe("payment block (R4-TAKK-MAIL)", () => {
+  beforeAll(() => {
+    process.env.NEXT_PUBLIC_SUPABASE_URL = "https://example.supabase.co";
+  });
+  const base = { name: "Kari", code: "MK-1042", items, setUrl: null, theme };
+  const full: VippsSettings = {
+    qrImage: "settings/vipps-qr.png",
+    number: "123456",
+    link: "https://qr.vipps.no/box/abc",
+  };
+
+  it("renders number, recipient and the melding warning in html AND text", () => {
+    const m = customerEmail({ ...base, locale: "no", vipps: full });
+    for (const body of [m.html, m.text]) {
+      expect(body).toContain("123456");
+      expect(body).toContain("Min Keramikk AS");
+      expect(body).toContain("Vippsnummer");
+      expect(body).toContain("meldingsfeltet");
+      expect(body).toContain("MK-1042");
+    }
+  });
+
+  it("does the same in English", () => {
+    const m = customerEmail({ ...base, locale: "en", vipps: full });
+    for (const body of [m.html, m.text]) {
+      expect(body).toContain("Vipps number");
+      expect(body).toContain("message field in Vipps");
+      expect(body).toContain("MK-1042");
+    }
+  });
+
+  it("stays payable with images blocked: nothing load-bearing lives in the QR", () => {
+    const m = customerEmail({ ...base, locale: "no", vipps: full });
+    // strip every <img> — what a client with remote images off effectively shows
+    const withoutImages = m.html.replace(/<img[^>]*>/g, "");
+    expect(withoutImages).toContain("123456");
+    expect(withoutImages).toContain("Min Keramikk AS");
+    expect(withoutImages).toContain("meldingsfeltet");
+    expect(withoutImages).toContain("MK-1042");
+  });
+
+  it("inlines the --warn tints as literal hex (mail clients resolve neither var() nor color-mix())", () => {
+    const m = customerEmail({ ...base, locale: "no", vipps: full });
+    expect(m.html).toContain("#f7ede4");
+    expect(m.html).toContain("#6d3f00");
+    expect(m.html).not.toContain("color-mix");
+    expect(m.html).not.toContain("var(--");
+  });
+
+  it("shows the QR as an <img> from the assets bucket, with a real alt", () => {
+    const m = customerEmail({ ...base, locale: "no", vipps: full });
+    expect(m.html).toContain("/storage/v1/object/public/assets/settings/vipps-qr");
+    expect(m.html).toContain('alt="Vipps QR-kode"');
+    expect(m.html).toContain('width="104" height="104"');
+  });
+
+  it("NO_VIPPS (and an absent param) leave no trace of the block, and the mail stays complete", () => {
+    for (const m of [
+      customerEmail({ ...base, locale: "no", vipps: NO_VIPPS }),
+      customerEmail({ ...base, locale: "no" }),
+    ]) {
+      expect(m.html).not.toContain("Slik betaler du");
+      expect(m.html).not.toContain("Vippsnummer");
+      expect(m.html).not.toContain("#f7ede4");
+      expect(m.text).not.toContain("Vipps");
+      // still a complete receipt
+      expect(m.html).toContain("Takk for bestillingen");
+      expect(m.text).toContain("MK-1042");
+      expect(m.text).toContain("2× Vietri Flat");
+    }
+  });
+
+  it("QR but no number yet (today's real state) still reads sensibly", () => {
+    const m = customerEmail({
+      ...base,
+      locale: "no",
+      vipps: { qrImage: "settings/vipps-qr.png", number: null, link: null },
+    });
+    expect(m.html).toContain("Slik betaler du");
+    expect(m.html).toContain("Min Keramikk AS");
+    expect(m.html).toContain("meldingsfeltet");
+    // no empty "Vippsnummer" label dangling over a missing number
+    expect(m.html).not.toContain("Vippsnummer");
+    expect(m.text).not.toContain("Vippsnummer");
+  });
+
+  it("number but no QR: no <img>, and the block still carries everything", () => {
+    const m = customerEmail({
+      ...base,
+      locale: "no",
+      vipps: { qrImage: null, number: "123456", link: null },
+    });
+    expect(m.html).toContain("123456");
+    expect(m.html).not.toContain("vipps-qr");
   });
 });

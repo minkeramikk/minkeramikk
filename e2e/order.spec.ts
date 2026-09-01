@@ -70,7 +70,9 @@ test("AC2: invalid email blocks the order (cart kept, field marked invalid)", as
 test("AC3: the confirmation page renders in English", async ({ page }) => {
   await page.goto("/en/order?code=MK-9999");
   await expect(page.getByTestId("order-code")).toHaveText("MK-9999");
-  await expect(page.getByRole("heading")).toContainText("Thank you");
+  // level 1 on purpose: R4-TAKK added the «How to pay» / «What happens now»
+  // <h2>s, so a bare getByRole("heading") is no longer a single element.
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("Thank you");
 });
 
 test("AC mobile: order form usable, no horizontal overflow", async ({

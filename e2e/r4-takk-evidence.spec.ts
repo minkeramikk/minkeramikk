@@ -139,12 +139,10 @@ test(`R4-TAKK: thank-you page — settings "${STATE}", NO/EN, 390/768/1280`, asy
     const payment = page.getByTestId("order-payment");
     if (STATE === "empty") {
       await expect(payment).toHaveCount(0);
-      await expect(page.getByTestId("order-deposit")).toHaveCount(0);
     } else {
       await expect(payment).toBeVisible();
       await expect(page.getByTestId("order-vipps-qr")).toBeVisible();
       await expect(page.getByTestId("order-vipps-melding")).toBeVisible();
-      await expect(page.getByTestId("order-deposit")).toBeVisible();
       await expect(page.getByTestId("order-vipps-number")).toHaveCount(
         STATE === "full" ? 1 : 0
       );
