@@ -11,7 +11,7 @@ import { PhotoLightbox } from "@/components/ui-domain/photo-lightbox";
 import { CLOSE_DISC } from "@/components/ui-domain/close-disc";
 import { assetUrl } from "@/lib/storage";
 import { PRODUCT_THUMB_WIDTH } from "@/lib/asset-variants";
-import { formatMoney, money, multiply } from "@/lib/money/money";
+import { formatMoney, money, multiply, percentOf, subtract } from "@/lib/money/money";
 import { displayPhotos } from "@/lib/catalog/product-photos";
 import { ATTR_ICON } from "@/components/ui-domain/attribute-icons";
 import {
@@ -20,7 +20,9 @@ import {
   publicAttributes,
 } from "@/lib/catalog/product-attributes";
 import { SheetOfferBlock } from "@/components/ui-domain/sheet-offer-block";
+import { DiscountLadder, LadderStickyHint } from "@/components/ui-domain/discount-ladder";
 import type { SheetOffer } from "@/lib/discounts/sheet-offer";
+import type { Ladder } from "@/lib/discounts/ladder";
 import type { CartLayer } from "@/lib/cart/cart";
 import type { CeramicProduct } from "@/app/[locale]/(public)/configurator/ceramics-step";
 import { cn } from "@/lib/utils";
@@ -49,8 +51,12 @@ export function ProductSheet({
   onQty,
   onAdd,
   designLayers,
-  offer,
-  onAddBoth,
+  offers,
+  takenRuleIds,
+  onTakeOffer,
+  ladder,
+  ladderExcluded,
+  inCartQty,
 }: {
   /** null = nothing selected; the sheet renders nothing at all. */
   product: CeramicProduct | null;
@@ -63,17 +69,27 @@ export function ProductSheet({
   onAdd: () => void;
   /** F37: current config layers (empty → no composed pair rendered). */
   designLayers: CartLayer[];
-  /** R4-UPSELL-MODALE (§3.24): null → the sheet renders exactly as it did
-   *  before this offer block existed (AC5). The ONE caller (ceramics-step.tsx)
-   *  always computes this, so it is required rather than optional (F4). */
-  offer: SheetOffer | null;
-  /** Adds the whole bundle (this product + the suggested one) atomically and
-   *  closes the sheet. Always wired by the one caller — required (F4). */
-  onAddBoth: () => void;
+  /** R4-UPSELL-MODALE (§3.24) / R4-SCONTI-2 §D: every eligible offer, in the
+   *  admin's order. Empty → the band does not exist and the sheet renders as it
+   *  did before this block (AC5). The ONE caller always computes it (F4). */
+  offers: SheetOffer[];
+  /** Rules already taken in this sheet session (§D.2): marked, not pressable. */
+  takenRuleIds: string[];
+  /** Takes one offer: adds the base (only when the basket does not already fire
+   *  the rule) plus the offer's ceramic, and LEAVES THE SHEET OPEN (§D.2). */
+  onTakeOffer: (offer: Extract<SheetOffer, { kind: "unlocked" }>) => void;
+  /** R4-SCONTI-2 §C: the quantity scale, computed over CART + SELECTOR by the
+   *  caller. Null → no scale at all, and no empty frame. */
+  ladder: Ladder | null;
+  /** The product sits outside the discount multi-select: one line says so. */
+  ladderExcluded: boolean;
+  /** Pieces of this product already in the basket (all designs). */
+  inCartQty: number;
 }) {
   // TODO:nb-review NO copy: productSheet.close
   const tCfg = useTranslations("configurator");
   const tCart = useTranslations("cart");
+  const tLadder = useTranslations("configurator.ladder");
   // which photo the lightbox shows (null = closed). Nested inside the sheet's
   // content, so Radix's dismissable-layer stack gives us §3.19's "Esc closes the
   // lightbox first, then the sheet" for free.
@@ -111,6 +127,11 @@ export function ProductSheet({
   const zoomable = (p.photos?.length ?? 0) > 0;
   // Storefront shows only customer-facing attributes (weight is internal).
   const attributes = publicAttributes(p.attributes);
+  // §C: the tier the ladder says is earned drives the price shown AND the CTA's
+  // total — one number, derived once, so the two cannot disagree.
+  const tierPct = ladder?.pct ?? 0;
+  const unitFull = money(p.priceCents, p.currency);
+  const unitNet = tierPct > 0 ? subtract(unitFull, percentOf(unitFull, tierPct)) : unitFull;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -262,10 +283,34 @@ export function ProductSheet({
               </p>
             </div>
 
-            <div className="flex items-baseline gap-2.5">
-              <span className="text-2xl font-semibold tabular-nums">
-                {formatMoney(money(p.priceCents, p.currency), locale)}
+            {/* §C: applied REWRITES the unit price — a badge on the full price
+                reads as a promise, a price that falls reads as a fact. */}
+            <div className="flex flex-wrap items-baseline gap-2.5">
+              <span data-testid="sheet-unit-price" className="text-2xl font-semibold tabular-nums">
+                {formatMoney(unitNet, locale)}
               </span>
+              {tierPct > 0 && (
+                <>
+                  <s
+                    aria-hidden="true"
+                    data-testid="sheet-unit-full"
+                    className="text-sm text-muted-foreground tabular-nums"
+                  >
+                    {formatMoney(unitFull, locale)}
+                  </s>
+                  <span
+                    data-testid="sheet-unit-badge"
+                    className="rounded-full px-2 py-0.5 text-[10px] font-semibold whitespace-nowrap"
+                    style={{
+                      backgroundColor: "color-mix(in oklab, var(--discount) 16%, white)",
+                      color: "color-mix(in oklab, var(--discount), black 34%)",
+                      border: "1px solid color-mix(in oklab, var(--discount) 38%, white)",
+                    }}
+                  >
+                    {tCart("discount.badge", { pct: tierPct })}
+                  </span>
+                </>
+              )}
               <SetBadge count={p.pieces} />
             </div>
 
@@ -299,25 +344,53 @@ export function ProductSheet({
               </p>
             )}
 
-            {/* R4-UPSELL-MODALE (§3.24): absent entirely when there is no
-                offer to show — `offer` is null for every caller that has not
-                wired Task 4 yet, so the sheet stays byte-identical (AC5). */}
-            {offer && (
-              <SheetOfferBlock
-                offer={offer}
-                currentName={name}
-                currentUnitPriceCents={p.priceCents}
-                currency={p.currency}
-                qty={qty}
-                locale={locale}
-                onSetQty={onQty}
-                onAddBoth={onAddBoth}
-              />
+            {/* §3.24: absent entirely when there is nothing to show — an empty
+                list renders no node, so the sheet stays byte-identical (AC5). */}
+            <SheetOfferBlock
+              offers={offers}
+              currentName={name}
+              locale={locale}
+              takenRuleIds={takenRuleIds}
+              onSetQty={onQty}
+              onTake={onTakeOffer}
+            />
+
+            {/* §3.26: the scale sits ON the selector — the only place a number
+                is chosen is the only place the scale can change a mind. */}
+            <DiscountLadder
+              ladder={ladder}
+              excluded={ladderExcluded}
+              unitPriceCents={p.priceCents}
+              currency={p.currency}
+              locale={locale}
+              inCart={inCartQty}
+              onSetQty={onQty}
+            />
+
+            {/* Why the scale is ahead of the selector. Also the accessible
+                confirmation after taking an offer, which leaves the sheet open
+                (§D.2) — hence role="status", there is no toast on that path. */}
+            {inCartQty > 0 && (
+              <p
+                role="status"
+                data-testid="sheet-in-cart"
+                className="rounded-sm bg-muted px-3 py-2 text-xs text-muted-foreground"
+              >
+                {tLadder("inCart", { qty: inCartQty, name })}
+              </p>
             )}
 
             {/* Buy row — sticky at the bottom of the scroller on mobile (§3.19),
                 static in the desktop column where `mt-auto` pins it to the end. */}
-            <div className="sticky bottom-0 mt-auto flex items-center gap-2.5 bg-card pt-2.5 shadow-[0_-8px_12px_-8px_color-mix(in_oklab,var(--foreground)_15%,transparent)] sm:static sm:shadow-none">
+            <div className="sticky bottom-0 mt-auto bg-card pt-2.5 shadow-[0_-8px_12px_-8px_color-mix(in_oklab,var(--foreground)_15%,transparent)] sm:static sm:shadow-none">
+              {/* Mobile only: the buy row is sticky, the scale is not. */}
+              <LadderStickyHint
+                ladder={ladder}
+                unitPriceCents={p.priceCents}
+                currency={p.currency}
+                locale={locale}
+              />
+              <div className="flex items-center gap-2.5">
               <div className="flex items-center rounded-full border border-border bg-background">
                 <button
                   type="button"
@@ -352,14 +425,13 @@ export function ProductSheet({
                 data-testid="add-to-cart"
                 onClick={onAdd}
               >
-                {/* D-Q1: the total rides along ONLY when the offer block is on
-                    screen, where it exists to be compared with the bundle's
-                    own total. With no second figure beside it, it would only
-                    lengthen a button already tight at 360px in English. */}
-                {offer
-                  ? `${tCart("add")} · ${formatMoney(multiply(money(p.priceCents, p.currency), qty), locale)}`
-                  : tCart("add")}
+                {/* R4-SCONTI-2 §D.1: the CTA carries the quantity ALWAYS, not
+                    only beside an offer (supersedes D-Q1) — with the scale
+                    rewriting the unit price above, a CTA without a figure would
+                    be the one number missing from the column. */}
+                {`${tCart("add")} · ${formatMoney(multiply(unitNet, qty), locale)}`}
               </Button>
+              </div>
             </div>
           </div>
         </div>

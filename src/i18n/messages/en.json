@@ -161,6 +161,16 @@
       "edit": "Edit colours",
       "editShort": "Edit",
       "pairCaption": "This ceramic + your design"
+    },
+    "ladder": {
+      "title": "Quantity discount",
+      "save": "You save {amount}",
+      "saveUpTo": "Save up to −{pct}%",
+      "nudge": "{missing, plural, one {One more} other {# more}}, and you save {amount}",
+      "best": "Best discount reached",
+      "step": "Choose {qty} pieces, −{pct}%",
+      "excluded": "This ceramic is not part of the quantity discount.",
+      "inCart": "{qty} {name} are in the basket — the quantity discount counts them."
     }
   },
   "orderForm": {
@@ -265,7 +275,13 @@
       "kicker": "Offer",
       "kickerUnlocked": "Offer unlocked",
       "unlock": "Add {missing} more to unlock",
-      "addBoth": "Add both · {total}"
+      "addBoth": "Add both · {total}",
+      "addBase": "Add {base}+{extra}",
+      "addOnly": "Add {extra}",
+      "whatBoth": "Adds {base} {name} + {extra} {extraName}",
+      "whatOnly": "Adds {extra} {extraName} (the {name} are already in the basket)",
+      "self": "Take {qty} more — −{pct}%",
+      "taken": "Added to the basket"
     },
     "addedWithPct": "Added to your basket · −{pct}%"
   },

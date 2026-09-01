@@ -2,57 +2,57 @@
 
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
-import { add, formatMoney, money, multiply, percentOf, subtract, type Currency } from "@/lib/money/money";
+import { formatMoney, money, multiply, percentOf, subtract } from "@/lib/money/money";
 import type { SheetOffer } from "@/lib/discounts/sheet-offer";
+import { cn } from "@/lib/utils";
 
 /**
- * R4-UPSELL-MODALE — the offer block above the product sheet's buy row
- * (DESIGN-SYSTEM §3.24, mockup `mockup-modale-upsell.html`).
+ * R4-UPSELL-MODALE / R4-SCONTI-2 §D (DESIGN-SYSTEM §3.24) — the offers in the
+ * product sheet, above the buy row.
  *
  * Presentational only: everything it needs is a prop, nothing is read from
- * context, so it can be reasoned about (and screenshotted) on its own. The
- * caller decides when it mounts — `offer === null` renders nothing, which is
- * how the product sheet stays byte-identical when there is no rule to show.
+ * context, so it can be reasoned about (and screenshotted) on its own. An empty
+ * list renders nothing at all — the band does not exist.
  *
- * Two states, never a third:
- *  - locked: the rule exists but the stepper hasn't reached it yet. ONE
- *    string carries both the explanation and the shortcut (D-Q2) — a second
- *    sentence next to it would be a second source of truth for a number the
- *    engine already computed as `offer.missing`.
- *  - unlocked: both bundle rows, always both (a deal's button adds the base
- *    pieces AND the extra ceramic — showing only the discounted row would
- *    let someone expecting the net price receive the whole bundle's bill).
- *    Row recipe reused from `cart-suggestion.tsx` / `cart-discount-row.tsx`,
- *    not restyled: `<s>` full price, net price, `cart.discount.badge` pill.
+ * ONE compact list, not a card per offer (Alessio, 1/9): row = thumb + name and
+ * price + a small button on the right. Three offers must fit in one box without
+ * turning it into a flyer.
  *
- * TODO:nb-review NO copy: cart.sheetOffer.* (TL wording, D-Q1/D-Q2 rulings)
+ * Two things the rows must keep saying:
+ *  - §D.1 — the button DECLARES what it adds. «Legg til 8+4» is eight plates
+ *    plus the four on offer; when the basket alone already fires the rule it
+ *    becomes «Legg til 4». The numbers come from the engine (`baseQty`), never
+ *    from arithmetic done here.
+ *  - §D.2 — a taken offer STAYS in the list, marked and no longer pressable.
+ *    The sheet does not close, so the customer can take the others too.
+ *
+ * TODO:nb-review NO copy: cart.sheetOffer.*
  */
 export function SheetOfferBlock({
-  offer,
+  offers,
   currentName,
-  currentUnitPriceCents,
-  currency,
-  qty,
   locale,
+  takenRuleIds,
   onSetQty,
-  onAddBoth,
+  onTake,
 }: {
-  offer: SheetOffer | null;
+  offers: SheetOffer[];
+  /** The product the sheet is open on — what «adds N …» names. Never the design. */
   currentName: string;
-  currentUnitPriceCents: number;
-  currency: Currency;
-  qty: number;
   locale: "no" | "en";
+  /** Rules already taken in this sheet session: marked, not pressable. */
+  takenRuleIds: string[];
   onSetQty: (next: number) => void;
-  onAddBoth: () => void;
+  onTake: (offer: Extract<SheetOffer, { kind: "unlocked" }>) => void;
 }) {
   const t = useTranslations("cart.sheetOffer");
   const tSuggestion = useTranslations("cart.suggestion");
   const tDiscount = useTranslations("cart.discount");
 
-  if (!offer) return null;
+  if (offers.length === 0) return null;
 
-  if (offer.kind === "locked") {
+  const locked = offers[0].kind === "locked" ? offers[0] : null;
+  if (locked) {
     return (
       <div
         data-testid="sheet-offer"
@@ -69,31 +69,15 @@ export function SheetOfferBlock({
           <button
             type="button"
             data-testid="sheet-offer-unlock"
-            onClick={() => onSetQty(offer.neededQty)}
+            onClick={() => onSetQty(locked.neededQty)}
             className="-mx-1 inline-flex min-h-11 items-center px-1 py-2 text-sm font-medium text-primary underline underline-offset-2 hover:text-foreground"
           >
-            {t("unlock", { missing: offer.missing })}
+            {t("unlock", { missing: locked.missing })}
           </button>
         </div>
       </div>
     );
   }
-
-  // Unlocked: rule.suggested is guaranteed here — sheet-offer.ts (Task 1)
-  // already refuses to return an unlocked offer whose card cannot be drawn.
-  const { suggestion } = offer;
-  const p = suggestion.rule.suggested;
-  if (!p) return null;
-
-  const unit = money(currentUnitPriceCents, currency);
-  const base = multiply(unit, qty);
-
-  const full = multiply(money(p.priceCents, p.currency), suggestion.rule.suggestedQty);
-  const saved = suggestion.pct > 0 ? percentOf(full, suggestion.pct) : money(0, p.currency);
-  const net = subtract(full, saved);
-  const total = add(base, net);
-
-  const suggestedName = locale === "no" ? p.nameNo : p.nameEn;
 
   return (
     <div
@@ -108,64 +92,118 @@ export function SheetOfferBlock({
         {t("kickerUnlocked")}
       </p>
 
-      <div className="flex flex-col gap-1.5">
-        <div
-          data-testid="sheet-offer-base"
-          className="flex items-baseline justify-between gap-2 text-sm tabular-nums"
-        >
-          <span className="min-w-0 truncate font-medium">
-            {tSuggestion("qtyName", { qty, name: currentName })}
-          </span>
-          <span className="shrink-0">{formatMoney(base, locale)}</span>
-        </div>
+      <ul className="flex flex-col">
+        {offers.map((offer) => {
+          if (offer.kind !== "unlocked") return null;
+          const { suggestion, baseQty, selfOffer } = offer;
+          const p = suggestion.rule.suggested;
+          // Guaranteed by sheet-offer.ts, which drops an undrawable row; the
+          // narrowing is for the type, not for a case that can happen.
+          if (!p) return null;
 
-        <div
-          data-testid="sheet-offer-extra"
-          className="flex items-baseline justify-between gap-2 text-sm tabular-nums"
-        >
-          <span className="min-w-0 truncate font-medium">
-            {tSuggestion("qtyName", { qty: suggestion.rule.suggestedQty, name: suggestedName })}
-          </span>
-          <span className="flex shrink-0 flex-wrap items-center justify-end gap-x-2 gap-y-0.5">
-            {suggestion.pct > 0 && (
-              <s aria-hidden="true" className="text-xs text-muted-foreground tabular-nums">
-                {formatMoney(full, locale)}
-              </s>
-            )}
-            <span>
-              {/* Same recipe as the cart's rows: the struck-through full price is
-                  aria-hidden, so without this the screen reader announces a bare
-                  number with nothing marking it as the reduced one. Tied to the
-                  same condition as the <s>, since "Now:" says nothing when there
-                  is no "before". */}
-              {suggestion.pct > 0 && (
-                <span className="sr-only">{tDiscount("srNowLabel")} </span>
+          const extraQty = suggestion.rule.suggestedQty;
+          const full = multiply(money(p.priceCents, p.currency), extraQty);
+          const net = subtract(full, percentOf(full, suggestion.pct));
+          const suggestedName = locale === "no" ? p.nameNo : p.nameEn;
+          const taken = takenRuleIds.includes(suggestion.rule.id);
+
+          return (
+            <li
+              key={suggestion.rule.id}
+              data-testid="sheet-offer-row"
+              className={cn(
+                "flex items-center gap-2.5",
+                "[&+&]:mt-2.5 [&+&]:border-t [&+&]:pt-2.5"
               )}
-              {formatMoney(net, locale)}
-            </span>
-            {suggestion.pct > 0 && (
-              <span
-                className="rounded-full px-2 py-0.5 text-[10px] font-semibold whitespace-nowrap"
-                style={{
-                  backgroundColor: "color-mix(in oklab, var(--discount) 16%, white)",
-                  color: "color-mix(in oklab, var(--discount), black 34%)",
-                  border: "1px solid color-mix(in oklab, var(--discount) 38%, white)",
-                }}
-              >
-                {tDiscount("badge", { pct: suggestion.pct })}
-              </span>
-            )}
-          </span>
-        </div>
-      </div>
+              style={{ borderTopColor: "color-mix(in oklab, var(--primary) 18%, var(--border))" }}
+            >
+              {p.image ? (
+                /* eslint-disable-next-line @next/next/no-img-element -- catalog art from storage */
+                <img
+                  src={p.image}
+                  alt=""
+                  aria-hidden
+                  loading="lazy"
+                  className="size-9 shrink-0 rounded-full object-cover"
+                />
+              ) : (
+                <span aria-hidden className="size-9 shrink-0 rounded-full bg-muted" />
+              )}
 
-      <Button
-        data-testid="sheet-offer-add-both"
-        onClick={onAddBoth}
-        className="mt-3 min-h-11 w-full"
-      >
-        {t("addBoth", { total: formatMoney(total, locale) })}
-      </Button>
+              <span className="min-w-0 flex-1">
+                <b
+                  className={cn(
+                    "block truncate text-[13px] font-semibold",
+                    taken && "text-muted-foreground"
+                  )}
+                >
+                  {selfOffer
+                    ? t("self", { qty: extraQty, pct: suggestion.pct })
+                    : tSuggestion("qtyName", { qty: extraQty, name: suggestedName })}
+                </b>
+                <span className="text-xs tabular-nums">
+                  <s aria-hidden="true" className="mr-1.5 text-muted-foreground">
+                    {formatMoney(full, locale)}
+                  </s>
+                  <span className="sr-only">{tDiscount("srNowLabel")} </span>
+                  {formatMoney(net, locale)}{" "}
+                  <span
+                    className="rounded-full px-2 py-0.5 text-[10px] font-semibold whitespace-nowrap"
+                    style={{
+                      backgroundColor: "color-mix(in oklab, var(--discount) 16%, white)",
+                      color: "color-mix(in oklab, var(--discount), black 34%)",
+                      border: "1px solid color-mix(in oklab, var(--discount) 38%, white)",
+                    }}
+                  >
+                    {tDiscount("badge", { pct: suggestion.pct })}
+                  </span>
+                </span>
+                <span className="mt-0.5 block text-[11px] text-muted-foreground">
+                  {taken
+                    ? t("taken")
+                    : baseQty > 0
+                      ? t("whatBoth", {
+                          base: baseQty,
+                          name: currentName,
+                          extra: extraQty,
+                          extraName: suggestedName,
+                        })
+                      : t("whatOnly", {
+                          extra: extraQty,
+                          extraName: suggestedName,
+                          name: currentName,
+                        })}
+                </span>
+              </span>
+
+              {taken ? (
+                <span
+                  data-testid="sheet-offer-taken"
+                  aria-hidden
+                  className="grid min-h-9 min-w-11 shrink-0 place-items-center rounded-full text-sm font-semibold"
+                  style={{
+                    backgroundColor: "color-mix(in oklab, var(--discount) 18%, white)",
+                    color: "color-mix(in oklab, var(--discount), black 36%)",
+                    border: "1px solid color-mix(in oklab, var(--discount) 40%, white)",
+                  }}
+                >
+                  ✓
+                </span>
+              ) : (
+                <Button
+                  data-testid="sheet-offer-add"
+                  onClick={() => onTake(offer)}
+                  className="min-h-9 shrink-0 rounded-full px-3.5 text-[12.5px] tabular-nums"
+                >
+                  {baseQty > 0
+                    ? t("addBase", { base: baseQty, extra: extraQty })
+                    : t("addOnly", { extra: extraQty })}
+                </Button>
+              )}
+            </li>
+          );
+        })}
+      </ul>
     </div>
   );
 }
