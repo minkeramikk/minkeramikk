@@ -4,6 +4,7 @@ import { useActionState, useEffect, useId, useRef, useState, useTransition } fro
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ProductPicker, type EditorProduct } from "@/components/admin/product-multi-select";
+import { rulePreview } from "@/lib/discounts/rule-preview";
 import {
   saveDiscountRule,
   deleteDiscountRule,
@@ -130,6 +131,17 @@ function RuleCard({
 
   const [deletePending, startDelete] = useTransition();
   const [deleteError, setDeleteError] = useState<string>();
+
+  const suggested = products.find((p) => p.id === suggestedProductId);
+  const preview = rulePreview({
+    triggerMinQty: Number(triggerMinQty) || 0,
+    suggestedQty: Number(suggestedQty) || 0,
+    suggestedName: suggested?.nameEn ?? "",
+    discountMode,
+    discountPct: discountPct === "" ? null : Number(discountPct),
+    suggestedPriceCents: suggested?.priceCents ?? null,
+    currency: suggested?.currency,
+  });
 
   function handleDelete() {
     if (!id) {
@@ -297,6 +309,16 @@ function RuleCard({
           />
           %
         </p>
+
+        {/* R4-SCONTI-2 §B: the rule, read back in plain English. With the
+            same-product upsell unlocked a trigger of 1 suggesting 10 is now
+            configurable; we do not forbid it, but nobody saves one without
+            having read what it hands out. */}
+        {preview && (
+          <p className="text-xs text-muted-foreground" data-testid="rule-preview">
+            {preview}
+          </p>
+        )}
 
         {(state.error || deleteError) && (
           <p role="alert" className="text-sm text-destructive" data-testid="rule-error">

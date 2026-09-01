@@ -60,6 +60,8 @@ export default async function AdminDiscountsPage() {
     nameNo: p.name_no,
     nameEn: p.name_en,
     price: formatMoney(money(p.price_cents, p.currency as Currency), "en"),
+    priceCents: p.price_cents,
+    currency: p.currency as Currency,
     image: p.image ? assetUrl(p.image, { width: PRODUCT_THUMB_WIDTH }) : null,
     visible: p.visible,
   }));
