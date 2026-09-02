@@ -672,37 +672,36 @@ test.describe("R4-SCONTI evidence — offers are a list", () => {
 });
 
 /**
- * R4-UPSELL-MODALE — the offer block INSIDE the product sheet (§3.24), not
- * the cart's own suggestion card the blocks above already cover: dimmed and
- * locked below the rule's own threshold, both bundle rows plus «Add both»
- * once unlocked, and the cart after that one gesture — the actual proof of
- * AC3 (the base ceramic AND the discounted suggestion land in one add, never
- * screenshotted before this task).
+ * R4-UPSELL-POST-ADD ③ — the offers, where they live now: the panel that comes
+ * up AFTER «Legg i handlekurv».
  *
- * Reuses `discoverTriggerAndSuggested()` (①/② discovery above, D2: rule and
- * candidate must share a supplier) instead of a third copy of that lookup —
- * only the locale in its `step3` URL is swapped per iteration.
+ * Replaces the R4-UPSELL-MODALE block that stood here. That one shot the offer
+ * band inside the sheet in its two states — locked below the threshold, then
+ * unlocked with both bundle rows and «Add both» — and every testid it reached
+ * for (`sheet-offer-locked`, `sheet-offer-unlock`, `sheet-offer-base`,
+ * `sheet-offer-extra`, `sheet-offer-add-both`) is gone with the band itself.
+ * Neither state exists any more: below the threshold the offer is not on screen
+ * at all (Alessio 2/9), and above it there is no bundle to draw, because the
+ * base is already in the basket by the time the panel opens.
  *
- * One seed per locale, both breakpoints inside the SAME seed/restore (same
- * shape as "customer cart: tiers" above): cheaper than seeding twice, and the
- * `localStorage.clear()` between the two passes keeps the SECOND pass's
- * locked shot honest — a bundle already added at 390 would satisfy the
- * trigger before the 1280 pass ever opens the sheet.
+ * What it shoots instead is the sequence the customer sees: the sheet at the
+ * quantity that will fire the rule, the panel that replaces it, and the card
+ * once taken (✓, panel still open — §D.2).
  *
- * Every lookup is scoped `[data-testid="…"]:visible`: `sheet-offer-*` live
- * inside the ONE Radix-portalled `ProductSheet` (never duplicated — see the
- * "ONE Radix Dialog" note in product-sheet.tsx), but `cart-line` / `cart-list`
- * are not — the step-3 docked panel is mounted twice (desktop rail + mobile
- * section, same testids), so an unscoped query trips Playwright's strict
- * mode the moment both are in the DOM together (met in the wild on this
- * branch already, see the "offer is not owed below its own size" block).
+ * Reuses `discoverTriggerAndSuggested()` (D2: rule and candidate must share a
+ * supplier); one seed per locale, both breakpoints inside the SAME
+ * seed/restore, with `localStorage.clear()` between the passes so the second
+ * one is not looking at the first one's basket.
+ *
+ * Every lookup is scoped `:visible`: `cart-line` / `cart-list` are mounted
+ * twice on step 3 (desktop rail + mobile section, same testids).
  */
-test.describe("R4-UPSELL-MODALE evidence — the sheet offer block", () => {
+test.describe("R4-UPSELL-POST-ADD evidence — the post-add panel", () => {
   test.skip(!CAN_SEED, "MK_E2E_SEED=1 richiesto: semina una regola upsell nel catalogo reale");
   test.describe.configure({ timeout: 120_000 });
 
   for (const locale of ["no", "en"] as const) {
-    test(`sheet offer locked, unlocked, add both (${locale.toUpperCase()}) @390 + @1280`, async ({
+    test(`post-add panel: offered, then taken (${locale.toUpperCase()}) @390 + @1280`, async ({
       page,
     }) => {
       const found = await discoverTriggerAndSuggested();
@@ -725,53 +724,57 @@ test.describe("R4-UPSELL-MODALE evidence — the sheet offer block", () => {
         ] as const) {
           await page.setViewportSize(vp);
           await page.goto(step3);
-          // Fresh basket for this pass: a bundle added in the PREVIOUS
-          // breakpoint's "add both" would already satisfy the trigger and
-          // the locked state would never appear.
           await page.evaluate(() => localStorage.clear());
 
           // config.server.ts caches the discount config for up to 10s —
-          // reload-and-retry, same idiom as every other seed in this file,
-          // so the sheet is never opened against a still-stale read.
+          // reload-and-retry, same idiom as every other seed in this file.
           await expect(async () => {
             await page.reload();
             await page.getByTestId("ceramics-step").waitFor();
             await ceramicCards(page).first().click();
             await expect(page.getByTestId("product-sheet")).toBeVisible();
-            await expect(vis("sheet-offer-locked")).toBeVisible();
+            await expect(vis("discount-ladder")).toBeVisible();
           }).toPass({ timeout: 20_000 });
 
-          // (a) LOCKED — dimmed block, below the rule's own threshold, the
-          // unlock CTA in the same frame as the qty stepper it will raise.
-          await vis("sheet-offer").scrollIntoViewIfNeeded();
+          // (a) the SHEET at the quantity that will fire the rule — and the
+          // proof of AC7: no offer on it, at that quantity or any other.
+          await vis("qty-inc").click(); // 2 = the rule's own threshold
+          await expect(page.getByTestId("sheet-offer")).toHaveCount(0);
           await page.screenshot({
-            path: `${OUT}/sheet-offer-locked-${vpLabel}-${locale}.png`,
+            path: `${OUT}/post-add-sheet-at-threshold-${vpLabel}-${locale}.png`,
             fullPage: true,
           });
 
-          // (b) UNLOCKED — the unlock button raises the stepper straight to
-          // the rule's own quantity (D-Q2: the block's shortcut IS the
-          // missing number); both bundle rows plus «Add both» in frame.
-          await vis("sheet-offer-unlock").click();
-          await expect(vis("sheet-offer-base")).toBeVisible();
-          await expect(vis("sheet-offer-extra")).toBeVisible();
-          await expect(vis("sheet-offer-add-both")).toBeVisible();
-          await vis("sheet-offer").scrollIntoViewIfNeeded();
-          await page.screenshot({
-            path: `${OUT}/sheet-offer-unlocked-${vpLabel}-${locale}.png`,
-            fullPage: true,
-          });
-
-          // (c) ADD BOTH — one gesture, two lines: the configured ceramic
-          // AND the discounted suggestion (AC3). «Add both» closes the sheet
-          // itself (showAddedToast → setSheet(false)); the cart panel is
-          // what proves the second line actually landed.
-          await vis("sheet-offer-add-both").click();
+          // (b) the PANEL — the sheet closed, the confirmation and the offer
+          // cards took its place. At 1280 the sheet's right column is shorter
+          // than its photos now that the offer band has left it: the gap under
+          // the scale is deliberate, and the shot above keeps it on the record.
+          await vis("add-to-cart").click();
           await expect(page.getByTestId("product-sheet")).toBeHidden();
+          await expect(vis("added-sheet")).toBeVisible();
+          await expect(vis("sheet-offer-add").first()).toBeVisible();
+          await page.screenshot({
+            path: `${OUT}/post-add-panel-${vpLabel}-${locale}.png`,
+            fullPage: true,
+          });
+
+          // (c) TAKEN — one card adds one thing, turns into the ✓, and the
+          // panel stays open (§D.2).
+          await vis("sheet-offer-add").first().click();
+          await expect(vis("sheet-offer-taken").first()).toBeVisible();
+          await expect(vis("added-sheet")).toBeVisible();
+          await page.screenshot({
+            path: `${OUT}/post-add-panel-taken-${vpLabel}-${locale}.png`,
+            fullPage: true,
+          });
+
+          // (d) the basket behind it: two lines, the ceramic and the offer.
+          await vis("added-sheet-continue").click();
+          await expect(vis("added-sheet")).toHaveCount(0);
           await expect(vis("cart-line")).toHaveCount(2);
           await vis("cart-list").scrollIntoViewIfNeeded();
           await page.screenshot({
-            path: `${OUT}/sheet-offer-cart-after-add-both-${vpLabel}-${locale}.png`,
+            path: `${OUT}/post-add-cart-${vpLabel}-${locale}.png`,
             fullPage: true,
           });
         }
@@ -783,20 +786,27 @@ test.describe("R4-UPSELL-MODALE evidence — the sheet offer block", () => {
 });
 
 /**
- * R4-SCONTI-2 — the product sheet: the ladder and the offer list.
+ * R4-UPSELL-POST-ADD ① — the scale as a step table, on the LIVE shop.
  *
  * READ-ONLY: it seeds nothing and restores nothing, because it does not have
- * to — it runs against the LIVE discount config, which is the whole point of
- * this evidence (the shots must show what the shop actually publishes, tiers
- * and rules included). The only writes in this file stay in the blocks above.
+ * to — it runs against the live discount config, which is the whole point of
+ * this evidence (the shots must show what the shop actually publishes). The
+ * only writes in this file stay in the blocks above.
+ *
+ * It no longer shoots «best discount reached» or a taken offer: the first is
+ * copy this card deleted, and the second belongs to the panel, which the block
+ * above covers under a seed. What is left is the table itself at the three
+ * quantities the card names — and «Mest valgt» must be WHOLE in every shot, at
+ * both breakpoints: the tag is absolutely placed above its column, inside a
+ * scrollport that clips what sticks out, which is exactly how the old bar's
+ * markers got their tops cut off.
  *
  * The states that need a scale the shop does not currently have (a product
- * excluded from the discounts, a seven-step scale, a same-product offer) cannot
- * be produced without writing to the live catalogue: they are covered by the
- * unit tests (ladder.test.ts, sheet-offer.test.ts) and by the seeded e2e in
- * cart.spec.ts / discounts.spec.ts, which run with MK_E2E_SEED=1.
+ * excluded from the discounts, a seven-step scale) cannot be produced without
+ * writing to the live catalogue: they are covered by the unit tests
+ * (ladder.test.ts, discount-ladder.test.ts).
  */
-test.describe("product sheet: the ladder and the offer list (R4-SCONTI-2)", () => {
+test.describe("product sheet: the discount step table (R4-UPSELL-POST-ADD ①)", () => {
   const SIZES = [
     { label: "390", size: PHONE },
     { label: "768", size: { width: 768, height: 1000 } },
@@ -814,34 +824,31 @@ test.describe("product sheet: the ladder and the offer list (R4-SCONTI-2)", () =
         const sheet = page.getByTestId("product-sheet");
         await expect(sheet).toBeVisible();
 
-        // ① below the first step — the scale is a price list before it is a discount
-        await sheet.screenshot({ path: `${OUT}/sheet-below-${label}-${lang}.png` });
+        // AC7, at the quantity the customer opens on: no offer on the sheet.
+        await expect(sheet.getByTestId("sheet-offer")).toHaveCount(0);
 
         const steps = sheet.getByTestId("ladder-step");
         const count = await steps.count();
         test.skip(count === 0, "the live shop has no quantity scale switched on");
 
-        // ② applied — the unit price is rewritten, the full one struck through
+        // ① at 1 — the box sits on «1 stk», the baseline column, and the scale
+        // reads as the price list it also is.
+        await expect(sheet.getByTestId("ladder-step-base")).toHaveAttribute(
+          "aria-current",
+          "step"
+        );
+        await sheet.screenshot({ path: `${OUT}/sheet-at-1-${label}-${lang}.png` });
+
+        // ② on the first tier — the box moves, the unit price is rewritten and
+        // the full one struck through, the CTA carries the net total.
         await steps.first().click();
+        await expect(steps.first()).toHaveAttribute("aria-current", "step");
         await expect(sheet.getByTestId("sheet-unit-full")).toBeVisible();
-        await sheet.screenshot({ path: `${OUT}/sheet-applied-${label}-${lang}.png` });
+        await sheet.screenshot({ path: `${OUT}/sheet-at-tier-${label}-${lang}.png` });
 
-        // ③ past the last step — "best discount reached", nothing further promised
+        // ③ the top of the scale — where the row scrolls, if it scrolls at all.
         await steps.nth(count - 1).click();
-        for (let i = 0; i < 2; i++) await sheet.getByTestId("qty-inc").click();
-        await sheet.screenshot({ path: `${OUT}/sheet-best-${label}-${lang}.png` });
-
-        // ④ §D.2, after taking an offer: the sheet STAYS open, the row is marked
-        // «added», the stepper is back to 1 and the ladder now counts what the
-        // basket holds. Writes nothing but the browser's own cart.
-        const add = sheet.getByTestId("sheet-offer-add").first();
-        if ((await add.count()) > 0) {
-          await add.click();
-          await expect(sheet).toBeVisible();
-          await expect(sheet.getByTestId("sheet-offer-taken").first()).toBeVisible();
-          await expect(sheet.getByTestId("qty-value")).toHaveText("1");
-          await sheet.screenshot({ path: `${OUT}/sheet-offer-taken-${label}-${lang}.png` });
-        }
+        await sheet.screenshot({ path: `${OUT}/sheet-at-top-${label}-${lang}.png` });
       });
     }
   }

@@ -173,11 +173,66 @@ test("AC-SC4: the suggestion appears at the threshold, shows both prices, and ad
 });
 
 
-test("AC-SC13: the offer list in the sheet — the button says what it adds, and the sheet stays open", async ({
+test("AC-SC13: the offer comes up AFTER the add, and adds only the suggestion", async ({
   page,
 }) => {
-  // Threshold 4, offer of 2: with an empty basket the button must add the four
-  // the customer chose PLUS the two on offer, and say so (§D.1).
+  // R4-UPSELL-POST-ADD: this used to assert «Legg til 4+2» inside the sheet —
+  // the base plus the offer, in one button. The offer no longer lives in the
+  // sheet at all: the customer adds their four, the sheet closes, and the panel
+  // comes up with the base already in the basket. So the button adds ONE thing,
+  // and the two-number label it used to carry cannot exist any more.
+  const seeded = await seedDiscountRule({
+    triggerProductId,
+    suggestedProductId,
+    minQty: 4,
+    pct: 20,
+    suggestedQty: 2,
+  });
+  try {
+    await page.goto(step3);
+    const sheet = page.getByTestId("product-sheet");
+    const panel = page.getByTestId("added-sheet");
+    await expect(async () => {
+      await page.reload();
+      await ceramicCards(page).first().click();
+      await expect(sheet).toBeVisible();
+      await sheet.getByTestId("qty-inc").click(); // 2
+      await sheet.getByTestId("qty-inc").click(); // 3
+      await sheet.getByTestId("qty-inc").click(); // 4 → the rule will fire
+      // AC7: no offer anywhere in the sheet, at any quantity.
+      await expect(sheet.getByTestId("sheet-offer")).toHaveCount(0);
+      await sheet.getByTestId("add-to-cart").click();
+      await expect(panel).toBeVisible();
+    }).toPass({ timeout: 20_000 });
+
+    // The sheet is gone — two dialogs in sequence, never one inside the other.
+    await expect(sheet).toBeHidden();
+    await expect(panel.getByTestId("sheet-offer-row")).toHaveCount(1);
+    // The confirmation names what was added; the card names what is on offer.
+    await expect(panel.getByTestId("added-sheet-line")).toContainText("4");
+    const add = panel.getByTestId("sheet-offer-add");
+    await expect(add).toContainText("2"); // the offer's own price, and nothing else
+    await expect(add).not.toContainText("4+2");
+    await expect(add).not.toContainText("4+1");
+
+    await add.click();
+    // The panel does NOT close: the customer may want the other cards too.
+    await expect(panel).toBeVisible();
+    await expect(panel.getByTestId("sheet-offer-taken")).toBeVisible();
+    await expect(panel.getByTestId("sheet-offer-add")).toHaveCount(0);
+    await expect(page.getByTestId("cart-badge")).toHaveText("6"); // 4 + 2
+
+    // Only «Fortsett å handle» closes it.
+    await panel.getByTestId("added-sheet-continue").click();
+    await expect(panel).toBeHidden();
+  } finally {
+    await seeded.restore();
+  }
+});
+
+test("AC-SC6b: an add that unlocks nothing gets the toast, and no panel", async ({ page }) => {
+  // The other half of the rule: below the threshold the offer does not exist on
+  // screen at all — no dimmed card, no «add 3 more». Just the §3.20 toast.
   const seeded = await seedDiscountRule({
     triggerProductId,
     suggestedProductId,
@@ -192,25 +247,13 @@ test("AC-SC13: the offer list in the sheet — the button says what it adds, and
       await page.reload();
       await ceramicCards(page).first().click();
       await expect(sheet).toBeVisible();
-      await sheet.getByTestId("qty-inc").click(); // 2
-      await sheet.getByTestId("qty-inc").click(); // 3
-      await sheet.getByTestId("qty-inc").click(); // 4 → the rule fires
-      await expect(sheet.getByTestId("sheet-offer-row")).toHaveCount(1);
+      await expect(sheet.getByTestId("discount-ladder")).toBeVisible();
     }).toPass({ timeout: 20_000 });
 
-    // "Legg til 4+2" — the base the customer chose, plus the offer. Never a
-    // remainder: 4 is what is on the stepper, not 4 − something.
-    await expect(sheet.getByTestId("sheet-offer-add")).toContainText("4");
-    await expect(sheet.getByTestId("sheet-offer-add")).toContainText("2");
-    await sheet.getByTestId("sheet-offer-add").click();
-
-    // §D.2: the sheet does NOT close, the row is marked, the stepper restarts.
-    await expect(sheet).toBeVisible();
-    await expect(sheet.getByTestId("sheet-offer-taken")).toBeVisible();
-    await expect(sheet.getByTestId("sheet-offer-add")).toHaveCount(0);
-    await expect(sheet.getByTestId("qty-value")).toHaveText("1");
-    await expect(sheet.getByTestId("sheet-in-cart")).toContainText("4");
-    await expect(page.getByTestId("cart-badge")).toHaveText("6"); // 4 + 2
+    await sheet.getByTestId("add-to-cart").click(); // one piece: nowhere near 4
+    await expect(sheet).toBeHidden();
+    await expect(page.getByTestId("added-sheet")).toHaveCount(0);
+    await expect(page.getByTestId("add-toast")).toBeVisible();
   } finally {
     await seeded.restore();
   }
@@ -232,21 +275,23 @@ test("AC-SC15: same-product upsell — offered once, and taking it unlocks no mo
   try {
     await page.goto(step3);
     const sheet = page.getByTestId("product-sheet");
+    const panel = page.getByTestId("added-sheet");
     await expect(async () => {
       await page.reload();
       await ceramicCards(page).first().click();
       await expect(sheet).toBeVisible();
       for (let i = 0; i < 3; i++) await sheet.getByTestId("qty-inc").click(); // 4
-      await expect(sheet.getByTestId("sheet-offer-row")).toHaveCount(1);
+      await sheet.getByTestId("add-to-cart").click();
+      await expect(panel).toBeVisible();
     }).toPass({ timeout: 20_000 });
 
-    await sheet.getByTestId("sheet-offer-add").click();
-    await expect(sheet.getByTestId("sheet-offer-taken")).toBeVisible();
+    await panel.getByTestId("sheet-offer-add").click();
+    await expect(panel.getByTestId("sheet-offer-taken")).toBeVisible();
     // 4 full price + 4 discounted, and NO second offer: the discounted pieces
     // count for no pool at all (ADR 0025).
     await expect(page.getByTestId("cart-badge")).toHaveText("8");
-    await expect(sheet.getByTestId("sheet-offer-add")).toHaveCount(0);
-    await expect(sheet.getByTestId("sheet-offer-row")).toHaveCount(1);
+    await expect(panel.getByTestId("sheet-offer-add")).toHaveCount(0);
+    await expect(panel.getByTestId("sheet-offer-row")).toHaveCount(1);
   } finally {
     await seeded.restore();
   }
