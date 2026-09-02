@@ -1000,7 +1000,18 @@ export function ConfiguratorClient({
               // that trivial: the panel is now a plain content-height block in
               // the page's own scroller, so there is no height to divide, no
               // `flex-1` and no `overflow` anywhere on it.
-              "max-md:-mx-5 max-md:gap-0 max-md:rounded-t-[var(--radius)] max-md:border-t-[1.5px] max-md:border-border max-md:bg-card max-md:px-3 max-md:pt-1 max-md:shadow-[0_-6px_18px_color-mix(in_oklab,var(--mk-dark)_8%,transparent)]"
+              // R4-STEP2-SHEET: sotto md il pannello è la stessa campitura del
+              // canvas (`--mk-canvas`), non `bg-card` — è il foglio su cui il
+              // cliente lavora, e il foglio è bianco come la ceramica,
+              // indipendente dal tema. `-mb-7` cancella il `pb-7` del `<main>`
+              // (public-shell.tsx, `py-7`): era quello a lasciare 28px di crema
+              // fra la riga nav e il footer. Il margine negativo fa uscire il
+              // bordo del pannello dal content box del main esattamente di quei
+              // 28px, quindi il bianco arriva al footer senza toccare la shell,
+              // che è condivisa da ogni pagina pubblica. La separazione dal
+              // footer la fa il `border-t` che il footer ha già
+              // (site-footer.tsx): nessuna hairline in più, sarebbero due.
+              "max-md:-mx-5 max-md:-mb-7 max-md:gap-0 max-md:rounded-t-[var(--radius)] max-md:border-t-[1.5px] max-md:border-border max-md:bg-[var(--mk-canvas)] max-md:px-3 max-md:pt-1 max-md:shadow-[0_-6px_18px_color-mix(in_oklab,var(--mk-dark)_8%,transparent)]"
             )}
             data-testid="details-step"
             data-color-lock={colorLock ? "1" : "0"}
@@ -1404,7 +1415,11 @@ export function ConfiguratorClient({
                 is in the padding so the row is already correct the day that
                 lands, not because it does something now. */}
             <div
-              className="@container md:order-4 max-md:z-10 max-md:-mx-3 max-md:mt-3 max-md:bg-card max-md:px-3 max-md:pb-[calc(0.75rem+env(safe-area-inset-bottom))] max-md:pt-2"
+              // R4-STEP2-SHEET: sotto md la riga nav è dentro il foglio, non una
+              // barra a sé — stessa campitura `--mk-canvas` del canvas e del
+              // pannello. Il `pb-[calc(0.75rem+env(safe-area-inset-bottom))]`
+              // resta: è spazio INTERNO al foglio, non la striscia crema.
+              className="@container md:order-4 max-md:z-10 max-md:-mx-3 max-md:mt-3 max-md:bg-[var(--mk-canvas)] max-md:px-3 max-md:pb-[calc(0.75rem+env(safe-area-inset-bottom))] max-md:pt-2"
               data-testid="step-nav-flow"
             >
             <div className="flex flex-col-reverse gap-3 md:@md:flex-row md:@md:items-stretch max-md:flex-row max-md:gap-2.5">
