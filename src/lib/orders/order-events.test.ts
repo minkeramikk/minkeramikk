@@ -67,6 +67,25 @@ describe("timeline — the card's event catalogue, rendered", () => {
     expect(rows[2].token).toBe("--status-paid");
   });
 
+  it("the free-text message says whether the summary went with it", () => {
+    const attached = timeline(CREATED, [
+      ev("custom_email_sent", { subject: "S", to: "kari@example.no", summary: "attached" }),
+    ])[1];
+    expect(attached.text).toBe("Email from admin: “S” → kari@example.no · with the order summary");
+
+    const missing = timeline(CREATED, [
+      ev("custom_email_sent", { subject: "S", to: "kari@example.no", summary: "unavailable" }),
+    ])[1];
+    expect(missing.text).toBe("Email from admin: “S” → kari@example.no · summary unavailable");
+  });
+
+  it("una riga scritta PRIMA della feature resta esattamente com'era", () => {
+    const [, row] = timeline(CREATED, [
+      ev("custom_email_sent", { subject: "S", to: "kari@example.no" }),
+    ]);
+    expect(row.text).toBe("Email from admin: “S” → kari@example.no");
+  });
+
   it("the free-text message quotes its subject and its recipient", () => {
     const [, row] = timeline(CREATED, [
       ev("custom_email_sent", { subject: "Om bestillingen MK-1042", to: "kari@example.no" }),

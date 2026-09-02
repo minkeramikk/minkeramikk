@@ -117,6 +117,11 @@ export async function sendCustomMessage(
     subject: string;
     body: string;
     customerName: string;
+    /** R4-PDF-CLIENTE riuso ④: il riepilogo già archiviato, scaricato dal
+     *  chiamante. Null ⇒ nessun allegato, e la mail parte lo stesso. */
+    pdf?: Buffer | null;
+    /** Solo per nominare il file allegato. */
+    code?: string;
   },
   transport: EmailTransport = defaultTransport()
 ): Promise<void> {
@@ -133,6 +138,13 @@ export async function sendCustomMessage(
     subject: mail.subject,
     text: mail.text,
     html: mail.html,
+    ...(params.pdf
+      ? {
+          attachments: [
+            { filename: `bestilling-${params.code ?? "summary"}.pdf`, content: params.pdf },
+          ],
+        }
+      : {}),
   });
 }
 

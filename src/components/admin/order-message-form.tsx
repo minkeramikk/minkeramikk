@@ -23,10 +23,14 @@ export function OrderMessageForm({
   orderId,
   orderCode,
   customerEmail,
+  hasSummary,
 }: {
   orderId: string;
   orderCode: string;
   customerEmail: string;
+  /** R4-PDF-CLIENTE riuso ④: whether this order has a stored summary to send.
+   *  False for orders that predate the feature, or whose generation failed. */
+  hasSummary: boolean;
 }) {
   const [state, formAction, pending] = useActionState(sendCustomerMessage, initial);
   const [open, setOpen] = useState(false);
@@ -90,6 +94,23 @@ export function OrderMessageForm({
         placeholder="Hei Kari, …"
         className="w-full rounded-sm border border-input bg-card p-2.5 text-sm focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
       />
+      {/* R4-PDF-CLIENTE riuso ④ — il motivo per cui il PDF si archivia: Alessio
+          deve poterlo rimandare, quando serve. Si SCARICA, non si rigenera. */}
+      <label className="flex items-start gap-2 text-sm">
+        <input
+          type="checkbox"
+          name="attachSummary"
+          data-testid="message-attach-summary"
+          disabled={!hasSummary}
+          className="mt-0.5"
+        />
+        Attach the order summary (PDF)
+      </label>
+      {!hasSummary && (
+        <p className="text-xs text-muted-foreground">
+          No stored summary for this order — it predates the feature, or generation failed.
+        </p>
+      )}
       <p className="text-xs text-muted-foreground">
         Sent from the shop&apos;s own address, in the same branded layout as the other
         emails. What you write here is what the customer reads.

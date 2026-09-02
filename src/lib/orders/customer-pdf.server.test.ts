@@ -17,6 +17,11 @@ import { join } from "node:path";
  */
 const ROOT = join(__dirname, "..", "..");
 const PUBLIC_SURFACES = ["app/[locale]", "components/ui-domain", "app/api"];
+/** `/api/admin/**` non è una superficie pubblica: sta fuori dal middleware di
+ *  auth e per questo si autoguarda con `getAdminUser()`, come la rotta del PDF
+ *  lab accanto. È ammessa SOLO a quella condizione, e il test la verifica invece
+ *  di fidarsi del percorso. */
+const ADMIN_GUARDED = /app\/api\/admin\//;
 const FORBIDDEN = /order-pdfs|customerPdfPath|fetchStoredCustomerPdf|renderAndStoreCustomerPdf|createSignedUrl/;
 
 function walk(dir: string): string[] {
@@ -31,10 +36,26 @@ function walk(dir: string): string[] {
 
 describe("🔒 nessuna superficie pubblica risolve un PDF", () => {
   it.each(PUBLIC_SURFACES)("%s non nomina il bucket né i suoi accessori", (surface) => {
-    const offenders = walk(join(ROOT, surface)).filter((f) =>
-      FORBIDDEN.test(readFileSync(f, "utf8"))
-    );
+    const offenders = walk(join(ROOT, surface)).filter((f) => {
+      const src = readFileSync(f, "utf8");
+      if (!FORBIDDEN.test(src)) return false;
+      // Una rotta admin può servirlo, ma solo se si autoguarda: è la stessa
+      // regola della rotta del PDF lab, e qui è verificata, non assunta.
+      if (ADMIN_GUARDED.test(f) && src.includes("getAdminUser()")) return false;
+      return true;
+    });
     expect(offenders.map((f) => f.replace(ROOT, "src"))).toEqual([]);
+  });
+
+  it("la rotta admin che serve il riepilogo SI AUTOGUARDA", () => {
+    const route = readFileSync(
+      join(ROOT, "app/api/admin/orders/[id]/summary/route.ts"),
+      "utf8"
+    );
+    expect(route).toContain("const user = await getAdminUser();");
+    expect(route).toMatch(/if \(!user\) return new NextResponse\("Unauthorized", \{ status: 401 \}\);/);
+    // e serve, non rigenera
+    expect(route).not.toContain("renderAndStoreCustomerPdf");
   });
 
   it("il percorso dell'oggetto non è indovinabile dal codice ordine", async () => {

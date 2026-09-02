@@ -5,6 +5,8 @@ import { LabPdfActions } from "@/components/admin/lab-pdf-actions";
 import { OrderStatusBadge } from "@/components/ui-domain/order-status-badge";
 import { getOrder, getCodecDesigns } from "@/lib/orders/admin-orders.server";
 import { getOrderEvents } from "@/lib/orders/order-events.server";
+import { fetchStoredCustomerPdf } from "@/lib/orders/customer-pdf.server";
+import { createServiceRoleClient } from "@/lib/supabase/service";
 import { timeline } from "@/lib/orders/order-events";
 import {
   buildReplicaSet,
@@ -66,10 +68,13 @@ export default async function OrderDetailPage({
   const { id } = await params;
   // R4-ORDERS-PLUS: the events ride along in the same parallel fetch — the
   // register must not add a round trip to opening an order.
-  const [order, codecDesigns, events] = await Promise.all([
+  const [order, codecDesigns, events, summary] = await Promise.all([
     getOrder(id),
     getCodecDesigns(),
     getOrderEvents(id),
+    // R4-PDF-CLIENTE riuso ④: c'è un riepilogo da rimandare? Una sola chiamata
+    // allo Storage, col service role — l'unico lettore di quel bucket.
+    fetchStoredCustomerPdf(createServiceRoleClient(), id),
   ]);
   if (!order) notFound();
 
@@ -407,10 +412,24 @@ export default async function OrderDetailPage({
                   admin's own mail client felt like sending — unbranded, from a
                   personal address, and invisible to the log. */}
               <OrderMessageForm
+                hasSummary={summary !== null}
                 orderId={order.id}
                 orderCode={order.code}
                 customerEmail={order.email}
               />
+              {/* R4-PDF-CLIENTE riuso ④: il riepilogo archiviato, scaricabile
+                  dall'admin. La rotta si autoguarda con getAdminUser (nessuna
+                  superficie pubblica risolve un PDF) e SERVE l'oggetto, non ne
+                  genera uno nuovo. Assente quando non c'è nulla da servire. */}
+              {summary && (
+                <a
+                  href={`/api/admin/orders/${order.id}/summary`}
+                  data-testid="download-summary"
+                  className="mt-2 block rounded-lg border border-border px-3 py-2 text-center text-sm"
+                >
+                  Download the order summary (PDF)
+                </a>
+              )}
               {/* R2-6 D: reopen this order as a basket (set codec is URL-safe →
                   raw param). Disabled when no line carries a config code/slug. */}
               {replica.param ? (
