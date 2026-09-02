@@ -88,44 +88,51 @@ function resolveSelections(
 }
 
 /**
- * R4-POLISH voci 2+8 — porta il campo sopra la tastiera. `visualViewport` è
- * l'unica fonte che sa quanto schermo resta libero; il suo evento `resize`
- * arriva quando la tastiera ha finito di salire, quindi si aspetta quello (con
- * un fallback a timer per i browser che non lo emettono). L'aritmetica sta in
- * lib/configurator/keyboard-safe-scroll, con i suoi unit.
+ * R4-STEP2-KEYBOARD ② — porta il campo sopra la tastiera, in due tempi.
+ *
+ * Prima il LAYOUT, poi lo scroll. `setTyping(true)` fa mollare lo sticky al
+ * canvas e alla barra tab: misurare nello stesso tick significa leggere un rect
+ * che il paint successivo invalida — è così che il campo finiva «alto». Due
+ * `requestAnimationFrame` aspettano quel commit, poi `scrollIntoView` centra il
+ * campo rispettando il suo `scroll-margin-top`: niente più delta calcolato a
+ * mano, e nessuno `scrollBy` che compete con lo scroll nativo del focus.
+ *
+ * Con ① (`interactive-widget=resizes-content`) il viewport di layout si
+ * restringe da solo e questo basta. Resta la CORREZIONE per iOS, che quello non
+ * lo supporta: al `resize` del viewport visuale — l'unico momento in cui si sa
+ * quanto schermo è rimasto — si ricontrolla, e si scorre solo se serve
+ * davvero. Nessun timer: se la tastiera non alza nulla, non si tocca niente.
+ * L'aritmetica sta in lib/configurator/keyboard-safe-scroll, coi suoi unit.
  */
 function keepClearOfKeyboard(field: HTMLElement) {
-  const vv = window.visualViewport;
-  const run = () => {
-    const box = field.getBoundingClientRect();
-    // il campo può essere sparito (blur → pannello max-md:hidden) o staccato dal
-    // DOM (avanzato allo step 3) prima che questo timer/listener scattino: un
-    // rect azzerato produrrebbe uno scroll fantasma, quindi si abortisce qui.
-    if (!field.isConnected || !box.height) return;
-    const styles = getComputedStyle(field);
-    const delta = keyboardSafeScrollDelta({
-      fieldTop: box.top,
-      fieldBottom: box.bottom,
-      viewportTop: vv?.offsetTop ?? 0,
-      viewportHeight: vv?.height ?? window.innerHeight,
-      // il canvas ha già mollato lo sticky (`data-typing`), quindi in alto
-      // resta solo l'header ink: lo `scroll-margin-top` del campo lo riflette
-      marginTop: parseFloat(styles.scrollMarginTop) || 0,
-      marginBottom: 12,
-    });
-    if (delta !== 0) window.scrollBy({ top: delta, behavior: "smooth" });
+  const frame = () => {
+    if (!field.isConnected) return;
+    field.scrollIntoView({ block: "center", behavior: "smooth" });
   };
-  if (!vv) {
-    run();
-    return;
-  }
-  // la tastiera anima: si agisce sul primo resize, o dopo 350ms se non arriva
-  const timer = window.setTimeout(run, 350);
+  requestAnimationFrame(() => requestAnimationFrame(frame));
+
+  const vv = window.visualViewport;
+  if (!vv) return;
   vv.addEventListener(
     "resize",
     () => {
-      window.clearTimeout(timer);
-      run();
+      const box = field.getBoundingClientRect();
+      // il campo può essere sparito (blur → pannello max-md:hidden) o staccato
+      // dal DOM (avanzato allo step 3) prima che il resize arrivi: un rect
+      // azzerato produrrebbe uno scroll fantasma, quindi si abortisce qui.
+      if (!field.isConnected || !box.height) return;
+      const styles = getComputedStyle(field);
+      const delta = keyboardSafeScrollDelta({
+        fieldTop: box.top,
+        fieldBottom: box.bottom,
+        viewportTop: vv.offsetTop,
+        viewportHeight: vv.height,
+        // il canvas ha già mollato lo sticky (`data-typing`), quindi in alto
+        // resta solo l'header ink: lo `scroll-margin-top` del campo lo riflette
+        marginTop: parseFloat(styles.scrollMarginTop) || 0,
+        marginBottom: 12,
+      });
+      if (delta !== 0) window.scrollBy({ top: delta, behavior: "smooth" });
     },
     { once: true }
   );
@@ -246,6 +253,15 @@ export function ConfiguratorClient({
    *  occupano ~293: senza questo il campo non ha DOVE stare, e nessuno scroll
    *  può rimediare. Chi digita sta leggendo ciò che scrive, non il piatto. */
   const [typing, setTyping] = useState(false);
+
+  /** R4-STEP2-KEYBOARD ③: col campo a fuoco la riga nav è agganciata al fondo,
+   *  e il blur la rimette in flusso — cioè la sposta via da sotto il dito, tra
+   *  il mousedown e il click. Prevenire il default del mousedown è ciò che
+   *  impedisce quel blur: il tap su «Neste» prende al primo colpo. Solo mentre
+   *  si scrive: fuori di lì il focus del bottone deve funzionare come sempre. */
+  const keepFocusWhileTyping = typing
+    ? (e: React.MouseEvent<HTMLButtonElement>) => e.preventDefault()
+    : undefined;
 
   // Reset when the selected design changes (per-design field).
   useEffect(() => {
@@ -717,6 +733,10 @@ export function ConfiguratorClient({
           // suo `scroll-mt-14` è l'header e basta) — coprirebbe ciò che si sta
           // scrivendo. Da ferma non serve a nulla: con la tastiera aperta si
           // scrive, non si cambia tab.
+          // R4-STEP2-KEYBOARD ③: `group/step2` — la riga nav reagisce a
+          // `data-typing` dalle SUE classi (sotto), invece di aggiungere qui un
+          // quarto selettore discendente.
+          step === 2 && "group/step2",
           step === 2 &&
             "max-md:flex max-md:flex-col max-md:items-stretch max-md:gap-0 max-md:data-[typing=1]:[&>[data-preview-column]]:static max-md:data-[typing=1]:[&_[data-tabs-bar]]:static"
         )}
@@ -1419,7 +1439,16 @@ export function ConfiguratorClient({
               // barra a sé — stessa campitura `--mk-canvas` del canvas e del
               // pannello. Il `pb-[calc(0.75rem+env(safe-area-inset-bottom))]`
               // resta: è spazio INTERNO al foglio, non la striscia crema.
-              className="@container md:order-4 max-md:z-10 max-md:-mx-3 max-md:mt-3 max-md:bg-[var(--mk-canvas)] max-md:px-3 max-md:pb-[calc(0.75rem+env(safe-area-inset-bottom))] max-md:pt-2"
+              // R4-STEP2-KEYBOARD ③: mentre si scrive (e SOLO allora, sotto md)
+              // la riga si aggancia al fondo. Con ① il fondo del viewport di
+              // layout è il bordo alto della tastiera, quindi Back/Next stanno
+              // sopra i tasti invece di finirci sotto. Chiusa la tastiera torna
+              // in flusso: il foglio dello step 2 (R4-STEP2-SHEET) non cambia
+              // di un pixel, ed è ciò che teneva la riga fuori dalla corsia
+              // opzioni al primo paint. Campitura e safe-area ci sono già; la
+              // hairline serve solo da agganciata, sul contenuto che le scorre
+              // sotto.
+              className="@container md:order-4 max-md:z-10 max-md:-mx-3 max-md:mt-3 max-md:bg-[var(--mk-canvas)] max-md:px-3 max-md:pb-[calc(0.75rem+env(safe-area-inset-bottom))] max-md:pt-2 max-md:group-data-[typing=1]/step2:sticky max-md:group-data-[typing=1]/step2:bottom-0 max-md:group-data-[typing=1]/step2:z-20 max-md:group-data-[typing=1]/step2:border-t max-md:group-data-[typing=1]/step2:border-border"
               data-testid="step-nav-flow"
             >
             <div className="flex flex-col-reverse gap-3 md:@md:flex-row md:@md:items-stretch max-md:flex-row max-md:gap-2.5">
@@ -1442,6 +1471,7 @@ export function ConfiguratorClient({
                     <ChevronLeft className="size-5 text-primary/60" />
                   </PillIcon>
                 }
+                onMouseDown={keepFocusWhileTyping}
                 onClick={() => goToStep(1)}
               />
               <NextStepPill
@@ -1525,6 +1555,7 @@ export function ConfiguratorClient({
                     </PillIcon>
                   )
                 }
+                onMouseDown={keepFocusWhileTyping}
                 onClick={() => goToStep(3)}
               />
             </div>
