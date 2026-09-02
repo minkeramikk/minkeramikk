@@ -474,3 +474,40 @@ test.describe("R4-SCONTI — quantity discounts", () => {
     }
   });
 }); // R4-SCONTI describe
+
+test("R4-BTN-SCALE AC1: lo stack azioni step 3 ha ritmo verticale", async ({
+  page,
+}) => {
+  // La regressione che questo test esiste per fermare: `gap-3` sparito dal
+  // contenitore dello stack (R4-SCONTI, in produzione dal 31/8) → i tre bordi
+  // si toccano e le pillole leggono come un blocco unico. Si misura il VUOTO
+  // tra i box, non le classi: una `gap` tolta e una `mb` rimessa altrove sono
+  // la stessa cosa per chi guarda, e questo test non deve avere opinioni.
+  // Soglia bassa apposta (≥4px): dopo R4-BTN-SCALE il ritmo diventa 12px sotto
+  // il primario e 8px tra le due basse, e questa asserzione resta vera.
+  await page.goto(step3);
+  await addFirstCeramic(page);
+
+  const box = async (id: string) => {
+    const b = await page
+      .locator(`[data-testid="${id}"]:visible`)
+      .first()
+      .boundingBox();
+    if (!b) throw new Error(`${id}: non visibile`);
+    return b;
+  };
+  const [checkout, newDesign, share] = [
+    await box("docked-checkout"),
+    await box("new-design-cta"),
+    await box("share-set"),
+  ];
+
+  expect(
+    newDesign.y - (checkout.y + checkout.height),
+    "«Bestill» e «Bygg et nytt design» si toccano"
+  ).toBeGreaterThanOrEqual(4);
+  expect(
+    share.y - (newDesign.y + newDesign.height),
+    "«Bygg et nytt design» e «Del settet» si toccano"
+  ).toBeGreaterThanOrEqual(4);
+});

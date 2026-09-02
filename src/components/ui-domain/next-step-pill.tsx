@@ -14,6 +14,49 @@ import { cn } from "@/lib/utils";
  */
 export type PillVariant = "primary" | "secondary" | "tertiary";
 
+export type PillSize = "lg" | "sm";
+
+/**
+ * R4-BTN-SCALE — la taglia è l'UNICO asse nuovo (mockup vincolante
+ * `docs/revision4/mockup-pill-scale.html`, §3). Forma, varianti, colori,
+ * freccetta e regole di contrasto non cambiano.
+ *
+ * `lg` è la stringa vuota di proposito: non aggiunge e non sostituisce nulla,
+ * quindi la pillola di default resta quella di oggi BIT PER BIT — è ciò che
+ * tiene fermi i tre call-site fuori scope (step 1, barra sticky, drawer).
+ *
+ * `sm` sta tutta sul <button> anche per le parti che il bottone non rende:
+ * il cerchietto icona lo passa il CHIAMANTE come prop `icon`, quindi lo si
+ * raggiunge per attributo. Il selettore discendente vale (0,2,0) contro
+ * (0,1,0) di `size-11`/`text-[15px]`/`size-9`: vince senza dipendere
+ * dall'ordine nel foglio di stile. Padding e gap invece collidono con le
+ * classi base del bottone e li risolve `cn` (tailwind-merge), che tiene
+ * l'ultimo — ecco perché `SIZE[size]` passa DOPO le classi base.
+ */
+const SIZE: Record<PillSize, string> = {
+  lg: "",
+  sm:
+    "gap-3 p-2 [&_[data-pill-icon]]:size-8 [&_[data-pill-icon]_svg]:size-4 " +
+    "[&_[data-pill-label]]:text-[14px] [&_[data-pill-caption]]:text-[10px] " +
+    "[&_[data-pill-arrow]]:size-7 [&_[data-pill-arrow]]:text-[15px]",
+};
+
+/**
+ * Gemello di `SIZE.sm` prefissato `max-md:`, per lo step 2: lì la pillola è
+ * `sm` sotto md e quella di oggi sopra (AC5 + AC6), e una prop non ha
+ * breakpoint. Passarlo in `className` invece che come `size` tiene AC6
+ * letterale: sopra md non si aggiunge NESSUNA classe nuova.
+ *
+ * Scritto a mano e non derivato da `SIZE.sm`: Tailwind scansiona il sorgente,
+ * una classe costruita a runtime non esisterebbe nella CSS. L'allineamento tra
+ * le due stringhe è coperto da `next-step-pill.test.ts`, non dalla disciplina.
+ */
+export const PILL_SM_UNDER_MD =
+  "max-md:gap-3 max-md:p-2 max-md:[&_[data-pill-icon]]:size-8 " +
+  "max-md:[&_[data-pill-icon]_svg]:size-4 max-md:[&_[data-pill-label]]:text-[14px] " +
+  "max-md:[&_[data-pill-caption]]:text-[10px] max-md:[&_[data-pill-arrow]]:size-7 " +
+  "max-md:[&_[data-pill-arrow]]:text-[15px]";
+
 /** Anello del cerchietto icona — segue la stessa scala di peso della superficie. */
 const ICON_RING: Record<PillVariant, string> = {
   primary: "border-2 border-primary",
@@ -21,7 +64,12 @@ const ICON_RING: Record<PillVariant, string> = {
   tertiary: "border border-border",
 };
 
-/** Cerchietto che ospita l'icona. Da solo vale il touch target ≥44px (size-11). */
+/**
+ * Cerchietto che ospita l'icona. `size-11` è la taglia `lg`; a `sm` scende a
+ * `size-8` per mano del bottone (`data-pill-icon`). Il touch target NON è
+ * questo disco ma tutto il <button>: 71-72px a `lg`, 50-52px a `sm`, sempre
+ * sopra i 44px WCAG.
+ */
 export function PillIcon({
   children,
   variant = "primary",
@@ -34,6 +82,11 @@ export function PillIcon({
   return (
     <span
       aria-hidden
+      // `data-pill-icon`: come `data-pill-label` e `data-pill-caption`, è
+      // l'aggancio con cui il bottone ridimensiona un nodo che gli arriva
+      // dall'esterno come prop. Un attributo, mai una classe Tailwind usata
+      // come selettore.
+      data-pill-icon
       className={cn(
         "flex size-11 shrink-0 items-center justify-center rounded-full",
         ICON_RING[variant],
@@ -71,6 +124,7 @@ export function NextStepPill({
   caption,
   arrow = false,
   variant = "primary",
+  size = "lg",
   onClick,
   className,
   ...rest
@@ -80,6 +134,8 @@ export function NextStepPill({
   caption?: string;
   arrow?: boolean;
   variant?: PillVariant;
+  /** R4-BTN-SCALE: `lg` (default) = la pillola di sempre. `sm` = i tier bassi. */
+  size?: PillSize;
   onClick: () => void;
   className?: string;
   // Niente `aria-label`: il nome accessibile DEVE restare caption + label
@@ -100,6 +156,7 @@ export function NextStepPill({
         // il bottone stesso non può restringersi.
         "flex min-w-0 items-center gap-3.5 rounded-full p-3 text-left transition-colors",
         "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground",
+        SIZE[size],
         SURFACE[variant],
         className
       )}
@@ -138,6 +195,8 @@ export function NextStepPill({
       {arrow && (
         <span
           aria-hidden
+          // `data-pill-arrow`: aggancio di taglia, come per icona/label/caption.
+          data-pill-arrow
           className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary text-lg leading-none text-primary-foreground"
         >
           ›

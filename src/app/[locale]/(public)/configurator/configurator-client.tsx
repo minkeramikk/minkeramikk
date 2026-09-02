@@ -23,7 +23,11 @@ import {
 import { PreviewCanvas } from "@/components/ui-domain/preview-canvas";
 import { Stepper } from "@/components/ui-domain/stepper";
 import { Swatch } from "@/components/ui-domain/swatch";
-import { NextStepPill, PillIcon } from "@/components/ui-domain/next-step-pill";
+import {
+  NextStepPill,
+  PillIcon,
+  PILL_SM_UNDER_MD,
+} from "@/components/ui-domain/next-step-pill";
 import { ChevronLeft, Circle } from "lucide-react";
 import { assetUrl } from "@/lib/storage";
 import { getPreviewLayers, type SelectedCategory } from "@/lib/configurator/preview";
@@ -1367,7 +1371,13 @@ export function ConfiguratorClient({
                 // Stacked (colonna stretta): piena larghezza e contenuto
                 // centrato come da mockup. Affiancato: torna largo il minimo
                 // e allineato a sinistra, così il Next si prende il resto.
-                className="justify-center [&>span]:flex-none md:@md:shrink-0 md:@md:justify-start max-md:shrink-0"
+                // R4-BTN-SCALE AC5: `sm` SOLO sotto md — sopra non si aggiunge
+                // nessuna classe, quindi la riga affiancata/impilata da md in
+                // su è quella di oggi pixel per pixel (AC6).
+                className={cn(
+                  PILL_SM_UNDER_MD,
+                  "justify-center [&>span]:flex-none md:@md:shrink-0 md:@md:justify-start max-md:shrink-0"
+                )}
                 label={t("back")}
                 icon={
                   <PillIcon variant="secondary">
@@ -1403,7 +1413,15 @@ export function ConfiguratorClient({
                 // etichetta lunga sotto, foto, freccetta.
                 // Le varianti `@container` sono `md:`-prefissate: sotto md non
                 // competono più con queste.
-                className="md:@max-md:gap-2.5 md:@max-md:p-2.5 md:@max-md:[&>span:last-child]:size-8 md:@md:flex-[1_1_16rem] max-md:flex-1 max-md:[&_[data-pill-label]]:sr-only max-md:[&_[data-pill-caption]]:text-[15px] max-md:[&_[data-pill-caption]]:font-semibold max-md:[&_[data-pill-caption]]:normal-case max-md:[&_[data-pill-caption]]:tracking-normal max-md:[&_[data-pill-caption]]:text-foreground"
+                // R4-BTN-SCALE AC5: `sm` SOLO sotto md. La ricetta va PRIMA
+                // degli override di questo call-site: `cn` tiene l'ultimo tra
+                // classi in conflitto, e qui sotto md la caption fa da
+                // etichetta e resta a 15px semibold (mockup .navB) — non deve
+                // scendere ai 10px della caption piccola.
+                className={cn(
+                  PILL_SM_UNDER_MD,
+                  "md:@max-md:gap-2.5 md:@max-md:p-2.5 md:@max-md:[&>span:last-child]:size-8 md:@md:flex-[1_1_16rem] max-md:flex-1 max-md:[&_[data-pill-label]]:sr-only max-md:[&_[data-pill-caption]]:text-[15px] max-md:[&_[data-pill-caption]]:font-semibold max-md:[&_[data-pill-caption]]:normal-case max-md:[&_[data-pill-caption]]:tracking-normal max-md:[&_[data-pill-caption]]:text-foreground"
+                )}
                 caption={t("teaser.nextStep")}
                 label={t("teaser.ceramics")}
                 arrow
