@@ -227,6 +227,23 @@ export default async function OrderDetailPage({
                     {formatMoney(orderTotal(order.items), "en")}
                   </span>
                 </div>
+                {/* R4-PDF-CLIENTE riuso ④: il riepilogo archiviato, scaricabile
+                    dall'admin. Sta QUI, sotto i totali, perché è il documento di
+                    QUESTO riquadro: le stesse righe e lo stesso totale, visti dal
+                    cliente. Da non confondere con il «Download PDF» in cima al
+                    gruppo, che è l'ordine di lavorazione per il FORNITORE.
+                    La rotta si autoguarda con getAdminUser (nessuna superficie
+                    pubblica risolve un PDF) e SERVE l'oggetto, non ne genera uno
+                    nuovo — assente quando non c'è nulla da servire. */}
+                {summary && (
+                  <a
+                    href={`/api/admin/orders/${order.id}/summary`}
+                    data-testid="download-summary"
+                    className="mt-2 h-8 rounded-lg border border-border px-3 text-xs font-medium leading-8 hover:bg-muted/50"
+                  >
+                    Download the order summary (PDF)
+                  </a>
+                )}
               </div>
               <p className="mt-2 text-xs text-muted-foreground">
                 The config code reopens the exact design in the configurator — handy on the
@@ -417,19 +434,6 @@ export default async function OrderDetailPage({
                 orderCode={order.code}
                 customerEmail={order.email}
               />
-              {/* R4-PDF-CLIENTE riuso ④: il riepilogo archiviato, scaricabile
-                  dall'admin. La rotta si autoguarda con getAdminUser (nessuna
-                  superficie pubblica risolve un PDF) e SERVE l'oggetto, non ne
-                  genera uno nuovo. Assente quando non c'è nulla da servire. */}
-              {summary && (
-                <a
-                  href={`/api/admin/orders/${order.id}/summary`}
-                  data-testid="download-summary"
-                  className="mt-2 block rounded-lg border border-border px-3 py-2 text-center text-sm"
-                >
-                  Download the order summary (PDF)
-                </a>
-              )}
               {/* R2-6 D: reopen this order as a basket (set codec is URL-safe →
                   raw param). Disabled when no line carries a config code/slug. */}
               {replica.param ? (
