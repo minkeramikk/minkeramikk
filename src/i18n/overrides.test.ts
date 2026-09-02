@@ -89,4 +89,16 @@ describe("mergeOverrides", () => {
   it("survives a key whose path runs through a missing node", () => {
     expect(() => mergeOverrides(BASE, { "cart.a.b.c": "x" })).not.toThrow();
   });
+
+  // Sibling of the malformed-key case in overrides.server.test.ts: a bad KEY
+  // never reaches mergeOverrides (loadOverrides drops it via isEditableKey), but
+  // a bad VALUE for a valid key flows straight in — the target-leaf guard above
+  // only checked the destination, never the incoming value. AC3 forbids a null
+  // (or otherwise non-string) override from ever replacing real file text.
+  it("ignores a non-string override value instead of overwriting real text with it", () => {
+    const merged = mergeOverrides(BASE, {
+      "cart.button": null as unknown as string,
+    });
+    expect(merged.cart.button).toBe("Handlekurv");
+  });
 });

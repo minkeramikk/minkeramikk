@@ -81,6 +81,38 @@ describe("message overrides", () => {
     await expect(getMessages("no")).resolves.toEqual(no);
   });
 
+  it.each([
+    [null, "null"],
+    [42, "number"],
+  ])(
+    "falls back to the files when a row's key is malformed (%s)",
+    async (badKey) => {
+      eq.mockResolvedValue({
+        data: [{ key: badKey, value: "hacked" }],
+        error: null,
+      });
+      const { getMessages } = await import("./overrides.server");
+      const no = (await import("./messages/no.json")).default;
+      await expect(getMessages("no")).resolves.toEqual(no);
+    }
+  );
+
+  it("never lets a null override value overwrite the file's text (AC3, sibling of the malformed-key path)", async () => {
+    eq.mockResolvedValue({
+      data: [{ key: "cart.button", value: null }],
+      error: null,
+    });
+    const { getMessages } = await import("./overrides.server");
+    const no = (await import("./messages/no.json")).default as {
+      cart: { button: string };
+    };
+    const messages = (await getMessages("no")) as {
+      cart: { button: string };
+    };
+    expect(messages.cart.button).toBe(no.cart.button);
+    expect(messages.cart.button).not.toBeNull();
+  });
+
   it("falls back to the files outside a request scope, where unstable_cache throws", async () => {
     vi.doMock("next/cache", () => ({
       unstable_cache: () => () => {

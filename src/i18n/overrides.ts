@@ -89,7 +89,8 @@ export function mergeOverrides<T>(base: T, overrides: MessageOverrides): T {
           : null;
       if (!node) break;
     }
-    if (node && typeof node[leaf] === "string") node[leaf] = overrides[key];
+    if (node && typeof node[leaf] === "string" && typeof overrides[key] === "string")
+      node[leaf] = overrides[key];
   }
   return merged as T;
 }
