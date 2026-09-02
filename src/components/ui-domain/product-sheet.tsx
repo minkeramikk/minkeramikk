@@ -342,8 +342,24 @@ export function ProductSheet({
             />
 
             {/* Buy row — sticky at the bottom of the scroller on mobile (§3.19),
-                static in the desktop column where `mt-auto` pins it to the end. */}
-            <div className="sticky bottom-0 mt-auto bg-card pt-2.5 shadow-[0_-8px_12px_-8px_color-mix(in_oklab,var(--foreground)_15%,transparent)] sm:static sm:shadow-none">
+                static in the desktop column where `mt-auto` pins it to the end.
+                R4-BUYROW: la riga vive DENTRO il padding della sheet
+                (`px-4 … pb-[calc(14px+safe-area)]`), quindi da sticky era 16px
+                più stretta per lato e si fermava 14px+safe-area sopra il bordo:
+                su tre lati scoperti il contenuto le passava sotto a vista (le
+                colonne della scala sopra, la nota dello sconto sotto). I
+                margini negativi la fanno USCIRE da quel padding e i padding
+                gemelli glielo rimettono addosso: full-bleed e opaca fino al
+                bordo, senza spostare di un pixel il contenuto interno. Sopra sm
+                la sheet è un dialogo centrato con `p-5` — altro padding, riga
+                statica — quindi lì si azzera tutto.
+                L'offset sticky scende dello STESSO valore: `bottom-0` incolla
+                la riga al fondo del CONTENT box dello scroller, cioè ancora
+                14px+safe-area sopra il bordo. Misurato a 390×660 su tutte le
+                posizioni di scroll: con `bottom-0` restavano 14px scoperti in
+                cima, a metà e in fondo; con l'offset negativo 0, 0 e 0, e senza
+                aggiungere corsa allo scroller (169px prima e dopo). */}
+            <div className="sticky -bottom-[calc(14px+env(safe-area-inset-bottom))] z-10 -mx-4 -mb-[calc(14px+env(safe-area-inset-bottom))] mt-auto bg-card px-4 pt-2.5 pb-[calc(14px+env(safe-area-inset-bottom))] shadow-[0_-8px_12px_-8px_color-mix(in_oklab,var(--foreground)_15%,transparent)] sm:static sm:mx-0 sm:mb-0 sm:px-0 sm:pb-0 sm:shadow-none">
               <div className="flex items-center gap-2.5">
               <div className="flex items-center rounded-full border border-border bg-background">
                 <button
