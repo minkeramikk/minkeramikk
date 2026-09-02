@@ -39,9 +39,20 @@ let design = "";
 test.beforeAll(async () => {
   design = (await firstActiveDesign()).slug;
 });
-test.afterAll(() => {
-  writeFileSync(`${OUT}/measures.json`, `${JSON.stringify(measures, null, 2)}\n`);
-});
+
+const FILE = `${OUT}/measures.json`;
+/**
+ * Le misure si scrivono a fine di OGNI test, unite a quelle già su disco:
+ * Playwright riavvia il worker dopo un test fallito e l'accumulatore in memoria
+ * riparte vuoto. Nel giro `before` — rosso di proposito — un `afterAll` da solo
+ * scriverebbe solo l'ultimo frammento, e il file andrebbe ricucito a mano.
+ */
+function persist(part: Measures) {
+  const onDisk: Measures = existsSync(FILE)
+    ? JSON.parse(readFileSync(FILE, "utf8"))
+    : {};
+  writeFileSync(FILE, `${JSON.stringify({ ...onDisk, ...part }, null, 2)}\n`);
+}
 
 /** Step 3 monta `cartPanel` due volte (sezione mobile + rail desktop): senza
  *  `:visible` il locator è ambiguo e Playwright va in strict mode. */
@@ -144,6 +155,7 @@ for (const locale of LOCALES) {
       await page.getByTestId("cart-button").click();
       await page.getByTestId("cart-drawer").waitFor();
       measures[k("cartCheckout")] = await heightOf(page, "cart-checkout");
+      persist(measures);
 
       // ── AC3: il touch target è il <button>, non il disco ────────────────
       const smPills = w < 768
