@@ -3,6 +3,11 @@
 // applied on STAGING; `npm run db:types` reads the LINKED project, which is
 // PROD (supabase/.temp/project-ref), so regenerating before the prod push would
 // silently delete these three additions. Regenerate after `make db-push-prod`.
+//
+// NOTE (R4-PDF-CLIENTE, 2026-09-02): same treatment for migration 0038 — the
+// six `settings.seller_*` columns. 0038 is applied on NEITHER database yet (the
+// PM pushes it, staging then prod), so regenerating now would not produce them
+// either. Same rule: regenerate only after the prod push.
 export type Json =
   | string
   | number
@@ -744,6 +749,12 @@ export type Database = {
           color_light: string
           id: number
           quantity_discounts_enabled: boolean
+          seller_address: string | null
+          seller_email: string | null
+          seller_name: string | null
+          seller_org_number: string | null
+          seller_phone: string | null
+          seller_vat_registered: boolean
           updated_at: string
           vipps_link: string | null
           vipps_number: string | null
@@ -756,6 +767,12 @@ export type Database = {
           color_light: string
           id: number
           quantity_discounts_enabled?: boolean
+          seller_address?: string | null
+          seller_email?: string | null
+          seller_name?: string | null
+          seller_org_number?: string | null
+          seller_phone?: string | null
+          seller_vat_registered?: boolean
           updated_at?: string
           vipps_link?: string | null
           vipps_number?: string | null
@@ -768,6 +785,12 @@ export type Database = {
           color_light?: string
           id?: number
           quantity_discounts_enabled?: boolean
+          seller_address?: string | null
+          seller_email?: string | null
+          seller_name?: string | null
+          seller_org_number?: string | null
+          seller_phone?: string | null
+          seller_vat_registered?: boolean
           updated_at?: string
           vipps_link?: string | null
           vipps_number?: string | null

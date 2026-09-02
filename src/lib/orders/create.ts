@@ -8,6 +8,7 @@ import { verifyTurnstile } from "./turnstile";
 import { sendOrderEmails, type EmailTransport } from "./email";
 import { renderAndStoreCustomerPdf } from "./customer-pdf.server";
 import { getVippsSettings } from "./vipps.server";
+import { getSellerIdentity } from "./seller.server";
 import { computeCartDiscount, type DiscountConfig } from "@/lib/discounts/discount";
 import { getDiscountConfig } from "@/lib/discounts/config.server";
 
@@ -133,6 +134,7 @@ export async function createOrder(
             country: payload.country,
           },
           vipps: await getVippsSettings(),
+          seller: await getSellerIdentity(),
         }));
       } catch (e) {
         // renderAndStoreCustomerPdf does not throw on its own; this is the

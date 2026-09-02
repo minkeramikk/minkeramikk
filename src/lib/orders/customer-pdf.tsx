@@ -88,6 +88,8 @@ const s = StyleSheet.create({
   totalLabel: { fontSize: 9.5, color: THEME.muted },
   totalValue: { fontSize: 9.5, width: 84, textAlign: "right" },
   grand: { fontSize: 13, fontFamily: "Helvetica-Bold", width: 84, textAlign: "right" },
+  vatLabel: { fontSize: 8.5, color: THEME.muted },
+  vatValue: { fontSize: 8.5, color: THEME.muted, width: 84, textAlign: "right" },
   shipping: { fontSize: 8.5, color: THEME.muted, marginTop: 3 },
 
   pay: {
@@ -95,14 +97,13 @@ const s = StyleSheet.create({
     backgroundColor: THEME.light,
     borderRadius: 8,
     padding: 14,
-    flexDirection: "row",
-    gap: 14,
-    alignItems: "center",
   },
   qr: { width: 108, height: 108, backgroundColor: THEME.white, borderRadius: 6 },
   payTitle: { fontSize: 12, fontFamily: "Helvetica-Bold" },
   payNumber: { fontSize: 20, fontFamily: "Helvetica-Bold", marginTop: 4 },
   payMelding: { fontSize: 9.5, marginTop: 6, lineHeight: 1.4 },
+  payRow: { flexDirection: "row", gap: 14, alignItems: "center" },
+  payLink: { fontSize: 9, color: THEME.accent, marginTop: 8 },
 
   ship: { marginTop: 16 },
   shipLine: { fontSize: 9.5, color: THEME.muted },
@@ -112,10 +113,18 @@ const s = StyleSheet.create({
     bottom: 16,
     left: 32,
     right: 32,
-    fontSize: 8.5,
-    color: THEME.muted,
-    textAlign: "center",
+    alignItems: "center",
   },
+  footerLine: { fontSize: 8.5, color: THEME.muted, textAlign: "center" },
+  sellerBlock: {
+    marginTop: 6,
+    paddingTop: 6,
+    borderTopWidth: 1,
+    borderTopColor: THEME.border,
+    alignItems: "center",
+    width: "100%",
+  },
+  sellerLine: { fontSize: 8, color: THEME.muted, textAlign: "center", marginTop: 1 },
 });
 
 export function CustomerPdfDocument({
@@ -215,6 +224,16 @@ export function CustomerPdfDocument({
               <Text style={s.totalLabel}>{t.total}</Text>
               <Text style={s.grand}>{doc.total}</Text>
             </View>
+            {/* SOTTO il Totale, e volutamente secondaria. Fra Delsum e Totale
+                si leggerebbe come un addendo — qualcosa da SOMMARE — che è
+                l'esatto contrario di quello che è: i prezzi la contengono già
+                (termini di vendita, legal.terms in entrambe le lingue). */}
+            {doc.vatIncluded && (
+              <View style={s.totalRow}>
+                <Text style={s.vatLabel}>{t.vatIncluded}</Text>
+                <Text style={s.vatValue}>{doc.vatIncluded}</Text>
+              </View>
+            )}
             <Text style={s.shipping}>
               {doc.shippingIncluded ? t.shippingIncluded : t.shippingToBeConfirmed}
             </Text>
@@ -227,22 +246,29 @@ export function CustomerPdfDocument({
               stato reale del negozio, il QR è anche l'unica cosa che c'è. */}
           {doc.payment && (
             <View style={s.pay}>
-              {doc.payment.showQr && qrDataUri && (
-                // eslint-disable-next-line jsx-a11y/alt-text -- @react-pdf Image has no alt
-                <Image src={qrDataUri} style={s.qr} />
-              )}
-              <View style={{ flex: 1 }}>
-                <Text style={s.payTitle}>{t.payTitle}</Text>
-                {doc.payment.number ? (
-                  <>
-                    <Text style={s.sectionLabel}>{t.payNumberLabel}</Text>
-                    <Text style={s.payNumber}>{doc.payment.number}</Text>
-                  </>
-                ) : (
-                  doc.payment.showQr && <Text style={s.choice}>{t.payQrLabel}</Text>
+              <View style={s.payRow}>
+                {doc.payment.showQr && qrDataUri && (
+                  // eslint-disable-next-line jsx-a11y/alt-text -- @react-pdf Image has no alt
+                  <Image src={qrDataUri} style={s.qr} />
                 )}
-                <Text style={s.payMelding}>{doc.payment.melding}</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.payTitle}>{t.payTitle}</Text>
+                  {doc.payment.number ? (
+                    <>
+                      <Text style={s.sectionLabel}>{t.payNumberLabel}</Text>
+                      <Text style={s.payNumber}>{doc.payment.number}</Text>
+                    </>
+                  ) : (
+                    doc.payment.showQr && <Text style={s.choice}>{t.payQrLabel}</Text>
+                  )}
+                  <Text style={s.payMelding}>{doc.payment.melding}</Text>
+                </View>
               </View>
+              {/* SOTTO il QR, per esteso. Il PDF arriva per mail: chi lo apre
+                  sul telefono non può inquadrare col telefono il QR che quello
+                  stesso telefono sta mostrando, e il link è l'unico percorso
+                  che gli resta — il caso più probabile, non un ripiego. */}
+              {doc.payment.link && <Text style={s.payLink}>{doc.payment.link}</Text>}
             </View>
           )}
 
@@ -251,18 +277,34 @@ export function CustomerPdfDocument({
               <Text style={s.sectionLabel}>{t.shipTo}</Text>
               <Text style={s.shipLine}>{doc.shipTo.name}</Text>
               {doc.shipTo.address && <Text style={s.shipLine}>{doc.shipTo.address}</Text>}
-              <Text style={s.shipLine}>
-                {[doc.shipTo.zipcode, doc.shipTo.city, doc.shipTo.country]
-                  .filter(Boolean)
-                  .join(" ")}
-              </Text>
+              {/* Il paese su una riga PROPRIA: unito agli altri dava
+                  «SW1A 1AA London United Kingdom», che non è un indirizzo. */}
+              {(doc.shipTo.zipcode || doc.shipTo.city) && (
+                <Text style={s.shipLine}>
+                  {[doc.shipTo.zipcode, doc.shipTo.city].filter(Boolean).join(" ")}
+                </Text>
+              )}
+              {doc.shipTo.country && <Text style={s.shipLine}>{doc.shipTo.country}</Text>}
             </View>
           )}
         </View>
 
-        <Text style={s.footer} fixed>
-          {t.contact}
-        </Text>
+        {/* I contatti di sempre e, SOTTO, l'identità del venditore. Ogni riga
+            esiste solo se ha un valore (`doc.seller` è già filtrato): con i
+            campi vuoti — lo stato di oggi — il piè di pagina è esattamente
+            quello di prima. */}
+        <View style={s.footer} fixed>
+          <Text style={s.footerLine}>{t.contact}</Text>
+          {doc.seller && (
+            <View style={s.sellerBlock}>
+              {doc.seller.map((line, i) => (
+                <Text key={i} style={s.sellerLine}>
+                  {line}
+                </Text>
+              ))}
+            </View>
+          )}
+        </View>
       </Page>
     </Document>
   );

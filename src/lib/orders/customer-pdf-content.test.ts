@@ -1,7 +1,14 @@
 import { describe, it, expect } from "vitest";
-import { buildCustomerPdfDoc, type CustomerPdfInput } from "./customer-pdf-content";
+import {
+  buildCustomerPdfDoc,
+  splitVatInclusive,
+  MVA_RATE_PCT,
+  type CustomerPdfInput,
+} from "./customer-pdf-content";
 import { computeCartDiscount, EMPTY_CONFIG } from "@/lib/discounts/discount";
 import { NO_VIPPS, type VippsSettings } from "./vipps";
+import { NO_SELLER, type SellerIdentity } from "./seller";
+import { formatMoney, money } from "@/lib/money/money";
 import type { OrderItemInput } from "./schema";
 
 const UNIT = 45000;
@@ -54,6 +61,9 @@ function doc(over: Partial<CustomerPdfInput> & { items?: OrderItemInput[] } = {}
     ),
     address: {},
     vipps: VIPPS_REAL,
+    // Lo stato di oggi: nessun dato del venditore, MVA spenta. Ogni test che
+    // vuole l'altro stato lo chiede esplicitamente — il default non lo decide.
+    seller: NO_SELLER,
     now: new Date("2026-08-28T12:02:00.000Z"),
     ...over,
   });
@@ -111,6 +121,7 @@ describe("buildCustomerPdfDoc", () => {
       ),
       address: {},
       vipps: VIPPS_REAL,
+      seller: NO_SELLER,
     });
     expect(discounted.discount).not.toBeNull();
   });
@@ -185,12 +196,182 @@ describe("buildCustomerPdfDoc", () => {
     expect("€‚ƒ„…†‡ˆ‰Š‹ŒŽ‘’“”•–—˜™š›œžŸ".includes("−")).toBe(false);
   });
 
+  // ── A1 · la riga prodotto deve TORNARE ────────────────────────────────
+  it("la SUM di riga è prezzo × quantità, coerente con PRICE e col Delsum", () => {
+    // Il caso esatto del PDF di evidenza EN: «QTY 4 · PRICE 450 · SUM 1 710»,
+    // mentre 4 × 450 fa 1 800. La SUM portava il netto POST-sconto accanto a un
+    // PRICE pieno e a un Delsum PRE-sconto: la riga si contraddiceva da sola e
+    // lo sconto compariva due volte. Ora lo sconto sta in un posto solo.
+    const items = [item({ unitPriceCents: 45000, quantity: 4 })];
+    const d = buildCustomerPdfDoc({
+      code: "MK-2536",
+      customerName: "Kari",
+      locale: "en",
+      items,
+      discount: computeCartDiscount(
+        [{ id: "0", productId: "p1", unitPriceCents: 45000, currency: "NOK", quantity: 4 }],
+        { ...EMPTY_CONFIG, tiersEnabled: true, tiers: [{ minQty: 4, pct: 5 }] }
+      ),
+      address: {},
+      vipps: VIPPS_REAL,
+      seller: NO_SELLER,
+    });
+    expect(d.items[0].unitPrice).toBe(formatMoney(money(45000), "en"));
+    expect(d.items[0].lineTotal).toBe(formatMoney(money(180000), "en")); // 1 800
+    expect(d.subtotal).toBe(formatMoney(money(180000), "en"));
+    expect(d.discount).toBe(formatMoney(money(9000), "en")); // −90
+    expect(d.total).toBe(formatMoney(money(171000), "en")); // 1 710
+  });
+
   it("la data è in ora di OSLO, non del server", () => {
     // Su Vercel il server è in UTC, e senza il pin questo istante — le 00:30
     // norvegesi del 28 — uscirebbe come «27. aug. 2026», cioè il giorno prima.
     // Verificato con `TZ=UTC node`: pinned 28, unpinned 27.
     const at = new Date("2026-08-27T22:30:00.000Z");
     expect(doc({ now: at }).date).toBe("28. aug. 2026");
-    expect(doc({ now: at, locale: "en" }).date).toBe("28 Aug 2026");
+    expect(doc({ now: at, locale: "en" }).date).toBe("28 August 2026");
+  });
+
+  it("il mese inglese è per esteso: en-GB abbrevia September in «Sept»", () => {
+    // «02 Sept 2026» su una ricevuta si legge come un refuso. Il norvegese resta
+    // abbreviato, che lì è la forma corretta.
+    const sept = new Date("2026-09-02T10:00:00.000Z");
+    expect(doc({ now: sept, locale: "en" }).date).toBe("2 September 2026");
+    expect(doc({ now: sept }).date).toBe("02. sep. 2026");
+  });
+
+  // ── A2 · il link Vipps ─────────────────────────────────────────────────
+  it("il blocco pagamento porta il LINK, non solo il QR", () => {
+    // Chi apre il PDF sul telefono non può inquadrare col telefono il QR che
+    // quello stesso telefono mostra: il link è l'unico percorso che gli resta.
+    expect(doc().payment!.link).toBe("https://qr.vipps.no/x");
+  });
+
+  it("senza link il blocco pagamento resta valido (QR da solo)", () => {
+    const d = doc({ vipps: { ...VIPPS_REAL, link: null } });
+    expect(d.payment!.link).toBeNull();
+    expect(d.payment!.showQr).toBe(true);
+  });
+});
+
+// ── B · MVA 25 %, SCORPORATA ────────────────────────────────────────────
+describe("lo scorporo della MVA", () => {
+  it("i due importi dei PDF di evidenza", () => {
+    expect(splitVatInclusive(money(90000)).vat.amountCents).toBe(18000); // 900 → 180
+    expect(splitVatInclusive(money(90000)).net.amountCents).toBe(72000); // → 720
+    expect(splitVatInclusive(money(171000)).vat.amountCents).toBe(34200); // 1 710 → 342
+    expect(splitVatInclusive(money(171000)).net.amountCents).toBe(136800); // → 1 368
+  });
+
+  it("netto + MVA fa il totale ESATTAMENTE, per qualunque importo", () => {
+    // Il vincolo che vieta di arrotondare i due valori per conto loro: due
+    // arrotondamenti indipendenti producono righe che non tornano di 1 øre.
+    // Gli importi scelti includono quelli che dividono male per 5.
+    for (const cents of [1, 2, 3, 7, 99, 100, 12345, 90000, 171000, 999999]) {
+      const { vat, net } = splitVatInclusive(money(cents));
+      expect(net.amountCents + vat.amountCents, `${cents} øre non torna`).toBe(cents);
+    }
+  });
+
+  it("la MVA è SCORPORATA, mai aggiunta: non supera mai il totale", () => {
+    // I prezzi del sito sono IVA inclusa (termini di vendita, legal.terms in
+    // entrambe le lingue). Aggiungere il 25 % sopra farebbe stampare un importo
+    // diverso da quello che il cliente sta per pagare su Vipps.
+    const { vat, net } = splitVatInclusive(money(100000));
+    expect(vat.amountCents).toBe(20000); // 25/125, non 25/100
+    expect(net.amountCents).toBeLessThan(100000);
+  });
+
+  it("la valuta segue il totale", () => {
+    expect(splitVatInclusive(money(50000, "EUR")).vat.currency).toBe("EUR");
+  });
+
+  it("l'aliquota vive in un posto solo: la stessa costante nomina l'etichetta", () => {
+    expect(MVA_RATE_PCT).toBe(25);
+    expect(doc().labels.vatIncluded).toContain(String(MVA_RATE_PCT));
+    expect(doc({ locale: "en" }).labels.vatIncluded).toContain(String(MVA_RATE_PCT));
+  });
+});
+
+describe("la riga MVA nel documento", () => {
+  const REGISTERED: SellerIdentity = { ...NO_SELLER, vatRegistered: true };
+
+  it("🔒 SPENTA per default: non registrati in MVA-registeret, nessuna riga", () => {
+    // Sotto la soglia dei 50 000 kr non lo si è, e stamparla non essendolo è
+    // illegale. Il dato non è ancora noto: il default deve tacere.
+    expect(doc().vatIncluded).toBeNull();
+    expect(doc({ seller: { ...NO_SELLER, vatRegistered: false } }).vatIncluded).toBeNull();
+  });
+
+  it("registrati: la riga c'è, ed è la quota GIÀ contenuta nel totale", () => {
+    // 2 × 450 = 900 kr → MVA 180 kr.
+    const d = doc({ seller: REGISTERED });
+    expect(d.total).toBe(formatMoney(money(90000), "no"));
+    expect(d.vatIncluded).toBe(formatMoney(money(18000), "no"));
+  });
+
+  it("il resto del documento non cambia fra i due stati", () => {
+    const off = doc(), on = doc({ seller: REGISTERED });
+    expect(on.total).toBe(off.total);
+    expect(on.subtotal).toBe(off.subtotal);
+    expect(on.items).toEqual(off.items);
+  });
+});
+
+// ── C · il blocco venditore ─────────────────────────────────────────────
+describe("il piè di pagina del venditore", () => {
+  const FULL: SellerIdentity = {
+    name: "Min Keramikk AS",
+    address: "Storgata 1, 0155 Oslo, Norge",
+    orgNumber: "999 888 777",
+    vatRegistered: true,
+    email: "post@minkeramikk.no",
+    phone: "+47 400 00 000",
+  };
+
+  it("tutti i campi pieni: ogni riga c'è, e l'org.nr. porta il suffisso MVA", () => {
+    expect(doc({ seller: FULL }).seller).toEqual([
+      "Min Keramikk AS",
+      "Storgata 1, 0155 Oslo, Norge",
+      "Org.nr. 999 888 777 MVA",
+      "post@minkeramikk.no · +47 400 00 000",
+    ]);
+  });
+
+  it("tutti i campi vuoti: nessun blocco, il piè di pagina è quello di oggi", () => {
+    expect(doc().seller).toBeNull();
+  });
+
+  it("org.nr. presente ma flag FALSE: niente suffisso MVA e niente riga MVA", () => {
+    // La dicitura « MVA » dopo l'organisasjonsnummer è corretta SOLO per un
+    // soggetto registrato: la stessa verità governa entrambi.
+    const d = doc({ seller: { ...FULL, vatRegistered: false } });
+    expect(d.seller).toContain("Org.nr. 999 888 777");
+    expect(JSON.stringify(d.seller)).not.toContain("MVA");
+    expect(d.vatIncluded).toBeNull();
+  });
+
+  it("DEGRADA PER CAMPO: un campo vuoto si porta via la sua riga, mai un'etichetta nuda", () => {
+    const onlyName = doc({ seller: { ...NO_SELLER, name: "Min Keramikk AS" } });
+    expect(onlyName.seller).toEqual(["Min Keramikk AS"]);
+
+    const noPhone = doc({ seller: { ...FULL, phone: null } });
+    expect(noPhone.seller).toContain("post@minkeramikk.no");
+    expect(JSON.stringify(noPhone.seller)).not.toContain("·");
+
+    const noEmail = doc({ seller: { ...FULL, email: null, phone: "+47 400 00 000" } });
+    expect(noEmail.seller).toContain("+47 400 00 000");
+  });
+
+  it("l'etichetta dell'org.nr. segue la lingua", () => {
+    expect(doc({ seller: FULL, locale: "en" }).seller).toContain("Org. no. 999 888 777 MVA");
+  });
+
+  it("il documento resta una OPPSUMMERING, mai una faktura", () => {
+    // Decisione PM: niente numerazione fattura, e la parola non compare.
+    const flat = JSON.stringify(doc({ seller: FULL, locale: "en" })) + JSON.stringify(doc({ seller: FULL }));
+    expect(flat).not.toMatch(/faktura|invoice/i);
+    expect(doc().labels.title).toBe("Oppsummering av bestillingen");
+    expect(doc({ locale: "en" }).labels.title).toBe("Order summary");
   });
 });
