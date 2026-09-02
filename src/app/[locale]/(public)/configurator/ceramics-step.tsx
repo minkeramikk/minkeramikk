@@ -225,6 +225,7 @@ export function CeramicsStep({
     discountConfig,
     setCurrentConfigCode,
     acceptSuggestion,
+    allowedProduct: cartAllowedProduct,
   } = useCartContext();
 
   /**
@@ -321,6 +322,21 @@ export function CeramicsStep({
     [products, design.supplierId, discountConfig.rules]
   );
 
+  /**
+   * R4-FIX Ⓔ / D3 — the suggested ceramic must belong to the DONOR design's
+   * whitelist, and the donor can be a line of another design sitting in the
+   * basket: only the cart knows those whitelists (`cart-context`). The
+   * exception is the projected line of `unlocksAnything`, which is not in the
+   * cart at all and wears the design on screen — `products` IS that whitelist.
+   */
+  const allowedProduct = useCallback(
+    (fromLineId: string, productId: string) =>
+      cart.some((l) => l.id === fromLineId)
+        ? cartAllowedProduct(fromLineId, productId)
+        : products.some((p) => p.id === productId),
+    [cart, cartAllowedProduct, products]
+  );
+
   const discountLines: DiscountLineInput[] = useMemo(
     () =>
       cart.map((l) => ({
@@ -361,6 +377,7 @@ export function CeramicsStep({
     const live = activeSuggestions(discountLines, discountConfig, {
       supplierOf,
       supplierOfProduct,
+      allowedProduct,
       currentConfigCode: configCode,
     }).filter((s) => s.rule.suggested && s.pct > 0);
     for (const o of live) seenOffers.current.set(o.rule.id, o);
@@ -375,7 +392,15 @@ export function CeramicsStep({
     const rank = (o: ActiveSuggestion) =>
       discountConfig.rules.findIndex((r) => r.id === o.rule.id);
     return [...live, ...back].sort((a, b) => rank(a) - rank(b));
-  }, [discountLines, discountConfig, configCode, supplierOf, supplierOfProduct, takenRuleIds]);
+  }, [
+    discountLines,
+    discountConfig,
+    configCode,
+    supplierOf,
+    supplierOfProduct,
+    allowedProduct,
+    takenRuleIds,
+  ]);
 
   /**
    * ⚠️ §C — the scale counts CART + SELECTOR, not the selector alone. The
@@ -538,6 +563,7 @@ export function CeramicsStep({
         supplierOf: (id) =>
           supplierOf(id) ?? (id === candidateId ? supplierOfProduct(selected.id) : null),
         supplierOfProduct,
+        allowedProduct,
         currentConfigCode: configCode,
       }).filter((o) => o.rule.suggested && o.pct > 0).length > 0
     );

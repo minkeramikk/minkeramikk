@@ -189,6 +189,9 @@ describe("activeSuggestions — a list, in the admin's order", () => {
   const opts = {
     supplierOf: () => "sup1",
     supplierOfProduct: () => "sup1",
+    /** D3 (R4-FIX Ⓔ): here every design offers everything — the whitelist
+     *  cases get their own tests below. */
+    allowedProduct: () => true,
   };
   // Rules differ only by the product they suggest, so precedence can only come
   // from their ORDER in config.rules — if a test passes because one of them is
@@ -257,6 +260,57 @@ describe("activeSuggestions — a list, in the admin's order", () => {
     expect(
       activeSuggestions(trigger, config({ automationsEnabled: true, rules, includedProductIds: ["other"] }), opts)
     ).toEqual([]);
+  });
+
+  /** R4-FIX Ⓔ — prod: «Alico pasta plate» whitelists only the Deluxe, yet the
+   *  upsell offered a tray. The suggested line inherits the donor's design
+   *  (ADR 0023 (e)), so a suggestion outside that design's whitelist is an
+   *  order the workshop cannot make: it must not exist. */
+  describe("D3 — the donor design has to offer the suggested ceramic", () => {
+    const rules = [ruleFor("r1", "boat")];
+
+    it("outside the donor design's whitelist: no suggestion at all", () => {
+      expect(
+        activeSuggestions(trigger, cfg(rules), {
+          ...opts,
+          allowedProduct: (_from, productId) => productId !== "boat",
+        })
+      ).toEqual([]);
+    });
+
+    it("inside it: unchanged", () => {
+      const out = activeSuggestions(trigger, cfg(rules), {
+        ...opts,
+        allowedProduct: (_from, productId) => productId === "boat",
+      });
+      expect(out.map((o) => o.rule.id)).toEqual(["r1"]);
+    });
+
+    it("asks about the DONOR line, not the cart at large", () => {
+      const cart = [
+        line({ id: "big", quantity: 8, configCode: "MK-AMALFI" }),
+        line({ id: "small", quantity: 2, configCode: "MK-JULETRE" }),
+      ];
+      // Only the small line's design offers the boat — and the big one donates.
+      expect(
+        activeSuggestions(cart, cfg(rules), {
+          ...opts,
+          allowedProduct: (fromLineId) => fromLineId === "small",
+        })
+      ).toEqual([]);
+      const [out] = activeSuggestions(cart, cfg(rules), {
+        ...opts,
+        allowedProduct: (fromLineId) => fromLineId === "small",
+        currentConfigCode: "MK-JULETRE",
+      });
+      expect(out.fromLineId).toBe("small");
+    });
+
+    it("no answer yet is no offer (fail-closed), never the opposite", () => {
+      expect(
+        activeSuggestions(trigger, cfg(rules), { ...opts, allowedProduct: () => false })
+      ).toEqual([]);
+    });
   });
 
   describe("which line donates the design", () => {
@@ -460,7 +514,11 @@ describe("cartSaved — what the sticky bar declares", () => {
 });
 
 describe("§A — pool a prezzo pieno, per regola (ADR 0025)", () => {
-  const opts = { supplierOf: () => "sup1", supplierOfProduct: () => "sup1" };
+  const opts = {
+    supplierOf: () => "sup1",
+    supplierOfProduct: () => "sup1",
+    allowedProduct: () => true,
+  };
   /** trigger = plate ×`triggerMinQty` → `suggestedQty` of `suggested`, −50%. */
   const rule = (
     id: string,
