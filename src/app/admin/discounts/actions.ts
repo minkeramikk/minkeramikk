@@ -174,12 +174,12 @@ const ruleSchema = z
   // gives nothing. Refuse it here instead.
   .refine((r) => r.discountMode !== "fixed" || r.discountPct !== null, {
     message: "A fixed deal needs a percentage.",
-  })
-  // A rule that suggests something already inside its own trigger group can
-  // never fire (the suggested product would always be in the cart, ADR 0023 (d)).
-  .refine((r) => !r.triggerProductIds.includes(r.suggestedProductId), {
-    message: "The suggested ceramic cannot be part of its own trigger group.",
   });
+// The rule that suggested something inside its own trigger group used to be
+// refused here: with the old D1 ("the suggested product is in the cart") it
+// could never have fired. ADR 0025 makes it expressible — «buy 4 plates, 4 more
+// at half price» — because the pool only counts FULL-PRICE units, so the offer
+// applies once and its own discounted pieces cannot re-trigger it.
 
 const CROSS_SUPPLIER_ERROR =
   "The suggested ceramic must share a supplier with at least one product in the trigger group — the suggested line inherits the trigger's design, which means nothing across suppliers.";

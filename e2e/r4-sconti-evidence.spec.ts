@@ -781,3 +781,68 @@ test.describe("R4-UPSELL-MODALE evidence — the sheet offer block", () => {
     });
   }
 });
+
+/**
+ * R4-SCONTI-2 — the product sheet: the ladder and the offer list.
+ *
+ * READ-ONLY: it seeds nothing and restores nothing, because it does not have
+ * to — it runs against the LIVE discount config, which is the whole point of
+ * this evidence (the shots must show what the shop actually publishes, tiers
+ * and rules included). The only writes in this file stay in the blocks above.
+ *
+ * The states that need a scale the shop does not currently have (a product
+ * excluded from the discounts, a seven-step scale, a same-product offer) cannot
+ * be produced without writing to the live catalogue: they are covered by the
+ * unit tests (ladder.test.ts, sheet-offer.test.ts) and by the seeded e2e in
+ * cart.spec.ts / discounts.spec.ts, which run with MK_E2E_SEED=1.
+ */
+test.describe("product sheet: the ladder and the offer list (R4-SCONTI-2)", () => {
+  const SIZES = [
+    { label: "390", size: PHONE },
+    { label: "768", size: { width: 768, height: 1000 } },
+    { label: "1280", size: DESKTOP },
+  ];
+
+  for (const lang of ["no", "en"] as const) {
+    for (const { label, size } of SIZES) {
+      test(`sheet-ladder ${label} ${lang}`, async ({ page }) => {
+        const found = await discoverTriggerAndSuggested();
+        test.skip(!found, "no active design whose supplier has two visible products");
+        await page.setViewportSize(size);
+        await page.goto(found!.step3.replace("/no/", `/${lang}/`));
+        await ceramicCards(page).first().click();
+        const sheet = page.getByTestId("product-sheet");
+        await expect(sheet).toBeVisible();
+
+        // ① below the first step — the scale is a price list before it is a discount
+        await sheet.screenshot({ path: `${OUT}/sheet-below-${label}-${lang}.png` });
+
+        const steps = sheet.getByTestId("ladder-step");
+        const count = await steps.count();
+        test.skip(count === 0, "the live shop has no quantity scale switched on");
+
+        // ② applied — the unit price is rewritten, the full one struck through
+        await steps.first().click();
+        await expect(sheet.getByTestId("sheet-unit-full")).toBeVisible();
+        await sheet.screenshot({ path: `${OUT}/sheet-applied-${label}-${lang}.png` });
+
+        // ③ past the last step — "best discount reached", nothing further promised
+        await steps.nth(count - 1).click();
+        for (let i = 0; i < 2; i++) await sheet.getByTestId("qty-inc").click();
+        await sheet.screenshot({ path: `${OUT}/sheet-best-${label}-${lang}.png` });
+
+        // ④ §D.2, after taking an offer: the sheet STAYS open, the row is marked
+        // «added», the stepper is back to 1 and the ladder now counts what the
+        // basket holds. Writes nothing but the browser's own cart.
+        const add = sheet.getByTestId("sheet-offer-add").first();
+        if ((await add.count()) > 0) {
+          await add.click();
+          await expect(sheet).toBeVisible();
+          await expect(sheet.getByTestId("sheet-offer-taken").first()).toBeVisible();
+          await expect(sheet.getByTestId("qty-value")).toHaveText("1");
+          await sheet.screenshot({ path: `${OUT}/sheet-offer-taken-${label}-${lang}.png` });
+        }
+      });
+    }
+  }
+});

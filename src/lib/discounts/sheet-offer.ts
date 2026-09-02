@@ -1,6 +1,6 @@
 /**
- * R4-UPSELL-MODALE — the offer as seen from the product sheet, where the
- * quantity is still the customer's to change.
+ * R4-UPSELL-MODALE / R4-SCONTI-2 — the offers as seen from the product sheet,
+ * where the quantity is still the customer's to change.
  *
  * The engine prices the cart that EXISTS. Here the question is prospective:
  * «if I added N of this product, would the rule fire?» — so the answer is
@@ -12,8 +12,14 @@
  * construction: it only ever returns rules whose trigger is already satisfied
  * (discount.ts), and the sheet has to show the offer precisely when it is not —
  * nobody raises the quantity for an offer they do not know they can unlock.
+ *
+ * R4-SCONTI-2 §D: it returns a LIST, not the first offer. Either every unlocked
+ * offer (capped at MAX_SUGGESTIONS by the engine, in the admin's own order) or —
+ * when nothing is unlocked — every offer this product can still REACH, nearest
+ * first. Never both, and an empty array when the band must not exist at all.
  */
 import {
+  MAX_SUGGESTIONS,
   activeSuggestions,
   included,
   type ActiveSuggestion,
@@ -24,8 +30,35 @@ import {
 import type { Currency } from "@/lib/money/money";
 
 export type SheetOffer =
-  | { kind: "unlocked"; suggestion: ActiveSuggestion }
-  | { kind: "locked"; rule: DiscountRule; neededQty: number; missing: number };
+  | {
+      kind: "unlocked";
+      suggestion: ActiveSuggestion;
+      /**
+       * §D.1 — what the button adds of the CURRENT product. Two literal cases,
+       * never a computed remainder: 0 when the cart ALONE already fires the
+       * rule, the customer's own chosen quantity otherwise. The property that
+       * makes it safe: an unlocked offer means `cart + selector >= threshold`,
+       * so what is missing can never exceed the selector — the button never
+       * adds more than the customer has already chosen.
+       */
+      baseQty: number;
+      /** The rule suggests the very product the sheet is open on (ADR 0025). */
+      selfOffer: boolean;
+    }
+  | {
+      kind: "locked";
+      /**
+       * The offer as the engine WOULD deliver it at `neededQty` — the same
+       * priced card the unlocked row draws. Carried whole, not reduced to its
+       * rule: a band that asks for effort without naming the prize is the
+       * defect this card exists to fix.
+       */
+      suggestion: ActiveSuggestion;
+      neededQty: number;
+      missing: number;
+      /** The rule suggests the very product the sheet is open on (ADR 0025). */
+      selfOffer: boolean;
+    };
 
 type Candidate = {
   /** Identity of the line the customer is about to add. */
@@ -48,18 +81,17 @@ type Opts = {
  * anything the engine would not actually deliver at that quantity.
  *
  * Beyond running `activeSuggestions`, this holds the two guards that make an
- * offer drawable and worth having: `rule.suggested` must resolve to a card
- * (F4 — the sheet has one block, not a cart's droppable list) and `pct` must
- * be > 0 (F1 — `discountMode: "none"`, or "inherited" paying nothing, is a
- * real admin configuration, not a bug; it must never read as an offer).
+ * offer drawable and worth having: `rule.suggested` must resolve to a card and
+ * `pct` must be > 0 (F1 — `discountMode: "none"`, or "inherited" paying nothing,
+ * is a real admin configuration, not a bug; it must never read as an offer).
  */
-function offerAt(
+function offersAt(
   lines: DiscountLineInput[],
   config: DiscountConfig,
   candidate: Candidate,
   quantity: number,
   opts: Opts
-): ActiveSuggestion | null {
+): ActiveSuggestion[] {
   const hypothetical: DiscountLineInput = {
     id: candidate.id,
     productId: candidate.productId,
@@ -73,7 +105,7 @@ function offerAt(
   // so it goes LAST: activeSuggestions prefers the biggest trigger line, and
   // ties resolve first-seen, so passing the current configCode makes it win
   // outright (ADR 0024 §6).
-  const suggestion = activeSuggestions([...lines, hypothetical], config, {
+  const suggestions = activeSuggestions([...lines, hypothetical], config, {
     // The hypothetical line has no identity in the caller's real supplierOf
     // (it is not a cart line yet), so that lookup legitimately misses for it —
     // fall back to the product-keyed lookup only then. Trying supplierOf(id)
@@ -84,32 +116,40 @@ function offerAt(
       (id === candidate.id ? opts.supplierOfProduct(candidate.productId) : null),
     supplierOfProduct: opts.supplierOfProduct,
     currentConfigCode: candidate.configCode ?? null,
-  })[0];
-  if (!suggestion) return null;
+  });
 
-  // rule.suggested is the product card the block draws — name, price, image.
-  // The cart can afford the engine's laxness here because it renders a LIST
-  // and OfferRow drops an undrawable row (cart-suggestion.tsx:97-98); the
-  // sheet has a SINGLE block, so an unlocked offer whose card cannot be drawn
-  // is a dead end — render nothing rather than a broken block.
-  if (!suggestion.rule.suggested) return null;
-
-  // A rule the shop configured to pay nothing (`discountMode: "none"`, or
-  // "inherited" with the tier scale off/unreached) is not an offer. Without
-  // this the sheet could promise "Offer" and unlock into a suggestion at full
-  // price — nothing was actually unlocked (F1).
-  if (suggestion.pct <= 0) return null;
-
-  return suggestion;
+  // Two guards, per row (R4-SCONTI-2: the sheet renders a LIST now, like the
+  // cart, so a row that cannot be drawn is dropped rather than the whole block):
+  //  - `rule.suggested` is the product card the row draws — name, price, image;
+  //  - `pct > 0` because a rule the shop configured to pay nothing
+  //    (`discountMode: "none"`, or "inherited" with the tier scale off or
+  //    unreached) is not an offer, and must never read as one (F1).
+  return suggestions.filter((s) => s.rule.suggested && s.pct > 0);
 }
 
-export function sheetOffer(
+/** Pieces of the rule's trigger group ALREADY in the cart (excluded ones don't count). */
+function inCartGroup(
+  lines: DiscountLineInput[],
+  rule: DiscountRule,
+  config: DiscountConfig
+): number {
+  return lines
+    .filter(
+      (l) =>
+        l.productId !== null &&
+        rule.triggerProductIds.includes(l.productId) &&
+        included(l.productId, config)
+    )
+    .reduce((n, l) => n + l.quantity, 0);
+}
+
+export function sheetOffers(
   lines: DiscountLineInput[],
   config: DiscountConfig,
   candidate: Candidate,
   opts: Opts
-): SheetOffer | null {
-  if (!config.automationsEnabled) return null;
+): SheetOffer[] {
+  if (!config.automationsEnabled) return [];
 
   // An excluded product neither triggers nor donates (ADR 0022) — checked
   // above BOTH branches (F2). "The unlocked branch gets this for free" was
@@ -118,19 +158,33 @@ export function sheetOffer(
   // past the threshold on OTHER lines, activeSuggestions can still hand back
   // a suggestion for an excluded candidate, and the price on it is genuine —
   // but an excluded product still has no business hosting the panel.
-  if (!included(candidate.productId, config)) return null;
+  if (!included(candidate.productId, config)) return [];
 
-  const unlocked = offerAt(lines, config, candidate, candidate.quantity, opts);
-  if (unlocked) return { kind: "unlocked", suggestion: unlocked };
+  // R4-SCONTI-2 §D: every eligible offer, in the admin's own order (ADR 0024
+  // §1), not `[0]` — showing one meant the second rule an admin configured was
+  // reachable only by giving up on the first.
+  const unlocked = offersAt(lines, config, candidate, candidate.quantity, opts);
+  if (unlocked.length > 0) {
+    return unlocked.map((suggestion) => ({
+      kind: "unlocked" as const,
+      suggestion,
+      baseQty:
+        inCartGroup(lines, suggestion.rule, config) >= suggestion.rule.triggerMinQty
+          ? 0
+          : candidate.quantity,
+      selfOffer: suggestion.rule.suggestedProductId === candidate.productId,
+    }));
+  }
 
-  // Locked: the first rule, in the admin's order, that this product could
-  // still unlock. `neededQty` is arithmetic offerAt cannot do (it takes a
-  // quantity, it doesn't invent one) — everything about whether the resulting
-  // offer is real comes from projecting AT that quantity and trusting what
-  // comes back, rule included: at neededQty the engine may prefer a different,
-  // earlier rule (its own D1/D2 can rule THIS rule's candidate out while an
-  // overlapping one still fires), and that is the one the customer will
-  // actually see, so it is the one reported here (F3).
+  // Locked: EVERY rule this product can still unlock, not the first one.
+  // `neededQty` is arithmetic offersAt cannot do (it takes a quantity, it
+  // doesn't invent one) — everything about whether the resulting offer is real
+  // comes from projecting AT that quantity and trusting what comes back, rule
+  // included: at neededQty the engine may prefer a different, earlier rule (its
+  // own D1/D2 can rule THIS rule's candidate out while an overlapping one still
+  // fires), and that is the one the customer will actually see, so it is the
+  // one reported here (F3).
+  const reachable = new Map<string, { suggestion: ActiveSuggestion; neededQty: number }>();
   for (const rule of config.rules) {
     if (!rule.triggerProductIds.includes(candidate.productId)) continue;
 
@@ -138,20 +192,47 @@ export function sheetOffer(
     // The mockup's fixed «Take N» assumes an empty cart and would ask for more
     // than necessary — and would contradict the engine, which fires as soon as
     // the GROUP reaches the threshold (D-Q2).
-    const inCartGroup = lines
-      .filter(
-        (l) =>
-          l.productId !== null &&
-          rule.triggerProductIds.includes(l.productId) &&
-          included(l.productId, config)
-      )
-      .reduce((n, l) => n + l.quantity, 0);
-    const neededQty = Math.max(1, rule.triggerMinQty - inCartGroup);
+    const neededQty = Math.max(1, rule.triggerMinQty - inCartGroup(lines, rule, config));
     if (candidate.quantity >= neededQty) continue; // would already be unlocked
 
-    const projected = offerAt(lines, config, candidate, neededQty, opts);
-    if (!projected) continue;
-    return { kind: "locked", rule: projected.rule, neededQty, missing: neededQty - candidate.quantity };
+    // EVERY offer the engine would deliver at that quantity, not just `[0]`:
+    // two rules at the same distance both fire at it, and taking the head would
+    // have collapsed them onto whichever the admin listed first — the very
+    // "second rule unreachable" bug the unlocked branch was fixed for. Nothing
+    // foreign can slip in: a rule the cart already fires on its own lines fires
+    // at `candidate.quantity` too, and would have returned above as unlocked.
+    for (const projected of offersAt(lines, config, candidate, neededQty, opts)) {
+      // Keyed on the PROJECTED rule, keeping the cheapest way to reach it: by
+      // F3 above, iterations can legitimately project onto the same rule, and
+      // the customer is owed the shorter of the distances. Impossible while
+      // this loop returned on its first hit; a real case now that it collects.
+      const seen = reachable.get(projected.rule.id);
+      if (seen && seen.neededQty <= neededQty) continue;
+      reachable.set(projected.rule.id, { suggestion: projected, neededQty });
+    }
   }
-  return null;
+
+  // Nearest FIRST, and only then the admin's order (ADR 0024 §1) — the one
+  // place the sort deviates from the unlocked branch, deliberately: there the
+  // offers are all available and therefore equivalent, so the shop's own order
+  // is the only ranking there is; here they sit at different distances, and the
+  // distance is information the customer is deciding on.
+  const adminOrder = (id: string) => config.rules.findIndex((r) => r.id === id);
+  return [...reachable.values()]
+    .sort(
+      (a, b) =>
+        a.neededQty - b.neededQty ||
+        adminOrder(a.suggestion.rule.id) - adminOrder(b.suggestion.rule.id)
+    )
+    // The cap `activeSuggestions` applies for the unlocked branch. This loop is
+    // ours, so the cap is ours to apply too: without it eight rules are eight
+    // rows, and the band stops being a suggestion (MAX_SUGGESTIONS, discount.ts).
+    .slice(0, MAX_SUGGESTIONS)
+    .map(({ suggestion, neededQty }) => ({
+      kind: "locked" as const,
+      suggestion,
+      neededQty,
+      missing: neededQty - candidate.quantity,
+      selfOffer: suggestion.rule.suggestedProductId === candidate.productId,
+    }));
 }

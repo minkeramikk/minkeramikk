@@ -11,6 +11,12 @@ export default defineConfig({
       ),
     },
   },
+  // tsconfig.json keeps jsx: "preserve" for Next's own compiler; vitest has to
+  // transform it itself to render a component to a string in a unit test.
+  // tsconfig keeps jsx: "preserve" for Next's own compiler; a unit test that
+  // renders a component to a string needs the transform done here instead.
+  // (Vite 8 transforms with oxc, so this is the `esbuild` option's successor.)
+  oxc: { jsx: { runtime: "automatic" } },
   test: {
     // unit/integration tests only — e2e/*.spec.ts belongs to Playwright
     include: ["src/**/*.test.ts", "scripts/**/*.test.ts"],

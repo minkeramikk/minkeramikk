@@ -4,6 +4,8 @@ import {
   cartSaved,
   computeCartDiscount,
   activeSuggestions,
+  allocateDeals,
+  fullPricePool,
   MAX_SUGGESTIONS,
   nextTier,
   tierFor,
@@ -235,11 +237,17 @@ describe("activeSuggestions — a list, in the admin's order", () => {
     );
   });
 
-  it("keeps the filters it always had: in-cart (D1), cross-supplier (D2), excluded", () => {
+  it("keeps the filters it always had: taken in full (D1), cross-supplier (D2), excluded", () => {
     const rules = [ruleFor("r1", "boat")];
-    // D1 — already in the cart
+    // D1 (ADR 0025) — the offer has been TAKEN IN FULL. It used to be "the
+    // suggested product is in the cart", which also fired on a full-price
+    // purchase of that ceramic; now only the offer's own line closes it.
     expect(
-      activeSuggestions([...trigger, line({ id: "b", productId: "boat" })], cfg(rules), opts)
+      activeSuggestions(
+        [...trigger, line({ id: "b", productId: "boat", dealRuleId: "r1" })],
+        cfg(rules),
+        opts
+      )
     ).toEqual([]);
     // D2 — the suggested product belongs to another supplier
     expect(
@@ -448,5 +456,192 @@ describe("cartSaved — what the sticky bar declares", () => {
     // the bar must not show one of the two, nor their sum computed twice
     expect(cartSaved(r)).toEqual(money(129920));
     expect(cartSaved(r)).toEqual(subtract(r.subtotal, r.total));
+  });
+});
+
+describe("§A — pool a prezzo pieno, per regola (ADR 0025)", () => {
+  const opts = { supplierOf: () => "sup1", supplierOfProduct: () => "sup1" };
+  /** trigger = plate ×`triggerMinQty` → `suggestedQty` of `suggested`, −50%. */
+  const rule = (
+    id: string,
+    suggested: string,
+    over: Partial<DiscountRule> = {}
+  ): DiscountRule => ({
+    ...RULE,
+    id,
+    suggestedProductId: suggested,
+    suggestedQty: 4,
+    discountPct: 50,
+    ...over,
+  });
+  const cfg = (rules: DiscountRule[]) =>
+    config({ automationsEnabled: true, rules, tiersEnabled: false });
+  const qtyOf = (lines: DiscountLineInput[]) =>
+    lines.reduce<Record<string, number>>((m, l) => {
+      m[l.productId as string] = (m[l.productId as string] ?? 0) + l.quantity;
+      return m;
+    }, {});
+  const alloc = (lines: DiscountLineInput[], c: DiscountConfig) =>
+    allocateDeals(lines, c, qtyOf(lines));
+
+  it("4 pieces + two distinct rules from 4 → BOTH apply (the pool is PER RULE)", () => {
+    const lines = [
+      line({ id: "t", productId: "plate", quantity: 4 }),
+      line({ id: "b1", productId: "boat", quantity: 4, dealRuleId: "r1" }),
+      line({ id: "b2", productId: "bowl", quantity: 4, dealRuleId: "r2" }),
+    ];
+    const a = alloc(lines, cfg([rule("r1", "boat"), rule("r2", "bowl")]));
+    expect(a.maxCovered.r1).toBe(4);
+    expect(a.maxCovered.r2).toBe(4);
+    expect(a.byLine.b1.covered).toBe(4);
+    expect(a.byLine.b2.covered).toBe(4);
+  });
+
+  it("8 pieces + one rule from 4 → maxCoveredQty is doubled", () => {
+    const lines = [line({ id: "t", productId: "plate", quantity: 8 })];
+    expect(alloc(lines, cfg([rule("r1", "boat")])).maxCovered.r1).toBe(8);
+  });
+
+  it("7 pieces + one rule from 4 → a single application (floor)", () => {
+    const lines = [line({ id: "t", productId: "plate", quantity: 7 })];
+    expect(alloc(lines, cfg([rule("r1", "boat")])).maxCovered.r1).toBe(4);
+  });
+
+  it("INVARIANT — discounted units enter no pool at all", () => {
+    const c = cfg([rule("r1", "plate")]); // same-product upsell
+    const lines = [
+      line({ id: "full", productId: "plate", quantity: 4 }),
+      line({ id: "deal", productId: "plate", quantity: 4, dealRuleId: "r1" }),
+    ];
+    expect(fullPricePool(lines, c).plate).toBe(4);
+  });
+
+  it("same-product rule: a single application, STABLE across two recomputations", () => {
+    const c = cfg([rule("r1", "plate")]);
+    const lines = [
+      line({ id: "full", productId: "plate", quantity: 4 }),
+      line({ id: "deal", productId: "plate", quantity: 4, dealRuleId: "r1" }),
+    ];
+    const first = alloc(lines, c);
+    expect(first.maxCovered.r1).toBe(4);
+    expect(first.byLine.deal.covered).toBe(4);
+    expect(first.remaining.r1).toBe(0);
+    expect(alloc(lines, c)).toEqual(first);
+  });
+
+  it("adding the discounted units unlocks NO more of the offer (no 4 → 8 → 16)", () => {
+    const c = cfg([rule("r1", "plate")]);
+    const lines = [
+      line({ id: "full", productId: "plate", quantity: 4 }),
+      line({ id: "d1", productId: "plate", quantity: 4, dealRuleId: "r1" }),
+      line({ id: "d2", productId: "plate", quantity: 4, dealRuleId: "r1" }),
+    ];
+    const a = alloc(lines, c);
+    expect(a.maxCovered.r1).toBe(4);
+    expect(a.byLine.d1.covered).toBe(4);
+    expect(a.byLine.d2.covered).toBe(0); // budget spent, in cart order
+  });
+
+  it("a rule's budget is SHARED by the lines that carry it", () => {
+    const c = cfg([rule("r1", "boat")]);
+    const lines = [
+      line({ id: "t", productId: "plate", quantity: 8 }), // two applications
+      line({ id: "b1", productId: "boat", quantity: 4, dealRuleId: "r1" }),
+      line({ id: "b2", productId: "boat", quantity: 6, dealRuleId: "r1" }),
+    ];
+    const a = alloc(lines, c);
+    expect(a.maxCovered.r1).toBe(8);
+    expect(a.byLine.b1.covered).toBe(4);
+    expect(a.byLine.b2.covered).toBe(4); // 8 − 4; the rest stays at full price
+  });
+
+  it("computeCartDiscount caps the line at the RULE's budget, not at suggestedQty", () => {
+    const c = cfg([rule("r1", "boat")]);
+    const lines = [
+      line({ id: "t", productId: "plate", quantity: 8 }),
+      line({ id: "b", productId: "boat", unitPriceCents: 10000, quantity: 8, dealRuleId: "r1" }),
+    ];
+    const d = computeCartDiscount(lines, c).perLine.b;
+    expect(d.source).toBe("deal");
+    expect(d.coveredQty).toBe(8); // two applications × 4
+    expect(d.saved).toEqual(money(40000)); // 8 × 100,00 kr × 50%
+  });
+
+  it("the second line on an exhausted budget gets no deal and no false 'missing' nudge", () => {
+    const c = cfg([rule("r1", "boat")]);
+    const lines = [
+      line({ id: "t", productId: "plate", quantity: 4 }),
+      line({ id: "b1", productId: "boat", quantity: 4, dealRuleId: "r1" }),
+      line({ id: "b2", productId: "boat", quantity: 4, dealRuleId: "r1" }),
+    ];
+    const d = computeCartDiscount(lines, c).perLine.b2;
+    expect(d.source).toBe("none");
+    expect(d.pendingDeal).toBeUndefined();
+  });
+
+  it("reducing the quantity below the offer still switches the deal off (floor kept)", () => {
+    const c = cfg([rule("r1", "boat")]);
+    const lines = [
+      line({ id: "t", productId: "plate", quantity: 4 }),
+      line({ id: "b", productId: "boat", quantity: 3, dealRuleId: "r1" }),
+    ];
+    const d = computeCartDiscount(lines, c).perLine.b;
+    expect(d.source).not.toBe("deal");
+    expect(d.pendingDeal).toEqual({ missing: 1, pct: 50 });
+  });
+
+  describe("§B — D1 is 'the offer is already fully taken', not 'in the cart'", () => {
+    it("same-product: offered at 4 full-price, gone once it has been taken", () => {
+      const c = cfg([rule("r1", "plate")]);
+      const before = activeSuggestions(
+        [line({ id: "full", productId: "plate", quantity: 4 })],
+        c,
+        opts
+      );
+      expect(before.map((s) => s.rule.id)).toEqual(["r1"]);
+
+      const after = activeSuggestions(
+        [
+          line({ id: "full", productId: "plate", quantity: 4 }),
+          line({ id: "deal", productId: "plate", quantity: 4, dealRuleId: "r1" }),
+        ],
+        c,
+        opts
+      );
+      expect(after).toEqual([]);
+    });
+
+    it("8 full-price: the offer survives its first application", () => {
+      const c = cfg([rule("r1", "plate")]);
+      const after = activeSuggestions(
+        [
+          line({ id: "full", productId: "plate", quantity: 8 }),
+          line({ id: "deal", productId: "plate", quantity: 4, dealRuleId: "r1" }),
+        ],
+        c,
+        opts
+      );
+      expect(after.map((s) => s.rule.id)).toEqual(["r1"]);
+    });
+
+    it("the suggested product bought at FULL price no longer kills the offer", () => {
+      const c = cfg([rule("r1", "boat")]);
+      const out = activeSuggestions(
+        [
+          line({ id: "t", productId: "plate", quantity: 4 }),
+          line({ id: "own", productId: "boat", quantity: 1 }),
+        ],
+        c,
+        opts
+      );
+      expect(out.map((s) => s.rule.id)).toEqual(["r1"]);
+    });
+
+    it("an unsatisfied trigger is still no offer (remaining 0 absorbs the old check)", () => {
+      const c = cfg([rule("r1", "boat")]);
+      expect(
+        activeSuggestions([line({ id: "t", productId: "plate", quantity: 3 })], c, opts)
+      ).toEqual([]);
+    });
   });
 });

@@ -134,7 +134,17 @@ export function CartProvider({
    */
   const acceptSuggestion = useCallback(
     (suggestion: ActiveSuggestion) => {
-      const from = cart.cart.find((l) => l.id === suggestion.fromLineId);
+      // The donor named by the engine can be the sheet's HYPOTHETICAL line —
+      // not a cart line at all (R4-SCONTI-2 §D.2: an offer taken when the basket
+      // alone already fires the rule adds only the suggested ceramic). In that
+      // case the trigger group is by definition already in the cart, so fall
+      // back to the first real line of it. Fixed here rather than at the call
+      // site: every caller routes through this one lookup.
+      const from =
+        cart.cart.find((l) => l.id === suggestion.fromLineId) ??
+        cart.cart.find(
+          (l) => l.productId && suggestion.rule.triggerProductIds.includes(l.productId)
+        );
       if (!from) return;
       const line = buildSuggestionLine(suggestion, from);
       if (!line) return;

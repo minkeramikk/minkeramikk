@@ -145,7 +145,7 @@ export const included = (productId: string | null, config: DiscountConfig): bool
     config.includedProductIds.includes(productId));
 
 // minQty >= 2 mirrors the DB CHECK constraint on tiers (supabase/migrations/0032_discounts_tiers.sql).
-const usableTiers = (tiers: DiscountTier[]): DiscountTier[] =>
+export const usableTiers = (tiers: DiscountTier[]): DiscountTier[] =>
   tiers
     .filter((t) => t.minQty >= 2 && t.pct > 0)
     .sort((a, b) => b.minQty - a.minQty);
@@ -165,23 +165,18 @@ export function nextTier(qty: number, tiers: DiscountTier[]): DiscountTier | nul
 }
 
 /**
- * Part ②: the % a rule grants on the line it produced.
- *
- * Re-derives the percentage from the DB config (never trusts a persisted
- * number), and re-checks the two things a persisted `dealRuleId` can outlive:
- * the line must still be the rule's suggested product (localStorage lets a
- * customer forge any enabled rule id onto any line), and the trigger group
- * must still reach `triggerMinQty` (fixed-mode deals don't recompute this on
- * their own the way `inherited` does via `qtyByProduct` — see resolveDeal callers).
- */
-/**
  * Whether a rule's offer applies to this line, and on what terms.
  *
- * `suggestedQty` is the SIZE of the offer, so it is both of its edges: an offer
- * of N pieces is not owed below N and does not grow above it. The admin writes
- * "N pieces at X%"; the shop honours exactly that. Everything the decision
- * needs lives here — the four guards below plus the two edges — so no caller
- * has to re-derive half of it.
+ * Re-derives the percentage from the DB config (never trusts a persisted
+ * number), and re-checks what a persisted `dealRuleId` can outlive: the line
+ * must still be the rule's suggested product (localStorage lets a customer forge
+ * any enabled rule id onto any line), and the rule must still have a budget.
+ *
+ * The two edges of the offer are asymmetric (ADR 0025). BELOW: `suggestedQty` is
+ * the offer's own size and nothing is owed under it — that is `short`. ABOVE: the
+ * offer applies once every `triggerMinQty` FULL-PRICE pieces, so the ceiling is
+ * `maxCoveredQty`, not `suggestedQty`. The admin writes "N pieces at X% for every
+ * M in the basket"; the shop honours exactly that.
  *
  * `short` is not a failure: it is the offer standing, unmet. The caller lets
  * the line fall through to the ordinary tier path and tells the customer what
@@ -190,13 +185,106 @@ export function nextTier(qty: number, tiers: DiscountTier[]): DiscountTier | nul
 type DealResolution =
   | { kind: "none" }
   | { kind: "short"; missing: number; pct: number }
-  | { kind: "applies"; pct: number; suggestedQty: number };
+  | { kind: "applies"; pct: number; maxCoveredQty: number };
+
+/**
+ * PASS 1 (ADR 0025) — the units at FULL price, per product.
+ *
+ * The criterion is IDENTITY, not price: a line contributes to its product's pool
+ * unless it carries a `dealRuleId` matching a live rule for that product. This is
+ * what breaks the circularity — the pool would depend on the coverages and the
+ * coverages on the pool — without any recursion: here we need not know how much
+ * that line discounts, only that it is an offer line.
+ *
+ * Deliberately CONSERVATIVE: a line carrying a rule id feeds no pool even if its
+ * deal turns out not to apply (trigger gone, 0%). It errs on the shop's side, and
+ * no 4 → 8 → 16 chain can start.
+ */
+export function fullPricePool(
+  lines: DiscountLineInput[],
+  config: DiscountConfig
+): Record<string, number> {
+  const pool: Record<string, number> = {};
+  for (const l of lines) {
+    if (!included(l.productId, config)) continue; // excluded ⇒ never a trigger
+    const isDealUnit =
+      l.dealRuleId !== undefined &&
+      config.rules.some(
+        (r) => r.id === l.dealRuleId && r.suggestedProductId === l.productId
+      );
+    if (isDealUnit) continue; // INVARIANT: discounted units count for no offer
+    pool[l.productId as string] = (pool[l.productId as string] ?? 0) + l.quantity;
+  }
+  return pool;
+}
+
+/** The rule's budget: `floor(pool / triggerMinQty)` applications × `suggestedQty`. */
+function maxCoveredFor(rule: DiscountRule, pool: Record<string, number>): number {
+  const poolQty = rule.triggerProductIds.reduce((n, pid) => n + (pool[pid] ?? 0), 0);
+  return Math.floor(poolQty / rule.triggerMinQty) * rule.suggestedQty;
+}
+
+export interface DealAllocation {
+  /** Pass 1: full-price units per product. */
+  pool: Record<string, number>;
+  /** Per rule: how many units the offer may cover in total. */
+  maxCovered: Record<string, number>;
+  /** Per rule: how much of that budget is still unassigned. */
+  remaining: Record<string, number>;
+  /** Per line: the rule's verdict and the units it actually got. */
+  byLine: Record<string, { deal: DealResolution; covered: number }>;
+}
+
+/**
+ * PASS 2 (ADR 0025) — the assignment. A rule's budget is consumed in CART ORDER:
+ * two lines carrying the same rule SHARE it instead of both taking it whole,
+ * which was the "the trigger is never consumed" bug.
+ *
+ * Exported because `activeSuggestions` asks it the mirror question — is there any
+ * budget left to offer? — and the two must not answer it differently.
+ */
+export function allocateDeals(
+  lines: DiscountLineInput[],
+  config: DiscountConfig,
+  qtyByProduct: Record<string, number>
+): DealAllocation {
+  const pool = fullPricePool(lines, config);
+  const maxCovered: Record<string, number> = {};
+  const remaining: Record<string, number> = {};
+  for (const rule of config.rules) {
+    maxCovered[rule.id] = maxCoveredFor(rule, pool);
+    remaining[rule.id] = maxCovered[rule.id];
+  }
+
+  const byLine: DealAllocation["byLine"] = {};
+  for (const l of lines) {
+    if (!l.dealRuleId) continue;
+    const deal = resolveDeal(
+      l.dealRuleId,
+      l.productId,
+      l.quantity,
+      { pool, qtyByProduct, maxCovered },
+      config
+    );
+    let covered = 0;
+    if (deal.kind === "applies") {
+      covered = Math.min(l.quantity, remaining[l.dealRuleId] ?? 0);
+      remaining[l.dealRuleId] = (remaining[l.dealRuleId] ?? 0) - covered;
+    }
+    byLine[l.id] = { deal, covered };
+  }
+  return { pool, maxCovered, remaining, byLine };
+}
 
 function resolveDeal(
   ruleId: string,
   productId: string | null,
   quantity: number,
-  qtyByProduct: Record<string, number>,
+  ctx: {
+    pool: Record<string, number>;
+    qtyByProduct: Record<string, number>;
+    maxCovered: Record<string, number>;
+  },
   config: DiscountConfig
 ): DealResolution {
   const none: DealResolution = { kind: "none" };
@@ -204,16 +292,24 @@ function resolveDeal(
   const rule = config.rules.find((r) => r.id === ruleId);
   if (!rule) return none; // rule deleted/disabled since the line was added
   if (productId !== rule.suggestedProductId) return none; // not entitled to this rule
-  const groupQty = rule.triggerProductIds.reduce(
-    (n, pid) => n + (qtyByProduct[pid] ?? 0),
-    0
-  );
-  if (groupQty < rule.triggerMinQty) return none; // trigger no longer satisfied
+
+  // The TRIGGER is the full-price pool, no longer `qtyByProduct`: an offer cannot
+  // fire on the units it discounted itself (ADR 0025). A budget of 0 means the
+  // trigger is not reached — the old `groupQty < triggerMinQty` check lives here.
+  const maxCoveredQty = ctx.maxCovered[rule.id] ?? 0;
+  if (maxCoveredQty <= 0) return none;
 
   let pct = 0;
   if (rule.discountMode === "fixed") pct = rule.discountPct ?? 0;
   else if (rule.discountMode === "inherited") {
     if (!config.tiersEnabled) return none;
+    // The inherited PERCENTAGE stays the tier the trigger group earns: the tier is
+    // the other mechanic and counts every unit (ADR 0022). The pool governs HOW
+    // MANY TIMES the offer applies, not at what percentage.
+    const groupQty = rule.triggerProductIds.reduce(
+      (n, pid) => n + (ctx.qtyByProduct[pid] ?? 0),
+      0
+    );
     pct = tierFor(groupQty, config.tiers);
   }
   if (pct <= 0) return none; // mode "none", or an inherited tier that pays nothing
@@ -225,7 +321,7 @@ function resolveDeal(
   if (quantity < rule.suggestedQty) {
     return { kind: "short", missing: rule.suggestedQty - quantity, pct };
   }
-  return { kind: "applies", pct, suggestedQty: rule.suggestedQty };
+  return { kind: "applies", pct, maxCoveredQty };
 }
 
 /**
@@ -269,9 +365,9 @@ export const MAX_SUGGESTIONS = 3;
  * customers never saw it and the admin page promised what the shop did not
  * deliver.
  *
- * The filters are unchanged: a product already in the cart is skipped (D1), the
- * suggested product must share the donor's supplier (D2), the trigger group must
- * be satisfied, and an excluded product neither triggers nor donates.
+ * The filters: an offer already taken in full is skipped (D1, ADR 0025 — it used
+ * to be "a product already in the cart"), the suggested product must share the
+ * donor's supplier (D2), and an excluded product neither triggers nor donates.
  */
 export function activeSuggestions(
   lines: DiscountLineInput[],
@@ -294,17 +390,19 @@ export function activeSuggestions(
     qtyByProduct[l.productId as string] =
       (qtyByProduct[l.productId as string] ?? 0) + l.quantity;
   }
-  const inCart = new Set(lines.map((l) => l.productId).filter(Boolean) as string[]);
+  // ADR 0025: the same two passes computeCartDiscount runs, so the cart and the
+  // offer list can never disagree about how much of an offer is left.
+  const { pool, maxCovered, remaining } = allocateDeals(lines, config, qtyByProduct);
 
   const out: ActiveSuggestion[] = [];
   for (const rule of config.rules) {
     if (out.length >= MAX_SUGGESTIONS) break;
-    if (inCart.has(rule.suggestedProductId)) continue; // D1
-    const groupQty = rule.triggerProductIds.reduce(
-      (n, pid) => n + (qtyByProduct[pid] ?? 0),
-      0
-    );
-    if (groupQty < rule.triggerMinQty) continue;
+    // D1 (ADR 0025) — no longer "the suggested product is already in the cart",
+    // which banned the same-product upsell outright and let a full-price purchase
+    // of the suggested ceramic switch a live offer off. Now: "the offer has
+    // already been taken in full". A budget of 0 also covers the unreached
+    // trigger — no pool, no budget — so the old trigger check lives here too.
+    if ((remaining[rule.id] ?? 0) <= 0) continue;
 
     // The line that lends its config. Biggest first, first-seen on a tie — but
     // if the customer is looking at a configuration on step 3 and one of the
@@ -335,7 +433,7 @@ export function activeSuggestions(
       rule.id,
       rule.suggestedProductId,
       rule.suggestedQty,
-      qtyByProduct,
+      { pool, qtyByProduct, maxCovered },
       config
     );
     out.push({ rule, fromLineId: from.id, pct: d.kind === "applies" ? d.pct : 0 });
@@ -359,6 +457,10 @@ export function computeCartDiscount(
       (qtyByProduct[l.productId as string] ?? 0) + l.quantity;
   }
 
+  // ADR 0025, the two passes: which units are at full price, then who gets the
+  // coverage. Done once for the whole cart so no line can disagree with another.
+  const allocation = allocateDeals(lines, config, qtyByProduct);
+
   const perLine: Record<string, LineDiscount> = {};
   const fulls: Money[] = [];
   const tierSaves: Money[] = [];
@@ -377,17 +479,17 @@ export function computeCartDiscount(
     let coveredQty = l.quantity;
     let pendingDeal: LineDiscount["pendingDeal"];
     if (l.dealRuleId) {
-      const deal = resolveDeal(
-        l.dealRuleId,
-        l.productId,
-        l.quantity,
-        qtyByProduct,
-        config
-      );
-      if (deal.kind === "applies") {
+      const { deal, covered } = allocation.byLine[l.id] ?? {
+        deal: { kind: "none" } as DealResolution,
+        covered: 0,
+      };
+      if (deal.kind === "applies" && covered > 0) {
         pct = deal.pct;
         source = "deal";
-        coveredQty = Math.min(l.quantity, deal.suggestedQty);
+        // The rule's budget, already consumed in cart order by allocateDeals —
+        // NOT `min(quantity, suggestedQty)`, which handed every line the whole
+        // offer and never consumed the trigger.
+        coveredQty = covered;
       } else if (deal.kind === "short") {
         // Below the offer's floor: no deal, and the line simply carries on to
         // the tier branch below like any other — that fallback already exists,
@@ -395,6 +497,9 @@ export function computeCartDiscount(
         // can be told why the price moved.
         pendingDeal = { missing: deal.missing, pct: deal.pct };
       }
+      // Budget spent (`applies` with `covered === 0`): no deal and NO message.
+      // Nothing is missing on the customer's side — the offer is simply over —
+      // so the line carries on to the tier branch like any other.
     }
     if (source === "none" && config.tiersEnabled && included(l.productId, config)) {
       pct = tierFor(qtyByProduct[l.productId as string] ?? 0, config.tiers);

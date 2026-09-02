@@ -5,12 +5,18 @@ import { Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
+import type { Currency } from "@/lib/money/money";
+
 /** One selectable product in the picker (price pre-formatted server-side). */
 export interface EditorProduct {
   id: string;
   nameNo: string;
   nameEn: string;
   price: string;
+  /** Raw price, for callers that must do arithmetic (rule preview). Optional:
+   *  the pickers only ever display `price`. */
+  priceCents?: number;
+  currency?: Currency;
   image: string | null; // resolved URL (assetUrl) or null
   visible: boolean;
 }

@@ -160,6 +160,16 @@
       "edit": "Endre farger",
       "editShort": "Endre",
       "pairCaption": "Denne keramikken + ditt design"
+    },
+    "ladder": {
+      "title": "Mengderabatt",
+      "save": "Du sparer {amount}",
+      "saveUpTo": "Spar opptil −{pct} %",
+      "nudge": "{missing, plural, one {Én til} other {# til}}, og du sparer {amount}",
+      "best": "Beste rabatt nådd",
+      "step": "Velg {qty} stk, −{pct} %",
+      "excluded": "Denne keramikken er ikke med i mengderabatten.",
+      "inCart": "{qty} {name} ligger i handlekurven — mengderabatten teller dem med."
     }
   },
   "orderForm": {
@@ -263,8 +273,15 @@
     "sheetOffer": {
       "kicker": "Tilbud",
       "kickerUnlocked": "Tilbud låst opp",
-      "unlock": "Legg til {missing} til for å låse opp",
-      "addBoth": "Legg til begge · {total}"
+      "addMissing": "Legg til {missing} til",
+      "atTotal": "Med {qty} til sammen",
+      "addBoth": "Legg til begge · {total}",
+      "addBase": "Legg til {base}+{extra}",
+      "addOnly": "Legg til {extra}",
+      "whatBoth": "Legger til {base} {name} + {extra} {extraName}",
+      "whatOnly": "Legger til {extra} {extraName} ({name} er alt i kurven)",
+      "self": "Ta {qty} til — −{pct} %",
+      "taken": "Lagt i handlekurven"
     },
     "addedWithPct": "Lagt i handlekurven · −{pct} %"
   },
