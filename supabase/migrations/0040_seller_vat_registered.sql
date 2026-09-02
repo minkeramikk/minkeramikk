@@ -1,0 +1,15 @@
+-- 0040 — R4-PDF-CLIENTE: il negozio È iscritto al MVA-registeret.
+--
+-- Confermato da Alessio via Daniele il 2026-09-02. Da qui in poi il riepilogo
+-- cliente stampa «Herav MVA 25 %» / «Incl. VAT 25%» e l'organisasjonsnummer
+-- seguito da « MVA », come vuole la norma per un soggetto registrato.
+--
+-- Perché una migration e non una query a mano: la 0038 contiene un
+-- `update settings set …` che riscriverebbe il seed (e questo flag) al primo
+-- `supabase db push` successivo. Il valore vive qui, dopo di lei, così ogni
+-- ambiente converge sullo stesso stato qualunque sia l'ordine di applicazione.
+--
+-- ⚠️ L'IVA è SCORPORATA, non aggiunta: i prezzi di minkeramikk sono IVA inclusa
+-- (condizioni di vendita §4). Il totale non cambia di un øre — cambia solo che
+-- il documento dice quanta imposta contiene.
+update settings set seller_vat_registered = true;
