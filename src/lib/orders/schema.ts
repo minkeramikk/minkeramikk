@@ -89,6 +89,10 @@ export const orderFormSchema = z.object({
   // pending the client's confirmation; only the max length is enforced.
   address: z.string().trim().max(200).optional().or(z.literal("")),
   zipcode: z.string().trim().max(20).optional().or(z.literal("")),
+  // R4-ORDERS-PLUS voce C: poststed. A Norwegian label needs postnummer AND
+  // poststed, and for the EUR market the city is mandatory. Optional like the
+  // rest of the address until the pre-launch "mandatory" rule lands.
+  city: z.string().trim().max(80).optional().or(z.literal("")),
   country: z.string().trim().max(80).optional().or(z.literal("")),
   message: z.string().trim().max(2000).optional().or(z.literal("")),
 });

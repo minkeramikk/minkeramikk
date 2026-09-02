@@ -4,6 +4,8 @@ import { AdminShell } from "@/components/shell/admin-shell";
 import { LabPdfActions } from "@/components/admin/lab-pdf-actions";
 import { OrderStatusBadge } from "@/components/ui-domain/order-status-badge";
 import { getOrder, getCodecDesigns } from "@/lib/orders/admin-orders.server";
+import { getOrderEvents } from "@/lib/orders/order-events.server";
+import { timeline } from "@/lib/orders/order-events";
 import {
   buildReplicaSet,
   configuratorPathFromCode,
@@ -20,6 +22,8 @@ import {
 import type { OrderStatus } from "@/lib/orders/order-status";
 import { formatMoney } from "@/lib/money/money";
 import { OrderStatusForm } from "@/components/admin/order-status-form";
+import { OrderMessageForm } from "@/components/admin/order-message-form";
+import { OrderTimeline } from "@/components/admin/order-timeline";
 import { PaidBadge } from "@/components/ui-domain/paid-badge";
 import { DiscountRatifiedBadge } from "@/components/ui-domain/discount-badge";
 import {
@@ -60,7 +64,13 @@ export default async function OrderDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [order, codecDesigns] = await Promise.all([getOrder(id), getCodecDesigns()]);
+  // R4-ORDERS-PLUS: the events ride along in the same parallel fetch — the
+  // register must not add a round trip to opening an order.
+  const [order, codecDesigns, events] = await Promise.all([
+    getOrder(id),
+    getCodecDesigns(),
+    getOrderEvents(id),
+  ]);
   if (!order) notFound();
 
   const groups = groupBySupplier(order.items);
@@ -240,6 +250,14 @@ export default async function OrderDetailPage({
                 </button>
               </form>
             </section>
+
+            {/* R4-ORDERS-PLUS §B: the register. «Order created» is synthetic, so
+                this section is never empty — not even on an order that predates
+                the log. */}
+            <section className="rounded-lg border border-border bg-card p-5">
+              <h2 className="mb-3 text-base font-semibold">Activity</h2>
+              <OrderTimeline rows={timeline(order.createdAt, events)} />
+            </section>
           </div>
 
           {/* RIGHT: customer + actions */}
@@ -253,11 +271,14 @@ export default async function OrderDetailPage({
                 </a>
               </p>
               {order.phone && <p className="text-sm">{order.phone}</p>}
-              {(order.address || order.zipcode || order.country) && (
+              {(order.address || order.zipcode || order.city || order.country) && (
                 <p data-testid="customer-address" className="mt-2 text-sm text-muted-foreground">
                   {order.address}
                   {order.address && <br />}
-                  {[order.zipcode, order.country].filter(Boolean).join(" ")}
+                  {/* R4-ORDERS-PLUS voce C: postnummer, poststed, land — in the
+                      order a label carries them. Orders from before the column
+                      have city NULL and simply read as they always did. */}
+                  {[order.zipcode, order.city, order.country].filter(Boolean).join(" ")}
                 </p>
               )}
               <p className="mt-2 text-xs text-muted-foreground">
@@ -382,13 +403,14 @@ export default async function OrderDetailPage({
                 hasDiscount={orderDiscount(order.items).amountCents > 0}
                 discountRatifiedAt={order.discountRatifiedAt}
               />
-              <a
-                href={`mailto:${order.email}?subject=${encodeURIComponent(`Order ${order.code}`)}`}
-                data-testid="email-customer"
-                className="mt-2 block rounded-lg border border-border px-3 py-2 text-center text-sm"
-              >
-                Email the customer
-              </a>
+              {/* R4-ORDERS-PLUS voce A: was a `mailto:`, which sent whatever the
+                  admin's own mail client felt like sending — unbranded, from a
+                  personal address, and invisible to the log. */}
+              <OrderMessageForm
+                orderId={order.id}
+                orderCode={order.code}
+                customerEmail={order.email}
+              />
               {/* R2-6 D: reopen this order as a basket (set codec is URL-safe →
                   raw param). Disabled when no line carries a config code/slug. */}
               {replica.param ? (

@@ -12,6 +12,9 @@ import { orderFormSchema } from "@/lib/orders/schema";
 import { encodeSetParam } from "@/lib/cart/set-code";
 
 /**
+ * TODO:nb-review NO copy: orderForm.city («Poststed» — the client's own word,
+ * from the card, but it has never been seen in the form's layout).
+ *
  * Order form (F05): client-validated with the SAME zod schema as the server,
  * Turnstile token attached. Success → clear cart + redirect to confirmation;
  * error → cart preserved, gentle message.
@@ -36,6 +39,7 @@ export function OrderForm({
     phone: "",
     address: "",
     zipcode: "",
+    city: "",
     country: "",
     message: "",
   });
@@ -166,6 +170,9 @@ export function OrderForm({
           autoComplete="street-address"
         />
       </label>
+      {/* R4-ORDERS-PLUS voce C: postnummer and poststed are read together on a
+          label, so they share a row; the country moves to its own, where three
+          fields side by side would be squeezed at 375px. */}
       <div className="flex gap-3">
         <label className="flex-1 text-sm">
           {t("zipcode")}
@@ -179,17 +186,28 @@ export function OrderForm({
           />
         </label>
         <label className="flex-[2] text-sm">
-          {t("country")}
+          {t("city")}
           <Input
-            value={form.country}
-            onChange={(e) => set("country", e.target.value)}
-            aria-invalid={errors.country}
-            data-testid="order-country"
+            value={form.city}
+            onChange={(e) => set("city", e.target.value)}
+            aria-invalid={errors.city}
+            data-testid="order-city"
             className="mt-1"
-            autoComplete="country-name"
+            autoComplete="address-level2"
           />
         </label>
       </div>
+      <label className="text-sm">
+        {t("country")}
+        <Input
+          value={form.country}
+          onChange={(e) => set("country", e.target.value)}
+          aria-invalid={errors.country}
+          data-testid="order-country"
+          className="mt-1"
+          autoComplete="country-name"
+        />
+      </label>
       <label className="text-sm">
         {t("message")}
         <Textarea

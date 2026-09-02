@@ -156,9 +156,11 @@ export function LabPdfDocument({
           {doc.shipTo.address ? (
             <Text style={s.shipLine}>{doc.shipTo.address}</Text>
           ) : null}
-          {doc.shipTo.zipcode || doc.shipTo.country ? (
+          {doc.shipTo.zipcode || doc.shipTo.city || doc.shipTo.country ? (
             <Text style={s.shipLine}>
-              {[doc.shipTo.zipcode, doc.shipTo.country].filter(Boolean).join(" · ")}
+              {[doc.shipTo.zipcode, doc.shipTo.city, doc.shipTo.country]
+                .filter(Boolean)
+                .join(" · ")}
             </Text>
           ) : null}
           {doc.shipTo.phone ? (
@@ -167,7 +169,10 @@ export function LabPdfDocument({
           {doc.shipTo.email ? (
             <Text style={s.shipMuted}>Email: {doc.shipTo.email}</Text>
           ) : null}
-          {!doc.shipTo.address && !doc.shipTo.zipcode && !doc.shipTo.country ? (
+          {!doc.shipTo.address &&
+          !doc.shipTo.zipcode &&
+          !doc.shipTo.city &&
+          !doc.shipTo.country ? (
             <Text style={s.shipMuted}>
               No address on file — confirm with the customer before shipping.
             </Text>

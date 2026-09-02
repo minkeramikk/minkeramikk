@@ -16,8 +16,25 @@ import {
 test.skip(!ADMIN_READY, "needs ADMIN_EMAIL/PASSWORD + service role");
 
 let seeded: SeededOrder;
+/** R4-ORDERS-PLUS: `order_events` is migration 0036. 42P01 → the table is not
+ *  applied on this DB: a DECLARED skip, never a failure and never a silent one
+ *  (lezione F07). Any OTHER error is logged and treated as "ready", so the
+ *  suite fails loudly instead of skipping for the wrong reason — same shape as
+ *  `probeRulesTable` in discounts.spec.ts. */
+let hasOrderEvents = false;
+async function probeOrderEvents(): Promise<boolean> {
+  const { error } = await adminClient().from("order_events").select("id").limit(1);
+  if (error) {
+    if (error.code === "42P01") return false;
+    console.warn("[e2e admin-orders] unexpected error probing order_events:", error);
+    return true;
+  }
+  return true;
+}
+
 test.beforeAll(async () => {
   seeded = await seedOrder("MK-ORD-E2E");
+  hasOrderEvents = await probeOrderEvents();
 });
 test.afterAll(async () => {
   await deleteOrder(seeded?.orderId ?? "");
@@ -205,4 +222,54 @@ test("AC5: the detail shows the full customer data", async ({ page }) => {
   await expect(addr).toContainText("Storgata 1");
   await expect(addr).toContainText("0155");
   await expect(addr).toContainText("Norge");
+});
+
+test("AC7: a status change with the email ticked writes the event, outcome and all", async ({
+  page,
+}, t) => {
+  t.skip(!hasOrderEvents, "migration 0036 (order_events) non applicata su questo DB");
+  await loginAdmin(page);
+  await page.goto(`/admin/orders/${seeded.orderId}`);
+
+  // «Order created» is there before a single event is written: it is synthetic,
+  // derived from orders.created_at, which is what makes pre-log orders work.
+  await expect(page.getByTestId("order-timeline")).toContainText("Order created");
+
+  await page.getByTestId("status-select").selectOption("in_production");
+  await page.getByTestId("status-save").click();
+  await expect(page.getByTestId("send-email")).toBeChecked(); // opt-out, not opt-in
+  await page.getByTestId("status-confirm").click();
+
+  const rows = page.getByTestId("timeline-row");
+  await expect(rows.last()).toContainText("In production");
+  await expect(rows.last()).toContainText("email sent to");
+});
+
+test("AC8: a status that no longer mails says «no email» — that is how the change is seen", async ({
+  page,
+}, t) => {
+  t.skip(!hasOrderEvents, "migration 0036 (order_events) non applicata su questo DB");
+  // R4-MAIL-JOURNEY retired the `confirmed` mail (EMAIL_STATUSES). The register
+  // is where Alessio sees that, without anyone having to tell him.
+  await loginAdmin(page);
+  await page.goto(`/admin/orders/${seeded.orderId}`);
+  await page.getByTestId("status-select").selectOption("confirmed");
+  await page.getByTestId("status-save").click();
+  await page.getByTestId("status-confirm").click();
+
+  await expect(page.getByTestId("timeline-row").last()).toContainText("Confirmed · no email");
+});
+
+test("AC9: undoing a payment is logged, and logged as sending nothing", async ({ page }, t) => {
+  t.skip(!hasOrderEvents, "migration 0036 (order_events) non applicata su questo DB");
+  await loginAdmin(page);
+  await page.goto(`/admin/orders/${seeded.orderId}`);
+  const toggle = page.getByTestId("paid-toggle");
+  const wasPaid = (await toggle.innerText()).includes("Undo");
+  if (!wasPaid) {
+    await toggle.click(); // register → mails, and logs the outcome
+    await expect(page.getByTestId("timeline-row").last()).toContainText("Payment registered");
+  }
+  await page.getByTestId("paid-toggle").click(); // undo → mails nothing
+  await expect(page.getByTestId("timeline-row").last()).toHaveText(/Payment undone$/);
 });

@@ -7,6 +7,7 @@ import { encodeSetParam } from "@/lib/cart/set-code";
 import { customerEmail, adminEmail, type MailItem } from "./email-html";
 import { getVippsSettings } from "./vipps.server";
 import { statusEmail, type MailKind } from "./status-email";
+import { customMessageEmail } from "./custom-email";
 import type { OrderStatus } from "./order-status";
 import type { OrderItemInput } from "./schema";
 import type { CartDiscount } from "@/lib/discounts/discount";
@@ -99,6 +100,40 @@ export async function sendStatusEmail(
     html: mail.html,
   });
   return true;
+}
+
+/**
+ * R4-ORDERS-PLUS voce A — the admin's free-text message to the customer.
+ *
+ * Twin of `sendStatusEmail`: theme read at send time, same injectable
+ * transport, same sender, same console no-op with no RESEND_API_KEY. Sent
+ * SYNCHRONOUSLY like every admin-triggered mail — the caller needs the real
+ * outcome for the activity log, and it throws so the caller can record
+ * "failed" rather than a hopeful "sent".
+ */
+export async function sendCustomMessage(
+  params: {
+    to: string;
+    subject: string;
+    body: string;
+    customerName: string;
+  },
+  transport: EmailTransport = defaultTransport()
+): Promise<void> {
+  const theme = await getThemeTokensSafe();
+  const mail = customMessageEmail({
+    subject: params.subject,
+    body: params.body,
+    customerName: params.customerName,
+    theme,
+    baseUrl: siteUrl(),
+  });
+  await transport.send({
+    to: params.to,
+    subject: mail.subject,
+    text: mail.text,
+    html: mail.html,
+  });
 }
 
 // R4-SCONTI: keyed by array index as String(idx), same convention create.ts

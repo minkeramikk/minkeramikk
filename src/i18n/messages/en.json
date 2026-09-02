@@ -179,6 +179,7 @@
     "phone": "Phone number",
     "address": "Delivery address",
     "zipcode": "Postal code",
+    "city": "City",
     "country": "Country",
     "message": "Message",
     "submit": "Order",

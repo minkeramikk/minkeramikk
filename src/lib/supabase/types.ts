@@ -1,3 +1,8 @@
+// NOTE (R4-ORDERS-PLUS, 2026-09-01): patched BY HAND, additively, for migration
+// 0036 — `order_events`, `orders.city` and create_order's `p_city`. 0036 is
+// applied on STAGING; `npm run db:types` reads the LINKED project, which is
+// PROD (supabase/.temp/project-ref), so regenerating before the prod push would
+// silently delete these three additions. Regenerate after `make db-push-prod`.
 export type Json =
   | string
   | number
@@ -414,6 +419,38 @@ export type Database = {
           },
         ]
       }
+      order_events: {
+        Row: {
+          created_at: string
+          id: string
+          kind: string
+          meta: Json
+          order_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          kind: string
+          meta?: Json
+          order_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          kind?: string
+          meta?: Json
+          order_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_events_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       order_items: {
         Row: {
           config_code: string | null
@@ -497,6 +534,7 @@ export type Database = {
       orders: {
         Row: {
           address: string | null
+          city: string | null
           code: string
           country: string | null
           created_at: string
@@ -516,6 +554,7 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          city?: string | null
           code: string
           country?: string | null
           created_at?: string
@@ -535,6 +574,7 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          city?: string | null
           code?: string
           country?: string | null
           created_at?: string
@@ -835,6 +875,7 @@ export type Database = {
       create_order: {
         Args: {
           p_address?: string
+          p_city?: string
           p_country?: string
           p_customer_name: string
           p_email: string

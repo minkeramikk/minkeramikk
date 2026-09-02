@@ -67,6 +67,7 @@ export interface AdminOrder {
   phone: string | null;
   address: string | null;
   zipcode: string | null;
+  city: string | null;
   country: string | null;
   message: string | null;
   locale: string;
@@ -93,6 +94,7 @@ export interface RawOrderRow {
   phone: string | null;
   address: string | null;
   zipcode: string | null;
+  city: string | null;
   country: string | null;
   message: string | null;
   locale: string;
@@ -134,6 +136,7 @@ export function mapOrderRow(row: RawOrderRow): AdminOrder {
     phone: row.phone,
     address: row.address,
     zipcode: row.zipcode,
+    city: row.city,
     country: row.country,
     message: row.message,
     locale: row.locale,
