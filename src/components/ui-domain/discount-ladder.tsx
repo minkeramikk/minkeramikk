@@ -129,7 +129,9 @@ export function DiscountLadder({
 
   return (
     <div data-testid="discount-ladder" className="border-t border-border pt-3">
-      <div className="mb-[22px] flex items-baseline justify-between gap-2">
+      {/* The gap to the columns is 28px, but 26 of them are reserved INSIDE the
+          scrollport below — see the note there. */}
+      <div className="mb-0.5 flex items-baseline justify-between gap-2">
         <h3 className="text-[17px] font-semibold">{t("title")}</h3>
         {inCart > 0 && (
           <span
@@ -141,12 +143,15 @@ export function DiscountLadder({
         )}
       </div>
 
-      {/* pt-1.5: the «Mest valgt» tag sticks out above its column, and
-          overflow-x:auto forces overflow-y:auto too — without the padding the
-          scrollport would clip it. */}
-      <div className="-mx-1 overflow-x-auto pt-1.5">
+      {/* The same trap the old progress bar fell into: `overflow-x: auto`
+          forces `overflow-y: auto` too, so anything sticking out ABOVE the row
+          is clipped — and «Mest valgt» is absolute at `top: -19px` on its
+          column. The space has to be reserved INSIDE the scrollport, on the
+          columns themselves: `pt-[26px]` here, never a margin on the wrapper,
+          which would leave the tag outside the box that clips it. */}
+      <div className="-mx-1 overflow-x-auto">
         <div
-          className="grid auto-cols-fr grid-flow-col gap-1"
+          className="grid auto-cols-fr grid-flow-col gap-1 pt-[26px]"
           style={{ minWidth: `max(100%, ${columns * 62}px)` }}
         >
           {column(-1, 1, 0)}
