@@ -859,32 +859,43 @@ export function CeramicsStep({
                   }
                   onClick={() => setCheckoutOpen(true)}
                 />
-                <NextStepPill
-                  variant="secondary"
-                  data-testid="new-design-cta"
-                  className="w-full"
-                  label={ta("newDesign")}
-                  icon={
-                    <PillIcon variant="secondary">
-                      <Plus className="size-5 text-primary/60" />
-                    </PillIcon>
-                  }
-                  onClick={() => goToStep(1)}
-                />
-                {/* CA-3: share in coda — gesto leggero, quindi la variante
-                    più tenue della scala. */}
-                <NextStepPill
-                  variant="tertiary"
-                  data-testid="share-set"
-                  className="w-full"
-                  label={t("share.button")}
-                  icon={
-                    <PillIcon variant="tertiary">
-                      <ArrowUpRight className="size-5 text-muted-foreground" />
-                    </PillIcon>
-                  }
-                  onClick={() => shareSet(false)}
-                />
+                {/* R4-BTN-SCALE AC4: le due azioni basse sono un GRUPPO, non
+                    due pari del primario. Wrapper `gap-2` dentro il `gap-3`
+                    dello stack → ritmo a due livelli: 12px staccano «Bestill»,
+                    8px tengono insieme queste due. Taglia `sm` (mockup
+                    vincolante): il primario resta 72px contro i loro ~51, cioè
+                    1,4× — la gerarchia si legge anche in bianco e nero, non
+                    solo dal colore. */}
+                <div className="flex flex-col gap-2">
+                  <NextStepPill
+                    variant="secondary"
+                    size="sm"
+                    data-testid="new-design-cta"
+                    className="w-full"
+                    label={ta("newDesign")}
+                    icon={
+                      <PillIcon variant="secondary">
+                        <Plus className="size-5 text-primary/60" />
+                      </PillIcon>
+                    }
+                    onClick={() => goToStep(1)}
+                  />
+                  {/* CA-3: share in coda — gesto leggero, quindi la variante
+                      più tenue della scala. */}
+                  <NextStepPill
+                    variant="tertiary"
+                    size="sm"
+                    data-testid="share-set"
+                    className="w-full"
+                    label={t("share.button")}
+                    icon={
+                      <PillIcon variant="tertiary">
+                        <ArrowUpRight className="size-5 text-muted-foreground" />
+                      </PillIcon>
+                    }
+                    onClick={() => shareSet(false)}
+                  />
+                </div>
                 {/* share feedback: announced, link visible (frame 1) */}
                 <div aria-live="polite">
                   {shareState && (
