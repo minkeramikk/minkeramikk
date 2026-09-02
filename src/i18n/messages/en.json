@@ -182,6 +182,7 @@
     "city": "City",
     "country": "Country",
     "message": "Message",
+    "submitKicker": "Place your order",
     "submit": "Order",
     "legal": "For more on our sales terms and privacy — including how we handle cookies and personal data — see our <terms>Terms of Sale</terms> and <privacy>Privacy Policy</privacy>."
   },
