@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import ReactDOM from "react-dom";
 import { Poppins } from "next/font/google";
 import { getLocale } from "next-intl/server";
@@ -40,6 +40,28 @@ export const metadata: Metadata = {
     title: "Min Keramikk",
     description: "Håndlaget keramikk – bygg din egen design.",
   },
+};
+
+/**
+ * R4-STEP2-KEYBOARD ① — `interactive-widget=resizes-content`.
+ *
+ * The default (`resizes-visual`) is why the inscription field on step 2 was
+ * impossible to frame on Android Chrome: the LAYOUT viewport keeps its full
+ * height when the keyboard comes up, so `sticky`, `svh` and every measurement
+ * taken from it describe a screen that is half covered by keys, and the code
+ * had to guess the difference from `visualViewport`. With this the layout
+ * viewport shrinks instead, and the guessing stops.
+ *
+ * iOS Safari ignores it and resizes the visual viewport only — the
+ * `visualViewport` correction in the configurator stays for that.
+ *
+ * Everything else is Next's own default meta, written out because declaring
+ * `viewport` replaces it wholesale.
+ */
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  interactiveWidget: "resizes-content",
 };
 
 export default async function RootLayout({
