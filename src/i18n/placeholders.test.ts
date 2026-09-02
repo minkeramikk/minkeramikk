@@ -129,7 +129,7 @@ describe("checkPlaceholders", () => {
   });
 
   it("accepts a real file string edited around its placeholders", () => {
-    const original = flattenMessages(no)["configurator.ladder.nudge"];
+    const original = flattenMessages(no)["configurator.ladder.stepPct"];
     expect(checkPlaceholders(original, original)).toEqual({ ok: true });
   });
 });

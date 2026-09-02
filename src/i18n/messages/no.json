@@ -162,14 +162,14 @@
       "pairCaption": "Denne keramikken + ditt design"
     },
     "ladder": {
-      "title": "Mengderabatt",
-      "save": "Du sparer {amount}",
-      "saveUpTo": "Spar opptil −{pct} %",
-      "nudge": "{missing, plural, one {Én til} other {# til}}, og du sparer {amount}",
-      "best": "Beste rabatt nådd",
+      "title": "Kjøp flere – spar mer",
+      "stepQty": "{qty} stk",
+      "stepPct": "{pct, plural, =0 {0 %} other {−# %}}",
+      "popular": "Mest valgt",
+      "inCartShort": "{qty} stk i kurven",
+      "foot": "Rabatten beregnes automatisk i handlekurven.",
       "step": "Velg {qty} stk, −{pct} %",
-      "excluded": "Denne keramikken er ikke med i mengderabatten.",
-      "inCart": "{qty} {name} ligger i handlekurven — mengderabatten teller dem med."
+      "excluded": "Denne keramikken er ikke med i mengderabatten."
     }
   },
   "orderForm": {
@@ -200,7 +200,12 @@
     "decreaseQty": "Færre",
     "increaseQty": "Flere",
     "add": "Legg i handlekurv",
-    "added": "Lagt i handlekurven",
+    "added": {
+      "title": "Lagt i handlekurven",
+      "line": "{qty} × {name}",
+      "add": "Legg til · {total}",
+      "continue": "Fortsett å handle"
+    },
     "cartTitle": "Handlekurv",
     "empty": "Handlekurven er tom",
     "emptyCta": "Tilbake til konfiguratoren",
@@ -271,20 +276,10 @@
       "badgeCapped": "−{pct} % på {qty} stk",
       "dealNudge": "legg til {missing} til for −{pct} %"
     },
+    "addedWithPct": "Lagt i handlekurven · −{pct} %",
     "sheetOffer": {
-      "kicker": "Tilbud",
-      "kickerUnlocked": "Tilbud låst opp",
-      "addMissing": "Legg til {missing} til",
-      "atTotal": "Med {qty} til sammen",
-      "addBoth": "Legg til begge · {total}",
-      "addBase": "Legg til {base}+{extra}",
-      "addOnly": "Legg til {extra}",
-      "whatBoth": "Legger til {base} {name} + {extra} {extraName}",
-      "whatOnly": "Legger til {extra} {extraName} ({name} er alt i kurven)",
-      "self": "Ta {qty} til — −{pct} %",
       "taken": "Lagt i handlekurven"
-    },
-    "addedWithPct": "Lagt i handlekurven · −{pct} %"
+    }
   },
   "order": {
     "title": "Bestill",

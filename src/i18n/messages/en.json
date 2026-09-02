@@ -163,14 +163,14 @@
       "pairCaption": "This ceramic + your design"
     },
     "ladder": {
-      "title": "Quantity discount",
-      "save": "You save {amount}",
-      "saveUpTo": "Save up to −{pct}%",
-      "nudge": "{missing, plural, one {One more} other {# more}}, and you save {amount}",
-      "best": "Best discount reached",
+      "title": "Buy more – save more",
+      "stepQty": "{qty, plural, one {# pc} other {# pcs}}",
+      "stepPct": "{pct, plural, =0 {0%} other {−#%}}",
+      "popular": "Most chosen",
+      "inCartShort": "{qty} pcs in basket",
+      "foot": "The discount is applied automatically in the basket.",
       "step": "Choose {qty} pieces, −{pct}%",
-      "excluded": "This ceramic is not part of the quantity discount.",
-      "inCart": "{qty} {name} are in the basket — the quantity discount counts them."
+      "excluded": "This ceramic is not part of the quantity discount."
     }
   },
   "orderForm": {
@@ -201,7 +201,12 @@
     "decreaseQty": "Fewer",
     "increaseQty": "More",
     "add": "Add to basket",
-    "added": "Added to basket",
+    "added": {
+      "title": "Added to the basket",
+      "line": "{qty} × {name}",
+      "add": "Add · {total}",
+      "continue": "Keep shopping"
+    },
     "cartTitle": "Basket",
     "empty": "Your basket is empty",
     "emptyCta": "Back to the configurator",
@@ -272,20 +277,10 @@
       "badgeCapped": "−{pct}% on {qty} pcs",
       "dealNudge": "add {missing} more for −{pct}%"
     },
+    "addedWithPct": "Added to your basket · −{pct}%",
     "sheetOffer": {
-      "kicker": "Offer",
-      "kickerUnlocked": "Offer unlocked",
-      "addMissing": "Add {missing} more",
-      "atTotal": "At {qty} in total",
-      "addBoth": "Add both · {total}",
-      "addBase": "Add {base}+{extra}",
-      "addOnly": "Add {extra}",
-      "whatBoth": "Adds {base} {name} + {extra} {extraName}",
-      "whatOnly": "Adds {extra} {extraName} (the {name} are already in the basket)",
-      "self": "Take {qty} more — −{pct}%",
       "taken": "Added to the basket"
-    },
-    "addedWithPct": "Added to your basket · −{pct}%"
+    }
   },
   "order": {
     "title": "Order",

@@ -1,14 +1,20 @@
 /**
- * The regression this file exists for: the locked band used to say «Add 3 more
- * to unlock» and NOTHING else — effort asked, prize unnamed. So the assertions
- * are on the CONTENT of the row (the suggested product's name, its full price,
- * its discounted price, the −% badge), never on a testid: a testid can survive
- * a row that has gone blank.
+ * R4-UPSELL-POST-ADD ②/③ — the offers as cards, in the post-add panel.
  *
- * Rendered with `renderToStaticMarkup` rather than a DOM: the block is pure —
- * props in, markup out, no effects, no events under test — so a string is
- * enough, and it costs the repo no jsdom and no testing-library. The messages
- * are the REAL en.json, so a key this component asks for and the dictionary
+ * This is where the panel's own contract is checked. `AddedSheet` itself cannot
+ * be string-rendered — Radix portals its content and renders null on the
+ * server, and this repo's unit setup has no DOM (vitest.config) — so what is
+ * exercised here is the block the panel wraps, which is the half the card
+ * actually changed. The shell around it (bottom sheet <640 / centred ≥640,
+ * ✕ / Esc / backdrop, focus restore) is §3.19's, shared with `ProductSheet`,
+ * and belongs to the e2e.
+ *
+ * The regression this file exists for: «Legg til 4+1». It is not a copy bug —
+ * a block shown while the base is still hypothetical HAS to name two additions.
+ * So the assertions are on the CONTENT of a card, never on a testid: a testid
+ * survives a card that has gone blank or grown a second number back.
+ *
+ * Real dictionaries, both of them: a key this component asks for and NO or EN
  * does not have fails here too.
  */
 import { createElement as h } from "react";
@@ -16,17 +22,17 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { NextIntlClientProvider } from "next-intl";
 import { describe, expect, it } from "vitest";
 import { SheetOfferBlock } from "@/components/ui-domain/sheet-offer-block";
-import type { DiscountRule } from "@/lib/discounts/discount";
-import type { SheetOffer } from "@/lib/discounts/sheet-offer";
+import type { ActiveSuggestion, DiscountRule } from "@/lib/discounts/discount";
 import { formatMoney, money, multiply, percentOf, subtract } from "@/lib/money/money";
 import en from "@/i18n/messages/en.json";
+import no from "@/i18n/messages/no.json";
 
 const SUGGESTED = {
-  id: "deep",
-  slug: "deep",
-  nameNo: "Dyp tallerken",
-  nameEn: "Deep plate",
-  priceCents: 35000,
+  id: "bowl",
+  slug: "bowl",
+  nameNo: "Vietri bolle",
+  nameEn: "Vietri bowl",
+  priceCents: 59900,
   currency: "NOK" as const,
   image: null,
   pieces: 1,
@@ -35,96 +41,120 @@ const SUGGESTED = {
 
 const rule: DiscountRule = {
   id: "r1",
-  name: "sheet offer",
+  name: "post-add offer",
   triggerProductIds: ["plate"],
-  triggerMinQty: 6,
-  suggestedProductId: "deep",
+  triggerMinQty: 4,
+  suggestedProductId: "bowl",
   suggestedQty: 2,
   discountMode: "fixed",
-  discountPct: 20,
+  discountPct: 15,
   suggested: SUGGESTED,
 };
 
-const lockedOffer: SheetOffer = {
-  kind: "locked",
-  suggestion: { rule, fromLineId: "candidate", pct: 20 },
-  neededQty: 6,
-  missing: 4,
-  selfOffer: false,
+const offer: ActiveSuggestion = { rule, fromLineId: "line-1", pct: 15 };
+const second: ActiveSuggestion = {
+  rule: {
+    ...rule,
+    id: "r2",
+    suggestedQty: 1,
+    suggested: { ...SUGGESTED, id: "cup", nameNo: "Kopp", nameEn: "Cup" },
+  },
+  fromLineId: "line-1",
+  pct: 10,
 };
 
-function render(offers: SheetOffer[]) {
+const full = multiply(money(SUGGESTED.priceCents, SUGGESTED.currency), rule.suggestedQty);
+const net = subtract(full, percentOf(full, 15));
+
+function render(
+  offers: ActiveSuggestion[],
+  takenRuleIds: string[] = [],
+  locale: "no" | "en" = "en"
+) {
   return renderToStaticMarkup(
-    // children INSIDE the props object, not as createElement's third argument:
-    // the provider's prop type requires `children`, so the positional form does
-    // not satisfy any overload (vitest transpiles without typechecking, so it
-    // ran green while `tsc --noEmit` was red). `timeZone` is set for the same
-    // reason it is set everywhere else — without it next-intl falls back to the
-    // machine's zone and warns.
     h(NextIntlClientProvider, {
-      locale: "en",
-      messages: en,
+      locale,
+      messages: locale === "no" ? no : en,
       timeZone: "Europe/Oslo",
-      children: h(SheetOfferBlock, {
-        offers,
-        currentName: "Flat plate",
-        locale: "en" as const,
-        takenRuleIds: [],
-        onSetQty: () => {},
-        onTake: () => {},
-      }),
+      children: h(SheetOfferBlock, { offers, locale, takenRuleIds, onTake: () => {} }),
     })
   );
 }
 
-const full = multiply(money(SUGGESTED.priceCents, SUGGESTED.currency), rule.suggestedQty);
-const net = subtract(full, percentOf(full, 20));
+const count = (html: string, testid: string) =>
+  (html.match(new RegExp(`data-testid="${testid}"`, "g")) ?? []).length;
 
-describe("the locked row", () => {
-  const html = render([lockedOffer]);
+describe("a card", () => {
+  const html = render([offer]);
 
-  it("names the product being unlocked, and how many of it", () => {
-    expect(html).toContain(SUGGESTED.nameEn);
-    expect(html).toContain("2 ×"); // cart.suggestion.qtyName, as the unlocked row draws it
+  it("names the suggestion and how many of it", () => {
+    expect(html).toContain("2 × Vietri bowl");
   });
 
-  it("prices it: the full price AND the discounted one, both on screen", () => {
+  it("prices it: the full price struck through, the net beside it, the −% badge", () => {
     expect(html).toContain(formatMoney(full, "en"));
     expect(html).toContain(formatMoney(net, "en"));
     expect(formatMoney(net, "en")).not.toBe(formatMoney(full, "en")); // guards the fixture
+    expect(html).toContain("−15%");
   });
 
-  it("shows the −% badge", () => {
-    expect(html).toContain("20");
+  it("carries its own total on the button — one price, the one being paid", () => {
+    expect(html).toContain(`Add · ${formatMoney(net, "en")}`);
   });
 
-  it("asks for the missing pieces and states the threshold", () => {
-    expect(html).toContain("Add 4 more"); // the button: raises the quantity, adds nothing
-    expect(html).toContain("At 6 in total"); // the threshold, not whatBoth/whatOnly
+  it("never speaks of a bundle, in either language: the base is already in", () => {
+    for (const s of [html, render([offer], [], "no")]) {
+      expect(s).not.toContain("4+2");
+      expect(s).not.toContain("2+"); // «Legg til 4+1» in every shape it took
+      expect(s).not.toContain("Adds ");
+      expect(s).not.toContain("Legger til ");
+    }
   });
 
-  it("does not describe an add the locked button will not do", () => {
-    expect(html).not.toContain("Adds ");
-  });
-
-  it("keeps the muted kicker, so locked stays distinguishable from unlocked", () => {
-    expect(html).toContain("Offer");
-    expect(html).not.toContain("Offer unlocked");
-    expect(html).toContain("var(--muted)");
+  it("is under the kicker the cart already uses for its own suggestions", () => {
+    expect(html).toContain("Goes well with your set");
+    expect(render([offer], [], "no")).toContain("Passer til settet ditt");
   });
 });
 
-it("an empty list renders no band at all", () => {
+describe("several offers", () => {
+  it("one card each, in the order given — the admin's own", () => {
+    const html = render([offer, second]);
+    expect(count(html, "sheet-offer-row")).toBe(2);
+    expect(count(html, "sheet-offer-add")).toBe(2);
+    expect(html.indexOf("Vietri bowl")).toBeLessThan(html.indexOf("Cup"));
+  });
+});
+
+describe("taking one", () => {
+  const html = render([offer, second], [rule.id]);
+
+  it("marks that card ✓ and takes its button away — a second tap is impossible", () => {
+    expect(count(html, "sheet-offer-taken")).toBe(1);
+    expect(count(html, "sheet-offer-add")).toBe(1); // the OTHER card, still open
+  });
+
+  it("keeps the taken card on screen, priced: the grid must not reshuffle", () => {
+    expect(count(html, "sheet-offer-row")).toBe(2);
+    expect(html).toContain("2 × Vietri bowl");
+    expect(html).toContain(formatMoney(net, "en"));
+  });
+
+  it("says «added» to a screen reader, which sees no ✓", () => {
+    expect(html).toContain("Added to the basket");
+  });
+});
+
+it("nothing to offer → no node at all, so the panel is the confirmation alone", () => {
   expect(render([])).toBe("");
 });
 
-it("the unlocked row still draws its own copy, unchanged", () => {
-  const html = render([
-    { kind: "unlocked", suggestion: { rule, fromLineId: "candidate", pct: 20 }, baseQty: 6, selfOffer: false },
-  ]);
-  expect(html).toContain("Offer unlocked");
-  expect(html).toContain(SUGGESTED.nameEn);
-  expect(html).toContain(formatMoney(net, "en"));
-  expect(html).toContain("Adds 6 Flat plate + 2 Deep plate");
-  expect(html).not.toContain("At 6 in total");
+it("an offer with no drawable card is dropped, not drawn blank", () => {
+  const orphan: ActiveSuggestion = {
+    rule: { ...rule, id: "r3", suggested: undefined },
+    fromLineId: "line-1",
+    pct: 15,
+  };
+  const html = render([orphan, offer]);
+  expect(count(html, "sheet-offer-row")).toBe(1);
 });

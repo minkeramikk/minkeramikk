@@ -26,8 +26,13 @@ import {
   type NewCartLine,
 } from "@/lib/cart/cart";
 import { encodeSetParam, SET_LINK_BUDGET } from "@/lib/cart/set-code";
-import { cartSaved, included, type DiscountLineInput } from "@/lib/discounts/discount";
-import { sheetOffers, type SheetOffer } from "@/lib/discounts/sheet-offer";
+import {
+  activeSuggestions,
+  cartSaved,
+  included,
+  type ActiveSuggestion,
+  type DiscountLineInput,
+} from "@/lib/discounts/discount";
 import { ladderFor } from "@/lib/discounts/ladder";
 import { SetBadge } from "@/components/ui-domain/set-badge";
 import { CartLineRecap } from "@/components/ui-domain/cart-line-recap";
@@ -45,6 +50,7 @@ import { formatSelections } from "@/lib/configurator/readable-selections";
 import { Truck, Plus, ArrowUpRight } from "lucide-react";
 import type { ResolvedSharedSet } from "./resolve-shared-set";
 import { ProductSheet } from "@/components/ui-domain/product-sheet";
+import { AddedSheet } from "@/components/ui-domain/added-sheet";
 import { NextStepPill, PillIcon } from "@/components/ui-domain/next-step-pill";
 
 export interface CeramicProduct {
@@ -218,7 +224,6 @@ export function CeramicsStep({
     discount,
     discountConfig,
     setCurrentConfigCode,
-    acceptBundle,
     acceptSuggestion,
   } = useCartContext();
 
@@ -260,6 +265,10 @@ export function CeramicsStep({
    *  still describes the basket as it was BEFORE the add. */
   const [addedLineId, setAddedLineId] = useState<string | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** ③: the post-add panel, or null. Holds what the add was, so the
+   *  confirmation keeps naming it while the stepper has already restarted. */
+  const [added, setAdded] = useState<{ qty: number; name: string } | null>(null);
+  const [addedOpen, setAddedOpen] = useState(false);
   const [qty, setQty] = useState(1);
   /** Desktop + mobile inline: expands the order form in the cart panel. */
   const [checkoutOpen, setCheckoutOpen] = useState(false);
@@ -326,54 +335,47 @@ export function CeramicsStep({
     [cart]
   );
 
-  /** R4-SCONTI-2 §D.2: the rules taken from THIS sheet, in the order they were
-   *  taken. Cleared whenever another product's sheet opens. */
+  /**
+   * R4-UPSELL-POST-ADD ③ — the offers the basket unlocks RIGHT NOW.
+   *
+   * `activeSuggestions` over the cart that actually exists, not a projection at
+   * a quantity the customer has not committed to: by the time this panel opens
+   * the base is in the basket, so the engine's own answer is the whole answer
+   * and the sheet's old hypothetical line has nothing left to model.
+   *
+   * Not `useCartContext().suggestions`, which is the same call minus the cart
+   * drawer's ✕: dismissing the drawer's block must not silence this panel — the
+   * two surfaces answer different gestures.
+   *
+   * The two guards are the ones the sheet's projection used to apply: a rule
+   * with no resolvable card cannot be drawn, and a rule the shop configured to
+   * pay nothing (`discountMode: "none"`, or "inherited" unreached) is not an
+   * offer and must never read as one (F1).
+   */
   const [takenRuleIds, setTakenRuleIds] = useState<string[]>([]);
-  /** The last drawable version of each offer, so a row taken a moment ago can
+  /** The last drawable version of each offer, so a card taken a moment ago can
    *  stay on screen with its own numbers once the engine stops returning it. */
-  const seenOffers = useRef<Map<string, Extract<SheetOffer, { kind: "unlocked" }>>>(new Map());
+  const seenOffers = useRef<Map<string, ActiveSuggestion>>(new Map());
 
-  /** R4-UPSELL-MODALE / §D: every offer for the product whose sheet is open,
-   *  given the quantity on the stepper. Empty renders nothing (AC5). */
-  const offers: SheetOffer[] = useMemo(() => {
-    if (!opened) return [];
-    const live = sheetOffers(
-      discountLines,
-      discountConfig,
-      {
-        id: lineKey(opened.id, configCode),
-        productId: opened.id,
-        quantity: qty,
-        unitPriceCents: opened.priceCents,
-        currency: opened.currency,
-        configCode,
-      },
-      { supplierOf, supplierOfProduct }
-    );
-    for (const o of live) if (o.kind === "unlocked") seenOffers.current.set(o.suggestion.rule.id, o);
+  const addedOffers: ActiveSuggestion[] = useMemo(() => {
+    const live = activeSuggestions(discountLines, discountConfig, {
+      supplierOf,
+      supplierOfProduct,
+      currentConfigCode: configCode,
+    }).filter((s) => s.rule.suggested && s.pct > 0);
+    for (const o of live) seenOffers.current.set(o.rule.id, o);
 
     // §D.2: a taken offer LEAVES the engine's list (D1: taken in full) but must
     // stay on screen, marked. It goes back in the admin's own rule order, not
-    // at the bottom — the list must not reshuffle under the customer's finger.
-    const shown = new Set(live.map((o) => (o.kind === "unlocked" ? o.suggestion.rule.id : "")));
+    // at the end — the grid must not reshuffle under the customer's finger.
+    const shown = new Set(live.map((o) => o.rule.id));
     const back = takenRuleIds
       .filter((id) => !shown.has(id))
       .flatMap((id) => seenOffers.current.get(id) ?? []);
-    const rank = (o: SheetOffer) =>
-      o.kind === "unlocked"
-        ? discountConfig.rules.findIndex((r) => r.id === o.suggestion.rule.id)
-        : -1;
+    const rank = (o: ActiveSuggestion) =>
+      discountConfig.rules.findIndex((r) => r.id === o.rule.id);
     return [...live, ...back].sort((a, b) => rank(a) - rank(b));
-  }, [
-    opened,
-    discountLines,
-    discountConfig,
-    qty,
-    configCode,
-    supplierOf,
-    supplierOfProduct,
-    takenRuleIds,
-  ]);
+  }, [discountLines, discountConfig, configCode, supplierOf, supplierOfProduct, takenRuleIds]);
 
   /**
    * ⚠️ §C — the scale counts CART + SELECTOR, not the selector alone. The
@@ -504,40 +506,83 @@ export function CeramicsStep({
     toastTimer.current = setTimeout(() => setToast(false), 1800);
   }
 
+  /**
+   * ③ — would this add unlock anything?
+   *
+   * Answered BEFORE the add, on the basket the add is about to produce: `add()`
+   * is a state update, so asking afterwards would mean asking on the next
+   * render and threading the question through an effect. The projection is the
+   * engine's own answer over `cart + the line being added` — the same shape the
+   * product sheet used to build for its offer block, and the same lines the
+   * cart will hold a tick later (the engine totals per product, so whether the
+   * add merges into an existing row changes nothing here).
+   */
+  function unlocksAnything(selected: CeramicProduct, quantity: number): boolean {
+    const candidateId = lineKey(selected.id, configCode);
+    const projected: DiscountLineInput[] = [
+      ...discountLines,
+      {
+        id: candidateId,
+        productId: selected.id,
+        unitPriceCents: selected.priceCents,
+        currency: selected.currency,
+        quantity,
+        configCode,
+      },
+    ];
+    return (
+      activeSuggestions(projected, discountConfig, {
+        // The projected line is not a cart line yet, so the real `supplierOf`
+        // legitimately misses for it — fall back to the product-keyed lookup
+        // only then, exactly as the sheet's projection did.
+        supplierOf: (id) =>
+          supplierOf(id) ?? (id === candidateId ? supplierOfProduct(selected.id) : null),
+        supplierOfProduct,
+        currentConfigCode: configCode,
+      }).filter((o) => o.rule.suggested && o.pct > 0).length > 0
+    );
+  }
+
   function addOpened() {
     // The sheet stays mounted (and its CTA clickable) through the 180-220ms
     // exit animation: without this a double-tap would add the product twice.
-    if (!sheetOpenRef.current) return;
-    showAddedToast(addSelected());
+    if (!sheetOpenRef.current || !opened) return;
+    // Read BEFORE the add: `addSelected` resets the stepper, and the panel
+    // names what was actually added.
+    const justAdded = { qty, name: locale === "no" ? opened.nameNo : opened.nameEn };
+    const unlocked = unlocksAnything(opened, qty);
+    const lineId = addSelected();
+    setSheet(false);
+    // §3.20 unchanged when the add unlocks nothing: the toast alone. When it
+    // does, the panel IS the confirmation, so there is no toast to duplicate it.
+    if (unlocked) {
+      setAdded(justAdded);
+      setAddedOpen(true);
+    } else {
+      showAddedToast(lineId);
+    }
   }
 
   /**
-   * R4-SCONTI-2 §D.1/§D.2 — taking one offer.
+   * ③ — taking one offer, from the panel.
    *
-   * TWO LITERAL CASES, never a computed remainder: with `baseQty > 0` the base
-   * line and the offer's line go in together (`acceptBundle`, one state update,
-   * the base doubling as the suggestion's donor — ADR 0023 (e)); with
-   * `baseQty === 0` the basket already fires the rule, so only the offer's line
-   * is added and the donor is a line that is genuinely in the cart.
+   * ONE case, where the sheet's block had two: the base is already in the
+   * basket, so there is no bundle to assemble and no `baseQty` to compute —
+   * `acceptSuggestion` adds the suggested ceramic alone, wearing the design of
+   * the line that triggered the rule (ADR 0023 (e)).
    *
-   * The base enters ONCE. No flag is needed for that: after the add the basket
-   * alone clears the threshold, so every other offer recomputes `baseQty` to 0
-   * by itself.
-   *
-   * The sheet does NOT close (§D.2) — the customer may want the other offers
-   * too. Hence no toast either: the row marked «added» and the `role="status"`
-   * "already in the basket" line inside the sheet are the confirmation, and the
-   * toast lives outside the dialog where Radix hides it from screen readers.
+   * The panel STAYS OPEN (§D.2): the customer may want the other cards too.
+   * Only «Fortsett å handle» (and ✕ / Esc / the backdrop) closes it.
    */
-  function takeOffer(offer: Extract<SheetOffer, { kind: "unlocked" }>) {
-    if (!sheetOpenRef.current || !opened) return;
-    if (!offer.suggestion.rule.suggested) return;
-    if (offer.baseQty > 0) acceptBundle(buildBaseLine(opened, offer.baseQty), offer.suggestion);
-    else acceptSuggestion(offer.suggestion);
-    setTakenRuleIds((ids) =>
-      ids.includes(offer.suggestion.rule.id) ? ids : [...ids, offer.suggestion.rule.id]
-    );
-    setQty(1); // the stepper restarts: a reflex second tap must not re-add the 8
+  function takeOffer(offer: ActiveSuggestion) {
+    if (!offer.rule.suggested) return;
+    if (takenRuleIds.includes(offer.rule.id)) return; // a reflex second tap
+    acceptSuggestion(offer);
+    setTakenRuleIds((ids) => [...ids, offer.rule.id]);
+    setToast(true);
+    setAddedLineId(null); // the offer's own line, not the base: no tier to name
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(false), 1800);
   }
 
   // ── CA-3 C: share the basket as a stateless link (?step=3&set=…) ──
@@ -1282,13 +1327,26 @@ export function CeramicsStep({
         onQty={setQty}
         onAdd={addOpened}
         designLayers={designLayers}
-        offers={offers}
-        takenRuleIds={takenRuleIds}
-        onTakeOffer={takeOffer}
         ladder={ladder}
         ladderExcluded={ladderExcluded}
         inCartQty={inCartQty}
       />
+
+      {/* ③: the second half of the add — the sheet closed, this opened. Two
+          dialogs in sequence, never one inside the other. `added` outlives
+          `addedOpen` so the panel can play its exit animation. */}
+      {added && (
+        <AddedSheet
+          open={addedOpen}
+          onOpenChange={setAddedOpen}
+          addedQty={added.qty}
+          addedName={added.name}
+          offers={addedOffers}
+          takenRuleIds={takenRuleIds}
+          onTake={takeOffer}
+          locale={locale}
+        />
+      )}
 
       {/* §3.20: visible confirmation, replacing the old sr-only announcement.
           The live region is mounted for good and only its content toggles — a
@@ -1314,7 +1372,7 @@ export function CeramicsStep({
                 it is the cheapest place to say the discount applied — one
                 string, no layout. Silent when the line has none, so an
                 undiscounted add reads exactly as it does today. */}
-            {addedPct > 0 ? t("addedWithPct", { pct: addedPct }) : t("added")}
+            {addedPct > 0 ? t("addedWithPct", { pct: addedPct }) : t("added.title")}
           </span>
         )}
       </div>

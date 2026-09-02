@@ -19,9 +19,7 @@ import {
   formatAttributeValue,
   publicAttributes,
 } from "@/lib/catalog/product-attributes";
-import { SheetOfferBlock } from "@/components/ui-domain/sheet-offer-block";
-import { DiscountLadder, LadderStickyHint } from "@/components/ui-domain/discount-ladder";
-import type { SheetOffer } from "@/lib/discounts/sheet-offer";
+import { DiscountLadder } from "@/components/ui-domain/discount-ladder";
 import type { Ladder } from "@/lib/discounts/ladder";
 import type { CartLayer } from "@/lib/cart/cart";
 import type { CeramicProduct } from "@/app/[locale]/(public)/configurator/ceramics-step";
@@ -51,9 +49,6 @@ export function ProductSheet({
   onQty,
   onAdd,
   designLayers,
-  offers,
-  takenRuleIds,
-  onTakeOffer,
   ladder,
   ladderExcluded,
   inCartQty,
@@ -69,15 +64,8 @@ export function ProductSheet({
   onAdd: () => void;
   /** F37: current config layers (empty → no composed pair rendered). */
   designLayers: CartLayer[];
-  /** R4-UPSELL-MODALE (§3.24) / R4-SCONTI-2 §D: every eligible offer, in the
-   *  admin's order. Empty → the band does not exist and the sheet renders as it
-   *  did before this block (AC5). The ONE caller always computes it (F4). */
-  offers: SheetOffer[];
-  /** Rules already taken in this sheet session (§D.2): marked, not pressable. */
-  takenRuleIds: string[];
-  /** Takes one offer: adds the base (only when the basket does not already fire
-   *  the rule) plus the offer's ceramic, and LEAVES THE SHEET OPEN (§D.2). */
-  onTakeOffer: (offer: Extract<SheetOffer, { kind: "unlocked" }>) => void;
+  /** R4-UPSELL-POST-ADD ②: NO offers here, at any quantity. They live behind
+   *  «Legg i handlekurv», in the caller's post-add panel — see `AddedSheet`. */
   /** R4-SCONTI-2 §C: the quantity scale, computed over CART + SELECTOR by the
    *  caller. Null → no scale at all, and no empty frame. */
   ladder: Ladder | null;
@@ -89,7 +77,6 @@ export function ProductSheet({
   // TODO:nb-review NO copy: productSheet.close
   const tCfg = useTranslations("configurator");
   const tCart = useTranslations("cart");
-  const tLadder = useTranslations("configurator.ladder");
   // which photo the lightbox shows (null = closed). Nested inside the sheet's
   // content, so Radix's dismissable-layer stack gives us §3.19's "Esc closes the
   // lightbox first, then the sheet" for free.
@@ -344,54 +331,35 @@ export function ProductSheet({
               </p>
             )}
 
-            {/* §3.26: the scale, then the offers, then the buy row — the
-                prototype's own order (mockup-sconti-scheda.html): the scale is
-                the last thing between the description and the controls that
-                change the number it reads. */}
+            {/* §3.26: the scale, then the buy row, and nothing between them —
+                the offers used to sit here and now come AFTER the add
+                (R4-UPSELL-POST-ADD ②). */}
             <DiscountLadder
               ladder={ladder}
               excluded={ladderExcluded}
-              unitPriceCents={p.priceCents}
-              currency={p.currency}
-              locale={locale}
               inCart={inCartQty}
               onSetQty={onQty}
             />
 
-            {/* §3.24: absent entirely when there is nothing to show — an empty
-                list renders no node, so the sheet stays byte-identical (AC5). */}
-            <SheetOfferBlock
-              offers={offers}
-              currentName={name}
-              locale={locale}
-              takenRuleIds={takenRuleIds}
-              onSetQty={onQty}
-              onTake={onTakeOffer}
-            />
-
-            {/* Why the scale is ahead of the selector. Also the accessible
-                confirmation after taking an offer, which leaves the sheet open
-                (§D.2) — hence role="status", there is no toast on that path. */}
-            {inCartQty > 0 && (
-              <p
-                role="status"
-                data-testid="sheet-in-cart"
-                className="rounded-sm bg-muted px-3 py-2 text-xs text-muted-foreground"
-              >
-                {tLadder("inCart", { qty: inCartQty, name })}
-              </p>
-            )}
-
             {/* Buy row — sticky at the bottom of the scroller on mobile (§3.19),
-                static in the desktop column where `mt-auto` pins it to the end. */}
-            <div className="sticky bottom-0 mt-auto bg-card pt-2.5 shadow-[0_-8px_12px_-8px_color-mix(in_oklab,var(--foreground)_15%,transparent)] sm:static sm:shadow-none">
-              {/* Mobile only: the buy row is sticky, the scale is not. */}
-              <LadderStickyHint
-                ladder={ladder}
-                unitPriceCents={p.priceCents}
-                currency={p.currency}
-                locale={locale}
-              />
+                static in the desktop column where `mt-auto` pins it to the end.
+                R4-BUYROW: la riga vive DENTRO il padding della sheet
+                (`px-4 … pb-[calc(14px+safe-area)]`), quindi da sticky era 16px
+                più stretta per lato e si fermava 14px+safe-area sopra il bordo:
+                su tre lati scoperti il contenuto le passava sotto a vista (le
+                colonne della scala sopra, la nota dello sconto sotto). I
+                margini negativi la fanno USCIRE da quel padding e i padding
+                gemelli glielo rimettono addosso: full-bleed e opaca fino al
+                bordo, senza spostare di un pixel il contenuto interno. Sopra sm
+                la sheet è un dialogo centrato con `p-5` — altro padding, riga
+                statica — quindi lì si azzera tutto.
+                L'offset sticky scende dello STESSO valore: `bottom-0` incolla
+                la riga al fondo del CONTENT box dello scroller, cioè ancora
+                14px+safe-area sopra il bordo. Misurato a 390×660 su tutte le
+                posizioni di scroll: con `bottom-0` restavano 14px scoperti in
+                cima, a metà e in fondo; con l'offset negativo 0, 0 e 0, e senza
+                aggiungere corsa allo scroller (169px prima e dopo). */}
+            <div className="sticky -bottom-[calc(14px+env(safe-area-inset-bottom))] z-10 -mx-4 -mb-[calc(14px+env(safe-area-inset-bottom))] mt-auto bg-card px-4 pt-2.5 pb-[calc(14px+env(safe-area-inset-bottom))] shadow-[0_-8px_12px_-8px_color-mix(in_oklab,var(--foreground)_15%,transparent)] sm:static sm:mx-0 sm:mb-0 sm:px-0 sm:pb-0 sm:shadow-none">
               <div className="flex items-center gap-2.5">
               <div className="flex items-center rounded-full border border-border bg-background">
                 <button
