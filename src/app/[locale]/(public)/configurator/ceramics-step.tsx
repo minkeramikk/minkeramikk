@@ -806,11 +806,14 @@ export function CeramicsStep({
 
           <CartSuggestion />
 
-          {/* R4-SCONTI fix-3: gap-3 dropped — CartTotals now owns a single
-              child here and carries its own internal gap-2, the same value
-              cart-menu.tsx's SheetFooter already used, so the two surfaces
-              stay consistent with each other rather than drifting apart. */}
-          <div className="mt-3 flex flex-col border-t border-border pt-3">
+          {/* R4-BTN-SCALE AC1: `gap-3` ripristinato. Era stato tolto da
+              R4-SCONTI con la motivazione «CartTotals now owns a single child
+              here»: falsa nei fatti — dopo `CartTotals` questo flex ha altri
+              quattro figli (le tre pillole dello stack e il live-region dello
+              share), quindi toglierlo ha incollato i tre bordi tra loro e ha
+              fatto leggere lo stack come un blocco unico. Il gap interno di
+              `CartTotals` regge le SUE righe, non il ritmo di questo stack. */}
+          <div className="mt-3 flex flex-col gap-3 border-t border-border pt-3">
             <CartTotals totalTestId="docked-total" />
 
             {checkoutOpen ? (
