@@ -17,6 +17,7 @@
     "keepalive:prod": "bash scripts/keepalive.sh"
   },
   "dependencies": {
+    "@formatjs/icu-messageformat-parser": "3.5.11",
     "@react-pdf/renderer": "^4.5.1",
     "@supabase/ssr": "^0.10.3",
     "@supabase/supabase-js": "^2.107.0",

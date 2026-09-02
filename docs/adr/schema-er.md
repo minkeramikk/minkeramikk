@@ -207,6 +207,13 @@ erDiagram
         jsonb config_snapshot "riassunto leggibile della configurazione"
         int quantity
     }
+
+    i18n_overrides {
+        text locale PK "no|en - CHECK"
+        text key PK "chiave piatta next-intl - PK(locale, key)"
+        text value "il testo che sostituisce quello del file"
+        timestamptz updated_at "default now()"
+    }
 ```
 
 Enum `order_status` (v2, ADR 0021): `new → confirmed → in_production → shipped → delivered`
@@ -318,3 +325,10 @@ Niente GIN su `config_snapshot`: nessuna query dentro il jsonb prevista.
   orders/order_items insert pubblico, lettura/modifica solo authenticated;
   suppliers: campi safe (id/name/active) leggibili da anon su righe attive,
   contatti solo authenticated (ADR 0009).
+- `i18n_overrides` (ADR 0026, R4-I18N): deviazioni ai testi di
+  `src/i18n/messages/{no,en}.json`, scritte dal back office. Tabella **senza relazioni**: non
+  ha FK verso nulla perché la lista delle chiavi valide vive nei file del repo, non nel DB.
+  Riga assente = vale il file, in ogni scenario di errore compreso «migration non applicata».
+  Lettura pubblica (il merge gira nel render pubblico con il client anon, come i token del
+  tema), scrittura authenticated. La parità NO/EN non è un vincolo SQL: la garantiscono i file
+  e `src/i18n/messages.test.ts`, e la server action scrive le due lingue in un solo upsert.

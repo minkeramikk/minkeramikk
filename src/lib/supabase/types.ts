@@ -316,6 +316,27 @@ export type Database = {
         }
         Relationships: []
       }
+      i18n_overrides: {
+        Row: {
+          key: string
+          locale: string
+          updated_at: string
+          value: string
+        }
+        Insert: {
+          key: string
+          locale: string
+          updated_at?: string
+          value: string
+        }
+        Update: {
+          key?: string
+          locale?: string
+          updated_at?: string
+          value?: string
+        }
+        Relationships: []
+      }
       option_categories: {
         Row: {
           design_id: string

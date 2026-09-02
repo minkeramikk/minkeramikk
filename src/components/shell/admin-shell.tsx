@@ -45,7 +45,7 @@ export function AdminShell({
         </nav>
       </aside>
 
-      <main className="max-w-[1040px] flex-1 px-6 py-7 md:px-8">
+      <main className="min-w-0 max-w-[1040px] flex-1 px-6 py-7 md:px-8">
         <div className="mb-5 flex items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
             <AdminMobileNav active={active} />
