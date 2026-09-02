@@ -66,6 +66,23 @@ async function gotoTexts(page: Page) {
   await page.getByTestId("texts-editor").waitFor();
 }
 
+/**
+ * Permanent guard for the 375px overflow this evidence run found: a review
+ * had computed "no overflow" from class names alone (AdminShell's `<main>`
+ * is `max-w-[1040px] flex-1` with no `min-w-0` — a flex item defaults to
+ * `min-width: auto` and refuses to shrink below its content) and a real
+ * browser disagreed (`scrollWidth` 1040 vs a 375 viewport, unfiltered list;
+ * 423 vs 375 with a row open, from the Save/Reset row having no `flex-wrap`).
+ * Measured, not derived — so the check stays measured too.
+ */
+async function assertNoHorizontalOverflow(page: Page, where: string) {
+  const { scrollWidth, clientWidth } = await page.evaluate(() => ({
+    scrollWidth: document.documentElement.scrollWidth,
+    clientWidth: document.documentElement.clientWidth,
+  }));
+  expect(scrollWidth, `${where}: horizontal overflow (scrollWidth ${scrollWidth} > clientWidth ${clientWidth})`).toBeLessThanOrEqual(clientWidth);
+}
+
 /** Deletes both locale rows for a key and PROVES they are gone — a silent
  *  failed restore would leave the shop's staging copy overridden forever. */
 async function assertNoOverride(key: string) {
@@ -101,12 +118,14 @@ test.describe("admin: Texts editor — search, edit, placeholder guard, reset", 
         await expect(page.getByTestId(`row-${COPYRIGHT_KEY}`)).toBeVisible();
         await expect(page.getByTestId(`row-${COPYRIGHT_KEY}`)).toContainText(COPYRIGHT_KEY);
         await expect(page.getByTestId(`row-${COPYRIGHT_KEY}`)).toContainText("Min Keramikk");
+        if (label === "375") await assertNoHorizontalOverflow(page, "375 — list");
         await page.screenshot({ path: `${OUT}/1-search-${label}.png` });
 
         // ── 2. the two-column edit open ───────────────────────────────────
         await toggle(page, COPYRIGHT_KEY).click();
         await expect(page.getByTestId(`edit-no-${COPYRIGHT_KEY}`)).toBeVisible();
         await expect(page.getByTestId(`edit-en-${COPYRIGHT_KEY}`)).toBeVisible();
+        if (label === "375") await assertNoHorizontalOverflow(page, "375 — row open, editor + buttons");
         await page.screenshot({ path: `${OUT}/2-edit-open-${label}.png` });
 
         // ── 3. the placeholder error — drop {year} from the Norwegian field
