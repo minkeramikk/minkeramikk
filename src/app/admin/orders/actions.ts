@@ -203,20 +203,32 @@ const notesSchema = z.object({
   notes: z.string().max(5000),
 });
 
-export async function updateOrderNotes(formData: FormData): Promise<void> {
+/**
+ * R4-FIX Ⓒ — the internal note. It always saved; it just never said so, and
+ * swallowed both the admin check and the update error on the way. Same shape as
+ * sendCustomerMessage now: guard, then a result the form can render.
+ */
+export async function updateOrderNotes(
+  _prev: ActionResult,
+  formData: FormData
+): Promise<ActionResult> {
+  if (!(await getAdminUser())) return { error: "Not authorized." };
+
   const parsed = notesSchema.safeParse({
     id: formData.get("id"),
     notes: formData.get("notes") ?? "",
   });
-  if (!parsed.success) return;
+  if (!parsed.success) return { error: "The note could not be saved." };
 
   const supabase = await createClient();
-  await supabase
+  const { error } = await supabase
     .from("orders")
     .update({ internal_notes: parsed.data.notes })
     .eq("id", parsed.data.id);
+  if (error) return { error: "The note could not be saved." };
 
   revalidatePath(`/admin/orders/${parsed.data.id}`);
+  return { notice: "Note saved." };
 }
 
 const trackingSchema = z.object({

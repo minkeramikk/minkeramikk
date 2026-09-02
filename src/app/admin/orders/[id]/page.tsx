@@ -25,13 +25,13 @@ import type { OrderStatus } from "@/lib/orders/order-status";
 import { formatMoney } from "@/lib/money/money";
 import { OrderStatusForm } from "@/components/admin/order-status-form";
 import { OrderMessageForm } from "@/components/admin/order-message-form";
+import { OrderNotesForm } from "@/components/admin/order-notes-form";
 import { OrderTimeline } from "@/components/admin/order-timeline";
 import { PaidBadge } from "@/components/ui-domain/paid-badge";
 import { DiscountRatifiedBadge } from "@/components/ui-domain/discount-badge";
 import {
   toggleDiscountRatified,
   toggleOrderPaid,
-  updateOrderNotes,
   updateOrderTracking,
 } from "../actions";
 
@@ -253,24 +253,7 @@ export default async function OrderDetailPage({
 
             <section className="rounded-lg border border-border bg-card p-5">
               <h2 className="mb-3 text-base font-semibold">Internal notes</h2>
-              <form action={updateOrderNotes} data-testid="notes-form" className="flex flex-col gap-2">
-                <input type="hidden" name="id" value={order.id} />
-                <textarea
-                  name="notes"
-                  data-testid="notes-input"
-                  rows={3}
-                  defaultValue={order.internalNotes ?? ""}
-                  placeholder="e.g. call back Thursday, wants delivery before Christmas…"
-                  className="w-full rounded-sm border border-input bg-card p-2.5 text-sm focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
-                />
-                <button
-                  type="submit"
-                  data-testid="notes-save"
-                  className="self-start rounded-lg border border-border bg-ink px-3 py-1.5 text-sm font-medium text-ink-foreground"
-                >
-                  Save note
-                </button>
-              </form>
+              <OrderNotesForm orderId={order.id} notes={order.internalNotes ?? ""} />
             </section>
 
             {/* R4-ORDERS-PLUS §B: the register. «Order created» is synthetic, so
