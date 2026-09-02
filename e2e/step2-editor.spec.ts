@@ -670,7 +670,7 @@ test("Ⓒ: la barra tab è sticky sotto il canvas — raggiungibile anche a fond
   await expect(first).toHaveAttribute("aria-selected", "true");
 });
 
-test("Ⓒ: col focus sul campo scritta la barra tab molla lo sticky insieme al canvas", async ({
+test("Ⓒ: col focus sul campo scritta la barra tab molla lo sticky insieme al canvas, e la nav si aggancia al fondo", async ({
   page,
 }) => {
   // La barra è agganciata AL CANVAS: quando il canvas molla (`data-typing`,
@@ -692,15 +692,22 @@ test("Ⓒ: col focus sul campo scritta la barra tab molla lo sticky insieme al c
       const canvas = document.querySelector(
         "[data-preview-column]"
       ) as HTMLElement;
+      const nav = document.querySelector(
+        '[data-testid="step-nav-flow"]'
+      ) as HTMLElement;
       return {
         bar: getComputedStyle(bar).position,
         canvas: getComputedStyle(canvas).position,
+        // R4-STEP2-KEYBOARD ③: la nav fa il contrario degli altri due — si
+        // aggancia mentre si scrive, così Back/Next stanno sopra la tastiera.
+        nav: getComputedStyle(nav).position,
       };
     });
 
-  expect(await positions(), "a riposo entrambi sono sticky").toEqual({
+  expect(await positions(), "a riposo: canvas e barra sticky, nav in flusso").toEqual({
     bar: "sticky",
     canvas: "sticky",
+    nav: "static",
   });
 
   await page.evaluate(() =>
@@ -709,8 +716,8 @@ test("Ⓒ: col focus sul campo scritta la barra tab molla lo sticky insieme al c
   );
   expect(
     await positions(),
-    "col campo a fuoco la barra molla lo sticky INSIEME al canvas"
-  ).toEqual({ bar: "static", canvas: "static" });
+    "col campo a fuoco la barra molla lo sticky INSIEME al canvas, e la nav lo prende"
+  ).toEqual({ bar: "static", canvas: "static", nav: "sticky" });
 });
 
 test("CA3: «Fargeønsker» è un tab, esiste solo dove serve, e non lascia form sotto il pannello", async ({

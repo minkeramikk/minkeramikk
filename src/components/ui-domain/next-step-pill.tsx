@@ -137,6 +137,11 @@ export function NextStepPill({
   /** R4-BTN-SCALE: `lg` (default) = la pillola di sempre. `sm` = i tier bassi. */
   size?: PillSize;
   onClick: () => void;
+  /** R4-STEP2-KEYBOARD ③: la riga nav dello step 2 si sposta al blur, e il blur
+   *  arriva PRIMA del click — chi tocca «Neste» col campo a fuoco colpirebbe il
+   *  vuoto. Il call-site previene il default del mousedown, che è ciò che
+   *  toglie il focus; passa di qui perché il bottone è questo. */
+  onMouseDown?: React.MouseEventHandler<HTMLButtonElement>;
   className?: string;
   // Niente `aria-label`: il nome accessibile DEVE restare caption + label
   // visibili (WCAG 2.5.3, chi usa il comando vocale pronuncia ciò che legge).
