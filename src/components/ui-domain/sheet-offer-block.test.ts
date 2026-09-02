@@ -55,18 +55,25 @@ const lockedOffer: SheetOffer = {
 
 function render(offers: SheetOffer[]) {
   return renderToStaticMarkup(
-    h(
-      NextIntlClientProvider,
-      { locale: "en", messages: en },
-      h(SheetOfferBlock, {
+    // children INSIDE the props object, not as createElement's third argument:
+    // the provider's prop type requires `children`, so the positional form does
+    // not satisfy any overload (vitest transpiles without typechecking, so it
+    // ran green while `tsc --noEmit` was red). `timeZone` is set for the same
+    // reason it is set everywhere else — without it next-intl falls back to the
+    // machine's zone and warns.
+    h(NextIntlClientProvider, {
+      locale: "en",
+      messages: en,
+      timeZone: "Europe/Oslo",
+      children: h(SheetOfferBlock, {
         offers,
         currentName: "Flat plate",
         locale: "en" as const,
         takenRuleIds: [],
         onSetQty: () => {},
         onTake: () => {},
-      })
-    )
+      }),
+    })
   );
 }
 
