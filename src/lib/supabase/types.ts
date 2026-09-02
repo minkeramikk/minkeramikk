@@ -1,13 +1,6 @@
-// NOTE (R4-ORDERS-PLUS, 2026-09-01): patched BY HAND, additively, for migration
-// 0036 — `order_events`, `orders.city` and create_order's `p_city`. 0036 is
-// applied on STAGING; `npm run db:types` reads the LINKED project, which is
-// PROD (supabase/.temp/project-ref), so regenerating before the prod push would
-// silently delete these three additions. Regenerate after `make db-push-prod`.
-//
-// NOTE (R4-PDF-CLIENTE, 2026-09-02): same treatment for migration 0038 — the
-// six `settings.seller_*` columns. 0038 is applied on NEITHER database yet (the
-// PM pushes it, staging then prod), so regenerating now would not produce them
-// either. Same rule: regenerate only after the prod push.
+// GENERATO da `make db-types` — non modificare a mano.
+// Si legge da PROD, DAL DB e non dall'API di gestione, e solo DOPO
+// `make db-push-prod`: vedi il commento sul target nel Makefile.
 export type Json =
   | string
   | number

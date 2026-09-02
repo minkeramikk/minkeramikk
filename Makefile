@@ -73,7 +73,7 @@ run-e2e-grep: build
 # Si bypassa `supabase link` (--db-url esplicito): il ref linkato è irrilevante.
 # NB: se una password contiene caratteri speciali va URL-encodata nella stringa.
 
-.PHONY: db-push-staging db-push-prod db-status
+.PHONY: db-push-staging db-push-prod db-status db-types
 
 db-push-staging:
 	@set -a && . ./.env.migration && set +a && \
@@ -86,6 +86,24 @@ db-push-prod:
 	read conferma && [ "$$conferma" = "si" ] && \
 	supabase db push --db-url "postgresql://$$NEW_DB_USER:$$NEW_DB_PASSWORD@$$NEW_DB_HOST:$$NEW_DB_PORT/postgres" || \
 	{ echo "annullato."; exit 1; }
+
+# types TypeScript dallo schema. Si legge da PROD, dal DB e non dall'API: dopo
+# l'handover l'account non ha i privilegi Management API su quel progetto, quindi
+# `supabase gen types --linked` muore con LegacyGenTypesUnexpectedStatusError.
+# Rigenerare SOLO dopo `make db-push-prod`: da un DB senza l'ultima migration il
+# file tornerebbe indietro, in silenzio.
+# L'intestazione la scrive il target, non una mano: così rigenerare riproduce il
+# file per intero e la nota non si perde a ogni giro (com'era successo alle patch
+# additive che questo file portava fino al 2/9).
+db-types:
+	@set -a && . ./.env.migration && set +a && \
+	echo ">> gen types da PROD ($$NEW_PROJECT_REF)" && \
+	{ echo "// GENERATO da \`make db-types\` — non modificare a mano."; \
+	  echo "// Si legge da PROD, DAL DB e non dall'API di gestione, e solo DOPO"; \
+	  echo "// \`make db-push-prod\`: vedi il commento sul target nel Makefile."; \
+	  supabase gen types typescript \
+	    --db-url "postgresql://$$NEW_DB_USER:$$NEW_DB_PASSWORD@$$NEW_DB_HOST:$$NEW_DB_PORT/postgres"; \
+	} > src/lib/supabase/types.ts
 
 # stato migration su entrambi gli ambienti (Local = file nel repo)
 db-status:
