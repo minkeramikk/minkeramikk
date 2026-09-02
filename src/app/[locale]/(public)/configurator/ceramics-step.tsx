@@ -11,7 +11,7 @@ import { CartLineThumb } from "@/components/ui-domain/cart-line-thumb";
 import { OrderForm } from "@/components/ui-domain/order-form";
 import { Button } from "@/components/ui/button";
 import { assetUrl } from "@/lib/storage";
-import { PRODUCT_THUMB_WIDTH } from "@/lib/asset-variants";
+import { PRODUCT_CARD_WIDTH, PRODUCT_THUMB_WIDTH } from "@/lib/asset-variants";
 import { formatMoney, money } from "@/lib/money/money";
 import type { Currency } from "@/lib/money/money";
 import { useCartContext } from "@/lib/cart/cart-context";
@@ -91,8 +91,11 @@ function thumbHex(line: CartLine): string | undefined {
  * card that expanded in place, and drops the F13 hover preview with it — the
  * card's own photo IS the preview.
  *
- * That photo is the product's main picture (`image`), which is served at the
- * `products` class width (1024) precisely because it is displayed this big.
+ * That photo is the product's main picture (`image`), asked for at
+ * PRODUCT_CARD_WIDTH (R4-IMG-512): the frame is square and ~180px wide at 390
+ * (2 columns), ~300px from 960 up (3 columns), so 512 already covers DPR2 with
+ * headroom. The `products` class width (1024) stays for the sheet and the
+ * lightbox, which really do display the photo that big.
  */
 function CeramicCard({
   product: p,
@@ -137,7 +140,7 @@ function CeramicCard({
         <span className="relative block aspect-square w-full overflow-hidden bg-muted">
           {/* eslint-disable-next-line @next/next/no-img-element -- catalog art from storage */}
           <img
-            src={assetUrl(cover)}
+            src={assetUrl(cover, { width: PRODUCT_CARD_WIDTH })}
             alt=""
             loading="lazy"
             decoding="async"
