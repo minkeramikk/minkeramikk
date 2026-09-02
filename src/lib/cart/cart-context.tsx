@@ -1,6 +1,14 @@
 "use client";
 
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 import { useCart } from "./use-cart";
 import {
   computeCartDiscount,
@@ -10,6 +18,7 @@ import {
   type DiscountConfig,
 } from "@/lib/discounts/discount";
 import { buildSuggestionLine } from "@/lib/discounts/suggestion-line";
+import { designProductIds } from "@/lib/catalog/design-products-action";
 
 /**
  * Shared cart view (F16). The cart STATE and persistence already live in
@@ -44,6 +53,12 @@ type CartApi = ReturnType<typeof useCart> & {
   setCurrentConfigCode: (code: string | null) => void;
   /** Part ②: add the suggested ceramic wearing the trigger line's design. */
   acceptSuggestion: (suggestion: ActiveSuggestion) => void;
+  /**
+   * R4-FIX Ⓔ — D3 for every surface: may the line `fromLineId` lend its design
+   * to `productId`? False while the whitelists are still loading, and false for
+   * a line this cart does not hold (step 3 answers for its own projected line).
+   */
+  allowedProduct: (fromLineId: string, productId: string) => boolean;
 };
 
 const CartContext = createContext<CartApi | null>(null);
@@ -92,6 +107,48 @@ export function CartProvider({
     [config.rules]
   );
 
+  /**
+   * R4-FIX Ⓔ — the whitelist of every design in the cart. Keyed by slug and
+   * refetched only when the SET of designs changes, so adding a second plate of
+   * a design already in the basket costs nothing.
+   *
+   * `null` means "we do not know yet", and the lookup below answers `false` to
+   * everything until it does: an offer the workshop cannot make must never
+   * flash on screen while the answer is in flight.
+   */
+  const designSlugs = useMemo(
+    () =>
+      [...new Set(cart.cart.map((l) => l.configSnapshot?.designSlug).filter(Boolean))]
+        .sort()
+        .join(","),
+    [cart.cart]
+  );
+  const [designProducts, setDesignProducts] = useState<Record<string, string[]> | null>(
+    null
+  );
+  useEffect(() => {
+    if (!designSlugs) {
+      setDesignProducts({});
+      return;
+    }
+    let alive = true;
+    setDesignProducts(null);
+    designProductIds(designSlugs.split(","))
+      .then((m) => alive && setDesignProducts(m))
+      .catch(() => alive && setDesignProducts(null));
+    return () => {
+      alive = false;
+    };
+  }, [designSlugs]);
+
+  const allowedProduct = useCallback(
+    (fromLineId: string, productId: string) => {
+      const slug = cart.cart.find((l) => l.id === fromLineId)?.configSnapshot?.designSlug;
+      return slug ? (designProducts?.[slug]?.includes(productId) ?? false) : false;
+    },
+    [cart.cart, designProducts]
+  );
+
   const suggestions = useMemo(
     () =>
       suggestionsDismissed
@@ -107,7 +164,7 @@ export function CartProvider({
               configCode: l.configCode,
             })),
             config,
-            { supplierOf, supplierOfProduct, currentConfigCode }
+            { supplierOf, supplierOfProduct, allowedProduct, currentConfigCode }
           ),
     [
       cart.cart,
@@ -116,6 +173,7 @@ export function CartProvider({
       currentConfigCode,
       supplierOf,
       supplierOfProduct,
+      allowedProduct,
     ]
   );
 
@@ -162,6 +220,7 @@ export function CartProvider({
       dismissSuggestions,
       setCurrentConfigCode,
       acceptSuggestion,
+      allowedProduct,
     }),
     [
       cart,
@@ -171,6 +230,7 @@ export function CartProvider({
       suggestions,
       dismissSuggestions,
       acceptSuggestion,
+      allowedProduct,
     ]
   );
 

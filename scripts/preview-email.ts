@@ -77,6 +77,15 @@ async function main() {
       setUrl: "https://minkeramikk.no/no/configurator?step=3&set=demo",
       theme, baseUrl: "https://minkeramikk.no", vipps: VIPPS, journeyAt: AT,
     }));
+    // R4-FIX Ⓓ: il caso REALE di oggi — QR archiviato, `vipps_number` ancora
+    // NULL. È quello in cui la riga a due colonne lasciava il destinatario
+    // orfano sul telefono.
+    write(`1-confirmation-qr-only-${locale}`, customerEmail({
+      name: "Kari Nordmann", code: CODE, locale, items, setUrl: null,
+      theme, baseUrl: "https://minkeramikk.no",
+      vipps: { qrImage: "settings/vipps-qr.png", number: null, link: null },
+      journeyAt: AT,
+    }));
     write(`1-confirmation-no-vipps-${locale}`, customerEmail({
       name: "Kari Nordmann", code: CODE, locale, items, setUrl: null,
       theme, baseUrl: "https://minkeramikk.no", vipps: NO_VIPPS, journeyAt: AT,

@@ -3,17 +3,19 @@
 import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link, useRouter } from "@/i18n/navigation";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Turnstile } from "@/components/ui-domain/turnstile";
+import { NextStepPill, PillIcon } from "@/components/ui-domain/next-step-pill";
+import { Loader2, Truck } from "lucide-react";
 import type { Cart } from "@/lib/cart/cart";
 import { orderFormSchema } from "@/lib/orders/schema";
 import { encodeSetParam } from "@/lib/cart/set-code";
 
 /**
  * TODO:nb-review NO copy: orderForm.city («Poststed» — the client's own word,
- * from the card, but it has never been seen in the form's layout).
+ * from the card, but it has never been seen in the form's layout) and
+ * orderForm.submitKicker («Send bestilling», R4-FIX Ⓕ).
  *
  * Order form (F05): client-validated with the SAME zod schema as the server,
  * Turnstile token attached. Success → clear cart + redirect to confirmation;
@@ -254,15 +256,31 @@ export function OrderForm({
         </p>
       )}
 
-      <Button
+      {/* R4-FIX Ⓕ — the same pill the configurator ends on («Fullfør
+          bestilling», step 3), truck and all: the last click of the funnel must
+          not change language into a flat rectangle. Disabled until Turnstile
+          has answered, so a click that could only fail is not offered. */}
+      <NextStepPill
         type="submit"
-        size="lg"
-        className="min-h-11"
-        disabled={status === "sending" || cart.length === 0}
         data-testid="order-submit"
-      >
-        {status === "sending" ? to("sending") : t("submit")}
-      </Button>
+        className="w-full"
+        caption={t("submitKicker")}
+        label={status === "sending" ? to("sending") : t("submit")}
+        arrow={
+          status === "sending" ? (
+            <Loader2 className="size-4 animate-spin motion-reduce:animate-none" />
+          ) : (
+            true
+          )
+        }
+        aria-busy={status === "sending"}
+        disabled={status === "sending" || cart.length === 0 || !token}
+        icon={
+          <PillIcon>
+            <Truck className="size-5 text-primary" />
+          </PillIcon>
+        }
+      />
     </form>
   );
 }

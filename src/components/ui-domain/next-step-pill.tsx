@@ -125,24 +125,36 @@ export function NextStepPill({
   arrow = false,
   variant = "primary",
   size = "lg",
+  type = "button",
   onClick,
+  disabled,
   className,
   ...rest
 }: {
   icon: React.ReactNode;
   label: string;
   caption?: string;
-  arrow?: boolean;
+  /** R4-FIX Ⓕ: a node here rides INSIDE the same circle instead of the chevron
+   *  — the order form swaps it for a spinner while the order is leaving. */
+  arrow?: boolean | React.ReactNode;
   variant?: PillVariant;
   /** R4-BTN-SCALE: `lg` (default) = la pillola di sempre. `sm` = i tier bassi. */
   size?: PillSize;
-  onClick: () => void;
+  /** R4-FIX Ⓕ: the order form submits with the pill, so it needs to BE the
+   *  submit — a `<button type="button">` inside a form does nothing. Default
+   *  unchanged, so every existing call-site keeps today's behaviour. */
+  type?: "button" | "submit";
+  /** Optional for the same reason: a submit pill waits for the Turnstile token
+   *  and for the send to finish. */
+  onClick?: () => void;
+  disabled?: boolean;
   /** R4-STEP2-KEYBOARD ③: la riga nav dello step 2 si sposta al blur, e il blur
    *  arriva PRIMA del click — chi tocca «Neste» col campo a fuoco colpirebbe il
    *  vuoto. Il call-site previene il default del mousedown, che è ciò che
    *  toglie il focus; passa di qui perché il bottone è questo. */
   onMouseDown?: React.MouseEventHandler<HTMLButtonElement>;
   className?: string;
+  "aria-busy"?: boolean;
   // Niente `aria-label`: il nome accessibile DEVE restare caption + label
   // visibili (WCAG 2.5.3, chi usa il comando vocale pronuncia ciò che legge).
   // La prop non è dichiarata apposta — così riaggiungerla costa un errore di
@@ -151,8 +163,9 @@ export function NextStepPill({
 }) {
   return (
     <button
-      type="button"
+      type={type}
       onClick={onClick}
+      disabled={disabled}
       className={cn(
         // `min-w-0`: da flex item il bottone avrebbe `min-width: auto` e non
         // scenderebbe sotto il proprio contenuto — la riga Tilbake+pillola dello
@@ -161,6 +174,7 @@ export function NextStepPill({
         // il bottone stesso non può restringersi.
         "flex min-w-0 items-center gap-3.5 rounded-full p-3 text-left transition-colors",
         "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground",
+        "disabled:opacity-50",
         SIZE[size],
         SURFACE[variant],
         className
@@ -204,7 +218,7 @@ export function NextStepPill({
           data-pill-arrow
           className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary text-lg leading-none text-primary-foreground"
         >
-          ›
+          {arrow === true ? "›" : arrow}
         </span>
       )}
     </button>

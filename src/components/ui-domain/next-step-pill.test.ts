@@ -104,3 +104,31 @@ describe("NextStepPill · scala di taglia", () => {
     expect([...stripped].sort()).toEqual([...smOnly].sort());
   });
 });
+
+/**
+ * R4-FIX Ⓕ — the order form's CTA is this pill now, so the pill has to be able
+ * to submit a form, refuse the click, and lend its arrow circle to a spinner.
+ * The default stays `type="button"`: that is what every other call-site relies on.
+ */
+describe("NextStepPill · submit", () => {
+  it("senza `type` resta un bottone normale, non un submit", () => {
+    expect(render()).toContain('type="button"');
+  });
+
+  it("`type=\"submit\"` invia il form che la contiene", () => {
+    expect(render({ type: "submit" })).toContain('type="submit"');
+  });
+
+  it("`disabled` disabilita davvero il bottone e si vede", () => {
+    const html = render({ type: "submit", disabled: true });
+    expect(html).toContain("disabled");
+    expect(buttonClasses(html)).toContain("disabled:opacity-50");
+  });
+
+  it("la freccetta cede il cerchietto a un nodo (lo spinner dell'invio)", () => {
+    const html = render({ arrow: h("span", { className: "spinner" }) });
+    expect(html).toContain("data-pill-arrow");
+    expect(html).toContain("spinner");
+    expect(html).not.toContain("›");
+  });
+});

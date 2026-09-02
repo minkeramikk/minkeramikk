@@ -137,9 +137,15 @@ describe("orderPayloadSchema — customText sanitisation (F38 AC3/AC5)", () => {
     const parsed = orderPayloadSchema.parse(payloadWithText("Hi\x00\x07 there"));
     expect((parsed.items[0].configSnapshot as { customText?: string }).customText).toBe("Hi there");
   });
-  it("rejects over the 100-char cap", () => {
-    const result = orderPayloadSchema.safeParse(payloadWithText("x".repeat(MAX_CUSTOM_TEXT + 1)));
-    expect(result.success).toBe(false);
+  it("accepts 24 and 25 chars, rejects 26 (R4-FIX Ⓑ boundary)", () => {
+    expect(MAX_CUSTOM_TEXT).toBe(25);
+    expect(orderPayloadSchema.safeParse(payloadWithText("x".repeat(24))).success).toBe(true);
+    expect(orderPayloadSchema.safeParse(payloadWithText("x".repeat(25))).success).toBe(true);
+    expect(orderPayloadSchema.safeParse(payloadWithText("x".repeat(26))).success).toBe(false);
+  });
+  it("counts spaces against the cap", () => {
+    expect(orderPayloadSchema.safeParse(payloadWithText("a b c d e f g h i j k l m")).success).toBe(true);
+    expect(orderPayloadSchema.safeParse(payloadWithText("a b c d e f g h i j k l m n")).success).toBe(false);
   });
   it("accepts a snapshot without customText", () => {
     const result = orderPayloadSchema.safeParse(payloadWithText(undefined));

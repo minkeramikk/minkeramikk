@@ -367,7 +367,8 @@ export const MAX_SUGGESTIONS = 3;
  *
  * The filters: an offer already taken in full is skipped (D1, ADR 0025 — it used
  * to be "a product already in the cart"), the suggested product must share the
- * donor's supplier (D2), and an excluded product neither triggers nor donates.
+ * donor's supplier (D2) AND belong to the donor design's own whitelist (D3,
+ * R4-FIX Ⓔ), and an excluded product neither triggers nor donates.
  */
 export function activeSuggestions(
   lines: DiscountLineInput[],
@@ -375,6 +376,16 @@ export function activeSuggestions(
   opts: {
     supplierOf: (lineId: string) => string | null;
     supplierOfProduct: (productId: string) => string | null;
+    /**
+     * R4-FIX Ⓔ — D3: is `productId` one of the ceramics the DONOR line's design
+     * offers (`design_products`, ADR 0017)? The suggested line inherits the
+     * donor's design (ADR 0023 (e)), so a suggestion outside that whitelist is
+     * an order the workshop cannot make. Not "blocked": it does not exist.
+     * Required, and answered fail-closed (`false` while the caller still has to
+     * look the whitelist up) — a missing answer must silence the offer, never
+     * wave it through.
+     */
+    allowedProduct: (fromLineId: string, productId: string) => boolean;
     /**
      * The configuration the customer is looking at on step 3, when there is
      * one. Null in the drawer at steps 1-2, where no design is on screen.
@@ -425,6 +436,9 @@ export function activeSuggestions(
     // same supplier, or the config code means nothing on the suggested product
     const sup = opts.supplierOf(from.id);
     if (!sup || opts.supplierOfProduct(rule.suggestedProductId) !== sup) continue;
+
+    // D3 — and the donor's design must actually offer the suggested ceramic.
+    if (!opts.allowedProduct(from.id, rule.suggestedProductId)) continue;
 
     // The card quotes the offer at ITS OWN size, so it sits exactly on the floor
     // by construction — `applies` is the only outcome that can price a

@@ -99,7 +99,8 @@ export function shell(
     : "Min&nbsp;Keramikk";
   return `<!DOCTYPE html>
 <html>
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<style>@media (max-width:480px){.mk-pay-cell{display:block!important;width:100%!important;text-align:center!important}.mk-pay-qr{margin:10px auto 0!important}}</style></head>
 <body style="margin:0;padding:0;background:${esc(light)};">
 <span style="display:none;max-height:0;overflow:hidden;opacity:0;">${esc(
     opts.preheader
@@ -440,29 +441,38 @@ function paymentHtml(
   theme: ThemeTokens,
   c: Copy
 ): string {
-  const numberCell = `<td valign="top" style="font-family:Helvetica,Arial,sans-serif;">${
-    vipps.number
-      ? `<div style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;opacity:.6;">${esc(
-          c.payNumberLabel
-        )}</div>
+  const recipient = `<div style="font-size:12px;opacity:.7;padding-top:2px;">${esc(
+    c.payRecipient
+  )}</div>`;
+  const qrSrc = vipps.qrImage ? esc(assetUrl(vipps.qrImage)) : "";
+  const qrFrame = `border:1px solid ${esc(
+    theme.light
+  )};border-radius:8px;background:#ffffff;`;
+
+  // R4-FIX Ⓓ — no number, no two-column row: the left cell would hold only the
+  // recipient and the phone would show it orphaned beside a small QR. One line,
+  // then the QR centred under it, at the size a thumb actually scans.
+  // Width/height attributes stay so a blocked image leaves a predictable hole.
+  const payDetails = vipps.number
+    ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:12px;"><tr><td class="mk-pay-cell" valign="top" style="font-family:Helvetica,Arial,sans-serif;"><div style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;opacity:.6;">${esc(
+        c.payNumberLabel
+      )}</div>
         <div style="font-size:26px;font-weight:bold;line-height:1.2;color:${esc(
           theme.dark
-        )};">${esc(vipps.number)}</div>`
-      : ""
-  }<div style="font-size:12px;opacity:.7;padding-top:2px;">${esc(
-    c.payRecipient
-  )}</div></td>`;
-  // Fixed width/height: a blocked image must leave a predictable hole, not
-  // collapse the two-column row onto itself.
-  const qrCell = vipps.qrImage
-    ? `<td valign="top" align="right" width="104" style="width:104px;"><img src="${esc(
-        assetUrl(vipps.qrImage)
-      )}" width="104" height="104" alt="${esc(
-        c.payQrAlt
-      )}" style="display:block;border:1px solid ${esc(
-        theme.light
-      )};border-radius:8px;background:#ffffff;width:104px;height:104px;"></td>`
-    : "";
+        )};">${esc(vipps.number)}</div>${recipient}</td>${
+        qrSrc
+          ? `<td class="mk-pay-cell" valign="top" align="right" width="104" style="width:104px;"><img class="mk-pay-qr" src="${qrSrc}" width="104" height="104" alt="${esc(
+              c.payQrAlt
+            )}" style="display:block;${qrFrame}width:104px;height:104px;"></td>`
+          : ""
+      }</tr></table>`
+    : `<div style="margin-top:12px;font-family:Helvetica,Arial,sans-serif;text-align:center;">${recipient}${
+        qrSrc
+          ? `<img src="${qrSrc}" width="160" height="160" alt="${esc(
+              c.payQrAlt
+            )}" style="display:block;margin:10px auto 0;${qrFrame}width:160px;max-width:100%;height:auto;">`
+          : ""
+      }</div>`;
   return `<div style="margin:18px 0;padding:16px;background:${esc(
     theme.light
   )};border-radius:10px;">
@@ -470,7 +480,7 @@ function paymentHtml(
     <p style="margin:4px 0 0;font-size:12px;line-height:1.5;opacity:.75;">${esc(
       c.payLead
     )}</p>
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:12px;"><tr>${numberCell}${qrCell}</tr></table>
+    ${payDetails}
     <div style="margin-top:14px;padding:12px 14px;background:${WARN_BG};border:1px solid ${WARN_BORDER};border-radius:8px;">
       <p style="margin:0;font-size:12px;line-height:1.5;color:${WARN_TEXT};"><b>${esc(
         c.payWarningLabel

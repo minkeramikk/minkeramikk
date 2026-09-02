@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { buildConfigLinePayload } from "./line-payload";
+import { MAX_CUSTOM_TEXT } from "@/lib/orders/schema";
 import type { DesignDetail } from "@/lib/catalog/design-options";
 
 function design(acceptsCustomNotes: boolean, acceptsCustomText = false): DesignDetail {
@@ -74,7 +75,7 @@ describe("buildConfigLinePayload — customText (F38)", () => {
   it("sanitises + truncates a forged over-long / control-char value", () => {
     const forged = "\x00\x07" + "x".repeat(500);
     const { snapshot } = buildConfigLinePayload(design(false, true), {}, "", forged);
-    expect(snapshot.customText).toBe("x".repeat(100));
-    expect(snapshot.customText!.length).toBe(100);
+    expect(snapshot.customText).toBe("x".repeat(MAX_CUSTOM_TEXT));
+    expect(snapshot.customText!.length).toBe(MAX_CUSTOM_TEXT);
   });
 });

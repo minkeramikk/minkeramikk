@@ -107,6 +107,8 @@ test("AC4: internal notes persist", async ({ page }) => {
   const note = `call back ${Date.now()}`;
   await page.getByTestId("notes-input").fill(note);
   await page.getByTestId("notes-save").click();
+  // R4-FIX Ⓒ: the save now reports itself — wait for the notice, not for the DB.
+  await expect(page.getByTestId("notes-status")).toHaveText("Note saved.");
 
   const db = adminClient();
   await expect
