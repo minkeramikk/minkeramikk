@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   assetClass,
   isVariantPath,
+  PRODUCT_CARD_WIDTH,
   PRODUCT_THUMB_WIDTH,
   variantPath,
   variantWidth,
@@ -109,8 +110,16 @@ describe("isVariantPath", () => {
 });
 
 describe("variantWidths", () => {
-  it("also pre-generates the small thumb for product photos", () => {
-    expect(variantWidths("products/krus.png")).toEqual([1024, PRODUCT_THUMB_WIDTH]);
+  it("pre-generates card and thumb alongside the class width for product photos", () => {
+    // R4-IMG-512: three sizes, class width first then descending — the card
+    // (512) and the cart/admin thumb (256) are both requested explicitly, so
+    // both must exist next to the 1024 the sheet shows.
+    expect(variantWidths("products/krus.png")).toEqual([
+      1024,
+      PRODUCT_CARD_WIDTH,
+      PRODUCT_THUMB_WIDTH,
+    ]);
+    expect(variantPath("products/krus.png", PRODUCT_CARD_WIDTH)).toBe("products/krus@512.webp");
   });
 
   it("is a single width for every other class", () => {

@@ -32,10 +32,11 @@ export type AssetClass =
 export const VARIANT_WIDTHS: Record<AssetClass, number> = {
   swatches: 96, // 40px swatch circles, shared library (F15)
   animal: 128, // 56px animal icons
-  // R4-STEP3-FIX: the step-3 card cover and the product-sheet main frame show
-  // this photo at ~200px / ~420px × DPR2 — 256 (the old 64px thumb budget) was
-  // visibly soft. Same order as `product-photos` below. The small thumbs
-  // (48px cart plate, admin lists) ask for PRODUCT_THUMB_WIDTH explicitly.
+  // R4-STEP3-FIX: the product-sheet main frame shows this photo at ~420px ×
+  // DPR2 — 256 (the old 64px thumb budget) was visibly soft. Same order as
+  // `product-photos` below. The smaller consumers ask for their width
+  // explicitly: PRODUCT_CARD_WIDTH (step-3 card), PRODUCT_THUMB_WIDTH (48px
+  // cart plate, admin lists).
   products: 1024,
   designs: 512, // was 800 — hero compositing layers + design previews, flat
   // tints displayed at 312px (mobile) / 417px (desktop) (F26.1)
@@ -48,9 +49,18 @@ export const VARIANT_WIDTHS: Record<AssetClass, number> = {
 /**
  * Small product thumb: cart plate (48px), admin lists (36-80px). Passed as an
  * explicit `width` to assetUrl — the `products` class width itself serves the
- * big step-3 card / sheet image.
+ * big product-sheet / lightbox image.
  */
 export const PRODUCT_THUMB_WIDTH = 256;
+
+/**
+ * R4-IMG-512: the step-3 catalogue card. Its square frame is ~180px at 390 (2
+ * columns) and ~300px from 960 up (3 columns) — 360-600px at DPR2, where the
+ * class width serves 1024. Every card in the viewport paid 80-150 KB for a
+ * photo it downscales by half. Requested explicitly by `CeramicCard`; the
+ * sheet and the lightbox keep the class width, which is what they display.
+ */
+export const PRODUCT_CARD_WIDTH = 512;
 
 /** Compositing layers inside an animal category folder: `-layer` is the admin
  *  upload convention (options-actions.ts), `-shape` the legacy import naming. */
@@ -96,12 +106,15 @@ export function variantPath(path: string, width: number): string | null {
 }
 
 /**
- * Every width to pre-generate for a master. One per class, plus the small
- * thumb for product photos: the 48px cart plate and the admin lists request
- * PRODUCT_THUMB_WIDTH explicitly, so it must exist alongside the class width.
+ * Every width to pre-generate for a master. One per class, plus — for a
+ * product photo — the two widths the app asks for explicitly: the step-3 card
+ * (PRODUCT_CARD_WIDTH) and the 48px cart plate / admin lists
+ * (PRODUCT_THUMB_WIDTH). Class width first, then descending.
  */
 export function variantWidths(path: string): number[] {
   const width = variantWidth(path);
   if (!width) return [];
-  return assetClass(path) === "products" ? [width, PRODUCT_THUMB_WIDTH] : [width];
+  return assetClass(path) === "products"
+    ? [width, PRODUCT_CARD_WIDTH, PRODUCT_THUMB_WIDTH]
+    : [width];
 }
