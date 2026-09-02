@@ -88,44 +88,51 @@ function resolveSelections(
 }
 
 /**
- * R4-POLISH voci 2+8 — porta il campo sopra la tastiera. `visualViewport` è
- * l'unica fonte che sa quanto schermo resta libero; il suo evento `resize`
- * arriva quando la tastiera ha finito di salire, quindi si aspetta quello (con
- * un fallback a timer per i browser che non lo emettono). L'aritmetica sta in
- * lib/configurator/keyboard-safe-scroll, con i suoi unit.
+ * R4-STEP2-KEYBOARD ② — porta il campo sopra la tastiera, in due tempi.
+ *
+ * Prima il LAYOUT, poi lo scroll. `setTyping(true)` fa mollare lo sticky al
+ * canvas e alla barra tab: misurare nello stesso tick significa leggere un rect
+ * che il paint successivo invalida — è così che il campo finiva «alto». Due
+ * `requestAnimationFrame` aspettano quel commit, poi `scrollIntoView` centra il
+ * campo rispettando il suo `scroll-margin-top`: niente più delta calcolato a
+ * mano, e nessuno `scrollBy` che compete con lo scroll nativo del focus.
+ *
+ * Con ① (`interactive-widget=resizes-content`) il viewport di layout si
+ * restringe da solo e questo basta. Resta la CORREZIONE per iOS, che quello non
+ * lo supporta: al `resize` del viewport visuale — l'unico momento in cui si sa
+ * quanto schermo è rimasto — si ricontrolla, e si scorre solo se serve
+ * davvero. Nessun timer: se la tastiera non alza nulla, non si tocca niente.
+ * L'aritmetica sta in lib/configurator/keyboard-safe-scroll, coi suoi unit.
  */
 function keepClearOfKeyboard(field: HTMLElement) {
-  const vv = window.visualViewport;
-  const run = () => {
-    const box = field.getBoundingClientRect();
-    // il campo può essere sparito (blur → pannello max-md:hidden) o staccato dal
-    // DOM (avanzato allo step 3) prima che questo timer/listener scattino: un
-    // rect azzerato produrrebbe uno scroll fantasma, quindi si abortisce qui.
-    if (!field.isConnected || !box.height) return;
-    const styles = getComputedStyle(field);
-    const delta = keyboardSafeScrollDelta({
-      fieldTop: box.top,
-      fieldBottom: box.bottom,
-      viewportTop: vv?.offsetTop ?? 0,
-      viewportHeight: vv?.height ?? window.innerHeight,
-      // il canvas ha già mollato lo sticky (`data-typing`), quindi in alto
-      // resta solo l'header ink: lo `scroll-margin-top` del campo lo riflette
-      marginTop: parseFloat(styles.scrollMarginTop) || 0,
-      marginBottom: 12,
-    });
-    if (delta !== 0) window.scrollBy({ top: delta, behavior: "smooth" });
+  const frame = () => {
+    if (!field.isConnected) return;
+    field.scrollIntoView({ block: "center", behavior: "smooth" });
   };
-  if (!vv) {
-    run();
-    return;
-  }
-  // la tastiera anima: si agisce sul primo resize, o dopo 350ms se non arriva
-  const timer = window.setTimeout(run, 350);
+  requestAnimationFrame(() => requestAnimationFrame(frame));
+
+  const vv = window.visualViewport;
+  if (!vv) return;
   vv.addEventListener(
     "resize",
     () => {
-      window.clearTimeout(timer);
-      run();
+      const box = field.getBoundingClientRect();
+      // il campo può essere sparito (blur → pannello max-md:hidden) o staccato
+      // dal DOM (avanzato allo step 3) prima che il resize arrivi: un rect
+      // azzerato produrrebbe uno scroll fantasma, quindi si abortisce qui.
+      if (!field.isConnected || !box.height) return;
+      const styles = getComputedStyle(field);
+      const delta = keyboardSafeScrollDelta({
+        fieldTop: box.top,
+        fieldBottom: box.bottom,
+        viewportTop: vv.offsetTop,
+        viewportHeight: vv.height,
+        // il canvas ha già mollato lo sticky (`data-typing`), quindi in alto
+        // resta solo l'header ink: lo `scroll-margin-top` del campo lo riflette
+        marginTop: parseFloat(styles.scrollMarginTop) || 0,
+        marginBottom: 12,
+      });
+      if (delta !== 0) window.scrollBy({ top: delta, behavior: "smooth" });
     },
     { once: true }
   );
