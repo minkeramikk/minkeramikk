@@ -8,8 +8,11 @@ import { CURRENCIES } from "@/lib/money/money";
 /** R2-2b AC7: hard cap on the customer's free-text colour note. */
 export const MAX_CUSTOM_NOTE = 250;
 
-/** F38: hard cap on the customer's inscription on the ceramic (100 chars). */
-export const MAX_CUSTOM_TEXT = 100;
+/** F38: hard cap on the customer's inscription on the ceramic.
+ *  R4-FIX Ⓑ: 100 → 25 chars, spaces included (client request, 2/9). Existing
+ *  orders with longer texts are NOT migrated or truncated on read — the cap
+ *  only guards the URL read path and the order write path. */
+export const MAX_CUSTOM_TEXT = 25;
 
 /** F38 — sanitise for the UNTRUSTED read path (URL → snapshot): same cleaner as
  *  the note (trim + strip control chars), then TRUNCATE to the cap. A URL can't

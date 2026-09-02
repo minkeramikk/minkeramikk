@@ -44,6 +44,7 @@ import {
 import { pickDefaultOption } from "@/lib/configurator/default-option";
 import { fullRowInsertIndex } from "@/lib/configurator/grid-rows";
 import { keyboardSafeScrollDelta } from "@/lib/configurator/keyboard-safe-scroll";
+import { MAX_CUSTOM_TEXT } from "@/lib/orders/schema";
 import { cn } from "@/lib/utils";
 import type { DesignDetail } from "@/lib/catalog/design-options";
 import type { PreviewLayer } from "@/lib/configurator/preview";
@@ -366,7 +367,7 @@ export function ConfiguratorClient({
         type="text"
         data-testid="custom-text-input"
         value={customText}
-        maxLength={100}
+        maxLength={MAX_CUSTOM_TEXT}
         onChange={(e) => setCustomText(e.target.value)}
         onFocus={(e) => {
           setTyping(true);
@@ -386,7 +387,7 @@ export function ConfiguratorClient({
           {t("customText.helper")}
         </p>
         <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
-          {t("customText.counter", { count: customText.length })}
+          {t("customText.counter", { count: customText.length, max: MAX_CUSTOM_TEXT })}
         </span>
       </div>
     </section>
