@@ -66,10 +66,19 @@ export function parseEmailOutcome(
   return to ? { kind: "sent", to } : null;
 }
 
-/** «28 Aug 2026, 14:02». Deliberately NOT the detail page's `fmtDateTime`,
- *  which is `month: "2-digit"` and serves four other places. Never raw ISO. */
+/**
+ * «28 Aug 2026, 14:02». Deliberately NOT the detail page's `fmtDateTime`, which
+ * is `month: "2-digit"` and serves four other places. Never raw ISO.
+ *
+ * The time zone is PINNED to Europe/Oslo, not left to the runtime's. The order
+ * page is a server component and Vercel runs in UTC, so without this every row
+ * would read two hours early (one in winter) for the only person who reads it.
+ * On a register whose whole job is answering "when did that mail go out?", two
+ * hours is not a detail — it is the reason you stop trusting the register.
+ */
 export function formatEventAt(iso: string): string {
   return new Date(iso).toLocaleString("en-GB", {
+    timeZone: "Europe/Oslo",
     day: "2-digit",
     month: "short",
     year: "numeric",

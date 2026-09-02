@@ -113,4 +113,16 @@ describe("formatEventAt", () => {
       /^\d{2} \w{3,4} \d{4}, \d{2}:\d{2}$/
     );
   });
+
+  // The order page is a server component and Vercel runs in UTC. Unpinned, the
+  // whole register would read two hours early for the one person who reads it.
+  // These two assertions are exact BECAUSE the zone is pinned: they hold on any
+  // machine, and they fail the moment someone drops the option.
+  it("is Oslo time in summer (CEST, +2) — the card's own example", () => {
+    expect(formatEventAt("2026-08-28T12:02:00.000Z")).toBe("28 Aug 2026, 14:02");
+  });
+
+  it("is Oslo time in winter too (CET, +1) — a fixed offset would be wrong here", () => {
+    expect(formatEventAt("2026-01-15T12:00:00.000Z")).toBe("15 Jan 2026, 13:00");
+  });
 });
