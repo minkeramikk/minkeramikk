@@ -38,5 +38,6 @@ aggiornamento delle regole in `../../AGENTS.md`.
 | [0023](0023-automations-upsell.md) | Automazioni & upsell: regole "chi ha X → suggerisci Y" (estende 0022) | Accepted · parz. superato da 0024 |
 | [0024](0024-offerte-lista.md) | Offerte upsell come lista (max 3), la ✕ chiude il blocco, donatrice = config corrente | Accepted |
 | [0025](0025-pool-prezzo-pieno.md) | Pool a prezzo pieno per regola: il trigger si consuma a multipli, le unità scontate non contano (revisiona 0023 (d)) | Accepted |
+| [0026](0026-testi-editabili-override-db.md) | Testi pubblici editabili: file JSON base, tabella `i18n_overrides` per le deviazioni | Accepted |
 
 Diagramma del modello dati e indici: [schema-er.md](schema-er.md) (deriva da ADR 0004–0008).

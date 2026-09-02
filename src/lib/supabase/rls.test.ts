@@ -30,6 +30,34 @@ const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const hasEnv = Boolean(url && anonKey && serviceKey);
 
+/**
+ * R4-I18N — migration 0039 (i18n_overrides) is applied to staging/prod by the
+ * PM, not by `npm test` locally. Querying a table PostgREST doesn't know
+ * about answers with ITS OWN code `PGRST205` ("could not find the table in
+ * the schema cache") — checked empirically against the linked DB before this
+ * table existed; the raw Postgres `42P01` (undefined_table) is accepted too
+ * in case a future query path surfaces the underlying error unwrapped. Either
+ * → a DECLARED skip (lezione F07: never a silent skip — the reason rides in
+ * the describe name below); any other error is logged and treated as "ready"
+ * so the suite fails loudly instead of skipping for the wrong reason. Modeled
+ * in shape on `probeRulesApplied` in
+ * src/app/admin/discounts/actions.integration.test.ts.
+ */
+async function probeI18nOverridesApplied(): Promise<boolean> {
+  const db = createClient(url!, serviceKey!, { auth: { persistSession: false } });
+  const { error } = await db.from("i18n_overrides").select("locale").limit(1);
+  if (error) {
+    if (error.code === "PGRST205" || error.code === "42P01") return false; // 0039 not applied yet
+    console.warn(
+      "[R4-I18N rls.test] unexpected error reading i18n_overrides — running the suite so it fails loudly instead of skipping for the wrong reason:",
+      error
+    );
+    return true;
+  }
+  return true;
+}
+const hasI18nOverrides = hasEnv && (await probeI18nOverridesApplied());
+
 describe.skipIf(!hasEnv)("RLS — anon client", () => {
   let anon: SupabaseClient;
   let admin: SupabaseClient;
@@ -281,6 +309,39 @@ describe.skipIf(!hasEnv)("RLS — anon client", () => {
       .single();
     expect(after.data!.color_accent).not.toBe("#000000");
   });
+
+  describe.skipIf(!hasI18nOverrides)(
+    "R4-I18N i18n_overrides RLS (needs migration 0039 applied)",
+    () => {
+      // R4-I18N / AC5 — gli override dei testi si leggono in pubblico (il merge
+      // gira nel render con il client anon, come i token del tema) ma li scrive
+      // solo un admin autenticato. Migration 0039.
+      it("anon CAN read i18n_overrides (the public merge reads them)", async () => {
+        const { error } = await anon.from("i18n_overrides").select("key").limit(1);
+        expect(error).toBeNull();
+      });
+
+      it("anon may NOT write i18n_overrides", async () => {
+        const { data, error } = await anon
+          .from("i18n_overrides")
+          .insert({ locale: "no", key: "cart.button", value: "hacked" })
+          .select();
+        // RLS: o un errore esplicito, o zero righe toccate
+        if (error) {
+          expect(error.code).toBe("42501");
+        } else {
+          expect(data).toHaveLength(0);
+        }
+        // controllo: la riga non esiste davvero
+        const after = await admin
+          .from("i18n_overrides")
+          .select("value")
+          .eq("locale", "no")
+          .eq("key", "cart.button");
+        expect((after.data ?? []).map((r) => r.value)).not.toContain("hacked");
+      });
+    }
+  );
 
   // R2-1a / AC4: only authenticated admins may set the cover default; anon is
   // blocked by RLS. Self-contained: reads a real option id with the service
