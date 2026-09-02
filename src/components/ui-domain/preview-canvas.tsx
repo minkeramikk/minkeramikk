@@ -50,8 +50,12 @@ function LayerStack({
     <div
       className="relative h-[84%] w-[84%]"
       style={{
+        // R4-CANVAS-WHITE AC7: era 18%. Su fondo caldo leggeva morbida; su
+        // `--mk-canvas` (bianco pieno) la stessa ombra diventa un alone grigio
+        // attorno al piatto — sporco, non profondità. 13% tiene lo stacco
+        // senza sporcare (evidenza: docs/evidence/r4-canvas-white/ac7-shadow).
         filter:
-          "drop-shadow(0 14px 28px color-mix(in oklab, var(--mk-dark) 18%, transparent))",
+          "drop-shadow(0 14px 28px color-mix(in oklab, var(--mk-dark) 13%, transparent))",
       }}
     >
       {layers.map((layer, i) => (
@@ -154,7 +158,7 @@ export function PreviewCanvas({
         // structural one (`[&>div>div]`) would silently break. Purely a
         // selector target, no rendering change.
         data-canvas-frame
-        className="relative mx-auto flex aspect-square max-w-[520px] items-center justify-center rounded-lg bg-card shadow-(--shadow-card)"
+        className="relative mx-auto flex aspect-square max-w-[520px] items-center justify-center rounded-lg bg-[var(--mk-canvas)] shadow-(--shadow-card)"
       >
         {nothingToShow && (
           <div

@@ -78,6 +78,17 @@
   --mk-dark: #2b2330;
   --mk-accent: #7d4f9c;
 
+  /* NOT a managed token and NOT derived: the base the ceramic is composed on.
+     5 of the 6 design layers are `mix-blend-mode: multiply`, which is the
+     identity on white — on any warm ground the plate stops showing the swatch
+     the customer picked. It is deliberately independent of the 3 managed
+     tokens (ADR 0008): the ceramic is white whatever colour the site wears.
+     SAME VALUE sharp uses for the server composite in
+     `src/lib/orders/compose-plate.ts` (`{ r:255, g:255, b:255, alpha:1 }`),
+     which feeds the ceramist's PDF and the home thumbs: if one changes, both
+     change. */
+  --mk-canvas: #ffffff;
+
   /* derived — shadcn/ui convention */
   --background: var(--mk-light);
   --foreground: var(--mk-dark);

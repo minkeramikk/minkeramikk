@@ -723,10 +723,33 @@ export function ConfiguratorClient({
         data-typing={step === 2 && typing ? "1" : undefined}
         style={
           step === 2
-            ? ({ "--mk-canvas-h": "clamp(180px,36svh,280px)" } as React.CSSProperties)
+            ? ({ "--mk-canvas-h": "clamp(200px,38svh,300px)" } as React.CSSProperties)
             : undefined
         }
       >
+        {/* R4-STEP2-HEAD: la testata dello step (occhiello + titolo) è ora
+            visibile a OGNI viewport, come allo step 3. Sotto md vive QUI, in
+            flusso e SOPRA il canvas: il canvas ha un'altezza fissa
+            (`--mk-canvas-h`), un titolo al suo interno gliela mangerebbe —
+            fuori, scorre via col resto e il canvas sticky non cambia di un
+            pixel. Su desktop il nodo gemello sta in cima al pannello
+            (`md:hidden` qui, `max-md:hidden` là): un solo nodo visibile per
+            volta, mai due — stessa regola della descrizione qui sotto.
+            `mb-4` come allo step 3: qui il contenitore è `max-md:gap-0`, la
+            spaziatura la deve mettere il titolo. Il gemello desktop invece NON
+            lo porta — il pannello è `flex flex-col gap-6` e sommare i due
+            farebbe 40px sotto una testata. */}
+        {step === 2 && (
+          <div data-testid="step2-heading-mobile" className="md:hidden">
+            <p className="text-[11px] uppercase tracking-[0.06em] text-muted-foreground">
+              {t("stepIndicator", { step: 2 })}
+            </p>
+            <h2 className="mb-4 mt-1 text-xl font-semibold">
+              {t("step2.titleDetails")}
+            </h2>
+          </div>
+        )}
+
         {/* R4-RESTYLE (a): la descrizione del design apre la pagina, SOPRA il
             canvas — scorre via com'è nello sketch del cliente. Su desktop resta
             dov'era, in cima al pannello (`md:hidden` qui, `max-md:hidden` là):
@@ -763,8 +786,19 @@ export function ConfiguratorClient({
             // Height: a clamp, not a flex ratio — there is no shared height to
             // divide any more. `svh` is the SMALLEST viewport (mobile toolbars
             // expanded), so the box never reflows when they collapse (B4).
-            // Full-bleed (`-mx-5` against `main`'s `px-5`) + the mockup's radial
-            // ground so the text scrolling underneath never peeks at the gutters.
+            // Full-bleed (`-mx-5` against `main`'s `px-5`) so the text scrolling
+            // underneath never peeks at the gutters.
+            // R4-CANVAS-WHITE: il fondo è `--mk-canvas`, non più il radial
+            // caldo. Il gradiente sfumava in `--background` proprio dove cade
+            // la fascia esterna del piatto, e i 5 layer `multiply` ci si
+            // moltiplicavano sopra: lo swatch scelto arrivava a schermo con
+            // Δ 17-32 dal suo hex. Il bianco lo mette QUESTO contenitore (il
+            // frame resta `bg-transparent`, sotto), così è una campitura sola
+            // a tutta larghezza senza bande. La hairline `border-b` non è
+            // decorazione: la box è sticky e il contenuto le scorre sotto,
+            // senza bordo il bianco si fonde con la prima card. Costo
+            // verticale 0 — `box-sizing: border-box` la tiene dentro
+            // `--mk-canvas-h`.
             // `top-14` = the ink header's `h-14`, which is itself `max-md:sticky
             // top-0` (site-header.tsx): the canvas parks UNDER it, not behind it.
             // R4-POLISH: l'altezza del canvas è pubblicata come `--mk-canvas-h`
@@ -775,7 +809,7 @@ export function ConfiguratorClient({
             // focus il canvas ha già mollato lo sticky (`data-typing`), quindi
             // in alto non resta altro che l'header.
             step === 2 &&
-              "max-md:sticky max-md:top-14 max-md:-mx-5 max-md:h-[var(--mk-canvas-h)] max-md:flex-none max-md:items-center max-md:justify-center max-md:gap-1 max-md:px-5 max-md:pt-2 max-md:bg-[radial-gradient(circle_at_50%_42%,color-mix(in_oklab,var(--mk-light),white_55%),var(--background)_78%)]"
+              "max-md:sticky max-md:top-14 max-md:-mx-5 max-md:h-[var(--mk-canvas-h)] max-md:flex-none max-md:items-center max-md:justify-center max-md:gap-1 max-md:px-5 max-md:pt-2 max-md:border-b max-md:border-border max-md:bg-[var(--mk-canvas)]"
           )}
         >
           <div
@@ -966,7 +1000,18 @@ export function ConfiguratorClient({
               // that trivial: the panel is now a plain content-height block in
               // the page's own scroller, so there is no height to divide, no
               // `flex-1` and no `overflow` anywhere on it.
-              "max-md:-mx-5 max-md:gap-0 max-md:rounded-t-[var(--radius)] max-md:border-t-[1.5px] max-md:border-border max-md:bg-card max-md:px-3 max-md:pt-1 max-md:shadow-[0_-6px_18px_color-mix(in_oklab,var(--mk-dark)_8%,transparent)]"
+              // R4-STEP2-SHEET: sotto md il pannello è la stessa campitura del
+              // canvas (`--mk-canvas`), non `bg-card` — è il foglio su cui il
+              // cliente lavora, e il foglio è bianco come la ceramica,
+              // indipendente dal tema. `-mb-7` cancella il `pb-7` del `<main>`
+              // (public-shell.tsx, `py-7`): era quello a lasciare 28px di crema
+              // fra la riga nav e il footer. Il margine negativo fa uscire il
+              // bordo del pannello dal content box del main esattamente di quei
+              // 28px, quindi il bianco arriva al footer senza toccare la shell,
+              // che è condivisa da ogni pagina pubblica. La separazione dal
+              // footer la fa il `border-t` che il footer ha già
+              // (site-footer.tsx): nessuna hairline in più, sarebbero due.
+              "max-md:-mx-5 max-md:-mb-7 max-md:gap-0 max-md:rounded-t-[var(--radius)] max-md:border-t-[1.5px] max-md:border-border max-md:bg-[var(--mk-canvas)] max-md:px-3 max-md:pt-1 max-md:shadow-[0_-6px_18px_color-mix(in_oklab,var(--mk-dark)_8%,transparent)]"
             )}
             data-testid="details-step"
             data-color-lock={colorLock ? "1" : "0"}
@@ -999,7 +1044,7 @@ export function ConfiguratorClient({
                 (R4-FIX 5) — e il wrapper è `md:hidden`, non esiste da md in su. */}
             <div
               data-tabs-bar
-              className="sticky top-[calc(3.5rem+var(--mk-canvas-h))] z-20 -mx-3 flex-none bg-card px-3 md:hidden"
+              className="sticky top-[calc(3.5rem+var(--mk-canvas-h))] z-20 -mx-3 flex-none bg-[var(--mk-canvas)] px-3 md:hidden"
             >
               <div
                 ref={tabsRef}
@@ -1093,14 +1138,14 @@ export function ConfiguratorClient({
               <span
                 aria-hidden
                 className={cn(
-                  "pointer-events-none absolute inset-y-0 left-3 w-6 bg-gradient-to-r from-card to-transparent transition-opacity",
+                  "pointer-events-none absolute inset-y-0 left-3 w-6 bg-gradient-to-r from-[var(--mk-canvas)] to-transparent transition-opacity",
                   tabFades.left ? "opacity-100" : "opacity-0"
                 )}
               />
               <span
                 aria-hidden
                 className={cn(
-                  "pointer-events-none absolute inset-y-0 right-3 w-6 bg-gradient-to-l from-card to-transparent transition-opacity",
+                  "pointer-events-none absolute inset-y-0 right-3 w-6 bg-gradient-to-l from-[var(--mk-canvas)] to-transparent transition-opacity",
                   tabFades.right ? "opacity-100" : "opacity-0"
                 )}
               />
@@ -1114,7 +1159,7 @@ export function ConfiguratorClient({
                 aria-label={t("step2.scrollTabsBack")}
                 data-testid="category-tabs-prev"
                 hidden={!tabFades.left}
-                className="absolute top-1/2 left-1 z-2 flex size-9 -translate-y-1/2 items-center justify-center rounded-full bg-card text-sm ring-1 ring-border after:absolute after:-inset-1 after:content-[''] outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+                className="absolute top-1/2 left-1 z-2 flex size-9 -translate-y-1/2 items-center justify-center rounded-full bg-[var(--mk-canvas)] text-sm ring-1 ring-border after:absolute after:-inset-1 after:content-[''] outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
               >
                 ‹
               </button>
@@ -1124,19 +1169,28 @@ export function ConfiguratorClient({
                 aria-label={t("step2.scrollTabsForward")}
                 data-testid="category-tabs-next"
                 hidden={!tabFades.right}
-                className="absolute top-1/2 right-1 z-2 flex size-9 -translate-y-1/2 items-center justify-center rounded-full bg-card text-sm ring-1 ring-border after:absolute after:-inset-1 after:content-[''] outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+                className="absolute top-1/2 right-1 z-2 flex size-9 -translate-y-1/2 items-center justify-center rounded-full bg-[var(--mk-canvas)] text-sm ring-1 ring-border after:absolute after:-inset-1 after:content-[''] outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
               >
                 ›
               </button>
             </div>
-            {/* R4-FOLLOWUPS Ⓓ: sotto md questo blocco resta spento. Il nome del
-                design non è più ripetuto nell'editor — lo si è appena scelto
-                allo step 1, e la riga che lo portava è stata rimossa. */}
+            {/* R4-STEP2-HEAD: l'h2 è un TITOLO DI STEP («Velg detaljer»), come
+                allo step 3 — non più il nome del design. Il gemello sotto md sta
+                sopra il canvas, quindi qui resta `max-md:hidden`: un solo nodo
+                visibile per volta.
+                Ⓓ resta rispettato — il nome del design NON torna nell'editor
+                mobile. Su desktop però, tolto dall'h2, non comparirebbe più da
+                nessuna parte in questa colonna (allo step 2 vive solo come
+                `alt` della preview), quindi scende a riga piccola qui sotto:
+                questo blocco è già desktop-only. */}
             <div className="max-md:hidden">
               <p className="text-[11px] uppercase tracking-[0.06em] text-muted-foreground">
                 {t("stepIndicator", { step: 2 })}
               </p>
-              <h2 className="mt-1 text-xl font-semibold">{designName(selected)}</h2>
+              <h2 className="mt-1 text-xl font-semibold">{t("step2.titleDetails")}</h2>
+              <p className="mt-0.5 text-sm text-muted-foreground">
+                {designName(selected)}
+              </p>
             </div>
 
             {detail.categories.map((cat) => (
@@ -1361,7 +1415,11 @@ export function ConfiguratorClient({
                 is in the padding so the row is already correct the day that
                 lands, not because it does something now. */}
             <div
-              className="@container md:order-4 max-md:z-10 max-md:-mx-3 max-md:mt-3 max-md:bg-card max-md:px-3 max-md:pb-[calc(0.75rem+env(safe-area-inset-bottom))] max-md:pt-2"
+              // R4-STEP2-SHEET: sotto md la riga nav è dentro il foglio, non una
+              // barra a sé — stessa campitura `--mk-canvas` del canvas e del
+              // pannello. Il `pb-[calc(0.75rem+env(safe-area-inset-bottom))]`
+              // resta: è spazio INTERNO al foglio, non la striscia crema.
+              className="@container md:order-4 max-md:z-10 max-md:-mx-3 max-md:mt-3 max-md:bg-[var(--mk-canvas)] max-md:px-3 max-md:pb-[calc(0.75rem+env(safe-area-inset-bottom))] max-md:pt-2"
               data-testid="step-nav-flow"
             >
             <div className="flex flex-col-reverse gap-3 md:@md:flex-row md:@md:items-stretch max-md:flex-row max-md:gap-2.5">
@@ -1753,14 +1811,14 @@ function CategoryLane({
           <span
             aria-hidden
             className={cn(
-              "pointer-events-none absolute inset-y-0 left-0 z-[2] hidden w-6 bg-gradient-to-r from-card to-transparent transition-opacity max-md:block",
+              "pointer-events-none absolute inset-y-0 left-0 z-[2] hidden w-6 bg-gradient-to-r from-[var(--mk-canvas)] to-transparent transition-opacity max-md:block",
               fades.left ? "opacity-100" : "opacity-0"
             )}
           />
           <span
             aria-hidden
             className={cn(
-              "pointer-events-none absolute inset-y-0 right-0 z-[2] hidden w-6 bg-gradient-to-l from-card to-transparent transition-opacity max-md:block",
+              "pointer-events-none absolute inset-y-0 right-0 z-[2] hidden w-6 bg-gradient-to-l from-[var(--mk-canvas)] to-transparent transition-opacity max-md:block",
               fades.right ? "opacity-100" : "opacity-0"
             )}
           />
@@ -1777,7 +1835,7 @@ function CategoryLane({
             hidden={!fades.left}
             className={cn(
               "absolute top-1/2 left-1 z-[3] hidden -translate-y-1/2 max-md:flex",
-              "size-9 items-center justify-center rounded-full bg-card text-sm ring-1 ring-border",
+              "size-9 items-center justify-center rounded-full bg-[var(--mk-canvas)] text-sm ring-1 ring-border",
               "after:absolute after:-inset-1 after:content-[''] outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
             )}
           >
@@ -1791,7 +1849,7 @@ function CategoryLane({
             hidden={!fades.right}
             className={cn(
               "absolute top-1/2 right-1 z-[3] hidden -translate-y-1/2 max-md:flex",
-              "size-9 items-center justify-center rounded-full bg-card text-sm ring-1 ring-border",
+              "size-9 items-center justify-center rounded-full bg-[var(--mk-canvas)] text-sm ring-1 ring-border",
               "after:absolute after:-inset-1 after:content-[''] outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
             )}
           >

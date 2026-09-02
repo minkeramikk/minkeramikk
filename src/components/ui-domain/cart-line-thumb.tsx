@@ -47,7 +47,7 @@ export function CartLineThumb({
         className={cn(
           "relative block overflow-hidden rounded-md border border-border",
           box,
-          composed ? "bg-card" : "bg-muted"
+          composed ? "bg-[var(--mk-canvas)]" : "bg-muted"
         )}
         style={!composed && hex ? { backgroundColor: hex } : undefined}
       >
@@ -70,7 +70,7 @@ export function CartLineThumb({
           alt=""
           aria-hidden
           data-testid="cart-plate"
-          className={cn("rounded-md border border-border bg-card object-contain p-1", box)}
+          className={cn("rounded-md border border-border bg-[var(--mk-canvas)] object-contain p-1", box)}
         />
       )}
     </div>
