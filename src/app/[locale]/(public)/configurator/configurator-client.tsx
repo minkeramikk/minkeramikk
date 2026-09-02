@@ -727,6 +727,29 @@ export function ConfiguratorClient({
             : undefined
         }
       >
+        {/* R4-STEP2-HEAD: la testata dello step (occhiello + titolo) è ora
+            visibile a OGNI viewport, come allo step 3. Sotto md vive QUI, in
+            flusso e SOPRA il canvas: il canvas ha un'altezza fissa
+            (`--mk-canvas-h`), un titolo al suo interno gliela mangerebbe —
+            fuori, scorre via col resto e il canvas sticky non cambia di un
+            pixel. Su desktop il nodo gemello sta in cima al pannello
+            (`md:hidden` qui, `max-md:hidden` là): un solo nodo visibile per
+            volta, mai due — stessa regola della descrizione qui sotto.
+            `mb-4` come allo step 3: qui il contenitore è `max-md:gap-0`, la
+            spaziatura la deve mettere il titolo. Il gemello desktop invece NON
+            lo porta — il pannello è `flex flex-col gap-6` e sommare i due
+            farebbe 40px sotto una testata. */}
+        {step === 2 && (
+          <div data-testid="step2-heading-mobile" className="md:hidden">
+            <p className="text-[11px] uppercase tracking-[0.06em] text-muted-foreground">
+              {t("stepIndicator", { step: 2 })}
+            </p>
+            <h2 className="mb-4 mt-1 text-xl font-semibold">
+              {t("step2.titleDetails")}
+            </h2>
+          </div>
+        )}
+
         {/* R4-RESTYLE (a): la descrizione del design apre la pagina, SOPRA il
             canvas — scorre via com'è nello sketch del cliente. Su desktop resta
             dov'era, in cima al pannello (`md:hidden` qui, `max-md:hidden` là):
@@ -1140,14 +1163,23 @@ export function ConfiguratorClient({
                 ›
               </button>
             </div>
-            {/* R4-FOLLOWUPS Ⓓ: sotto md questo blocco resta spento. Il nome del
-                design non è più ripetuto nell'editor — lo si è appena scelto
-                allo step 1, e la riga che lo portava è stata rimossa. */}
+            {/* R4-STEP2-HEAD: l'h2 è un TITOLO DI STEP («Velg detaljer»), come
+                allo step 3 — non più il nome del design. Il gemello sotto md sta
+                sopra il canvas, quindi qui resta `max-md:hidden`: un solo nodo
+                visibile per volta.
+                Ⓓ resta rispettato — il nome del design NON torna nell'editor
+                mobile. Su desktop però, tolto dall'h2, non comparirebbe più da
+                nessuna parte in questa colonna (allo step 2 vive solo come
+                `alt` della preview), quindi scende a riga piccola qui sotto:
+                questo blocco è già desktop-only. */}
             <div className="max-md:hidden">
               <p className="text-[11px] uppercase tracking-[0.06em] text-muted-foreground">
                 {t("stepIndicator", { step: 2 })}
               </p>
-              <h2 className="mt-1 text-xl font-semibold">{designName(selected)}</h2>
+              <h2 className="mt-1 text-xl font-semibold">{t("step2.titleDetails")}</h2>
+              <p className="mt-0.5 text-sm text-muted-foreground">
+                {designName(selected)}
+              </p>
             </div>
 
             {detail.categories.map((cat) => (

@@ -694,7 +694,9 @@ test.describe("R2-7 bilingual design name", () => {
       // saveDesign: name ← nameNo). Confirms the saved NO name reaches the public UI.
       await page.goto(`/no/configurator?design=${design.slug}&step=2`);
       // Il nome vive in DUE nodi, uno per viewport: la riga di riepilogo sotto
-      // il canvas (mobile) e l'<h2> del pannello (desktop). `.first()` secco
+      // il canvas (mobile) e la riga piccola sotto la testata del pannello
+      // (desktop — R4-STEP2-HEAD: l'<h2> ora porta il TITOLO DI STEP, non il
+      // nome del design, come allo step 3). `.first()` secco
       // prendeva sempre il primo in DOM — quello mobile — e su desktop lo
       // trovava `hidden`. Si asserisce sul nodo VISIBILE, qualunque sia: il
       // punto del test è che il nome norvegese arrivi in UI, non quale nodo lo
