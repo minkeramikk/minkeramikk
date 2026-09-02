@@ -199,6 +199,12 @@ export async function sendOrderEmails(
     items: OrderItemInput[];
     /** R4-SCONTI: the SAME CartDiscount create.ts computed before the RPC. */
     discount: CartDiscount;
+    /** R4-PDF-CLIENTE: the customer summary, already rendered by the deferred
+     *  work. Goes on the CUSTOMER mail only — the admin notification has the
+     *  order in the back office and does not need a copy. Null (a failed
+     *  render, or none at all) simply means no attachment: the mail leaves
+     *  either way, the PDF is a courtesy and not a gate (AC5). */
+    pdf?: Buffer | null;
   },
   transport: EmailTransport = defaultTransport()
 ): Promise<void> {
@@ -226,6 +232,13 @@ export async function sendOrderEmails(
     subject: customer.subject,
     text: customer.text,
     html: customer.html,
+    ...(params.pdf
+      ? {
+          attachments: [
+            { filename: `bestilling-${params.code}.pdf`, content: params.pdf },
+          ],
+        }
+      : {}),
   });
 
   const admin = adminEmail({
