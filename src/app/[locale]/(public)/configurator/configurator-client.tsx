@@ -1044,7 +1044,7 @@ export function ConfiguratorClient({
                 (R4-FIX 5) — e il wrapper è `md:hidden`, non esiste da md in su. */}
             <div
               data-tabs-bar
-              className="sticky top-[calc(3.5rem+var(--mk-canvas-h))] z-20 -mx-3 flex-none bg-card px-3 md:hidden"
+              className="sticky top-[calc(3.5rem+var(--mk-canvas-h))] z-20 -mx-3 flex-none bg-[var(--mk-canvas)] px-3 md:hidden"
             >
               <div
                 ref={tabsRef}
@@ -1138,14 +1138,14 @@ export function ConfiguratorClient({
               <span
                 aria-hidden
                 className={cn(
-                  "pointer-events-none absolute inset-y-0 left-3 w-6 bg-gradient-to-r from-card to-transparent transition-opacity",
+                  "pointer-events-none absolute inset-y-0 left-3 w-6 bg-gradient-to-r from-[var(--mk-canvas)] to-transparent transition-opacity",
                   tabFades.left ? "opacity-100" : "opacity-0"
                 )}
               />
               <span
                 aria-hidden
                 className={cn(
-                  "pointer-events-none absolute inset-y-0 right-3 w-6 bg-gradient-to-l from-card to-transparent transition-opacity",
+                  "pointer-events-none absolute inset-y-0 right-3 w-6 bg-gradient-to-l from-[var(--mk-canvas)] to-transparent transition-opacity",
                   tabFades.right ? "opacity-100" : "opacity-0"
                 )}
               />
@@ -1159,7 +1159,7 @@ export function ConfiguratorClient({
                 aria-label={t("step2.scrollTabsBack")}
                 data-testid="category-tabs-prev"
                 hidden={!tabFades.left}
-                className="absolute top-1/2 left-1 z-2 flex size-9 -translate-y-1/2 items-center justify-center rounded-full bg-card text-sm ring-1 ring-border after:absolute after:-inset-1 after:content-[''] outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+                className="absolute top-1/2 left-1 z-2 flex size-9 -translate-y-1/2 items-center justify-center rounded-full bg-[var(--mk-canvas)] text-sm ring-1 ring-border after:absolute after:-inset-1 after:content-[''] outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
               >
                 ‹
               </button>
@@ -1169,7 +1169,7 @@ export function ConfiguratorClient({
                 aria-label={t("step2.scrollTabsForward")}
                 data-testid="category-tabs-next"
                 hidden={!tabFades.right}
-                className="absolute top-1/2 right-1 z-2 flex size-9 -translate-y-1/2 items-center justify-center rounded-full bg-card text-sm ring-1 ring-border after:absolute after:-inset-1 after:content-[''] outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+                className="absolute top-1/2 right-1 z-2 flex size-9 -translate-y-1/2 items-center justify-center rounded-full bg-[var(--mk-canvas)] text-sm ring-1 ring-border after:absolute after:-inset-1 after:content-[''] outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
               >
                 ›
               </button>
@@ -1811,14 +1811,14 @@ function CategoryLane({
           <span
             aria-hidden
             className={cn(
-              "pointer-events-none absolute inset-y-0 left-0 z-[2] hidden w-6 bg-gradient-to-r from-card to-transparent transition-opacity max-md:block",
+              "pointer-events-none absolute inset-y-0 left-0 z-[2] hidden w-6 bg-gradient-to-r from-[var(--mk-canvas)] to-transparent transition-opacity max-md:block",
               fades.left ? "opacity-100" : "opacity-0"
             )}
           />
           <span
             aria-hidden
             className={cn(
-              "pointer-events-none absolute inset-y-0 right-0 z-[2] hidden w-6 bg-gradient-to-l from-card to-transparent transition-opacity max-md:block",
+              "pointer-events-none absolute inset-y-0 right-0 z-[2] hidden w-6 bg-gradient-to-l from-[var(--mk-canvas)] to-transparent transition-opacity max-md:block",
               fades.right ? "opacity-100" : "opacity-0"
             )}
           />
@@ -1835,7 +1835,7 @@ function CategoryLane({
             hidden={!fades.left}
             className={cn(
               "absolute top-1/2 left-1 z-[3] hidden -translate-y-1/2 max-md:flex",
-              "size-9 items-center justify-center rounded-full bg-card text-sm ring-1 ring-border",
+              "size-9 items-center justify-center rounded-full bg-[var(--mk-canvas)] text-sm ring-1 ring-border",
               "after:absolute after:-inset-1 after:content-[''] outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
             )}
           >
@@ -1849,7 +1849,7 @@ function CategoryLane({
             hidden={!fades.right}
             className={cn(
               "absolute top-1/2 right-1 z-[3] hidden -translate-y-1/2 max-md:flex",
-              "size-9 items-center justify-center rounded-full bg-card text-sm ring-1 ring-border",
+              "size-9 items-center justify-center rounded-full bg-[var(--mk-canvas)] text-sm ring-1 ring-border",
               "after:absolute after:-inset-1 after:content-[''] outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
             )}
           >

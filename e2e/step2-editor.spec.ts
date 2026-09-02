@@ -886,3 +886,72 @@ test("CA6: nessuna fade copre testo statico, su nessun design e nessun tab", asy
   }
   expect(problems, problems.join("\n")).toEqual([]);
 });
+
+test("le frecce della barra tab compaiono quando è il CONTENUTO a traboccare", async ({
+  page,
+}) => {
+  // La regressione che questo test esiste per proteggere: `useLaneFades`
+  // osservava col ResizeObserver il solo CONTENITORE, che NON cambia larghezza
+  // quando cresce il contenuto. Con `font-display: swap` i chip nascono col
+  // font di ripiego e si allargano quando arriva Poppins: la corsia trabocca e
+  // nessun evento parte, quindi `category-tabs-next` restava `hidden` finché
+  // l'utente non scorreva a mano. Misurato a 390 prima del fix: traccia da 366
+  // a 458px, freccia ancora nascosta.
+  //
+  // Il font non si può far arrivare tardi in modo deterministico, quindi si
+  // riproduce la CAUSA, non il suo innesco: si allarga il contenuto a
+  // contenitore fermo. Due volte, perché sono due box diversi — il padding
+  // muove solo il border box (per questo l'osservatore guarda quello), la
+  // dimensione del testo muove anche il content box.
+  const lane = page.getByTestId("category-tabs");
+  const next = page.getByTestId("category-tabs-next");
+  const overflow = () => lane.evaluate((el) => el.scrollWidth - el.clientWidth);
+
+  // Serve la corsia PIÙ LARGA fra quelle che NON traboccano già: una che
+  // trabocca avrebbe la freccia accesa per un altro motivo, e la più stretta
+  // (un tab solo) può restare dentro i 390px anche gonfiata, rendendo il test
+  // vacuo. La più larga è il caso vero: quella a un soffio dal bordo, che il
+  // font in swap fa traboccare.
+  const slugs = await activeDesignSlugs();
+  let narrow = "";
+  let widest = -1;
+  for (const slug of slugs) {
+    await page.goto(`/en/configurator?design=${slug}&step=2`);
+    await lane.waitFor();
+    if ((await overflow()) > 2) continue;
+    const w = await lane.evaluate((el) =>
+      [...el.querySelectorAll("[data-testid^='category-tab-']")].reduce(
+        (sum, t) => sum + t.getBoundingClientRect().width,
+        0
+      )
+    );
+    if (w > widest) {
+      widest = w;
+      narrow = slug;
+    }
+  }
+  expect(narrow, "nessun design ha una barra tab che sta dentro i 390px").not.toBe("");
+
+  for (const which of ["padding", "font"] as const) {
+    await page.goto(`/en/configurator?design=${narrow}&step=2`);
+    await lane.waitFor();
+    await expect(next).toBeHidden();
+
+    await lane.evaluate((el, w) => {
+      for (const t of el.querySelectorAll<HTMLElement>(
+        "[data-testid^='category-tab-']"
+      )) {
+        if (w === "padding") t.style.paddingInline = "60px";
+        else t.style.fontSize = "22px";
+      }
+    }, which);
+
+    await expect
+      .poll(overflow, { message: `${which}: il contenuto non è cresciuto` })
+      .toBeGreaterThan(2);
+    await expect(
+      next,
+      `${which}: la corsia trabocca ma la freccia è restata nascosta`
+    ).toBeVisible();
+  }
+});
