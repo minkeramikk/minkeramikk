@@ -1,46 +1,47 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import {
-  formatMoney,
-  money,
-  multiply,
-  percentOf,
-  type Currency,
-  type Money,
-} from "@/lib/money/money";
 import type { Ladder } from "@/lib/discounts/ladder";
 import { cn } from "@/lib/utils";
 
 /**
- * R4-SCONTI-2 §C (DESIGN-SYSTEM §3.26) — the quantity scale, in the product
- * sheet, right above the buy row: the only place the customer picks a number is
- * the only place the scale can change their mind.
+ * R4-UPSELL-POST-ADD ① (DESIGN-SYSTEM §3.26) — the quantity scale, in the
+ * product sheet, right above the buy row: the only place the customer picks a
+ * number is the only place the scale can change their mind.
+ *
+ * Was a progress bar with markers, a «you save» headline and a nudge. Alessio,
+ * 2/9: «troppo testo». It is now the STEP TABLE of his own screenshot
+ * (`mockup-upsell-post-add.html`, binding) — one column per step and nothing
+ * else: no bar, no dots, no «Du sparer», no nudge, no sticky hint.
  *
  * Presentational only — `ladder` arrives already computed over CART + SELECTOR
  * (`ladderFor`), so this file never has to know the cart exists.
  *
- * Two rules it must not break:
- *  - every step always shows quantity AND percentage, reached or not: the scale
- *    is also the price list the shop asked to publish. Emphasis comes from
- *    colour and weight, never from presence.
- *  - NO step adds to the basket. The scale picks a quantity; adding is the CTA's
- *    job and the offers', and nobody else's.
+ * Three rules it must not break:
+ *  - the FIRST column is always «1 stk / 0 %», the shop's own baseline: the
+ *    scale is a price list before it is a discount, and a list that starts at
+ *    the first discount hides what the plate costs on its own.
+ *  - every step shows quantity AND percentage, reached or not. Emphasis comes
+ *    from the box and the weight, never from presence.
+ *  - NO column adds to the basket. The scale picks a quantity; adding is the
+ *    CTA's job, and nobody else's.
  *
  * TODO:nb-review NO copy: configurator.ladder.*
  */
-
-/** The money a step is worth on the whole quantity — the hero number is kroner,
- *  never the percentage: «−8 %» is abstract, kroner is why anyone adds two more. */
-const savedAt = (unitPriceCents: number, currency: Currency, qty: number, pct: number): Money =>
-  percentOf(multiply(money(unitPriceCents, currency), qty), pct);
+/**
+ * What a column press puts on the SELECTOR. The scale counts cart + selector,
+ * so landing ON `minQty` means asking for the difference — and never for less
+ * than one, which is what a step already covered by the basket would ask for.
+ *
+ * ponytail: exported for one reason — the unit tests have no DOM (vitest.config
+ * renders components to a string), so this is the only way the arithmetic gets
+ * a real check instead of one that re-implements it.
+ */
+export const stepTargetQty = (minQty: number, inCart: number) => Math.max(1, minQty - inCart);
 
 export function DiscountLadder({
   ladder,
   excluded,
-  unitPriceCents,
-  currency,
-  locale,
   inCart,
   onSetQty,
 }: {
@@ -48,10 +49,7 @@ export function DiscountLadder({
   ladder: Ladder | null;
   /** The product is outside the discount multi-select: one line says so. */
   excluded: boolean;
-  unitPriceCents: number;
-  currency: Currency;
-  locale: "no" | "en";
-  /** Pieces of this product ALREADY in the basket — a step press aims the
+  /** Pieces of this product ALREADY in the basket — a column press aims the
    *  selector at `minQty − inCart`, because the scale counts both. */
   inCart: number;
   onSetQty: (nextSelectorQty: number) => void;
@@ -67,202 +65,96 @@ export function DiscountLadder({
   }
   if (!ladder) return null;
 
-  const { steps, qty, pct, next, fill } = ladder;
-  const top = steps[steps.length - 1];
+  const { steps } = ladder;
+  /**
+   * The column the customer is standing on: the HIGHEST step reached, or −1 for
+   * the «1 stk» baseline when none is. Deliberately not `LadderStep.current`
+   * (`qty === minQty`) — at 5 pieces on a 4·6·8 scale the customer IS on the
+   * −5 % step, and a table that highlights nothing there reads as broken.
+   */
+  const at = steps.reduce((acc, s, i) => (s.state === "reached" ? i : acc), -1);
+
+  // One column per step plus the baseline. Many steps → the row scrolls
+  // sideways rather than squeezing the labels (same recipe as the old bar).
+  const columns = steps.length + 1;
+
+  const column = (i: number, minQty: number, pct: number) => {
+    const current = i === at;
+    return (
+      <button
+        key={minQty}
+        type="button"
+        data-testid={i < 0 ? "ladder-step-base" : "ladder-step"}
+        aria-current={current ? "step" : undefined}
+        disabled={current}
+        // Pressable UP and DOWN: a control that only goes one way reads as
+        // broken. It sets the SELECTOR so that cart + selector lands on the
+        // column — never a cart addition.
+        onClick={() => onSetQty(stepTargetQty(minQty, inCart))}
+        // The baseline's own text ("1 stk 0 %") is its accessible name; the
+        // tiers keep the fuller `ladder.step` phrasing they already had.
+        aria-label={i < 0 ? undefined : t("step", { qty: minQty, pct })}
+        className={cn(
+          "relative flex flex-col items-center gap-1.5 rounded-[12px] px-0.5 pt-[9px] pb-2",
+          "tabular-nums transition-colors",
+          "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+          !current && "cursor-pointer"
+        )}
+        style={
+          current
+            ? { background: "color-mix(in oklab, var(--primary) 14%, white)" }
+            : undefined
+        }
+      >
+        {/* «Mest valgt» sits on the FIRST tier and stays there (TL, 2/9): a
+            constant, not an admin flag — moving it is a 30-minute card. */}
+        {i === 0 && (
+          <span
+            data-testid="ladder-popular"
+            className="absolute -top-[19px] left-1/2 -translate-x-1/2 rounded-lg px-2.5 py-[3px] text-[11px] font-medium whitespace-nowrap text-white"
+            style={{ background: "color-mix(in oklab, var(--primary) 78%, white)" }}
+          >
+            {t("popular")}
+          </span>
+        )}
+        <b className={cn("text-sm whitespace-nowrap", current ? "font-semibold" : "font-medium")}>
+          {t("stepQty", { qty: minQty })}
+        </b>
+        <i className={cn("text-sm not-italic", current ? "font-semibold" : "font-medium")}>
+          {t("stepPct", { pct })}
+        </i>
+      </button>
+    );
+  };
 
   return (
-    <div
-      data-testid="discount-ladder"
-      className="rounded-sm border border-border bg-card px-3 py-2.5"
-    >
-      <div className="mb-2 flex items-baseline justify-between gap-2.5">
-        <span className="text-[10px] font-semibold tracking-[.06em] text-muted-foreground uppercase">
-          {t("title")}
-        </span>
-        {pct > 0 ? (
+    <div data-testid="discount-ladder" className="border-t border-border pt-3">
+      <div className="mb-[22px] flex items-baseline justify-between gap-2">
+        <h3 className="text-[17px] font-semibold">{t("title")}</h3>
+        {inCart > 0 && (
           <span
-            data-testid="ladder-save"
-            className="text-sm font-semibold tabular-nums"
-            style={{ color: "color-mix(in oklab, var(--discount), black 38%)" }}
+            data-testid="ladder-in-cart"
+            className="rounded-full bg-muted px-2.5 py-[3px] text-[11.5px] whitespace-nowrap text-muted-foreground"
           >
-            {t("save", { amount: formatMoney(savedAt(unitPriceCents, currency, qty, pct), locale) })}
-          </span>
-        ) : (
-          <span data-testid="ladder-save" className="text-xs text-muted-foreground">
-            {t("saveUpTo", { pct: top.pct })}
+            {t("inCartShort", { qty: inCart })}
           </span>
         )}
       </div>
 
-      {/* Many steps → the row scrolls sideways; no label is ever squeezed. */}
-      {/* pt-3: overflow-x:auto forces overflow-y to auto too, and the step
-          markers stick out 9.5px above the 6px track — without this padding
-          the scrollport clips their top half. */}
-      <div className="overflow-x-auto pt-3 pb-px">
-        <div style={{ minWidth: `max(100%, ${steps.length * 62}px)` }}>
-          <div
-            className="relative mx-3 h-1.5 rounded-full"
-            style={{ background: "color-mix(in oklab, var(--foreground) 9%, var(--background))" }}
-          >
-            <span
-              className="absolute inset-y-0 left-0 rounded-full transition-[width] duration-200 ease-out"
-              style={{ width: `${fill}%`, background: "var(--discount)" }}
-            />
-            {steps.map((s) => (
-              <button
-                key={s.minQty}
-                type="button"
-                data-testid="ladder-step"
-                disabled={s.current}
-                // Pressable UP and DOWN: a control that only goes one way reads
-                // as broken. It sets the SELECTOR so that cart + selector lands
-                // on the step — never a cart addition.
-                onClick={() => onSetQty(Math.max(1, s.minQty - inCart))}
-                aria-label={t("step", { qty: s.minQty, pct: s.pct })}
-                className={cn(
-                  "absolute top-1/2 grid size-[15px] -translate-x-1/2 -translate-y-1/2 place-items-center",
-                  "rounded-full border-2",
-                  // outline, NOT ring: Tailwind's ring is a box-shadow, and the
-                  // inline boxShadow below (the "next" halo) would overwrite it,
-                  // leaving that one step with no visible focus. No `outline-none`
-                  // here either — it sets --tw-outline-style:none, which
-                  // focus-visible:outline-2 would then inherit.
-                  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
-                  s.state === "next" && "size-[17px] border-[3px]",
-                  !s.current && "cursor-pointer"
-                )}
-                style={{
-                  left: `${s.position}%`,
-                  background: s.state === "reached" ? "var(--discount)" : "var(--background)",
-                  borderColor:
-                    s.state === "reached"
-                      ? "var(--discount)"
-                      : s.state === "next"
-                        ? "var(--primary)"
-                        : "color-mix(in oklab, var(--foreground) 22%, var(--background))",
-                  color: s.state === "reached" ? "white" : "transparent",
-                  boxShadow:
-                    s.state === "next"
-                      ? "0 0 0 4px color-mix(in oklab, var(--primary) 13%, transparent)"
-                      : undefined,
-                }}
-              >
-                <svg viewBox="0 0 12 12" aria-hidden className="size-[9px]">
-                  <path
-                    d="M2.5 6.2 4.8 8.5 9.5 3.6"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </button>
-            ))}
-          </div>
-
-          {/* Quantity AND percentage on every step, reached or not. */}
-          <div className="relative mx-3 mt-2.5 h-[30px]">
-            {steps.map((s) => (
-              <span
-                key={s.minQty}
-                className="absolute -translate-x-1/2 text-center leading-tight whitespace-nowrap tabular-nums"
-                style={{
-                  left: `${s.position}%`,
-                  color:
-                    s.state === "reached"
-                      ? "color-mix(in oklab, var(--discount), black 38%)"
-                      : s.state === "next"
-                        ? "var(--primary)"
-                        : "var(--muted-foreground)",
-                }}
-              >
-                <b
-                  className={cn(
-                    "block text-xs",
-                    s.state === "future" ? "font-medium" : "font-semibold"
-                  )}
-                >
-                  {s.minQty}
-                </b>
-                <i className="block text-[10.5px] not-italic">−{s.pct}%</i>
-              </span>
-            ))}
-          </div>
+      {/* pt-1.5: the «Mest valgt» tag sticks out above its column, and
+          overflow-x:auto forces overflow-y:auto too — without the padding the
+          scrollport would clip it. */}
+      <div className="-mx-1 overflow-x-auto pt-1.5">
+        <div
+          className="grid auto-cols-fr grid-flow-col gap-1"
+          style={{ minWidth: `max(100%, ${columns * 62}px)` }}
+        >
+          {column(-1, 1, 0)}
+          {steps.map((s, i) => column(i, s.minQty, s.pct))}
         </div>
       </div>
 
-      {next ? (
-        <p
-          data-testid="ladder-nudge"
-          className={cn("mt-2.5 text-[12.5px]", pct === 0 && "text-muted-foreground")}
-          style={
-            pct > 0
-              ? { color: "color-mix(in oklab, var(--discount), black 38%)" }
-              : next.minQty - qty <= 2
-                ? { color: "var(--primary)", fontWeight: 500 }
-                : undefined
-          }
-        >
-          {t("nudge", {
-            missing: next.minQty - qty,
-            amount: formatMoney(
-              savedAt(unitPriceCents, currency, next.minQty, next.pct),
-              locale
-            ),
-          })}
-        </p>
-      ) : (
-        pct > 0 && (
-          <p
-            data-testid="ladder-nudge"
-            className="mt-2.5 text-[12.5px] font-medium"
-            style={{ color: "color-mix(in oklab, var(--discount), black 38%)" }}
-          >
-            {t("best")}
-          </p>
-        )
-      )}
+      <p className="mt-4 mb-1 text-sm text-muted-foreground">{t("foot")}</p>
     </div>
-  );
-}
-
-/**
- * The same nudge, compacted into the sheet's sticky buy zone on mobile only.
- * The buy row is sticky and the scale is not: without this the customer changes
- * the quantity and the reason why stays off screen. `sm:hidden` rather than a JS
- * media query — same rule as §3.19, nothing is swapped on resize.
- */
-export function LadderStickyHint({
-  ladder,
-  unitPriceCents,
-  currency,
-  locale,
-}: {
-  ladder: Ladder | null;
-  unitPriceCents: number;
-  currency: Currency;
-  locale: "no" | "en";
-}) {
-  const t = useTranslations("configurator.ladder");
-  const next = ladder?.next;
-  if (!ladder || !next || next.minQty - ladder.qty > 2) return null;
-  return (
-    <p
-      data-testid="ladder-sticky-hint"
-      className="mb-2 rounded-full px-3 py-1.5 text-xs font-medium text-primary sm:hidden"
-      style={{
-        background: "color-mix(in oklab, var(--primary) 10%, var(--card))",
-        border: "1px solid color-mix(in oklab, var(--primary) 30%, var(--border))",
-      }}
-    >
-      {t("nudge", {
-        missing: next.minQty - ladder.qty,
-        amount: formatMoney(
-          savedAt(unitPriceCents, currency, next.minQty, next.pct),
-          locale
-        ),
-      })}
-    </p>
   );
 }

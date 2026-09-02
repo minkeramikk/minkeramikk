@@ -162,14 +162,14 @@
       "pairCaption": "Denne keramikken + ditt design"
     },
     "ladder": {
-      "title": "Mengderabatt",
-      "save": "Du sparer {amount}",
-      "saveUpTo": "Spar opptil −{pct} %",
-      "nudge": "{missing, plural, one {Én til} other {# til}}, og du sparer {amount}",
-      "best": "Beste rabatt nådd",
+      "title": "Kjøp flere – spar mer",
+      "stepQty": "{qty} stk",
+      "stepPct": "{pct, plural, =0 {0 %} other {−# %}}",
+      "popular": "Mest valgt",
+      "inCartShort": "{qty} stk i kurven",
+      "foot": "Rabatten beregnes automatisk i handlekurven.",
       "step": "Velg {qty} stk, −{pct} %",
-      "excluded": "Denne keramikken er ikke med i mengderabatten.",
-      "inCart": "{qty} {name} ligger i handlekurven — mengderabatten teller dem med."
+      "excluded": "Denne keramikken er ikke med i mengderabatten."
     }
   },
   "orderForm": {

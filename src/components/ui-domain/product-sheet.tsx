@@ -20,7 +20,7 @@ import {
   publicAttributes,
 } from "@/lib/catalog/product-attributes";
 import { SheetOfferBlock } from "@/components/ui-domain/sheet-offer-block";
-import { DiscountLadder, LadderStickyHint } from "@/components/ui-domain/discount-ladder";
+import { DiscountLadder } from "@/components/ui-domain/discount-ladder";
 import type { SheetOffer } from "@/lib/discounts/sheet-offer";
 import type { Ladder } from "@/lib/discounts/ladder";
 import type { CartLayer } from "@/lib/cart/cart";
@@ -89,7 +89,6 @@ export function ProductSheet({
   // TODO:nb-review NO copy: productSheet.close
   const tCfg = useTranslations("configurator");
   const tCart = useTranslations("cart");
-  const tLadder = useTranslations("configurator.ladder");
   // which photo the lightbox shows (null = closed). Nested inside the sheet's
   // content, so Radix's dismissable-layer stack gives us §3.19's "Esc closes the
   // lightbox first, then the sheet" for free.
@@ -351,9 +350,6 @@ export function ProductSheet({
             <DiscountLadder
               ladder={ladder}
               excluded={ladderExcluded}
-              unitPriceCents={p.priceCents}
-              currency={p.currency}
-              locale={locale}
               inCart={inCartQty}
               onSetQty={onQty}
             />
@@ -369,29 +365,9 @@ export function ProductSheet({
               onTake={onTakeOffer}
             />
 
-            {/* Why the scale is ahead of the selector. Also the accessible
-                confirmation after taking an offer, which leaves the sheet open
-                (§D.2) — hence role="status", there is no toast on that path. */}
-            {inCartQty > 0 && (
-              <p
-                role="status"
-                data-testid="sheet-in-cart"
-                className="rounded-sm bg-muted px-3 py-2 text-xs text-muted-foreground"
-              >
-                {tLadder("inCart", { qty: inCartQty, name })}
-              </p>
-            )}
-
             {/* Buy row — sticky at the bottom of the scroller on mobile (§3.19),
                 static in the desktop column where `mt-auto` pins it to the end. */}
             <div className="sticky bottom-0 mt-auto bg-card pt-2.5 shadow-[0_-8px_12px_-8px_color-mix(in_oklab,var(--foreground)_15%,transparent)] sm:static sm:shadow-none">
-              {/* Mobile only: the buy row is sticky, the scale is not. */}
-              <LadderStickyHint
-                ladder={ladder}
-                unitPriceCents={p.priceCents}
-                currency={p.currency}
-                locale={locale}
-              />
               <div className="flex items-center gap-2.5">
               <div className="flex items-center rounded-full border border-border bg-background">
                 <button

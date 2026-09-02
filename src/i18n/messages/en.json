@@ -163,14 +163,14 @@
       "pairCaption": "This ceramic + your design"
     },
     "ladder": {
-      "title": "Quantity discount",
-      "save": "You save {amount}",
-      "saveUpTo": "Save up to −{pct}%",
-      "nudge": "{missing, plural, one {One more} other {# more}}, and you save {amount}",
-      "best": "Best discount reached",
+      "title": "Buy more – save more",
+      "stepQty": "{qty} pcs",
+      "stepPct": "{pct, plural, =0 {0%} other {−#%}}",
+      "popular": "Most chosen",
+      "inCartShort": "{qty} pcs in basket",
+      "foot": "The discount is applied automatically in the basket.",
       "step": "Choose {qty} pieces, −{pct}%",
-      "excluded": "This ceramic is not part of the quantity discount.",
-      "inCart": "{qty} {name} are in the basket — the quantity discount counts them."
+      "excluded": "This ceramic is not part of the quantity discount."
     }
   },
   "orderForm": {
