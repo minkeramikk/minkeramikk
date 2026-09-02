@@ -274,7 +274,8 @@
     "sheetOffer": {
       "kicker": "Offer",
       "kickerUnlocked": "Offer unlocked",
-      "unlock": "Add {missing} more to unlock",
+      "addMissing": "Add {missing} more",
+      "atTotal": "At {qty} in total",
       "addBoth": "Add both · {total}",
       "addBase": "Add {base}+{extra}",
       "addOnly": "Add {extra}",

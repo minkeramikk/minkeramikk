@@ -273,7 +273,8 @@
     "sheetOffer": {
       "kicker": "Tilbud",
       "kickerUnlocked": "Tilbud låst opp",
-      "unlock": "Legg til {missing} til for å låse opp",
+      "addMissing": "Legg til {missing} til",
+      "atTotal": "Med {qty} til sammen",
       "addBoth": "Legg til begge · {total}",
       "addBase": "Legg til {base}+{extra}",
       "addOnly": "Legg til {extra}",
