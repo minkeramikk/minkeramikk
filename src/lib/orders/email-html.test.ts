@@ -208,6 +208,11 @@ describe("discounted emails (R4-SCONTI)", () => {
  * here checks the TEXT facts (number, recipient, order code, melding warning),
  * never the <img>.
  */
+/** The «Slik betaler du» block alone — the mail around it is all tables. */
+function payBlock(html: string): string {
+  return html.slice(html.indexOf("Slik betaler du"), html.indexOf("#f7ede4"));
+}
+
 describe("payment block (R4-TAKK-MAIL)", () => {
   beforeAll(() => {
     process.env.NEXT_PUBLIC_SUPABASE_URL = "https://example.supabase.co";
@@ -292,6 +297,27 @@ describe("payment block (R4-TAKK-MAIL)", () => {
     // no empty "Vippsnummer" label dangling over a missing number
     expect(m.html).not.toContain("Vippsnummer");
     expect(m.text).not.toContain("Vippsnummer");
+  });
+
+  /** R4-FIX Ⓓ — the block has to survive a 390px phone, where a two-column row
+   *  with an empty-ish left cell showed the recipient orphaned beside the QR. */
+  it("without a number there is no two-column row: recipient, then a 160px QR under it", () => {
+    const m = customerEmail({
+      ...base,
+      locale: "no",
+      vipps: { qrImage: "settings/vipps-qr.png", number: null, link: null },
+    });
+    expect(payBlock(m.html)).not.toContain("<table");
+    expect(m.html).toContain('width="160" height="160"');
+    expect(m.html).toContain("margin:10px auto 0;");
+  });
+
+  it("with a number the two columns stay, plus the rule that stacks them on a phone", () => {
+    const m = customerEmail({ ...base, locale: "no", vipps: full });
+    expect(payBlock(m.html)).toContain("<table");
+    expect(m.html).toContain("@media (max-width:480px)");
+    expect(m.html).toContain("mk-pay-cell");
+    expect(m.html).toContain('class="mk-pay-qr"');
   });
 
   it("number but no QR: no <img>, and the block still carries everything", () => {
