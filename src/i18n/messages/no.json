@@ -183,7 +183,8 @@
     "message": "Melding",
     "submitKicker": "Send bestilling",
     "submit": "Bestill",
-    "legal": "For mer om salgsvilkår og personvern — inkludert hvordan vi behandler informasjonskapsler og personopplysninger — se våre <terms>salgsvilkår</terms> og <privacy>personvernerklæring</privacy>."
+    "optional": "(valgfritt)",
+    "acceptTerms": "Jeg har lest og godtar <terms>salgsvilkårene</terms> og <privacy>personvernerklæringen</privacy>."
   },
   "legal": {
     "privacy": {

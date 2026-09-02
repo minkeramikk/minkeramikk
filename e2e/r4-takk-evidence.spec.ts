@@ -2,11 +2,12 @@ import { test, expect, type Page } from "@playwright/test";
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import {
+  addFirstCeramic,
   ADMIN_READY,
   adminClient,
-  addFirstCeramic,
-  firstActiveDesign,
   deleteOrder,
+  fillOrderForm,
+  firstActiveDesign,
   loadEnvLocal,
 } from "./helpers";
 
@@ -122,8 +123,7 @@ test(`R4-TAKK: thank-you page — settings "${STATE}", NO/EN, 390/768/1280`, asy
     await page.getByTestId("cart-button").click();
     await page.getByTestId("cart-checkout").click();
     await page.getByTestId("order-form").waitFor();
-    await page.getByTestId("order-name").fill("E2E Takk Evidence");
-    await page.getByTestId("order-email").fill("e2e-takk@example.no");
+    await fillOrderForm(page, "E2E Takk Evidence", "e2e-takk@example.no");
     await page.getByTestId("order-submit").click();
     await expect(page.getByTestId("order-confirmation")).toBeVisible();
     const url = page.url();

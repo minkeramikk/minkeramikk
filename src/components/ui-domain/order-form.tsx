@@ -11,11 +11,16 @@ import { Loader2, Truck } from "lucide-react";
 import type { Cart } from "@/lib/cart/cart";
 import { orderFormSchema } from "@/lib/orders/schema";
 import { encodeSetParam } from "@/lib/cart/set-code";
+import { cn } from "@/lib/utils";
 
 /**
  * TODO:nb-review NO copy: orderForm.city («Poststed» — the client's own word,
- * from the card, but it has never been seen in the form's layout) and
- * orderForm.submitKicker («Send bestilling», R4-FIX Ⓕ).
+ * from the card, but it has never been seen in the form's layout),
+ * orderForm.submitKicker («Send bestilling», R4-FIX Ⓕ) and, new on 3/9,
+ * orderForm.optional («(valgfritt)») + orderForm.acceptTerms («Jeg har lest og
+ * godtar salgsvilkårene og personvernerklæringen») — the consent is the one
+ * sentence a customer is legally taken to have read, so Alessio should own its
+ * exact wording.
  *
  * Order form (F05): client-validated with the SAME zod schema as the server,
  * Turnstile token attached. Success → clear cart + redirect to confirmation;
@@ -45,6 +50,9 @@ export function OrderForm({
     country: "",
     message: "",
   });
+  // Kept out of `form`: everything in there is a string the `set()` helper
+  // writes, and the consent is the one boolean.
+  const [acceptTerms, setAcceptTerms] = useState(false);
   const [token, setToken] = useState("");
   const [errors, setErrors] = useState<Record<string, boolean>>({});
   const [status, setStatus] = useState<"idle" | "sending" | "error">("idle");
@@ -55,7 +63,7 @@ export function OrderForm({
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    const parsed = orderFormSchema.safeParse(form);
+    const parsed = orderFormSchema.safeParse({ ...form, acceptTerms });
     if (!parsed.success) {
       const errs: Record<string, boolean> = {};
       for (const issue of parsed.error.issues) errs[String(issue.path[0])] = true;
@@ -156,6 +164,7 @@ export function OrderForm({
         <Input
           value={form.phone}
           onChange={(e) => set("phone", e.target.value)}
+          aria-invalid={errors.phone}
           data-testid="order-phone"
           className="mt-1"
           autoComplete="tel"
@@ -210,8 +219,11 @@ export function OrderForm({
           autoComplete="country-name"
         />
       </label>
+      {/* The ONLY optional field, so it is the only one that carries a marker:
+          seven «*» would say the same thing seven times over. */}
       <label className="text-sm">
-        {t("message")}
+        {t("message")}{" "}
+        <span className="text-muted-foreground">{t("optional")}</span>
         <Textarea
           value={form.message}
           onChange={(e) => set("message", e.target.value)}
@@ -221,32 +233,53 @@ export function OrderForm({
         />
       </label>
 
-      {/* Legal: quiet, greyed reference to the policy pages (pre-launch).
-          Sits right under the message box (−mt tightens the gap); rich text →
-          translators own the link labels; routes match the footer. */}
-      <p
+      {/* Legal: the greyed reference to the policy pages became the consent
+          itself — the same two links, now with the box that has to be ticked
+          before the order can leave. One statement, not a notice plus a
+          near-identical checkbox under it. Same public checkbox as the step-2
+          color-lock (`size-4 accent-…`): no new component.
+          `items-start` + `mt-0.5`: the box aligns to the FIRST line of a label
+          that wraps to two at 375px, not to its middle. */}
+      <label
         data-testid="order-legal"
-        className="-mt-1 text-xs leading-relaxed text-muted-foreground"
+        className={cn(
+          "-mt-1 flex items-start gap-2.5 text-xs leading-relaxed",
+          errors.acceptTerms ? "text-destructive" : "text-muted-foreground"
+        )}
       >
-        {t.rich("legal", {
-          terms: (chunks) => (
-            <Link
-              href="/terms"
-              className="underline underline-offset-2 hover:text-foreground"
-            >
-              {chunks}
-            </Link>
-          ),
-          privacy: (chunks) => (
-            <Link
-              href="/privacy"
-              className="underline underline-offset-2 hover:text-foreground"
-            >
-              {chunks}
-            </Link>
-          ),
-        })}
-      </p>
+        <input
+          type="checkbox"
+          checked={acceptTerms}
+          onChange={(e) => setAcceptTerms(e.target.checked)}
+          aria-invalid={errors.acceptTerms}
+          data-testid="order-terms"
+          className="mt-0.5 size-4 shrink-0 accent-[var(--mk-accent)] aria-invalid:outline aria-invalid:outline-2 aria-invalid:outline-offset-2 aria-invalid:outline-destructive"
+        />
+        <span>
+          {t.rich("acceptTerms", {
+            terms: (chunks) => (
+              <Link
+                href="/terms"
+                // inside the <label>: without this, reading the terms ticks
+                // the box that says you have read them
+                onClick={(e) => e.stopPropagation()}
+                className="underline underline-offset-2 hover:text-foreground"
+              >
+                {chunks}
+              </Link>
+            ),
+            privacy: (chunks) => (
+              <Link
+                href="/privacy"
+                onClick={(e) => e.stopPropagation()}
+                className="underline underline-offset-2 hover:text-foreground"
+              >
+                {chunks}
+              </Link>
+            ),
+          })}
+        </span>
+      </label>
 
       <Turnstile onToken={setToken} />
 

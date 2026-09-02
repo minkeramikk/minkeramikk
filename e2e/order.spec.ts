@@ -1,8 +1,9 @@
 import { test, expect, type Page } from "@playwright/test";
 import {
-  firstActiveDesign,
   addFirstCeramic,
   adminClient,
+  fillOrderForm,
+  firstActiveDesign,
   HAS_SERVICE,
   horizontalOverflow,
 } from "./helpers";
@@ -38,8 +39,7 @@ async function toCheckout(page: Page) {
 
 test("AC1: cart → form → confirmation; code shown; cart cleared", async ({ page }) => {
   await toCheckout(page);
-  await page.getByTestId("order-name").fill("Kari Nordmann");
-  await page.getByTestId("order-email").fill("kari@example.no");
+  await fillOrderForm(page, "Kari Nordmann", "kari@example.no");
   await page.getByTestId("order-submit").click();
 
   await expect(page.getByTestId("order-confirmation")).toBeVisible();
@@ -56,8 +56,7 @@ test("AC2: invalid email blocks the order (cart kept, field marked invalid)", as
   page,
 }) => {
   await toCheckout(page);
-  await page.getByTestId("order-name").fill("Kari");
-  await page.getByTestId("order-email").fill("not-an-email");
+  await fillOrderForm(page, "Kari", "not-an-email");
   await page.getByTestId("order-submit").click();
 
   await expect(page.getByTestId("order-email")).toHaveAttribute("aria-invalid", "true");
@@ -65,6 +64,36 @@ test("AC2: invalid email blocks the order (cart kept, field marked invalid)", as
   const cart = await page.evaluate(() => localStorage.getItem("mk-cart-v1"));
   expect(cart).not.toBeNull();
   expect(cart).not.toBe("[]");
+});
+
+// Regola 3/9: tutto obbligatorio tranne la nota, più il consenso esplicito.
+// Le due metà si rompono in modo diverso — un campo vuoto e una casella non
+// spuntata — quindi sono due test, non uno con due assert.
+test("AC2-bis: a required field left empty blocks the order", async ({ page }) => {
+  await toCheckout(page);
+  await fillOrderForm(page, "Kari", "kari@example.no");
+  await page.getByTestId("order-zipcode").fill("");
+  await page.getByTestId("order-submit").click();
+
+  await expect(page.getByTestId("order-zipcode")).toHaveAttribute("aria-invalid", "true");
+  await expect(page).not.toHaveURL(/\/order\?code=/);
+});
+
+test("AC2-ter: the order does not leave until the terms box is ticked", async ({
+  page,
+}) => {
+  await toCheckout(page);
+  await fillOrderForm(page, "Kari", "kari@example.no", { acceptTerms: false });
+  await page.getByTestId("order-submit").click();
+
+  await expect(page.getByTestId("order-terms")).toHaveAttribute("aria-invalid", "true");
+  await expect(page).not.toHaveURL(/\/order\?code=/);
+
+  // e spuntandola, lo stesso click passa
+  await page.getByTestId("order-terms").check();
+  await page.getByTestId("order-submit").click();
+  await expect(page.getByTestId("order-confirmation")).toBeVisible();
+  createdCodes.push(await page.getByTestId("order-code").innerText());
 });
 
 test("AC3: the confirmation page renders in English", async ({ page }) => {

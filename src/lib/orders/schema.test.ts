@@ -20,6 +20,12 @@ function payload(customNote: unknown) {
   return {
     customerName: "Kari",
     email: "kari@example.no",
+    phone: "99887766",
+    address: "Thorvald Meyers gate 5",
+    zipcode: "0555",
+    city: "Oslo",
+    country: "Norge",
+    acceptTerms: true,
     locale: "no",
     turnstileToken: "t",
     items: [
@@ -110,6 +116,12 @@ function payloadWithText(customText: unknown) {
   return {
     customerName: "A",
     email: "a@b.no",
+    phone: "99887766",
+    address: "Thorvald Meyers gate 5",
+    zipcode: "0555",
+    city: "Oslo",
+    country: "Norge",
+    acceptTerms: true as const,
     locale: "no" as const,
     turnstileToken: "t",
     items: [
@@ -162,9 +174,13 @@ describe("orderPayloadSchema — poststed (R4-ORDERS-PLUS voce C)", () => {
     if (r.success) expect(r.data.city).toBe("Oslo");
   });
 
-  it("stays OPTIONAL, like the rest of the address before launch", () => {
-    expect(orderPayloadSchema.safeParse(payload("ok")).success).toBe(true);
-    expect(orderPayloadSchema.safeParse(withCity("")).success).toBe(true);
+  // Era opzionale "in attesa della regola pre-lancio": la regola è arrivata
+  // (Daniele 3/9, tutto obbligatorio tranne le note), quindi un poststed vuoto
+  // ora è un 400 — è la metà di un indirizzo norvegese.
+  it("is MANDATORY since the pre-launch rule landed", () => {
+    expect(orderPayloadSchema.safeParse(withCity("")).success).toBe(false);
+    expect(orderPayloadSchema.safeParse(withCity("   ")).success).toBe(false);
+    expect(orderPayloadSchema.safeParse(withCity(undefined)).success).toBe(false);
   });
 
   it("refuses an absurd city instead of letting it reach the label", () => {

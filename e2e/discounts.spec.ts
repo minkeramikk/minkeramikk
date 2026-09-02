@@ -1,11 +1,12 @@
 import { test, expect, type Page } from "@playwright/test";
 import {
-  ADMIN_READY,
-  CAN_SEED,
   addFirstCeramic,
+  ADMIN_READY,
   adminClient,
+  CAN_SEED,
   ceramicCards,
   deleteOrder,
+  fillOrderForm,
   firstProductOfDesignSupplier,
   loginAdmin,
   seedDiscountRule,
@@ -467,8 +468,7 @@ test("AC-SC8: the deal reaches the order — admin detail shows the discount", a
 
     await page.getByTestId("cart-checkout").click();
     await page.getByTestId("order-form").waitFor();
-    await page.getByTestId("order-name").fill("E2E Sconti");
-    await page.getByTestId("order-email").fill("e2e-sconti@example.no");
+    await fillOrderForm(page, "E2E Sconti", "e2e-sconti@example.no");
     await page.getByTestId("order-submit").click();
     await expect(page.getByTestId("order-confirmation")).toBeVisible();
     const code = await page.getByTestId("order-code").innerText();

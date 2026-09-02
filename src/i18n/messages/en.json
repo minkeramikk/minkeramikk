@@ -184,7 +184,8 @@
     "message": "Message",
     "submitKicker": "Place your order",
     "submit": "Order",
-    "legal": "For more on our sales terms and privacy — including how we handle cookies and personal data — see our <terms>Terms of Sale</terms> and <privacy>Privacy Policy</privacy>."
+    "optional": "(optional)",
+    "acceptTerms": "I have read and accept the <terms>Terms of Sale</terms> and the <privacy>Privacy Policy</privacy>."
   },
   "legal": {
     "privacy": {

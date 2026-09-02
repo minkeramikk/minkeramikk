@@ -1,8 +1,9 @@
 import { test, expect, type Page } from "@playwright/test";
 import {
-  firstActiveDesign,
   addFirstCeramic,
   adminClient,
+  fillOrderForm,
+  firstActiveDesign,
   HAS_SERVICE,
 } from "./helpers";
 
@@ -44,8 +45,8 @@ test("invio reale: un ordine genera la conferma e invia alla casella dedicata", 
   page,
 }) => {
   await toCheckout(page);
-  await page.getByTestId("order-name").fill("E2E Email Test");
-  await page.getByTestId("order-email").fill(TO); // cliente = casella dedicata
+  // cliente = casella dedicata
+  await fillOrderForm(page, "E2E Email Test", TO);
   await page.getByTestId("order-submit").click();
 
   // submit andato a buon fine con RESEND attivo → l'invio è partito server-side

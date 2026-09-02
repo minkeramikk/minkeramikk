@@ -58,7 +58,12 @@ function payloadWith(itemOverrides: Partial<OrderItemInput>) {
   return {
     customerName: "Test Customer",
     email: "test@example.com",
-    phone: "",
+    phone: "99887766",
+    address: "Thorvald Meyers gate 5",
+    zipcode: "0555",
+    city: "Oslo",
+    country: "Norge",
+    acceptTerms: true as const,
     message: "",
     locale: "no" as const,
     turnstileToken: "tok",

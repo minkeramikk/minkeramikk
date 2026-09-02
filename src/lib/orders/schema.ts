@@ -83,21 +83,37 @@ export const orderItemSchema = z.object({
 
 export type OrderItemInput = z.infer<typeof orderItemSchema>;
 
-/** The customer-facing form fields (also validated client-side). */
+/**
+ * The customer-facing form fields (also validated client-side).
+ *
+ * The "mandatory" rule the address fields were waiting for landed (Daniele,
+ * 3/9): everything is required except the message. An order is a delivery
+ * promise made by email — a line without a postnummer or a phone number costs
+ * Alessio a round trip before he can even quote the shipping.
+ */
 export const orderFormSchema = z.object({
   customerName: z.string().trim().min(1).max(120),
   email: z.string().trim().email().max(200),
-  phone: z.string().trim().max(40).optional().or(z.literal("")),
-  // Shipping address (pre-launch). OPTIONAL for now — the "mandatory" rule is
-  // pending the client's confirmation; only the max length is enforced.
-  address: z.string().trim().max(200).optional().or(z.literal("")),
-  zipcode: z.string().trim().max(20).optional().or(z.literal("")),
+  phone: z.string().trim().min(1).max(40),
+  address: z.string().trim().min(1).max(200),
+  zipcode: z.string().trim().min(1).max(20),
   // R4-ORDERS-PLUS voce C: poststed. A Norwegian label needs postnummer AND
-  // poststed, and for the EUR market the city is mandatory. Optional like the
-  // rest of the address until the pre-launch "mandatory" rule lands.
-  city: z.string().trim().max(80).optional().or(z.literal("")),
-  country: z.string().trim().max(80).optional().or(z.literal("")),
+  // poststed, and for the EUR market the city is mandatory too.
+  city: z.string().trim().min(1).max(80),
+  country: z.string().trim().min(1).max(80),
+  /** The only optional field: an order without a message is a complete order. */
   message: z.string().trim().max(2000).optional().or(z.literal("")),
+  /**
+   * Explicit consent to the sales terms and the privacy policy, ticked in the
+   * form. `literal(true)` and not `boolean()`: an unticked box must fail, and
+   * it must fail on the SERVER too — the checkbox is the gate, the client is
+   * only where it is convenient to say so.
+   *
+   * Deliberately NOT persisted: there is no column for it, and adding one is a
+   * migration this change does not need. What is stored is the order itself,
+   * which cannot exist without the box having been ticked.
+   */
+  acceptTerms: z.literal(true),
 });
 
 export type OrderFormInput = z.infer<typeof orderFormSchema>;

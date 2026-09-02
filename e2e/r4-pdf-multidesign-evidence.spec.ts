@@ -2,11 +2,12 @@ import { test, expect, type Page } from "@playwright/test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import {
   activeDesignSlugs as activeSlugs,
+  ADMIN_READY,
   adminClient,
   ceramicCards,
-  loginAdmin,
-  ADMIN_READY,
+  fillOrderForm,
   HAS_SERVICE,
+  loginAdmin,
 } from "./helpers";
 
 /**
@@ -69,8 +70,7 @@ async function checkout(page: Page, locale: "no" | "en"): Promise<string> {
   await page.getByTestId("cart-button").click();
   await page.getByTestId("cart-checkout").click();
   await page.getByTestId("order-form").waitFor();
-  await page.getByTestId("order-name").fill("Kari Nordmann");
-  await page.getByTestId("order-email").fill("evidence@example.no");
+  await fillOrderForm(page, "Kari Nordmann", "evidence@example.no");
   await page.getByTestId("order-submit").click();
   await expect(page.getByTestId("order-confirmation")).toBeVisible();
   const code = (await page.getByTestId("order-code").innerText()).trim();

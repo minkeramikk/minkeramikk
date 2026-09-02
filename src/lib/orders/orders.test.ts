@@ -77,8 +77,13 @@ describe("orderPayloadSchema (shared client/server validation)", () => {
   const valid = {
     customerName: "Kari",
     email: "kari@example.no",
-    phone: "",
+    phone: "99887766",
+    address: "Thorvald Meyers gate 5",
+    zipcode: "0555",
+    city: "Oslo",
+    country: "Norge",
     message: "",
+    acceptTerms: true as const,
     locale: "no" as const,
     turnstileToken: "tok",
     items: [item()],
@@ -93,6 +98,24 @@ describe("orderPayloadSchema (shared client/server validation)", () => {
   it("rejects a bad email", () => {
     expect(orderPayloadSchema.safeParse({ ...valid, email: "nope" }).success).toBe(false);
   });
+  // Everything but the message is mandatory (Daniele 3/9): the address fields
+  // and the phone stopped being optional, so a payload missing one is a 400 on
+  // the SERVER, not just a client-side red border.
+  it.each(["customerName", "email", "phone", "address", "zipcode", "city", "country"])(
+    "rejects a payload with an empty %s",
+    (field) => {
+      expect(orderPayloadSchema.safeParse({ ...valid, [field]: "" }).success).toBe(false);
+      expect(orderPayloadSchema.safeParse({ ...valid, [field]: "   " }).success).toBe(false);
+    }
+  );
+  it("accepts a payload without a message — the one optional field", () => {
+    expect(orderPayloadSchema.safeParse({ ...valid, message: undefined }).success).toBe(true);
+  });
+  it("rejects an unticked or absent terms consent", () => {
+    expect(orderPayloadSchema.safeParse({ ...valid, acceptTerms: false }).success).toBe(false);
+    expect(orderPayloadSchema.safeParse({ ...valid, acceptTerms: undefined }).success).toBe(false);
+  });
+
   it("rejects a missing turnstile token", () => {
     expect(orderPayloadSchema.safeParse({ ...valid, turnstileToken: "" }).success).toBe(false);
   });
