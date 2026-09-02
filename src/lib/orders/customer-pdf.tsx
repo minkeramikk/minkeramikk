@@ -204,7 +204,11 @@ export function CustomerPdfDocument({
             {doc.discount && (
               <View style={s.totalRow}>
                 <Text style={s.totalLabel}>{t.discount}</Text>
-                <Text style={s.totalValue}>−{doc.discount}</Text>
+                {/* Trattino ASCII, non il segno meno U+2212: la Helvetica
+                    standard di @react-pdf non ce l'ha e lo lascia CADERE in
+                    silenzio — su una ricevuta «Discount NOK 90» senza segno si
+                    legge come un addebito. Visto in un PDF reale, non dedotto. */}
+                <Text style={s.totalValue}>-{doc.discount}</Text>
               </View>
             )}
             <View style={s.totalRow}>

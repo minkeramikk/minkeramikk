@@ -147,6 +147,44 @@ describe("buildCustomerPdfDoc", () => {
     expect(doc().shipTo).toBeNull();
   });
 
+
+  it("ogni stringa del documento è disegnabile dalla Helvetica del PDF", () => {
+    // @react-pdf usa la Helvetica standard, che copre WinAnsi (CP1252) e nulla
+    // più: i caratteri fuori da lì CADONO in silenzio. Il segno meno U+2212
+    // spariva dalla riga «Discount», che così si leggeva come un addebito —
+    // visto in un PDF reale, non dedotto. L'em dash, le virgolette basse e il
+    // punto medio invece ci sono, ed è per questo che il test non è un banale
+    // «solo ASCII».
+    const WINANSI_EXTRA = "€‚ƒ„…†‡ˆ‰Š‹ŒŽ‘’“”•–—˜™š›œžŸ";
+    const drawable = (ch: string) => {
+      const cp = ch.codePointAt(0)!;
+      if (ch === "\n") return true;
+      if (cp >= 0x20 && cp <= 0x7e) return true; // ASCII stampabile
+      if (cp >= 0xa0 && cp <= 0xff) return true; // Latin-1 alto
+      return WINANSI_EXTRA.includes(ch);
+    };
+    const walk = (v: unknown): string[] =>
+      typeof v === "string"
+        ? [v]
+        : Array.isArray(v)
+          ? v.flatMap(walk)
+          : v && typeof v === "object"
+            ? Object.values(v).flatMap(walk)
+            : [];
+    for (const str of walk(doc({ address: { city: "Oslo" } }))) {
+      const bad = [...str].filter((ch) => !drawable(ch));
+      expect(bad, `carattere non disegnabile in «${str}»`).toEqual([]);
+    }
+  });
+
+  it("il guardiano riconosce davvero il carattere che era sparito", () => {
+    // Senza questa, il test qui sopra potrebbe passare per pigrizia.
+    const cp = "−".codePointAt(0)!;
+    expect(cp).toBe(0x2212);
+    expect(cp >= 0xa0 && cp <= 0xff).toBe(false);
+    expect("€‚ƒ„…†‡ˆ‰Š‹ŒŽ‘’“”•–—˜™š›œžŸ".includes("−")).toBe(false);
+  });
+
   it("la data è in ora di OSLO, non del server", () => {
     // Su Vercel il server è in UTC, e senza il pin questo istante — le 00:30
     // norvegesi del 28 — uscirebbe come «27. aug. 2026», cioè il giorno prima.
