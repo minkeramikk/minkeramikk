@@ -27,7 +27,6 @@ import {
 } from "@/lib/cart/cart";
 import { encodeSetParam, SET_LINK_BUDGET } from "@/lib/cart/set-code";
 import { cartSaved, included, type DiscountLineInput } from "@/lib/discounts/discount";
-import { sheetOffers, type SheetOffer } from "@/lib/discounts/sheet-offer";
 import { ladderFor } from "@/lib/discounts/ladder";
 import { SetBadge } from "@/components/ui-domain/set-badge";
 import { CartLineRecap } from "@/components/ui-domain/cart-line-recap";
@@ -326,55 +325,6 @@ export function CeramicsStep({
     [cart]
   );
 
-  /** R4-SCONTI-2 §D.2: the rules taken from THIS sheet, in the order they were
-   *  taken. Cleared whenever another product's sheet opens. */
-  const [takenRuleIds, setTakenRuleIds] = useState<string[]>([]);
-  /** The last drawable version of each offer, so a row taken a moment ago can
-   *  stay on screen with its own numbers once the engine stops returning it. */
-  const seenOffers = useRef<Map<string, Extract<SheetOffer, { kind: "unlocked" }>>>(new Map());
-
-  /** R4-UPSELL-MODALE / §D: every offer for the product whose sheet is open,
-   *  given the quantity on the stepper. Empty renders nothing (AC5). */
-  const offers: SheetOffer[] = useMemo(() => {
-    if (!opened) return [];
-    const live = sheetOffers(
-      discountLines,
-      discountConfig,
-      {
-        id: lineKey(opened.id, configCode),
-        productId: opened.id,
-        quantity: qty,
-        unitPriceCents: opened.priceCents,
-        currency: opened.currency,
-        configCode,
-      },
-      { supplierOf, supplierOfProduct }
-    );
-    for (const o of live) if (o.kind === "unlocked") seenOffers.current.set(o.suggestion.rule.id, o);
-
-    // §D.2: a taken offer LEAVES the engine's list (D1: taken in full) but must
-    // stay on screen, marked. It goes back in the admin's own rule order, not
-    // at the bottom — the list must not reshuffle under the customer's finger.
-    const shown = new Set(live.map((o) => (o.kind === "unlocked" ? o.suggestion.rule.id : "")));
-    const back = takenRuleIds
-      .filter((id) => !shown.has(id))
-      .flatMap((id) => seenOffers.current.get(id) ?? []);
-    const rank = (o: SheetOffer) =>
-      o.kind === "unlocked"
-        ? discountConfig.rules.findIndex((r) => r.id === o.suggestion.rule.id)
-        : -1;
-    return [...live, ...back].sort((a, b) => rank(a) - rank(b));
-  }, [
-    opened,
-    discountLines,
-    discountConfig,
-    qty,
-    configCode,
-    supplierOf,
-    supplierOfProduct,
-    takenRuleIds,
-  ]);
-
   /**
    * ⚠️ §C — the scale counts CART + SELECTOR, not the selector alone. The
    * quantity discount aggregates per product across designs (`qtyByProduct`), so
@@ -398,8 +348,6 @@ export function CeramicsStep({
     setOpenId(id);
     setSheet(true);
     setQty(1);
-    setTakenRuleIds([]);
-    seenOffers.current.clear();
   }
 
   // F37: current-config recap data (name + readable selections). Rendered only
@@ -509,35 +457,6 @@ export function CeramicsStep({
     // exit animation: without this a double-tap would add the product twice.
     if (!sheetOpenRef.current) return;
     showAddedToast(addSelected());
-  }
-
-  /**
-   * R4-SCONTI-2 §D.1/§D.2 — taking one offer.
-   *
-   * TWO LITERAL CASES, never a computed remainder: with `baseQty > 0` the base
-   * line and the offer's line go in together (`acceptBundle`, one state update,
-   * the base doubling as the suggestion's donor — ADR 0023 (e)); with
-   * `baseQty === 0` the basket already fires the rule, so only the offer's line
-   * is added and the donor is a line that is genuinely in the cart.
-   *
-   * The base enters ONCE. No flag is needed for that: after the add the basket
-   * alone clears the threshold, so every other offer recomputes `baseQty` to 0
-   * by itself.
-   *
-   * The sheet does NOT close (§D.2) — the customer may want the other offers
-   * too. Hence no toast either: the row marked «added» and the `role="status"`
-   * "already in the basket" line inside the sheet are the confirmation, and the
-   * toast lives outside the dialog where Radix hides it from screen readers.
-   */
-  function takeOffer(offer: Extract<SheetOffer, { kind: "unlocked" }>) {
-    if (!sheetOpenRef.current || !opened) return;
-    if (!offer.suggestion.rule.suggested) return;
-    if (offer.baseQty > 0) acceptBundle(buildBaseLine(opened, offer.baseQty), offer.suggestion);
-    else acceptSuggestion(offer.suggestion);
-    setTakenRuleIds((ids) =>
-      ids.includes(offer.suggestion.rule.id) ? ids : [...ids, offer.suggestion.rule.id]
-    );
-    setQty(1); // the stepper restarts: a reflex second tap must not re-add the 8
   }
 
   // ── CA-3 C: share the basket as a stateless link (?step=3&set=…) ──
@@ -1282,9 +1201,6 @@ export function CeramicsStep({
         onQty={setQty}
         onAdd={addOpened}
         designLayers={designLayers}
-        offers={offers}
-        takenRuleIds={takenRuleIds}
-        onTakeOffer={takeOffer}
         ladder={ladder}
         ladderExcluded={ladderExcluded}
         inCartQty={inCartQty}
@@ -1314,7 +1230,7 @@ export function CeramicsStep({
                 it is the cheapest place to say the discount applied — one
                 string, no layout. Silent when the line has none, so an
                 undiscounted add reads exactly as it does today. */}
-            {addedPct > 0 ? t("addedWithPct", { pct: addedPct }) : t("added")}
+            {addedPct > 0 ? t("addedWithPct", { pct: addedPct }) : t("added.title")}
           </span>
         )}
       </div>

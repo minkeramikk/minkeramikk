@@ -200,7 +200,12 @@
     "decreaseQty": "Færre",
     "increaseQty": "Flere",
     "add": "Legg i handlekurv",
-    "added": "Lagt i handlekurven",
+    "added": {
+      "title": "Lagt i handlekurven",
+      "line": "{qty} × {name}",
+      "add": "Legg til · {total}",
+      "continue": "Fortsett å handle"
+    },
     "cartTitle": "Handlekurv",
     "empty": "Handlekurven er tom",
     "emptyCta": "Tilbake til konfiguratoren",
@@ -271,20 +276,10 @@
       "badgeCapped": "−{pct} % på {qty} stk",
       "dealNudge": "legg til {missing} til for −{pct} %"
     },
+    "addedWithPct": "Lagt i handlekurven · −{pct} %",
     "sheetOffer": {
-      "kicker": "Tilbud",
-      "kickerUnlocked": "Tilbud låst opp",
-      "addMissing": "Legg til {missing} til",
-      "atTotal": "Med {qty} til sammen",
-      "addBoth": "Legg til begge · {total}",
-      "addBase": "Legg til {base}+{extra}",
-      "addOnly": "Legg til {extra}",
-      "whatBoth": "Legger til {base} {name} + {extra} {extraName}",
-      "whatOnly": "Legger til {extra} {extraName} ({name} er alt i kurven)",
-      "self": "Ta {qty} til — −{pct} %",
       "taken": "Lagt i handlekurven"
-    },
-    "addedWithPct": "Lagt i handlekurven · −{pct} %"
+    }
   },
   "order": {
     "title": "Bestill",

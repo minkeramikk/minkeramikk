@@ -201,7 +201,12 @@
     "decreaseQty": "Fewer",
     "increaseQty": "More",
     "add": "Add to basket",
-    "added": "Added to basket",
+    "added": {
+      "title": "Added to the basket",
+      "line": "{qty} × {name}",
+      "add": "Add · {total}",
+      "continue": "Keep shopping"
+    },
     "cartTitle": "Basket",
     "empty": "Your basket is empty",
     "emptyCta": "Back to the configurator",
@@ -272,20 +277,10 @@
       "badgeCapped": "−{pct}% on {qty} pcs",
       "dealNudge": "add {missing} more for −{pct}%"
     },
+    "addedWithPct": "Added to your basket · −{pct}%",
     "sheetOffer": {
-      "kicker": "Offer",
-      "kickerUnlocked": "Offer unlocked",
-      "addMissing": "Add {missing} more",
-      "atTotal": "At {qty} in total",
-      "addBoth": "Add both · {total}",
-      "addBase": "Add {base}+{extra}",
-      "addOnly": "Add {extra}",
-      "whatBoth": "Adds {base} {name} + {extra} {extraName}",
-      "whatOnly": "Adds {extra} {extraName} (the {name} are already in the basket)",
-      "self": "Take {qty} more — −{pct}%",
       "taken": "Added to the basket"
-    },
-    "addedWithPct": "Added to your basket · −{pct}%"
+    }
   },
   "order": {
     "title": "Order",

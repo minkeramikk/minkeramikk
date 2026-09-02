@@ -19,9 +19,7 @@ import {
   formatAttributeValue,
   publicAttributes,
 } from "@/lib/catalog/product-attributes";
-import { SheetOfferBlock } from "@/components/ui-domain/sheet-offer-block";
 import { DiscountLadder } from "@/components/ui-domain/discount-ladder";
-import type { SheetOffer } from "@/lib/discounts/sheet-offer";
 import type { Ladder } from "@/lib/discounts/ladder";
 import type { CartLayer } from "@/lib/cart/cart";
 import type { CeramicProduct } from "@/app/[locale]/(public)/configurator/ceramics-step";
@@ -51,9 +49,6 @@ export function ProductSheet({
   onQty,
   onAdd,
   designLayers,
-  offers,
-  takenRuleIds,
-  onTakeOffer,
   ladder,
   ladderExcluded,
   inCartQty,
@@ -69,15 +64,8 @@ export function ProductSheet({
   onAdd: () => void;
   /** F37: current config layers (empty → no composed pair rendered). */
   designLayers: CartLayer[];
-  /** R4-UPSELL-MODALE (§3.24) / R4-SCONTI-2 §D: every eligible offer, in the
-   *  admin's order. Empty → the band does not exist and the sheet renders as it
-   *  did before this block (AC5). The ONE caller always computes it (F4). */
-  offers: SheetOffer[];
-  /** Rules already taken in this sheet session (§D.2): marked, not pressable. */
-  takenRuleIds: string[];
-  /** Takes one offer: adds the base (only when the basket does not already fire
-   *  the rule) plus the offer's ceramic, and LEAVES THE SHEET OPEN (§D.2). */
-  onTakeOffer: (offer: Extract<SheetOffer, { kind: "unlocked" }>) => void;
+  /** R4-UPSELL-POST-ADD ②: NO offers here, at any quantity. They live behind
+   *  «Legg i handlekurv», in the caller's post-add panel — see `AddedSheet`. */
   /** R4-SCONTI-2 §C: the quantity scale, computed over CART + SELECTOR by the
    *  caller. Null → no scale at all, and no empty frame. */
   ladder: Ladder | null;
@@ -343,26 +331,14 @@ export function ProductSheet({
               </p>
             )}
 
-            {/* §3.26: the scale, then the offers, then the buy row — the
-                prototype's own order (mockup-sconti-scheda.html): the scale is
-                the last thing between the description and the controls that
-                change the number it reads. */}
+            {/* §3.26: the scale, then the buy row, and nothing between them —
+                the offers used to sit here and now come AFTER the add
+                (R4-UPSELL-POST-ADD ②). */}
             <DiscountLadder
               ladder={ladder}
               excluded={ladderExcluded}
               inCart={inCartQty}
               onSetQty={onQty}
-            />
-
-            {/* §3.24: absent entirely when there is nothing to show — an empty
-                list renders no node, so the sheet stays byte-identical (AC5). */}
-            <SheetOfferBlock
-              offers={offers}
-              currentName={name}
-              locale={locale}
-              takenRuleIds={takenRuleIds}
-              onSetQty={onQty}
-              onTake={onTakeOffer}
             />
 
             {/* Buy row — sticky at the bottom of the scroller on mobile (§3.19),
