@@ -252,9 +252,11 @@ describe("R4-MAIL-JOURNEY §E — the emails leave AFTER the response", () => {
     expect(res.ok).toBe(true);
     if (!res.ok) return;
     await expect(res.sendEmails()).resolves.toBeUndefined();
-    // the send was actually attempted (and its failure swallowed) — not just
-    // never invoked, which would also satisfy the assertion above
-    expect(calls).toBe(1);
+    // both sends were attempted (and their failure swallowed) — not just never
+    // invoked, which would also satisfy the assertion above. The admin
+    // notification is attempted even when the customer mail fails: the order
+    // exists either way and that mail is how the shop learns about it.
+    expect(calls).toBe(2);
   });
 });
 

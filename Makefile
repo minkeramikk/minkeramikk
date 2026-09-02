@@ -5,7 +5,7 @@
 #   make run-e2e        → suite intera (core + supplier-pdf + share-set). La lancia
 #                         Daniele, VERDE prima di aggiornare `preview` e al go-live.
 #   make test-email     → OPT-IN: un solo ordine che invia email REALI alla casella
-#                         dedicata (default dangeli88.daniele+mke2e@gmail.com).
+#                         dell'account Resend (default dangeli88.daniele@gmail.com).
 #   make run-e2e-grep G=cart → una spec singola.
 #
 # Email: la suite core/full gira con RESEND disattivata (transport no-op → ZERO
@@ -21,7 +21,7 @@ NODE_WANTED := $(shell cat .nvmrc)
 NODE_ACTUAL := $(shell node -v 2>/dev/null | sed -E 's/^v([0-9]+).*/\1/')
 
 # Casella dedicata per il test invio reale (override: make test-email E2E_EMAIL_TO=...).
-E2E_EMAIL_TO ?= dangeli88.daniele+mke2e@gmail.com
+E2E_EMAIL_TO ?= dangeli88.daniele@gmail.com
 
 # CORE = i 6 journey critici (per-PR). supplier-pdf e share-set stanno nella full.
 CORE_SPECS := e2e/configurator.spec.ts e2e/config-code.spec.ts e2e/cart.spec.ts \
