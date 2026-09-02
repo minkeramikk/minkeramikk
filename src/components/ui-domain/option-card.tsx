@@ -53,7 +53,7 @@ export function OptionCard({
           // ALWAYS a light tile: the layers blend with `multiply`, which needs a
           // light backdrop to read — on the selected card's primary fill it would
           // turn muddy. A clean plate on a tinted card frames the selection well.
-          className="relative mx-auto mb-2 block aspect-square w-full overflow-hidden rounded-full bg-card"
+          className="relative mx-auto mb-2 block aspect-square w-full overflow-hidden rounded-full bg-[var(--mk-canvas)]"
         >
           {layers.map((l, i) => (
             // eslint-disable-next-line @next/next/no-img-element -- composited catalog art from storage

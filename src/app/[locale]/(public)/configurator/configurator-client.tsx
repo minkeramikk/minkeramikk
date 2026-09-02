@@ -723,7 +723,7 @@ export function ConfiguratorClient({
         data-typing={step === 2 && typing ? "1" : undefined}
         style={
           step === 2
-            ? ({ "--mk-canvas-h": "clamp(180px,36svh,280px)" } as React.CSSProperties)
+            ? ({ "--mk-canvas-h": "clamp(200px,38svh,300px)" } as React.CSSProperties)
             : undefined
         }
       >
@@ -763,8 +763,19 @@ export function ConfiguratorClient({
             // Height: a clamp, not a flex ratio — there is no shared height to
             // divide any more. `svh` is the SMALLEST viewport (mobile toolbars
             // expanded), so the box never reflows when they collapse (B4).
-            // Full-bleed (`-mx-5` against `main`'s `px-5`) + the mockup's radial
-            // ground so the text scrolling underneath never peeks at the gutters.
+            // Full-bleed (`-mx-5` against `main`'s `px-5`) so the text scrolling
+            // underneath never peeks at the gutters.
+            // R4-CANVAS-WHITE: il fondo è `--mk-canvas`, non più il radial
+            // caldo. Il gradiente sfumava in `--background` proprio dove cade
+            // la fascia esterna del piatto, e i 5 layer `multiply` ci si
+            // moltiplicavano sopra: lo swatch scelto arrivava a schermo con
+            // Δ 17-32 dal suo hex. Il bianco lo mette QUESTO contenitore (il
+            // frame resta `bg-transparent`, sotto), così è una campitura sola
+            // a tutta larghezza senza bande. La hairline `border-b` non è
+            // decorazione: la box è sticky e il contenuto le scorre sotto,
+            // senza bordo il bianco si fonde con la prima card. Costo
+            // verticale 0 — `box-sizing: border-box` la tiene dentro
+            // `--mk-canvas-h`.
             // `top-14` = the ink header's `h-14`, which is itself `max-md:sticky
             // top-0` (site-header.tsx): the canvas parks UNDER it, not behind it.
             // R4-POLISH: l'altezza del canvas è pubblicata come `--mk-canvas-h`
@@ -775,7 +786,7 @@ export function ConfiguratorClient({
             // focus il canvas ha già mollato lo sticky (`data-typing`), quindi
             // in alto non resta altro che l'header.
             step === 2 &&
-              "max-md:sticky max-md:top-14 max-md:-mx-5 max-md:h-[var(--mk-canvas-h)] max-md:flex-none max-md:items-center max-md:justify-center max-md:gap-1 max-md:px-5 max-md:pt-2 max-md:bg-[radial-gradient(circle_at_50%_42%,color-mix(in_oklab,var(--mk-light),white_55%),var(--background)_78%)]"
+              "max-md:sticky max-md:top-14 max-md:-mx-5 max-md:h-[var(--mk-canvas-h)] max-md:flex-none max-md:items-center max-md:justify-center max-md:gap-1 max-md:px-5 max-md:pt-2 max-md:border-b max-md:border-border max-md:bg-[var(--mk-canvas)]"
           )}
         >
           <div

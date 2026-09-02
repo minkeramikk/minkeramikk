@@ -60,7 +60,7 @@ export function CartLineRecap({
 
       <span
         aria-hidden
-        className="relative mx-auto block size-52 overflow-hidden rounded-md border border-border bg-card sm:size-56"
+        className="relative mx-auto block size-52 overflow-hidden rounded-md border border-border bg-[var(--mk-canvas)] sm:size-56"
         style={
           !(line.layers && line.layers.length > 0) && hex
             ? { backgroundColor: hex }

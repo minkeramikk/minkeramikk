@@ -21,7 +21,7 @@ export function DesignRound({
       aria-hidden
       data-testid="design-round"
       className={cn(
-        "relative block shrink-0 overflow-hidden rounded-full border border-border bg-card",
+        "relative block shrink-0 overflow-hidden rounded-full border border-border bg-[var(--mk-canvas)]",
         className
       )}
     >
