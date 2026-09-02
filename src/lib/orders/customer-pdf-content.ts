@@ -17,6 +17,16 @@ import type { CartDiscount } from "@/lib/discounts/discount";
  * TESTI non serve leggere il catalogo — solo l'immagine composita ha bisogno
  * dello Storage, e vive altrove.
  *
+ * ⚠️ L'ordine ha N design, non uno. Il carrello tiene righe di design diversi
+ * (`lineKey` = prodotto + configCode), e la prima versione di questo file
+ * prendeva design, iscrizione e nota dalla PRIMA riga che li avesse per poi
+ * attribuirli a tutto l'ordine: su un ordine misto il PDF mostrava un design
+ * solo, e l'iscrizione di quel design compariva come valida anche per gli altri.
+ * Da qui `designs: CustomerPdfDesignBlock[]`, ognuno con le SUE righe e i SUOI
+ * testi. I totali invece restano UNO SOLO: lo sconto è calcolato sul carrello
+ * intero, e un totale per blocco sarebbe una seconda aritmetica da tenere
+ * allineata a quella vera.
+ *
  * La lista FUORI (card §Cosa) non passa mai di qui: fornitore, sue email, note
  * interne e pesi non entrano nemmeno nell'input. I contatti PUBBLICI del negozio
  * invece ci sono, ed è la card a volerli.
@@ -137,14 +147,58 @@ const melding = (locale: "no" | "en", code: string) =>
     ? `Skriv bestillingsnummeret ${code} i meldingsfeltet i Vipps — ellers finner vi ikke betalingen din.`
     : `Write the order number ${code} in the Vipps message field — otherwise we cannot match your payment.`;
 
+/**
+ * Quante anteprime composite il documento può portare al massimo.
+ *
+ * Il tetto è di COSTO, non di gusto: ogni piatto è un `composePlate` (sharp,
+ * più i layer scaricati dallo Storage) dentro `after()`, e i suoi byte finiscono
+ * nel PDF — che deve restare sotto i 300 KB per viaggiare come allegato. Oltre
+ * il tetto i blocchi restano COMPLETI (nome, scelte, testi, righe): sparisce
+ * l'immagine, mai l'informazione.
+ */
+export const MAX_COMPOSED_PLATES = 4;
+
+/** Una riga prodotto, già formattata. */
+export interface CustomerPdfRow {
+  productName: string;
+  quantity: number;
+  unitPrice: string;
+  lineTotal: string;
+}
+
+/**
+ * UN design dell'ordine, con le SUE righe e i SUOI testi.
+ *
+ * Il carrello tiene righe di design diversi (`lineKey` = prodotto + configCode),
+ * quindi un ordine ha N di questi blocchi, non uno.
+ */
+export interface CustomerPdfDesignBlock {
+  /**
+   * Il codice di configurazione: la CHIAVE dell'immagine, perché è esattamente
+   * ciò che il compositing decodifica. Null sul blocco di coda, che immagine non
+   * ne ha.
+   */
+  configCode: string | null;
+  /** Serve SOLO al compositing lato server; non si stampa mai. Sta qui e non lo
+   *  ripesca nessun altro: slug e configCode devono venire dalla STESSA riga. */
+  designSlug: string | null;
+  /** Null ⇒ blocco senza intestazione (le righe che non portano uno snapshot). */
+  name: string | null;
+  selections: { label: string; option: string }[];
+  customText: string | null;
+  customNote: string | null;
+  items: CustomerPdfRow[];
+  /** Il blocco ha diritto a un'anteprima composita (vedi MAX_COMPOSED_PLATES). */
+  showPlate: boolean;
+}
+
 export interface CustomerPdfDoc {
   orderCode: string;
   date: string;
   locale: "no" | "en";
-  design: { name: string; selections: { label: string; option: string }[] } | null;
-  customText: string | null;
-  customNote: string | null;
-  items: { productName: string; quantity: number; unitPrice: string; lineTotal: string }[];
+  /** In ordine di prima apparizione nel carrello; il blocco senza design, se
+   *  c'è, è sempre l'ULTIMO. Vuoto solo per un ordine senza righe. */
+  designs: CustomerPdfDesignBlock[];
   subtotal: string;
   /** Assente quando è zero: una riga «Rabatt 0 kr» è rumore. */
   discount: string | null;
@@ -240,28 +294,101 @@ function sellerLines(seller: SellerIdentity, labels: CustomerPdfLabels): string[
   ].filter((l): l is string => Boolean(l));
 }
 
+/** Lo snapshot di riga, per quel che ne serve al documento. */
+interface ItemSnapshot {
+  designSlug?: string;
+  designName?: string;
+  designNameNo?: string;
+  designNameEn?: string;
+  selections?: { label: string; option: string; hex: string | null }[];
+  customNote?: string;
+  customText?: string;
+}
+
+/**
+ * I blocchi design dell'ordine, uno per configurazione DISTINTA.
+ *
+ * Chiave: il `configCode` — non lo slug del design. Due righe dello stesso
+ * design con colori diversi sono due configCode e due piatti VISIBILMENTE
+ * diversi: raggrupparle per slug le fonderebbe e ne mostrerebbe uno solo.
+ *
+ * Nella chiave entrano anche iscrizione e nota, che nel configCode NON viaggiano
+ * (ADR 0011: il codice porta design + opzioni, nient'altro). Senza, due righe
+ * stessa configurazione e testi diversi finirebbero nello stesso blocco e uno
+ * dei due testi verrebbe attribuito anche all'altra riga — lo stesso difetto di
+ * attribuzione, in piccolo.
+ */
+function designBlocks(
+  items: OrderItemInput[],
+  locale: "no" | "en",
+  row: (i: OrderItemInput) => CustomerPdfRow
+): CustomerPdfDesignBlock[] {
+  const byKey = new Map<string, CustomerPdfDesignBlock>();
+  /** Le righe che uno snapshot non ce l'hanno: un blocco solo, in coda, senza
+   *  intestazione. Mai attaccate al design di qualcun altro. */
+  const orphans: CustomerPdfRow[] = [];
+
+  for (const i of items) {
+    const snap = (i.configSnapshot ?? undefined) as ItemSnapshot | undefined;
+    // Le scelte portano il NOME del colore — l'hex è dato di rendering, non
+    // informazione per il cliente.
+    const name =
+      (locale === "no" ? snap?.designNameNo : snap?.designNameEn) ?? snap?.designName ?? null;
+    if (!name) {
+      orphans.push(row(i));
+      continue;
+    }
+    const key = [i.configCode, snap?.customText ?? "", snap?.customNote ?? ""].join(" ");
+    let block = byKey.get(key);
+    if (!block) {
+      block = {
+        configCode: i.configCode,
+        designSlug: snap?.designSlug ?? null,
+        name,
+        selections: (snap?.selections ?? []).map((s) => ({ label: s.label, option: s.option })),
+        customText: snap?.customText || null,
+        customNote: snap?.customNote || null,
+        items: [],
+        showPlate: false,
+      };
+      byKey.set(key, block);
+    }
+    block.items.push(row(i));
+  }
+
+  const blocks = [...byKey.values()];
+  if (orphans.length > 0) {
+    blocks.push({
+      configCode: null,
+      designSlug: null,
+      name: null,
+      selections: [],
+      customText: null,
+      customNote: null,
+      items: orphans,
+      showPlate: false,
+    });
+  }
+
+  // Il tetto conta le IMMAGINI, cioè i configCode distinti: due blocchi che
+  // differiscono solo per l'iscrizione condividono lo stesso piatto e costano
+  // un compositing solo.
+  const plated = new Set<string>();
+  for (const b of blocks) {
+    if (!b.designSlug || !b.configCode) continue;
+    if (!plated.has(b.configCode) && plated.size >= MAX_COMPOSED_PLATES) continue;
+    plated.add(b.configCode);
+    b.showPlate = true;
+  }
+  return blocks;
+}
+
 export function buildCustomerPdfDoc(input: CustomerPdfInput): CustomerPdfDoc {
   const { code, locale, items, discount } = input;
   const labels = COPY[locale];
   const currency = items[0]?.currency ?? "NOK";
 
-  // Il design è UNO per ordine (il configuratore ne congela uno): si prende dal
-  // primo snapshot che ce l'ha, e le scelte portano il NOME del colore — l'hex
-  // è dato di rendering, non informazione per il cliente.
-  const snap = items.find((i) => i.configSnapshot)?.configSnapshot as
-    | {
-        designName?: string;
-        designNameNo?: string;
-        designNameEn?: string;
-        selections?: { label: string; option: string; hex: string | null }[];
-        customNote?: string;
-        customText?: string;
-      }
-    | undefined;
-  const designName =
-    (locale === "no" ? snap?.designNameNo : snap?.designNameEn) ?? snap?.designName ?? null;
-
-  const rows = items.map((i) => {
+  const row = (i: OrderItemInput): CustomerPdfRow => {
     const unit = money(i.unitPriceCents, i.currency);
     return {
       productName: i.productName,
@@ -274,7 +401,7 @@ export function buildCustomerPdfDoc(input: CustomerPdfInput): CustomerPdfDoc {
       // sconto compariva due volte. Lo sconto ha UN posto, il riepilogo sotto.
       lineTotal: formatMoney(multiply(unit, i.quantity), locale),
     };
-  });
+  };
 
   const savedCents = discount.subtotal.amountCents - discount.total.amountCents;
   const seller = sellerLines(input.seller, labels);
@@ -285,18 +412,7 @@ export function buildCustomerPdfDoc(input: CustomerPdfInput): CustomerPdfDoc {
     orderCode: code,
     date: formatDate(input.now ?? new Date(), locale),
     locale,
-    design: designName
-      ? {
-          name: designName,
-          selections: (snap?.selections ?? []).map((s) => ({
-            label: s.label,
-            option: s.option,
-          })),
-        }
-      : null,
-    customText: snap?.customText || null,
-    customNote: snap?.customNote || null,
-    items: rows,
+    designs: designBlocks(items, locale, row),
     subtotal: formatMoney(discount.subtotal, locale),
     discount: savedCents > 0 ? formatMoney(money(savedCents, currency), locale) : null,
     total: formatMoney(discount.total, locale),
