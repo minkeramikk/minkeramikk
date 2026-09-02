@@ -9,8 +9,9 @@
  * the full-res originals straight from Storage.
  *
  * Shared by the app (assetUrl) AND the backfill script
- * (scripts/generate-asset-variants.mjs), which imports this file directly —
- * Node 24 strips types natively, so keep the syntax erasable (no enums).
+ * (scripts/backfill-product-card-variants.mjs), which imports this file
+ * directly — Node 24 strips types natively, so keep the syntax erasable (no
+ * enums).
  */
 
 /** `…@512.webp` — an object that already IS a variant. */
