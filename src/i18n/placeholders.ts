@@ -38,7 +38,14 @@ function label(element: MessageFormatElement): string | null {
     case TYPE.select:
       return `{${element.value}, select}`;
     case TYPE.plural:
-      return `{${element.value}, plural}`;
+      // `plural` and `selectordinal` share TYPE.plural — the cardinal vs.
+      // ordinal distinction lives in `pluralType` ("cardinal" | "ordinal").
+      // Without this, swapping one keyword for the other produces the same
+      // signature and passes as a no-op edit, even though CLDR renders them
+      // by different rules at runtime.
+      return element.pluralType === "ordinal"
+        ? `{${element.value}, selectordinal}`
+        : `{${element.value}, plural}`;
     case TYPE.tag:
       return `<${element.value}>`;
     default:

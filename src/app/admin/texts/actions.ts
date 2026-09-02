@@ -23,11 +23,19 @@ import { checkPlaceholders } from "@/i18n/placeholders";
  */
 const FILES = { no: flattenMessages(no), en: flattenMessages(en) } as const;
 
+// 50000: plain `text` column, no DB limit — this is a UI sanity cap, not a
+// schema constraint. The longest shipped string today is `legal.terms.body`
+// at 3175 characters, and that key (a full terms-of-sale document) is exactly
+// the one most likely to be pasted in whole; 8000 clipped a real paste with a
+// silent-looking failure (finding 1), so the cap now leaves ~15x headroom
+// instead of ~2.5x.
+const MAX_LENGTH = 50000;
+
 const schema = z.object({
   intent: z.enum(["save", "reset"]),
   key: z.string().min(1).max(200),
-  no: z.string().max(8000),
-  en: z.string().max(8000),
+  no: z.string().max(MAX_LENGTH),
+  en: z.string().max(MAX_LENGTH),
 });
 
 export type TextsState = { error: string | null; ok?: boolean; key?: string };
@@ -44,10 +52,15 @@ export async function updateText(
   });
   if (!parsed.success) {
     const tooLong = parsed.error.issues.some((i) => i.code === "too_big");
+    // Carries the key even on a schema failure: the editor scopes every
+    // error to `state.key === row.key` (texts-editor.tsx), so a keyless
+    // error belongs to no row and renders nowhere — the save looks silently
+    // discarded (finding 1).
     return {
       error: tooLong
-        ? "That text is too long (8000 characters max)."
+        ? `That text is too long (${MAX_LENGTH.toLocaleString("en-US")} characters max).`
         : "Invalid request.",
+      key: String(formData.get("key") ?? ""),
     };
   }
   const { intent, key } = parsed.data;

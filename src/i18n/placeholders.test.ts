@@ -7,6 +7,8 @@
  * dallo stesso parser ICU che next-intl usa a runtime.
  */
 import { describe, it, expect } from "vitest";
+import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import no from "./messages/no.json";
 import { checkPlaceholders, icuSignature } from "./placeholders";
 import { flattenMessages } from "./overrides";
@@ -68,10 +70,45 @@ describe("checkPlaceholders", () => {
     expect(result.ok === false && result.error).toContain("{count, plural}");
   });
 
+  // `plural` and `selectordinal` both carry TYPE.plural in the parser's AST —
+  // the cardinal/ordinal distinction lives in the separate `pluralType`
+  // field. Without reading it, this swap produces the same signature and is
+  // waved through as a no-op edit, even though CLDR renders "one/few/other"
+  // by different rules for the two keywords.
+  it("rejects `plural` swapped for `selectordinal` (same signature, different rules)", () => {
+    const result = checkPlaceholders(
+      "{n, plural, one {#} other {#}}",
+      "{n, selectordinal, one {#} other {#}}"
+    );
+    expect(result.ok).toBe(false);
+  });
+
   it("rejects a dropped rich-text tag", () => {
     const result = checkPlaceholders(TAGGED, "Se vilkårene.");
     expect(result.ok).toBe(false);
     expect(result.ok === false && result.error).toContain("<terms>");
+  });
+
+  // AC2's actual crash path: a named argument nested one level down — inside
+  // a plural branch, or inside a <tag>'s children — dropped on the "next"
+  // side. `collect()` only catches this if it recurses into `option.value`
+  // and `element.children`; if it only walked the top level, both drops
+  // would sail through as an "accepted wording change" and throw a
+  // missing-value error on the public page.
+  it("rejects a named argument dropped from inside a plural branch", () => {
+    const original = "{count, plural, one {# vare til {name}} other {# varer til {name}}}";
+    const dropped = "{count, plural, one {# vare} other {# varer}}";
+    const result = checkPlaceholders(original, dropped);
+    expect(result.ok).toBe(false);
+    expect(result.ok === false && result.error).toContain("{name}");
+  });
+
+  it("rejects a named argument dropped from inside a <tag>'s children", () => {
+    const original = "Hei <b>{name}</b>, takk.";
+    const dropped = "Hei <b>der</b>, takk.";
+    const result = checkPlaceholders(original, dropped);
+    expect(result.ok).toBe(false);
+    expect(result.ok === false && result.error).toContain("{name}");
   });
 
   it("rejects a plural missing its `other` branch (ICU refuses it)", () => {
@@ -94,5 +131,39 @@ describe("checkPlaceholders", () => {
   it("accepts a real file string edited around its placeholders", () => {
     const original = flattenMessages(no)["configurator.ladder.nudge"];
     expect(checkPlaceholders(original, original)).toEqual({ ok: true });
+  });
+});
+
+/**
+ * R4-I18N — the "one parser only" invariant (see the module comment at the
+ * top of `placeholders.ts`). `@formatjs/icu-messageformat-parser` is pinned
+ * to an EXACT version here so the panel validates with the very same parser
+ * next-intl renders with (via `intl-messageformat`, which pins the same
+ * package exactly too). If the two ever diverge, npm installs a SECOND copy
+ * of the parser: this module keeps validating against one parser while the
+ * public page renders with another, and a text that passes the panel can
+ * still crash the public page. This test fails loudly the moment that
+ * happens, instead of relying on the next person to notice the comment.
+ *
+ * `@formatjs/icu-messageformat-parser`'s `exports` map does not expose
+ * `./package.json`, so a plain `require("…/package.json")` is blocked by
+ * Node's package-exports enforcement — resolve each package's main entry
+ * instead and read `package.json` from that directory.
+ */
+describe("the ICU parser pin (validate == render)", () => {
+  it("stays exactly the version intl-messageformat pins", () => {
+    const require = createRequire(import.meta.url);
+    const packageJsonNextTo = (specifier: string) => {
+      const entry = require.resolve(specifier);
+      const dir = entry.slice(0, entry.lastIndexOf("/"));
+      return JSON.parse(readFileSync(`${dir}/package.json`, "utf8"));
+    };
+
+    const installed = packageJsonNextTo("@formatjs/icu-messageformat-parser");
+    const rendererPin = packageJsonNextTo("intl-messageformat");
+
+    expect(installed.version).toBe(
+      rendererPin.dependencies["@formatjs/icu-messageformat-parser"]
+    );
   });
 });
