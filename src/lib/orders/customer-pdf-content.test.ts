@@ -3,6 +3,8 @@ import {
   buildCustomerPdfDoc,
   splitVatInclusive,
   MVA_RATE_PCT,
+  MAX_COMPOSED_PLATES,
+  type CustomerPdfDoc,
   type CustomerPdfInput,
 } from "./customer-pdf-content";
 import { computeCartDiscount, EMPTY_CONFIG } from "@/lib/discounts/discount";
@@ -69,13 +71,16 @@ function doc(over: Partial<CustomerPdfInput> & { items?: OrderItemInput[] } = {}
   });
 }
 
+/** Le righe prodotto di TUTTO il documento, nell'ordine in cui si leggono. */
+const allRows = (d: CustomerPdfDoc) => d.designs.flatMap((b) => b.items);
+
 describe("buildCustomerPdfDoc", () => {
   it("AC2 — l'iscrizione compare come nel recap; senza, la sezione è assente", () => {
     const withText = doc({
       items: [item({ configSnapshot: { ...item().configSnapshot, customText: "Til mamma" } as never })],
     });
-    expect(withText.customText).toBe("Til mamma");
-    expect(doc().customText).toBeNull();
+    expect(withText.designs[0].customText).toBe("Til mamma");
+    expect(doc().designs[0].customText).toBeNull();
   });
 
   // AC3 — la lista FUORI. NON si vietano sottostringhe generiche: i contatti e
@@ -96,15 +101,15 @@ describe("buildCustomerPdfDoc", () => {
   });
 
   it("le scelte per categoria portano il NOME del colore, non l'hex", () => {
-    expect(doc().design).toEqual({
+    expect(doc().designs[0]).toMatchObject({
       name: "Krabbe",
       selections: [{ label: "Kant", option: "Safran" }],
     });
-    expect(JSON.stringify(doc().design)).not.toContain("#e0a020");
+    expect(JSON.stringify(doc().designs)).not.toContain("#e0a020");
   });
 
   it("il nome del design segue la lingua dell'ordine", () => {
-    expect(doc({ locale: "en" }).design!.name).toBe("Crab");
+    expect(doc({ locale: "en" }).designs[0].name).toBe("Crab");
   });
 
   it("lo sconto compare solo quando c'è", () => {
@@ -140,13 +145,13 @@ describe("buildCustomerPdfDoc", () => {
     const d = doc({ vipps: NO_VIPPS });
     expect(d.payment).toBeNull();
     expect(d.total).toBeTruthy();
-    expect(d.items).toHaveLength(1);
+    expect(allRows(d)).toHaveLength(1);
   });
 
   it("EN e NO cambiano le etichette, mai i numeri", () => {
     const no = doc(), en = doc({ locale: "en" });
     expect(en.labels.total).not.toBe(no.labels.total);
-    expect(en.items.map((i) => i.quantity)).toEqual(no.items.map((i) => i.quantity));
+    expect(allRows(en).map((i) => i.quantity)).toEqual(allRows(no).map((i) => i.quantity));
   });
 
   it("l'indirizzo porta il poststed di ORDERS-PLUS quando c'è, e sparisce quando non c'è", () => {
@@ -216,8 +221,8 @@ describe("buildCustomerPdfDoc", () => {
       vipps: VIPPS_REAL,
       seller: NO_SELLER,
     });
-    expect(d.items[0].unitPrice).toBe(formatMoney(money(45000), "en"));
-    expect(d.items[0].lineTotal).toBe(formatMoney(money(180000), "en")); // 1 800
+    expect(allRows(d)[0].unitPrice).toBe(formatMoney(money(45000), "en"));
+    expect(allRows(d)[0].lineTotal).toBe(formatMoney(money(180000), "en")); // 1 800
     expect(d.subtotal).toBe(formatMoney(money(180000), "en"));
     expect(d.discount).toBe(formatMoney(money(9000), "en")); // −90
     expect(d.total).toBe(formatMoney(money(171000), "en")); // 1 710
@@ -251,6 +256,184 @@ describe("buildCustomerPdfDoc", () => {
     const d = doc({ vipps: { ...VIPPS_REAL, link: null } });
     expect(d.payment!.link).toBeNull();
     expect(d.payment!.showQr).toBe(true);
+  });
+});
+
+// ── R4-PDF-MULTIDESIGN · un ordine, N design ────────────────────────────
+/**
+ * Il difetto: il documento assumeva UN design per ordine, lo prendeva dalla
+ * prima riga che ne avesse uno e lo attribuiva a tutte. Su MK-1024 — tre righe,
+ * la terza di un altro design — il PDF mostrava un blocco solo, e chi lo leggeva
+ * credeva che tutte e tre fossero quel design.
+ */
+describe("un ordine con più design", () => {
+  /** Una riga d'un design qualunque: la coppia slug/configCode è ciò che il
+   *  compositing usa, e deve restare della STESSA riga. */
+  const line = (
+    slug: string,
+    nameNo: string,
+    nameEn: string,
+    configCode: string,
+    over: Partial<OrderItemInput> = {},
+    snapOver: Record<string, unknown> = {}
+  ): OrderItemInput =>
+    item({
+      configCode,
+      configSnapshot: {
+        designSlug: slug,
+        designName: nameNo,
+        designNameNo: nameNo,
+        designNameEn: nameEn,
+        selections: [{ label: "Kant", option: "Safran", hex: "#e0a020" }],
+        ...snapOver,
+      },
+      ...over,
+    } as Partial<OrderItemInput>);
+
+  /** La forma esatta di MK-1024: due righe Amalfi, la terza di un altro design. */
+  const MK_1024 = [
+    line("amalfi-animals", "Amalfi dyr", "Amalfi animals", "MK-AMF-A-Q", {
+      productName: "Dyp tallerken",
+      quantity: 1,
+    }),
+    line("amalfi-animals", "Amalfi dyr", "Amalfi animals", "MK-AMF-A-Q", {
+      productName: "Krus",
+      quantity: 2,
+    }),
+    line("alici-pasta", "Alici pastafat", "Alici pasta plate", "MK-ALC-B-R", {
+      productName: "Pastaplate «Prete»",
+      quantity: 3,
+    }),
+  ];
+
+  it("un design solo: un blocco, tutte le righe dentro, niente blocco in coda", () => {
+    const d = doc({ items: [item({ productName: "Dyp tallerken" }), item({ productName: "Krus" })] });
+    expect(d.designs).toHaveLength(1);
+    expect(d.designs[0].name).toBe("Krabbe");
+    expect(d.designs[0].items.map((r) => r.productName)).toEqual(["Dyp tallerken", "Krus"]);
+  });
+
+  it("MK-1024: tre righe, DUE blocchi, e ogni riga sta sotto il suo design", () => {
+    const d = doc({ items: MK_1024 });
+    expect(d.designs.map((b) => b.name)).toEqual(["Amalfi dyr", "Alici pastafat"]);
+    expect(d.designs[0].items.map((r) => r.productName)).toEqual(["Dyp tallerken", "Krus"]);
+    expect(d.designs[1].items.map((r) => r.productName)).toEqual(["Pastaplate «Prete»"]);
+    // …e la riga Alici non è più attribuita all'Amalfi: era IL difetto.
+    expect(d.designs[0].items.map((r) => r.productName)).not.toContain("Pastaplate «Prete»");
+  });
+
+  it("slug e configCode di un blocco vengono dalla STESSA riga", () => {
+    // Prima uscivano da due `find()` indipendenti: su un ordine misto
+    // componevano un piatto che non corrispondeva a nessuna delle due righe.
+    const d = doc({ items: MK_1024 });
+    expect(d.designs.map((b) => [b.designSlug, b.configCode])).toEqual([
+      ["amalfi-animals", "MK-AMF-A-Q"],
+      ["alici-pasta", "MK-ALC-B-R"],
+    ]);
+  });
+
+  it("stesso design, due combinazioni di colore: DUE blocchi", () => {
+    // Raggruppare per slug li fonderebbe e mostrerebbe un piatto solo — lo
+    // stesso difetto con un'altra faccia. Due configCode sono due piatti
+    // VISIBILMENTE diversi, ed è ciò che il cliente ha ordinato.
+    const d = doc({
+      items: [
+        line("krabbe", "Krabbe", "Crab", "MK-KRB-A-Q", { productName: "Dyp tallerken" }, {
+          selections: [{ label: "Kant", option: "Safran", hex: "#e0a020" }],
+        }),
+        line("krabbe", "Krabbe", "Crab", "MK-KRB-B-Q", { productName: "Krus" }, {
+          selections: [{ label: "Kant", option: "Havblå", hex: "#2060a0" }],
+        }),
+      ],
+    });
+    expect(d.designs).toHaveLength(2);
+    expect(d.designs.map((b) => b.name)).toEqual(["Krabbe", "Krabbe"]);
+    expect(d.designs.map((b) => b.selections[0].option)).toEqual(["Safran", "Havblå"]);
+  });
+
+  it("🔒 l'iscrizione del design A non compare nel blocco del design B", () => {
+    // L'effetto peggiore del difetto: il testo inciso sulle Amalfi veniva
+    // presentato come valido anche per le Alici.
+    const d = doc({
+      items: [
+        line("amalfi-animals", "Amalfi dyr", "Amalfi animals", "MK-AMF-A-Q", {}, {
+          customText: "Til mamma",
+          customNote: "Varme farger",
+        }),
+        line("alici-pasta", "Alici pastafat", "Alici pasta plate", "MK-ALC-B-R", {
+          productName: "Pastaplate «Prete»",
+        }),
+      ],
+    });
+    expect(d.designs[0].customText).toBe("Til mamma");
+    expect(d.designs[0].customNote).toBe("Varme farger");
+    expect(d.designs[1].customText).toBeNull();
+    expect(d.designs[1].customNote).toBeNull();
+    expect(JSON.stringify(d.designs[1])).not.toContain("Til mamma");
+  });
+
+  it("stessa configurazione, iscrizioni diverse: due blocchi, un piatto solo", () => {
+    // L'iscrizione NON viaggia nel configCode (ADR 0011): senza entrare nella
+    // chiave, «Til mamma» finirebbe attribuita anche alla riga di «Til pappa».
+    // L'immagine però è la stessa, e infatti la chiave del piatto è una sola.
+    const d = doc({
+      items: [
+        line("krabbe", "Krabbe", "Crab", "MK-KRB-A-Q", { productName: "Dyp tallerken" }, {
+          customText: "Til mamma",
+        }),
+        line("krabbe", "Krabbe", "Crab", "MK-KRB-A-Q", { productName: "Krus" }, {
+          customText: "Til pappa",
+        }),
+      ],
+    });
+    expect(d.designs.map((b) => b.customText)).toEqual(["Til mamma", "Til pappa"]);
+    expect(new Set(d.designs.map((b) => b.configCode)).size).toBe(1);
+  });
+
+  it("riga senza snapshot: blocco in coda, senza intestazione, mai riattribuita", () => {
+    const d = doc({
+      items: [
+        line("amalfi-animals", "Amalfi dyr", "Amalfi animals", "MK-AMF-A-Q", {}, {
+          customText: "Til mamma",
+        }),
+        item({ productName: "Gavekort", configSnapshot: null }),
+      ],
+    });
+    const tail = d.designs.at(-1)!;
+    expect(d.designs).toHaveLength(2);
+    expect(tail.name).toBeNull();
+    expect(tail.selections).toEqual([]);
+    expect(tail.customText).toBeNull();
+    expect(tail.showPlate).toBe(false);
+    expect(tail.items.map((r) => r.productName)).toEqual(["Gavekort"]);
+    // e non è finita nel blocco del design che la precede
+    expect(d.designs[0].items.map((r) => r.productName)).not.toContain("Gavekort");
+  });
+
+  it("il tetto delle immagini: 6 design distinti → 4 piatti, gli altri due senza", () => {
+    const items = Array.from({ length: 6 }, (_, n) =>
+      line(`design-${n}`, `Design ${n}`, `Design ${n}`, `MK-D${n}-A`, {
+        productName: `Ceramica ${n}`,
+      })
+    );
+    const d = doc({ items });
+    expect(d.designs).toHaveLength(6);
+    expect(d.designs.filter((b) => b.showPlate)).toHaveLength(MAX_COMPOSED_PLATES);
+    // i due oltre il tetto restano COMPLETI: sparisce l'immagine, non il resto
+    for (const b of d.designs.slice(MAX_COMPOSED_PLATES)) {
+      expect(b.showPlate).toBe(false);
+      expect(b.name).toBeTruthy();
+      expect(b.items).toHaveLength(1);
+    }
+  });
+
+  it("i totali restano quelli del carrello INTERO, uno solo alla fine", () => {
+    // 1×450 + 2×450 + 3×450 = 2 700 kr. Nessuna aritmetica per blocco.
+    const d = doc({ items: MK_1024 });
+    expect(allRows(d)).toHaveLength(3);
+    expect(d.subtotal).toBe(formatMoney(money(6 * UNIT), "no"));
+    expect(d.total).toBe(formatMoney(money(6 * UNIT), "no"));
+    expect(d.discount).toBeNull();
   });
 });
 
@@ -314,7 +497,7 @@ describe("la riga MVA nel documento", () => {
     const off = doc(), on = doc({ seller: REGISTERED });
     expect(on.total).toBe(off.total);
     expect(on.subtotal).toBe(off.subtotal);
-    expect(on.items).toEqual(off.items);
+    expect(on.designs).toEqual(off.designs);
   });
 });
 

@@ -4,7 +4,11 @@ import { Document, Page, View, Text, Image, StyleSheet } from "@react-pdf/render
 import type { CustomerPdfDoc } from "./customer-pdf-content";
 
 /**
- * R4-PDF-CLIENTE — il riepilogo per il CLIENTE: una pagina A4, layout PROPRIO.
+ * R4-PDF-CLIENTE — il riepilogo per il CLIENTE: A4, layout PROPRIO.
+ *
+ * UNA pagina finché i design sono pochi; con un ordine misto il documento può
+ * andare a due, e @react-pdf impagina da sé. Ciò che NON si spezza a metà è
+ * l'intestazione di un design e il blocco pagamento (`wrap={false}`).
  *
  * Riusa il motore di F32, non il suo layout: `lab-pdf.tsx` non si importa e non
  * si tocca (AC4). Quello è un ordine di lavorazione per il ceramista, questo è
@@ -29,7 +33,6 @@ const THEME = {
 const s = StyleSheet.create({
   page: {
     paddingTop: 0,
-    paddingBottom: 34,
     fontSize: 10,
     color: THEME.ink,
     fontFamily: "Helvetica",
@@ -56,6 +59,9 @@ const s = StyleSheet.create({
     letterSpacing: 0.5,
     marginBottom: 4,
   },
+  /** Lo stacco fra un design e il successivo: senza, la tabella del primo e
+   *  l'intestazione del secondo si toccano e sembrano la stessa cosa. */
+  blockGap: { marginTop: 18 },
   designRow: { flexDirection: "row", gap: 14, alignItems: "flex-start" },
   plate: { width: 96, height: 96, borderRadius: 48, objectFit: "cover" },
   designName: { fontSize: 13, fontFamily: "Helvetica-Bold" },
@@ -127,22 +133,37 @@ const s = StyleSheet.create({
   sellerLine: { fontSize: 8, color: THEME.muted, textAlign: "center", marginTop: 1 },
 });
 
+/** L'altezza da tenere libera in fondo a ogni pagina: l'ancoraggio (16) + la
+ *  riga dei contatti + il blocco venditore, che cresce con le sue righe. */
+const footerSpace = (seller: string[] | null) =>
+  16 + 14 + (seller ? 12 + seller.length * 10 : 0) + 8;
+
 export function CustomerPdfDocument({
   doc,
-  plateDataUri,
+  plateDataUris,
   qrDataUri,
 }: {
   doc: CustomerPdfDoc;
-  /** L'anteprima composita del design; null → il blocco resta testuale. */
-  plateDataUri: string | null;
+  /** Le anteprime composite, per `configCode`. Chiave assente → quel blocco
+   *  resta testuale, ed è completo lo stesso. */
+  plateDataUris: Record<string, string>;
   /** Il QR Vipps; null → il blocco pagamento resta comunque leggibile. */
   qrDataUri: string | null;
 }) {
   const t = doc.labels;
   return (
     <Document title={`${t.title} ${doc.orderCode}`}>
-      <Page size="A4" style={s.page}>
-        <View style={s.top}>
+      {/* Il piè di pagina è `fixed` e ancorato in basso, quindi NON occupa
+          spazio nel flusso: il margine inferiore glielo deve fare la pagina, e
+          deve valere per quante righe il venditore ha davvero. Finché il
+          documento stava in una pagina il testo non arrivava mai laggiù e i 34
+          pt fissi bastavano; con l'impaginazione ci arriva, e le scelte
+          dell'ultimo design finivano SOTTO l'indirizzo del negozio. */}
+      <Page size="A4" style={[s.page, { paddingBottom: footerSpace(doc.seller) }]}>
+        {/* `fixed`: con più design il documento va a due pagine, e la testata si
+            ripete — la seconda pagina porta il suo numero d'ordine e nasce con
+            il margine superiore che le serve, invece di partire dal bordo. */}
+        <View style={s.top} fixed>
           <View>
             <Text style={s.brand}>Min Keramikk</Text>
             <Text style={s.topSub}>{t.title}</Text>
@@ -154,57 +175,73 @@ export function CustomerPdfDocument({
         </View>
 
         <View style={s.body}>
-          {doc.design && (
-            <View>
-              <Text style={s.sectionLabel}>{t.design}</Text>
-              <View style={s.designRow}>
-                {plateDataUri && (
-                  // eslint-disable-next-line jsx-a11y/alt-text -- @react-pdf Image has no alt
-                  <Image src={plateDataUri} style={s.plate} />
-                )}
-                <View style={{ flex: 1 }}>
-                  <Text style={s.designName}>{doc.design.name}</Text>
-                  {doc.design.selections.map((c, i) => (
-                    <Text key={i} style={s.choice}>
-                      {c.label}: {c.option}
-                    </Text>
-                  ))}
+          {/* UN blocco per design, ognuno con le SUE righe: su un ordine misto
+              si deve leggere quale riga appartiene a quale design senza doverlo
+              dedurre. Le righe senza design stanno nell'ultimo blocco, che di
+              intestazione non ne ha. */}
+          {doc.designs.map((block, bi) => (
+            <View key={bi} style={bi > 0 ? s.blockGap : undefined}>
+              {block.name && (
+                // `wrap={false}`: l'intestazione non si spezza fra due pagine —
+                // il piatto da una parte e il suo nome dall'altra non si legge.
+                // `minPresenceAhead`: e non resta in fondo a una pagina con le
+                // sue righe di là — la pagina dopo aprirebbe con un prodotto
+                // senza design sopra, cioè di nuovo «di quale design è questa
+                // riga?». Sotto i 70 pt liberi il blocco intero passa oltre.
+                <View wrap={false} minPresenceAhead={70}>
+                  <Text style={s.sectionLabel}>{t.design}</Text>
+                  <View style={s.designRow}>
+                    {block.showPlate && block.configCode && plateDataUris[block.configCode] && (
+                      // eslint-disable-next-line jsx-a11y/alt-text -- @react-pdf Image has no alt
+                      <Image src={plateDataUris[block.configCode]} style={s.plate} />
+                    )}
+                    <View style={{ flex: 1 }}>
+                      <Text style={s.designName}>{block.name}</Text>
+                      {block.selections.map((c, i) => (
+                        <Text key={i} style={s.choice}>
+                          {c.label}: {c.option}
+                        </Text>
+                      ))}
+                    </View>
+                  </View>
                 </View>
+              )}
+
+              {/* Assenti del tutto quando non ci sono: AC2. E appartengono a
+                  QUESTO design soltanto. */}
+              {block.customText && (
+                <View style={s.note} wrap={false}>
+                  <Text style={s.sectionLabel}>{t.inscription}</Text>
+                  <Text style={s.noteText}>«{block.customText}»</Text>
+                </View>
+              )}
+              {block.customNote && (
+                <View style={s.note} wrap={false}>
+                  <Text style={s.sectionLabel}>{t.colourNote}</Text>
+                  <Text style={s.noteText}>{block.customNote}</Text>
+                </View>
+              )}
+
+              <View style={s.table}>
+                <View style={s.tr}>
+                  <Text style={[s.th, s.colName]}>{t.product}</Text>
+                  <Text style={[s.th, s.colQty]}>{t.qty}</Text>
+                  <Text style={[s.th, s.colPrice]}>{t.unitPrice}</Text>
+                  <Text style={[s.th, s.colSum]}>{t.lineTotal}</Text>
+                </View>
+                {block.items.map((it, i) => (
+                  <View key={i} style={s.tr}>
+                    <Text style={s.colName}>{it.productName}</Text>
+                    <Text style={s.colQty}>{it.quantity}</Text>
+                    <Text style={s.colPrice}>{it.unitPrice}</Text>
+                    <Text style={s.colSum}>{it.lineTotal}</Text>
+                  </View>
+                ))}
               </View>
             </View>
-          )}
+          ))}
 
-          {/* Assenti del tutto quando non ci sono: AC2. */}
-          {doc.customText && (
-            <View style={s.note}>
-              <Text style={s.sectionLabel}>{t.inscription}</Text>
-              <Text style={s.noteText}>«{doc.customText}»</Text>
-            </View>
-          )}
-          {doc.customNote && (
-            <View style={s.note}>
-              <Text style={s.sectionLabel}>{t.colourNote}</Text>
-              <Text style={s.noteText}>{doc.customNote}</Text>
-            </View>
-          )}
-
-          <View style={s.table}>
-            <View style={s.tr}>
-              <Text style={[s.th, s.colName]}>{t.product}</Text>
-              <Text style={[s.th, s.colQty]}>{t.qty}</Text>
-              <Text style={[s.th, s.colPrice]}>{t.unitPrice}</Text>
-              <Text style={[s.th, s.colSum]}>{t.lineTotal}</Text>
-            </View>
-            {doc.items.map((it, i) => (
-              <View key={i} style={s.tr}>
-                <Text style={s.colName}>{it.productName}</Text>
-                <Text style={s.colQty}>{it.quantity}</Text>
-                <Text style={s.colPrice}>{it.unitPrice}</Text>
-                <Text style={s.colSum}>{it.lineTotal}</Text>
-              </View>
-            ))}
-          </View>
-
+          {/* UNO SOLO, alla fine: lo sconto è calcolato sul carrello intero. */}
           <View style={s.totals}>
             <View style={s.totalRow}>
               <Text style={s.totalLabel}>{t.subtotal}</Text>
@@ -245,7 +282,9 @@ export function CustomerPdfDocument({
               problema, quindi qui il QR è primario. Con `number` NULL, che è lo
               stato reale del negozio, il QR è anche l'unica cosa che c'è. */}
           {doc.payment && (
-            <View style={s.pay}>
+            // `wrap={false}`: è la parte che serve per PAGARE — QR, numero e
+            // istruzione melding — e spezzata fra due pagine non paga niente.
+            <View style={s.pay} wrap={false}>
               <View style={s.payRow}>
                 {doc.payment.showQr && qrDataUri && (
                   // eslint-disable-next-line jsx-a11y/alt-text -- @react-pdf Image has no alt
