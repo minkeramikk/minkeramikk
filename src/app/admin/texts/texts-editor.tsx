@@ -78,13 +78,13 @@ export function TextsEditor({
               <button
                 type="button"
                 onClick={() => setOpenKey(open ? null : row.key)}
-                className="flex w-full items-start gap-3 text-left"
+                className="flex w-full flex-col items-start gap-1 text-left md:flex-row md:gap-3"
               >
-                <code className="w-[240px] shrink-0 font-mono text-xs text-muted-foreground">
+                <code className="w-full font-mono text-xs text-muted-foreground md:w-[240px] md:shrink-0">
                   {row.key}
                 </code>
-                <span className="min-w-0 flex-1 truncate text-sm">{row.no}</span>
-                <span className="min-w-0 flex-1 truncate text-sm text-muted-foreground">
+                <span className="min-w-0 w-full truncate text-sm md:w-auto md:flex-1">{row.no}</span>
+                <span className="min-w-0 w-full truncate text-sm text-muted-foreground md:w-auto md:flex-1">
                   {row.en}
                 </span>
                 {row.overridden ? (
@@ -106,6 +106,7 @@ export function TextsEditor({
                       <Textarea
                         name="no"
                         defaultValue={row.no}
+                        disabled={disabled}
                         data-testid={`edit-no-${row.key}`}
                         className="max-h-80 overflow-y-auto"
                       />
@@ -115,6 +116,7 @@ export function TextsEditor({
                       <Textarea
                         name="en"
                         defaultValue={row.en}
+                        disabled={disabled}
                         data-testid={`edit-en-${row.key}`}
                         className="max-h-80 overflow-y-auto"
                       />
