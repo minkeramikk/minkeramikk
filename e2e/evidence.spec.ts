@@ -1,13 +1,14 @@
 import { expect, test } from "@playwright/test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import {
-  loadEnvLocal,
-  adminClient,
   activeDesignSlugs,
-  ceramicCards,
+  adminClient,
   CAN_SEED,
-  seedTextGroupDesign,
+  ceramicCards,
   deleteDesignBySlug,
+  fillOrderForm,
+  loadEnvLocal,
+  seedTextGroupDesign,
 } from "./helpers";
 
 loadEnvLocal();
@@ -222,8 +223,7 @@ test("F05: order form + confirmation at 390/1280", async ({ page }) => {
     await page.getByTestId("cart-button").click();
     await page.getByTestId("cart-checkout").click();
     await page.getByTestId("order-form").waitFor({ state: "visible" });
-    await page.getByTestId("order-name").fill("Kari Nordmann");
-    await page.getByTestId("order-email").fill("kari@example.no");
+    await fillOrderForm(page, "Kari Nordmann", "kari@example.no");
     await page.waitForTimeout(300);
     await page.screenshot({ path: `${OUT05}/f05-form-${width}.png`, fullPage: true });
   }

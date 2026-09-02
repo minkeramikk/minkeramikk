@@ -432,6 +432,30 @@ export async function addFirstCeramic(page: Page): Promise<string> {
   return name;
 }
 
+/**
+ * Riempie il form d'ordine e spunta il consenso.
+ *
+ * Dal 3/9 tutto è obbligatorio tranne la nota, e senza il flag «ho letto e
+ * accetto» il submit non parte: un test che compilava solo nome + email adesso
+ * si fermerebbe sul primo campo vuoto. Sta qui e non in ogni spec perché il
+ * giorno che si aggiunge un campo il posto da toccare è uno.
+ */
+export async function fillOrderForm(
+  page: Page,
+  name: string,
+  email: string,
+  opts: { acceptTerms?: boolean } = {}
+) {
+  await page.getByTestId("order-name").fill(name);
+  await page.getByTestId("order-email").fill(email);
+  await page.getByTestId("order-phone").fill("99887766");
+  await page.getByTestId("order-address").fill("Thorvald Meyers gate 5");
+  await page.getByTestId("order-zipcode").fill("0555");
+  await page.getByTestId("order-city").fill("Oslo");
+  await page.getByTestId("order-country").fill("Norge");
+  if (opts.acceptTerms !== false) await page.getByTestId("order-terms").check();
+}
+
 // ── Admin login ───────────────────────────────────────────────────────────────
 
 export async function loginAdmin(page: Page) {
