@@ -10,6 +10,14 @@
  * degraded to `{count}` keeps the name and changes the rendering, and must be
  * refused. Signature entries are written the way a human reads them, so the
  * error message needs no second vocabulary.
+ *
+ * `package.json` pins this dependency to `3.5.11` with NO caret — that exact
+ * string is what `intl-messageformat` (next-intl's own dependency) pins too.
+ * A ranged version lets npm install a second copy alongside next-intl's,
+ * and then this module validates on one parser while the public site renders
+ * on another: exactly the gap this module exists to close. Whoever bumps
+ * next-intl next must re-pin this to whatever version `intl-messageformat`
+ * resolves to, or this stops being "the same parser".
  */
 import {
   parse,
