@@ -60,7 +60,7 @@ describe("the columns", () => {
     expect(cols).toHaveLength(6); // baseline + the five PROD tiers
     expect(cols[0].testid).toBe("ladder-step-base");
     expect(cols.slice(1).map((c) => c.testid)).toEqual(Array(5).fill("ladder-step"));
-    expect(html).toContain("1 pcs");
+    expect(html).toContain("1 pc<"); // singular: «1 pcs» is not English
     expect(html).toContain("0%");
     expect(html).toContain("4 pcs");
     expect(html).toContain("−5%");

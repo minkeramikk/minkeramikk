@@ -164,7 +164,7 @@
     },
     "ladder": {
       "title": "Buy more – save more",
-      "stepQty": "{qty} pcs",
+      "stepQty": "{qty, plural, one {# pc} other {# pcs}}",
       "stepPct": "{pct, plural, =0 {0%} other {−#%}}",
       "popular": "Most chosen",
       "inCartShort": "{qty} pcs in basket",

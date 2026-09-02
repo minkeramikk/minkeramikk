@@ -709,11 +709,23 @@ test.describe("R4-UPSELL-POST-ADD evidence — the post-add panel", () => {
       if (!found) return;
       const step3 = found.step3.replace("/no/configurator", `/${locale}/configurator`);
 
+      // TWO rules on the same trigger, so the panel draws the two-column grid
+      // the mockup specifies rather than a single card, which would say nothing
+      // about how the grid behaves. Same idiom as the "offers are a list" block
+      // above: the catalogue cannot promise three distinct products under one
+      // supplier, so the two rules share a suggestion and differ in quantity.
       const seeded = await seedDiscountRule({
         triggerProductId: found.triggerProductId,
         suggestedProductId: found.suggestedProductId,
         minQty: 2,
         pct: 15,
+      });
+      const seededB = await seedDiscountRule({
+        triggerProductId: found.triggerProductId,
+        suggestedProductId: found.suggestedProductId,
+        minQty: 2,
+        pct: 25,
+        suggestedQty: 2,
       });
       try {
         const vis = (id: string) => page.locator(`[data-testid="${id}"]:visible`);
@@ -726,42 +738,48 @@ test.describe("R4-UPSELL-POST-ADD evidence — the post-add panel", () => {
           await page.goto(step3);
           await page.evaluate(() => localStorage.clear());
 
-          // config.server.ts caches the discount config for up to 10s —
-          // reload-and-retry, same idiom as every other seed in this file.
+          // config.server.ts caches the discount config for up to 10s, and
+          // NOTHING in the sheet betrays whether the seeded rule is live any
+          // more — that is the whole point of this card. So the retry wraps the
+          // ADD itself, which is the first moment the rule can show: a stale
+          // config simply produces no panel, and the next iteration tries
+          // again. The basket is cleared each time so retries do not stack.
           await expect(async () => {
+            await page.evaluate(() => localStorage.clear());
             await page.reload();
             await page.getByTestId("ceramics-step").waitFor();
             await ceramicCards(page).first().click();
             await expect(page.getByTestId("product-sheet")).toBeVisible();
-            await expect(vis("discount-ladder")).toBeVisible();
-          }).toPass({ timeout: 20_000 });
 
-          // (a) the SHEET at the quantity that will fire the rule — and the
-          // proof of AC7: no offer on it, at that quantity or any other.
-          await vis("qty-inc").click(); // 2 = the rule's own threshold
-          await expect(page.getByTestId("sheet-offer")).toHaveCount(0);
-          await page.screenshot({
-            path: `${OUT}/post-add-sheet-at-threshold-${vpLabel}-${locale}.png`,
-            fullPage: true,
-          });
+            // (a) the SHEET at the quantity that will fire the rule — and the
+            // proof of AC7: no offer on it, at that quantity or any other.
+            await vis("qty-inc").click(); // 2 = the rule's own threshold
+            await expect(page.getByTestId("sheet-offer")).toHaveCount(0);
+            await page.screenshot({
+              path: `${OUT}/post-add-sheet-at-threshold-${vpLabel}-${locale}.png`,
+              fullPage: true,
+            });
 
-          // (b) the PANEL — the sheet closed, the confirmation and the offer
-          // cards took its place. At 1280 the sheet's right column is shorter
-          // than its photos now that the offer band has left it: the gap under
-          // the scale is deliberate, and the shot above keeps it on the record.
-          await vis("add-to-cart").click();
-          await expect(page.getByTestId("product-sheet")).toBeHidden();
-          await expect(vis("added-sheet")).toBeVisible();
-          await expect(vis("sheet-offer-add").first()).toBeVisible();
+            // (b) the PANEL — the sheet closed, the confirmation and the offer
+            // cards took its place. At 1280 the sheet's right column is shorter
+            // than its photos now that the offer band has left it: the gap under
+            // the scale is deliberate, and the shot above keeps it on the record.
+            await vis("add-to-cart").click();
+            await expect(page.getByTestId("product-sheet")).toBeHidden();
+            await expect(vis("added-sheet")).toBeVisible();
+            await expect(vis("sheet-offer-row")).toHaveCount(2);
+          }).toPass({ timeout: 40_000 });
+
           await page.screenshot({
             path: `${OUT}/post-add-panel-${vpLabel}-${locale}.png`,
             fullPage: true,
           });
 
           // (c) TAKEN — one card adds one thing, turns into the ✓, and the
-          // panel stays open (§D.2).
+          // panel stays open with the OTHER card still pressable (§D.2).
           await vis("sheet-offer-add").first().click();
-          await expect(vis("sheet-offer-taken").first()).toBeVisible();
+          await expect(vis("sheet-offer-taken")).toHaveCount(1);
+          await expect(vis("sheet-offer-add")).toHaveCount(1);
           await expect(vis("added-sheet")).toBeVisible();
           await page.screenshot({
             path: `${OUT}/post-add-panel-taken-${vpLabel}-${locale}.png`,
@@ -771,7 +789,7 @@ test.describe("R4-UPSELL-POST-ADD evidence — the post-add panel", () => {
           // (d) the basket behind it: two lines, the ceramic and the offer.
           await vis("added-sheet-continue").click();
           await expect(vis("added-sheet")).toHaveCount(0);
-          await expect(vis("cart-line")).toHaveCount(2);
+          await expect(vis("cart-line")).toHaveCount(2); // the ceramic + the offer
           await vis("cart-list").scrollIntoViewIfNeeded();
           await page.screenshot({
             path: `${OUT}/post-add-cart-${vpLabel}-${locale}.png`,
@@ -779,6 +797,7 @@ test.describe("R4-UPSELL-POST-ADD evidence — the post-add panel", () => {
           });
         }
       } finally {
+        await seededB.restore();
         await seeded.restore();
       }
     });
@@ -831,6 +850,16 @@ test.describe("product sheet: the discount step table (R4-UPSELL-POST-ADD ①)",
         const count = await steps.count();
         test.skip(count === 0, "the live shop has no quantity scale switched on");
 
+        // The sheet scrolls internally and is taller than the viewport: without
+        // this the table — and «Mest valgt», the whole point of these shots —
+        // sits under the fold and the screenshot proves nothing.
+        const ladder = sheet.getByTestId("discount-ladder");
+        // To the BOTTOM of the sheet's own scroller, not merely "into view":
+        // the buy row is `sticky bottom-0` and floats over whatever is under
+        // it, so a ladder parked at the fold gets its percentages covered.
+        const toEnd = () => sheet.evaluate((el) => el.scrollTo(0, el.scrollHeight));
+        await toEnd();
+
         // ① at 1 — the box sits on «1 stk», the baseline column, and the scale
         // reads as the price list it also is.
         await expect(sheet.getByTestId("ladder-step-base")).toHaveAttribute(
@@ -838,16 +867,20 @@ test.describe("product sheet: the discount step table (R4-UPSELL-POST-ADD ①)",
           "step"
         );
         await sheet.screenshot({ path: `${OUT}/sheet-at-1-${label}-${lang}.png` });
+        await ladder.screenshot({ path: `${OUT}/ladder-at-1-${label}-${lang}.png` });
 
         // ② on the first tier — the box moves, the unit price is rewritten and
         // the full one struck through, the CTA carries the net total.
         await steps.first().click();
         await expect(steps.first()).toHaveAttribute("aria-current", "step");
         await expect(sheet.getByTestId("sheet-unit-full")).toBeVisible();
+        await toEnd();
         await sheet.screenshot({ path: `${OUT}/sheet-at-tier-${label}-${lang}.png` });
+        await ladder.screenshot({ path: `${OUT}/ladder-at-tier-${label}-${lang}.png` });
 
         // ③ the top of the scale — where the row scrolls, if it scrolls at all.
         await steps.nth(count - 1).click();
+        await toEnd();
         await sheet.screenshot({ path: `${OUT}/sheet-at-top-${label}-${lang}.png` });
       });
     }
