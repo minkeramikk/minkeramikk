@@ -75,7 +75,7 @@ export function DiscountLadder({
       data-testid="discount-ladder"
       className="rounded-sm border border-border bg-card px-3 py-2.5"
     >
-      <div className="mb-3 flex items-baseline justify-between gap-2.5">
+      <div className="mb-2 flex items-baseline justify-between gap-2.5">
         <span className="text-[10px] font-semibold tracking-[.06em] text-muted-foreground uppercase">
           {t("title")}
         </span>
@@ -95,7 +95,10 @@ export function DiscountLadder({
       </div>
 
       {/* Many steps → the row scrolls sideways; no label is ever squeezed. */}
-      <div className="overflow-x-auto pb-px">
+      {/* pt-3: overflow-x:auto forces overflow-y to auto too, and the step
+          markers stick out 9.5px above the 6px track — without this padding
+          the scrollport clips their top half. */}
+      <div className="overflow-x-auto pt-3 pb-px">
         <div style={{ minWidth: `max(100%, ${steps.length * 62}px)` }}>
           <div
             className="relative mx-3 h-1.5 rounded-full"
@@ -118,8 +121,13 @@ export function DiscountLadder({
                 aria-label={t("step", { qty: s.minQty, pct: s.pct })}
                 className={cn(
                   "absolute top-1/2 grid size-[15px] -translate-x-1/2 -translate-y-1/2 place-items-center",
-                  "rounded-full border-2 text-[9px] leading-none outline-none",
-                  "focus-visible:ring-3 focus-visible:ring-ring/50",
+                  "rounded-full border-2",
+                  // outline, NOT ring: Tailwind's ring is a box-shadow, and the
+                  // inline boxShadow below (the "next" halo) would overwrite it,
+                  // leaving that one step with no visible focus. No `outline-none`
+                  // here either — it sets --tw-outline-style:none, which
+                  // focus-visible:outline-2 would then inherit.
+                  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
                   s.state === "next" && "size-[17px] border-[3px]",
                   !s.current && "cursor-pointer"
                 )}
@@ -139,7 +147,16 @@ export function DiscountLadder({
                       : undefined,
                 }}
               >
-                ✓
+                <svg viewBox="0 0 12 12" aria-hidden className="size-[9px]">
+                  <path
+                    d="M2.5 6.2 4.8 8.5 9.5 3.6"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
               </button>
             ))}
           </div>
