@@ -8,6 +8,8 @@ import { getOrder } from "@/lib/orders/admin-orders.server";
 import { orderDiscount } from "@/lib/orders/admin-orders";
 import { sendCustomMessage, sendStatusEmail } from "@/lib/orders/email";
 import { recordOrderEvent } from "@/lib/orders/order-events.server";
+import { fetchStoredCustomerPdf } from "@/lib/orders/customer-pdf.server";
+import { createServiceRoleClient } from "@/lib/supabase/service";
 import type { EmailOutcome } from "@/lib/orders/order-events";
 import { canEmail } from "@/lib/orders/status-email";
 import { ORDER_STATUSES } from "@/lib/orders/order-status";
@@ -130,6 +132,8 @@ const messageSchema = z.object({
   id: z.string().uuid(),
   subject: z.string().trim().min(1, { error: "Write a subject." }).max(200),
   body: z.string().trim().min(1, { error: "Write a message." }).max(5000),
+  /** R4-PDF-CLIENTE riuso ④: allega il riepilogo già archiviato. */
+  attachSummary: z.boolean(),
 });
 
 /**
@@ -153,14 +157,21 @@ export async function sendCustomerMessage(
     id: formData.get("id"),
     subject: formData.get("subject"),
     body: formData.get("body"),
+    attachSummary: formData.get("attachSummary") === "on",
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Invalid message." };
   }
-  const { id, subject, body } = parsed.data;
+  const { id, subject, body, attachSummary } = parsed.data;
 
   const order = await getOrder(id);
   if (!order) return { error: "Order not found." };
+
+  // R4-PDF-CLIENTE riuso ④: il riepilogo si SCARICA, non si rigenera — la
+  // generazione ha un punto solo, alla creazione dell'ordine. Un ordine
+  // anteriore alla feature (o la cui generazione è fallita) non ha nulla da
+  // allegare: la mail parte lo stesso, e il log lo dirà.
+  const pdf = attachSummary ? await fetchStoredCustomerPdf(createServiceRoleClient(), id) : null;
 
   try {
     await sendCustomMessage({
@@ -168,13 +179,20 @@ export async function sendCustomerMessage(
       subject,
       body,
       customerName: order.customerName,
+      pdf,
+      code: order.code,
     });
   } catch (e) {
     console.error(`order ${order.code}: custom message failed`, e);
     return { error: "The message could not be sent. Nothing was logged." };
   }
 
-  await recordOrderEvent(id, "custom_email_sent", { subject, to: order.email });
+  // L'esito VERO, non l'intenzione (principio del log di R4-ORDERS-PLUS).
+  await recordOrderEvent(id, "custom_email_sent", {
+    subject,
+    to: order.email,
+    ...(attachSummary ? { summary: pdf ? "attached" : "unavailable" } : {}),
+  });
 
   revalidatePath(`/admin/orders/${id}`);
   return { notice: `Email sent to ${order.email}.` };

@@ -45,7 +45,7 @@ make run-e2e-grep G=cart   # una spec singola
 - **Email**: la suite core/full gira con `RESEND_API_KEY` vuota → transport
   no-op → **zero invii**. L'ordine viene comunque creato e la conferma testata.
   Solo `make test-email` invia davvero verso `E2E_EMAIL_TO` (default
-  `dangeli88.daniele+mke2e@gmail.com`): **(a)** la conferma ordine (cliente +
+  `dangeli88.daniele@gmail.com`): **(a)** la conferma ordine (cliente +
   notifica admin) e **(b)** il PDF d'ordine al fornitore — quest'ultimo seedando
   un fornitore usa-e-getta con quell'email, così non parte nulla verso un
   laboratorio reale.
@@ -64,6 +64,6 @@ make run-e2e-grep G=cart   # una spec singola
 - I journey admin (`admin-orders`, parte di `supplier-pdf`) si **auto-skippano**
   senza `ADMIN_EMAIL`/`ADMIN_PASSWORD` + service role.
 - Vincolo Resend per `test-email`: col sender di test (`onboarding@resend.dev`)
-  la consegna è ammessa solo verso l'email dell'account; se l'alias `+mke2e`
-  viene rifiutato, verificare il dominio `minkeramikk.no` o usare l'email
-  dell'account.
+  la consegna è ammessa SOLO verso l'email dell'account (`dangeli88.daniele@gmail.com`)
+  — gli alias `+qualcosa` vengono rifiutati con 403 (verificato 2026-09-02). Per
+  spedire ad altri indirizzi serve il dominio `minkeramikk.no` verificato.

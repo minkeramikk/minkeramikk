@@ -56,7 +56,10 @@ export function defaultTransport(): EmailTransport {
   const resend = new Resend(key);
   return {
     async send(msg) {
-      await resend.emails.send({
+      // Resend REPORTS failures in the response (403 on a non-verified
+      // recipient, for one) — it does not throw. Without this check a rejected
+      // send looks exactly like a delivered one.
+      const { error } = await resend.emails.send({
         from,
         to: msg.to,
         subject: msg.subject,
@@ -66,6 +69,7 @@ export function defaultTransport(): EmailTransport {
           ? { attachments: msg.attachments.map((a) => ({ filename: a.filename, content: a.content })) }
           : {}),
       });
+      if (error) throw new Error(`resend → ${msg.to}: ${error.message}`);
     },
   };
 }
@@ -117,6 +121,11 @@ export async function sendCustomMessage(
     subject: string;
     body: string;
     customerName: string;
+    /** R4-PDF-CLIENTE riuso ④: il riepilogo già archiviato, scaricato dal
+     *  chiamante. Null ⇒ nessun allegato, e la mail parte lo stesso. */
+    pdf?: Buffer | null;
+    /** Solo per nominare il file allegato. */
+    code?: string;
   },
   transport: EmailTransport = defaultTransport()
 ): Promise<void> {
@@ -133,6 +142,13 @@ export async function sendCustomMessage(
     subject: mail.subject,
     text: mail.text,
     html: mail.html,
+    ...(params.pdf
+      ? {
+          attachments: [
+            { filename: `bestilling-${params.code ?? "summary"}.pdf`, content: params.pdf },
+          ],
+        }
+      : {}),
   });
 }
 
@@ -199,6 +215,12 @@ export async function sendOrderEmails(
     items: OrderItemInput[];
     /** R4-SCONTI: the SAME CartDiscount create.ts computed before the RPC. */
     discount: CartDiscount;
+    /** R4-PDF-CLIENTE: the customer summary, already rendered by the deferred
+     *  work. Goes on the CUSTOMER mail only — the admin notification has the
+     *  order in the back office and does not need a copy. Null (a failed
+     *  render, or none at all) simply means no attachment: the mail leaves
+     *  either way, the PDF is a courtesy and not a gate (AC5). */
+    pdf?: Buffer | null;
   },
   transport: EmailTransport = defaultTransport()
 ): Promise<void> {
@@ -221,12 +243,26 @@ export async function sendOrderEmails(
     baseUrl: siteUrl(),
     vipps,
   });
-  await transport.send({
-    to: params.customerEmail,
-    subject: customer.subject,
-    text: customer.text,
-    html: customer.html,
-  });
+  // A failed customer send must not cost us the admin notification: the order
+  // exists either way, and that mail is how the shop learns about it.
+  let customerError: unknown;
+  try {
+    await transport.send({
+      to: params.customerEmail,
+      subject: customer.subject,
+      text: customer.text,
+      html: customer.html,
+      ...(params.pdf
+        ? {
+            attachments: [
+              { filename: `bestilling-${params.code}.pdf`, content: params.pdf },
+            ],
+          }
+        : {}),
+    });
+  } catch (e) {
+    customerError = e;
+  }
 
   const admin = adminEmail({
     code: params.code,
@@ -244,4 +280,5 @@ export async function sendOrderEmails(
     text: admin.text,
     html: admin.html,
   });
+  if (customerError) throw customerError;
 }

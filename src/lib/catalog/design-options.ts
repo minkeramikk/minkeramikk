@@ -106,6 +106,28 @@ export async function getDesignDetail(
   )();
 }
 
+/**
+ * Lo stesso design detail, ma richiamabile FUORI da un contesto di richiesta.
+ *
+ * `unstable_cache` LANCIA lì (R4-MAIL-JOURNEY §E, trappola 1), e da
+ * R4-PDF-CLIENTE questo percorso gira dentro `after()`: è da qui che passa la
+ * risoluzione dei layer per l'anteprima composita del riepilogo cliente. Il
+ * ripiego è una lettura NON cacheata della stessa riga — una query in più su un
+ * percorso che sta già renderizzando un PDF. Gemella di `getThemeTokensSafe`
+ * (`theme.server.ts`), stessa ragione, stessa forma.
+ *
+ * Se anche la lettura diretta fallisce l'errore risale: sta al chiamante
+ * decidere che farne (il renderer del PDF degrada a «nessuna immagine»), non a
+ * questa funzione inventare un design vuoto.
+ */
+export async function getDesignDetailSafe(slug: string): Promise<DesignDetail | null> {
+  try {
+    return await getDesignDetail(slug);
+  } catch {
+    return loadDesignDetail(slug);
+  }
+}
+
 async function loadDesignDetail(slug: string): Promise<DesignDetail | null> {
   const supabase = createPublicClient();
 

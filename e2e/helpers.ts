@@ -875,6 +875,10 @@ export async function sweepE2EDiscounts(): Promise<void> {
 
 export async function deleteOrder(orderId: string) {
   if (!orderId) return;
+  // R4-PDF-CLIENTE: cancellare la riga NON porta via il PDF — lo Storage non ha
+  // foreign key. Senza questa riga ogni giro di e2e lasciava un riepilogo
+  // orfano nel bucket (nove trovati la prima volta che si è guardato).
+  await adminClient().storage.from("order-pdfs").remove([`summaries/${orderId}.pdf`]);
   await adminClient().from("orders").delete().eq("id", orderId);
 }
 

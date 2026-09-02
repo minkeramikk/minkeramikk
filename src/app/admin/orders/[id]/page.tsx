@@ -5,6 +5,8 @@ import { LabPdfActions } from "@/components/admin/lab-pdf-actions";
 import { OrderStatusBadge } from "@/components/ui-domain/order-status-badge";
 import { getOrder, getCodecDesigns } from "@/lib/orders/admin-orders.server";
 import { getOrderEvents } from "@/lib/orders/order-events.server";
+import { fetchStoredCustomerPdf } from "@/lib/orders/customer-pdf.server";
+import { createServiceRoleClient } from "@/lib/supabase/service";
 import { timeline } from "@/lib/orders/order-events";
 import {
   buildReplicaSet,
@@ -66,10 +68,13 @@ export default async function OrderDetailPage({
   const { id } = await params;
   // R4-ORDERS-PLUS: the events ride along in the same parallel fetch — the
   // register must not add a round trip to opening an order.
-  const [order, codecDesigns, events] = await Promise.all([
+  const [order, codecDesigns, events, summary] = await Promise.all([
     getOrder(id),
     getCodecDesigns(),
     getOrderEvents(id),
+    // R4-PDF-CLIENTE riuso ④: c'è un riepilogo da rimandare? Una sola chiamata
+    // allo Storage, col service role — l'unico lettore di quel bucket.
+    fetchStoredCustomerPdf(createServiceRoleClient(), id),
   ]);
   if (!order) notFound();
 
@@ -222,6 +227,23 @@ export default async function OrderDetailPage({
                     {formatMoney(orderTotal(order.items), "en")}
                   </span>
                 </div>
+                {/* R4-PDF-CLIENTE riuso ④: il riepilogo archiviato, scaricabile
+                    dall'admin. Sta QUI, sotto i totali, perché è il documento di
+                    QUESTO riquadro: le stesse righe e lo stesso totale, visti dal
+                    cliente. Da non confondere con il «Download PDF» in cima al
+                    gruppo, che è l'ordine di lavorazione per il FORNITORE.
+                    La rotta si autoguarda con getAdminUser (nessuna superficie
+                    pubblica risolve un PDF) e SERVE l'oggetto, non ne genera uno
+                    nuovo — assente quando non c'è nulla da servire. */}
+                {summary && (
+                  <a
+                    href={`/api/admin/orders/${order.id}/summary`}
+                    data-testid="download-summary"
+                    className="mt-2 h-8 rounded-lg border border-border px-3 text-xs font-medium leading-8 hover:bg-muted/50"
+                  >
+                    Download the order summary (PDF)
+                  </a>
+                )}
               </div>
               <p className="mt-2 text-xs text-muted-foreground">
                 The config code reopens the exact design in the configurator — handy on the
@@ -407,6 +429,7 @@ export default async function OrderDetailPage({
                   admin's own mail client felt like sending — unbranded, from a
                   personal address, and invisible to the log. */}
               <OrderMessageForm
+                hasSummary={summary !== null}
                 orderId={order.id}
                 orderCode={order.code}
                 customerEmail={order.email}

@@ -1,8 +1,6 @@
-// NOTE (R4-ORDERS-PLUS, 2026-09-01): patched BY HAND, additively, for migration
-// 0036 — `order_events`, `orders.city` and create_order's `p_city`. 0036 is
-// applied on STAGING; `npm run db:types` reads the LINKED project, which is
-// PROD (supabase/.temp/project-ref), so regenerating before the prod push would
-// silently delete these three additions. Regenerate after `make db-push-prod`.
+// GENERATO da `make db-types` — non modificare a mano.
+// Si legge da PROD, DAL DB e non dall'API di gestione, e solo DOPO
+// `make db-push-prod`: vedi il commento sul target nel Makefile.
 export type Json =
   | string
   | number
@@ -744,6 +742,12 @@ export type Database = {
           color_light: string
           id: number
           quantity_discounts_enabled: boolean
+          seller_address: string | null
+          seller_email: string | null
+          seller_name: string | null
+          seller_org_number: string | null
+          seller_phone: string | null
+          seller_vat_registered: boolean
           updated_at: string
           vipps_link: string | null
           vipps_number: string | null
@@ -756,6 +760,12 @@ export type Database = {
           color_light: string
           id: number
           quantity_discounts_enabled?: boolean
+          seller_address?: string | null
+          seller_email?: string | null
+          seller_name?: string | null
+          seller_org_number?: string | null
+          seller_phone?: string | null
+          seller_vat_registered?: boolean
           updated_at?: string
           vipps_link?: string | null
           vipps_number?: string | null
@@ -768,6 +778,12 @@ export type Database = {
           color_light?: string
           id?: number
           quantity_discounts_enabled?: boolean
+          seller_address?: string | null
+          seller_email?: string | null
+          seller_name?: string | null
+          seller_org_number?: string | null
+          seller_phone?: string | null
+          seller_vat_registered?: boolean
           updated_at?: string
           vipps_link?: string | null
           vipps_number?: string | null

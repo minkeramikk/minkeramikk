@@ -6,6 +6,9 @@ import { orderPayloadSchema, type OrderItemInput } from "./schema";
 import { buildOrderItemRows } from "./build";
 import { verifyTurnstile } from "./turnstile";
 import { sendOrderEmails, type EmailTransport } from "./email";
+import { renderAndStoreCustomerPdf } from "./customer-pdf.server";
+import { getVippsSettings } from "./vipps.server";
+import { getSellerIdentity } from "./seller.server";
 import { computeCartDiscount, type DiscountConfig } from "@/lib/discounts/discount";
 import { getDiscountConfig } from "@/lib/discounts/config.server";
 
@@ -90,11 +93,55 @@ export async function createOrder(
 
   const orderCode = code as string;
 
+  // R4-PDF-CLIENTE: `create_order` returns only the code (0032:148-210,
+  // `returns text`), and the summary object is named after the order's UUID.
+  // The id serves ONLY to name that object — it does not leave this file, does
+  // not enter the HTTP response and appears in no URL (reuses ② and ③ were
+  // dropped, NOTA 2/9). The order CODE would not do: it is sequential
+  // (`'MK-' || nextval('order_seq')`, 0032:172), and a guessable path is a trap
+  // for the first card that ever wanted to expose the file.
+  const { data: row } = await db
+    .from("orders")
+    .select("id")
+    .eq("code", orderCode)
+    .maybeSingle();
+  const orderId = row?.id ?? null;
+
   // Deferred, not fired: see `sendEmails` on CreateOrderResult. The try/catch is
   // INSIDE the thunk because an error thrown in `after()` surfaces to nobody —
   // without this a lost email is invisible. The order code is in the log line
   // precisely so the loss is chaseable.
+  //
+  // R4-PDF-CLIENTE: the summary is BUILT here, in the same deferred work, and
+  // never on the synchronous path — the confirmation page must not wait on
+  // @react-pdf and sharp. Its own try/catch is separate from the mail's: a
+  // missing PDF must not cost the email (AC5).
   const sendEmails = async () => {
+    let pdf: Buffer | null = null;
+    if (orderId) {
+      try {
+        ({ pdf } = await renderAndStoreCustomerPdf(db, {
+          orderId,
+          code: orderCode,
+          customerName: payload.customerName,
+          locale: payload.locale,
+          items: payload.items,
+          discount,
+          address: {
+            address: payload.address,
+            zipcode: payload.zipcode,
+            city: payload.city,
+            country: payload.country,
+          },
+          vipps: await getVippsSettings(),
+          seller: await getSellerIdentity(),
+        }));
+      } catch (e) {
+        // renderAndStoreCustomerPdf does not throw on its own; this is the
+        // second belt, because inside `after()` an exception reaches nobody.
+        console.error(`order ${orderCode}: summary PDF failed`, e);
+      }
+    }
     try {
       await sendOrderEmails(
         {
@@ -104,6 +151,7 @@ export async function createOrder(
           locale: payload.locale,
           items: payload.items,
           discount,
+          pdf,
         },
         deps.transport
       );

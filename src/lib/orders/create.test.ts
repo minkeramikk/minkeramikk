@@ -8,7 +8,8 @@
  * email network I/O — everything is injected, so they run everywhere
  * (unlike create.integration.test.ts, which needs the linked staging DB).
  */
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
+import * as pdfModule from "./customer-pdf.server";
 import { createOrder } from "./create";
 import type { OrderItemInput } from "./schema";
 import type { OrderItemRow } from "./build";
@@ -20,8 +21,14 @@ const BOAT = "22222222-2222-4222-8222-222222222222";
 const RULE_ID = "33333333-3333-4333-8333-333333333333";
 const UNKNOWN_RULE_ID = "44444444-4444-4444-8444-444444444444";
 
-/** A mock service-role client: only `.rpc()` is exercised by createOrder, and
- *  every p_items call it receives is captured for inspection. */
+const ORDER_ID = "0f9c1e2a-1111-4222-8333-444455556666";
+
+afterEach(() => vi.restoreAllMocks());
+
+/** A mock service-role client. `.rpc()` is what creates the order (and every
+ *  p_items call it receives is captured for inspection); `.from()` covers the
+ *  one read R4-PDF-CLIENTE added — create_order returns the CODE, and the
+ *  summary object is named after the order's uuid. */
 function makeMockDb() {
   const calls: { p_items: OrderItemRow[] }[] = [];
   const db = {
@@ -29,6 +36,11 @@ function makeMockDb() {
       calls.push(args);
       return { data: "MK-1", error: null };
     },
+    from: () => ({
+      select: () => ({
+        eq: () => ({ maybeSingle: async () => ({ data: { id: ORDER_ID }, error: null }) }),
+      }),
+    }),
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any;
   return { db, calls };
@@ -240,8 +252,68 @@ describe("R4-MAIL-JOURNEY §E — the emails leave AFTER the response", () => {
     expect(res.ok).toBe(true);
     if (!res.ok) return;
     await expect(res.sendEmails()).resolves.toBeUndefined();
-    // the send was actually attempted (and its failure swallowed) — not just
-    // never invoked, which would also satisfy the assertion above
-    expect(calls).toBe(1);
+    // both sends were attempted (and their failure swallowed) — not just never
+    // invoked, which would also satisfy the assertion above. The admin
+    // notification is attempted even when the customer mail fails: the order
+    // exists either way and that mail is how the shop learns about it.
+    expect(calls).toBe(2);
+  });
+});
+
+describe("R4-PDF-CLIENTE — il riepilogo nel lavoro differito", () => {
+  it("l'allegato va sulla mail del CLIENTE e non su quella admin", async () => {
+    const { db } = makeMockDb();
+    const sent: EmailMessage[] = [];
+    const transport: EmailTransport = { async send(m) { sent.push(m); } };
+    vi.spyOn(pdfModule, "renderAndStoreCustomerPdf").mockResolvedValue({
+      pdf: Buffer.from("%PDF-1.4 fake"),
+      stored: true,
+    });
+
+    const res = await createOrder(payloadWith({}), {
+      config: EMPTY_CONFIG, db, verify: async () => true, transport,
+    });
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+    await res.sendEmails();
+
+    expect(sent).toHaveLength(2);
+    const [customer, admin] = sent;
+    expect(customer.attachments?.[0].filename).toBe("bestilling-MK-1.pdf");
+    expect(admin.attachments).toBeUndefined();
+  });
+
+  it("un upload fallito NON costa l'allegato: i byte ci sono comunque", async () => {
+    // Rendering e archiviazione sono due esiti indipendenti. Il rendering è la
+    // parte costosa ed è riuscita: perdere l'allegato perché lo Storage ha
+    // singhiozzato sarebbe pagare due volte lo stesso errore.
+    const { db } = makeMockDb();
+    const sent: EmailMessage[] = [];
+    vi.spyOn(pdfModule, "renderAndStoreCustomerPdf").mockResolvedValue({
+      pdf: Buffer.from("%PDF-1.4 fake"),
+      stored: false,
+    });
+    const res = await createOrder(payloadWith({}), {
+      config: EMPTY_CONFIG, db, verify: async () => true,
+      transport: { async send(m) { sent.push(m); } },
+    });
+    if (!res.ok) return;
+    await res.sendEmails();
+    expect(sent[0].attachments).toHaveLength(1);
+  });
+
+  it("AC5 — se la generazione LANCIA, l'ordine e le mail proseguono senza allegato", async () => {
+    const { db } = makeMockDb();
+    const sent: EmailMessage[] = [];
+    vi.spyOn(pdfModule, "renderAndStoreCustomerPdf").mockRejectedValue(new Error("sharp exploded"));
+    const res = await createOrder(payloadWith({}), {
+      config: EMPTY_CONFIG, db, verify: async () => true,
+      transport: { async send(m) { sent.push(m); } },
+    });
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+    await expect(res.sendEmails()).resolves.toBeUndefined();
+    expect(sent).toHaveLength(2);
+    expect(sent[0].attachments).toBeUndefined();
   });
 });

@@ -18,7 +18,7 @@ import {
  */
 
 const REAL = process.env.MK_E2E_REAL_EMAIL === "1";
-const TO = process.env.E2E_EMAIL_TO || "dangeli88.daniele+mke2e@gmail.com";
+const TO = process.env.E2E_EMAIL_TO || "dangeli88.daniele@gmail.com";
 
 test.skip(!REAL, "opt-in: esegui con `make test-email`");
 test.skip(!ADMIN_READY, "needs ADMIN_EMAIL/PASSWORD + service role");

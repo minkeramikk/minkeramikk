@@ -115,10 +115,21 @@ const RENDER: Record<
       token: to ? STATUS_TOKEN[to] : "--muted-foreground",
     };
   },
-  custom_email_sent: (meta) => ({
-    text: `Email from admin: “${str(meta.subject)}” → ${str(meta.to)}`,
-    token: "--primary",
-  }),
+  custom_email_sent: (meta) => {
+    // R4-PDF-CLIENTE: se l'admin ha spuntato «allega il riepilogo», il log dice
+    // com'è ANDATA, non cosa si voleva — stesso principio dell'esito mail.
+    // Assente sulle righe scritte prima della feature: nessun suffisso.
+    const summary =
+      meta.summary === "attached"
+        ? " · with the order summary"
+        : meta.summary === "unavailable"
+          ? " · summary unavailable"
+          : "";
+    return {
+      text: `Email from admin: “${str(meta.subject)}” → ${str(meta.to)}${summary}`,
+      token: "--primary",
+    };
+  },
   payment_registered: (meta) => ({
     text: `Payment registered${emailSuffix(meta)}`,
     token: "--status-paid",

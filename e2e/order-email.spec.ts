@@ -12,7 +12,7 @@ import {
  * non parte alcuna email durante i run normali.
  *
  * Manda un solo ordine; cliente e notifica vanno alla casella dedicata
- * (E2E_EMAIL_TO, default dangeli88.daniele+mke2e@gmail.com). Non possiamo
+ * (E2E_EMAIL_TO, default dangeli88.daniele@gmail.com). Non possiamo
  * leggere la inbox da qui: il test verifica che il submit vada a buon fine con
  * RESEND attivo (createOrder invia e non lancia) → la consegna si controlla a
  * mano nella casella. Vincolo Resend: col sender di test, l'alias `+` potrebbe
@@ -20,7 +20,7 @@ import {
  */
 
 const REAL = process.env.MK_E2E_REAL_EMAIL === "1";
-const TO = process.env.E2E_EMAIL_TO || "dangeli88.daniele+mke2e@gmail.com";
+const TO = process.env.E2E_EMAIL_TO || "dangeli88.daniele@gmail.com";
 const createdCodes: string[] = [];
 
 test.skip(!REAL, "opt-in: esegui con `make test-email`");
