@@ -76,27 +76,26 @@ const COPY: Record<"no" | "en", LocaleCopy> = {
   no: {
     // TODO:nb-review — nuovi testi R4-ORDERS, revisione del cliente
     greeting: (n) => `Hei ${n},`,
-    signature: "Min Keramikk",
+    signature: "Hilsen oss i Min Keramikk",
     trackingLabel: "Sporingsnummer",
-    // R4-MAIL-JOURNEY §C — TODO:nb-review
+    // R4-MAIL-COPY Ⓓ — the client's own Norwegian (doc 2/9, p.3-4)
     paid: {
       subject: (code) => `Betalingen er registrert — bestilling ${code}`,
       heading: "Vi har mottatt betalingen din",
       body: [
-        "Takk! Betalingen for bestillingen din er registrert, og nå setter vi i gang. Keramikken males for hånd i Italia.",
-        "Vi skriver igjen så snart bestillingen er klar til å sendes.",
+        "Tusen takk for betalingen din! Da er ordren din registrert hos oss og vi sender den videre til våre keramikere i Italia. Vi gir deg en oppdatering så snart produksjonen er i gang.",
       ],
     },
     in_production: {
       subject: (code) => `Bestillingen ${code} er i produksjon — Min Keramikk`,
       heading: "Bestillingen er i produksjon",
       body: [
-        "Keramikken din er nå under arbeid hos verkstedet.",
-        "Alt lages for hånd og til din bestilling, så det tar litt tid. Vi sier fra så snart den er sendt.",
+        "Keramikken din er nå under produksjon i Italia!",
+        "Alt males for hånd spesielt for deg, så det tar litt tid, men vi gir deg en lyd så snart den er klar til å sendes.",
       ],
     },
     shipped: {
-      subject: (code) => `Bestillingen ${code} er sendt — Min Keramikk`,
+      subject: (code) => `Bestillingen er sendt — bestilling ${code}`,
       heading: "Bestillingen er sendt",
       body: [
         "Pakken din er på vei.",
@@ -106,26 +105,25 @@ const COPY: Record<"no" | "en", LocaleCopy> = {
   },
   en: {
     greeting: (n) => `Hi ${n},`,
-    signature: "Min Keramikk",
+    signature: "Best regards, all of us at Min Keramikk",
     trackingLabel: "Tracking number",
     paid: {
       subject: (code) => `Payment received — order ${code}`,
       heading: "We have received your payment",
       body: [
-        "Thank you! Your payment has been registered and we are getting started. Your ceramics are hand-painted in Italy.",
-        "We will write again as soon as your order is ready to ship.",
+        "Thank you very much for your payment! Your order is registered with us and we are passing it on to our ceramicists in Italy. We will update you as soon as production is under way.",
       ],
     },
     in_production: {
       subject: (code) => `Order ${code} is in production — Min Keramikk`,
       heading: "Your order is in production",
       body: [
-        "Your ceramics are now being made at the workshop.",
-        "Everything is handmade to your order, so it takes a little time. We will write again as soon as it ships.",
+        "Your ceramics are now in production in Italy!",
+        "Everything is hand-painted especially for you, so it takes a little time, but we will let you know as soon as it is ready to ship.",
       ],
     },
     shipped: {
-      subject: (code) => `Order ${code} has shipped — Min Keramikk`,
+      subject: (code) => `Your order has been sent — order ${code}`,
       heading: "Your order has shipped",
       body: [
         "Your parcel is on its way.",
@@ -134,6 +132,19 @@ const COPY: Record<"no" | "en", LocaleCopy> = {
     },
   },
 };
+
+/**
+ * R4-MAIL-COPY Ⓓ: the shipping mail's tracking line has to be clickable.
+ *
+ * The field is free text the shop types in the back office (`trackingCode`,
+ * max 120 chars) and there is no carrier-URL template anywhere in the data —
+ * so a pasted `https://…` becomes a link and a bare consignment number stays
+ * the text it has always been. Anything else would mean guessing a carrier
+ * from a number and sending the customer to the wrong one.
+ */
+function trackingHref(value: string): string | null {
+  return /^https?:\/\/\S+$/.test(value) ? value : null;
+}
 
 /** Extra lines appended to a status mail, when they apply.
  *  R4-MAIL-JOURNEY: the payment line is GONE from here — the journey block now
@@ -183,19 +194,27 @@ export function statusEmail(
   const s = c[kind];
   const step = currentStep(p.status, p.paidAt);
   const extraHtml = extras(p)
-    .map((e) =>
-      e.value
-        ? `<p style="margin:8px 0 0;"><span style="opacity:.65;">${esc(
-            e.label
-          )}:</span> <strong>${esc(e.value)}</strong></p>`
-        : `<p style="margin:8px 0 0;"><strong>${esc(e.label)}</strong></p>`
-    )
+    .map((e) => {
+      if (!e.value) return `<p style="margin:8px 0 0;"><strong>${esc(e.label)}</strong></p>`;
+      const href = trackingHref(e.value);
+      const value = href
+        ? `<a href="${esc(href)}" style="color:${esc(p.theme.accent)};word-break:break-all;">${esc(
+            e.value
+          )}</a>`
+        : esc(e.value);
+      return `<p style="margin:8px 0 0;"><span style="opacity:.65;">${esc(
+        e.label
+      )}:</span> <strong>${value}</strong></p>`;
+    })
     .join("");
   const bodyHtml =
     `<p style="margin:0 0 12px;">${esc(c.greeting(displayName(p.customerName)))}</p>` +
     s.body.map((b) => `<p style="margin:0 0 10px;">${esc(b)}</p>`).join("") +
     extraHtml +
-    (step === null ? "" : journeyHtml(p.theme, p.locale, step, p.journeyAt ?? new Date()));
+    (step === null ? "" : journeyHtml(p.theme, p.locale, step, p.journeyAt ?? new Date())) +
+    // The signature only ever existed in the plain-text part; the client's doc
+    // (p.3-4) closes every status mail with it, under the stepper.
+    `<p style="margin:16px 0 0;">${esc(c.signature)}</p>`;
   return {
     subject: plain.subject,
     text: plain.text,

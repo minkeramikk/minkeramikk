@@ -118,6 +118,57 @@ describe("the paid mail (R4-MAIL-JOURNEY §C)", () => {
   });
 });
 
+describe("the copy the client wrote (R4-MAIL-COPY Ⓓ)", () => {
+  it("the payment mail is ONE sentence, and no longer the old two", () => {
+    const t = statusEmailText({ ...base, kind: "paid", status: "new" })!.text;
+    expect(t).toContain(
+      "Tusen takk for betalingen din! Da er ordren din registrert hos oss og vi sender den videre til våre keramikere i Italia. Vi gir deg en oppdatering så snart produksjonen er i gang."
+    );
+    expect(t).not.toContain("Vi skriver igjen så snart");
+  });
+
+  it("the production mail names Italy and the hand-painting", () => {
+    const t = statusEmailText({ ...base, status: "in_production" })!.text;
+    expect(t).toContain("Keramikken din er nå under produksjon i Italia!");
+    expect(t).toContain("Alt males for hånd spesielt for deg");
+    expect(t).not.toContain("under arbeid hos verkstedet");
+  });
+
+  it("the shipping subject leads with the news, not the code", () => {
+    expect(statusEmailText({ ...base, status: "shipped" })!.subject).toBe(
+      "Bestillingen er sendt — bestilling MK-1042"
+    );
+  });
+
+  it("every mail signs off «Hilsen oss i Min Keramikk», in text AND html", () => {
+    for (const p of [
+      { ...base, kind: "paid" as const, status: "new" as const },
+      { ...base, status: "in_production" as const },
+      { ...base, status: "shipped" as const },
+    ]) {
+      expect(statusEmailText(p)!.text).toContain("Hilsen oss i Min Keramikk");
+      expect(statusEmail({ ...p, theme })!.html).toContain("Hilsen oss i Min Keramikk");
+    }
+    expect(
+      statusEmail({ ...base, locale: "en", status: "shipped", theme })!.html
+    ).toContain("Best regards, all of us at Min Keramikk");
+  });
+
+  it("a pasted tracking URL becomes a link; a bare consignment number stays text", () => {
+    const url = statusEmail({
+      ...base, status: "shipped", trackingCode: "https://sporing.posten.no/NO123", theme,
+    })!;
+    expect(url.html).toContain('<a href="https://sporing.posten.no/NO123"');
+    expect(url.text).toContain("Sporingsnummer: https://sporing.posten.no/NO123");
+
+    const plain = statusEmail({
+      ...base, status: "shipped", trackingCode: "NO123456789", theme,
+    })!;
+    expect(plain.html).toContain("NO123456789");
+    expect(plain.html).not.toContain('<a href="NO123456789"');
+  });
+});
+
 describe("the journey block travels in every status mail", () => {
   const at = new Date("2026-09-01T10:00:00Z");
 
