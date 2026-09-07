@@ -108,7 +108,7 @@ describe("the paid mail (R4-MAIL-JOURNEY §C)", () => {
     const mail = statusEmail({ ...paid, theme })!;
     expect(mail.text).toContain("[x] Bestillingen er mottatt");
     expect(mail.text).toContain("[x] Betalingen er registrert · nå");
-    expect(mail.text).toContain("[ ] Keramikken lages for hånd");
+    expect(mail.text).toContain("[ ] Keramikken håndmales i Italia");
   });
 
   it("says nothing about the payment twice — the journey block is the only carrier", () => {
@@ -123,15 +123,15 @@ describe("the journey block travels in every status mail", () => {
 
   it("in_production stands on production, in html and in text", () => {
     const mail = statusEmail({ ...base, status: "in_production", theme, journeyAt: at })!;
-    expect(mail.text).toContain("[x] Keramikken lages for hånd · nå");
-    expect(mail.text).toContain("[ ] Sendt med forsikret frakt");
-    expect(mail.html).toContain("Keramikken lages for hånd");
+    expect(mail.text).toContain("[x] Keramikken håndmales i Italia · nå");
+    expect(mail.text).toContain("[ ] Sendt med forsikret frakt og sporing");
+    expect(mail.html).toContain("Keramikken håndmales i Italia");
     expect(mail.html).toContain("Status 1. september 2026");
   });
 
   it("shipped stands on the last step, everything ticked", () => {
     const mail = statusEmail({ ...base, status: "shipped", theme, journeyAt: at })!;
-    expect(mail.text).toContain("[x] Sendt med forsikret frakt · nå");
+    expect(mail.text).toContain("[x] Sendt med forsikret frakt og sporing · nå");
     expect(mail.text).not.toContain("[ ]");
   });
 
@@ -142,6 +142,6 @@ describe("the journey block travels in every status mail", () => {
       ...base, kind: "shipped", status: "cancelled", theme, journeyAt: at,
     })!;
     expect(mail.text).not.toContain("[x]");
-    expect(mail.html).not.toContain("Hvor bestillingen din står");
+    expect(mail.html).not.toContain("Slik er prosessen videre");
   });
 });

@@ -309,15 +309,11 @@
       "warning": "write the order number in the message field in Vipps, otherwise we cannot match your payment."
     },
     "steps": {
-      "title": "What happens now",
+      "title": "What happens next",
       "receivedTitle": "Order received",
-      "receivedDesc": "Your receipt is in your inbox.",
       "paidTitle": "Payment registered",
-      "paidDesc": "We have received your payment.",
-      "productionTitle": "Your ceramics are being made",
-      "productionDesc": "Hand-painted by our ceramicists in Italy.",
-      "shippedTitle": "Shipped, fully insured",
-      "shippedDesc": "You will get a tracking number by email."
+      "productionTitle": "Ceramics hand-painted in Italy",
+      "shippedTitle": "Shipped with insured, tracked delivery"
     },
     "recapTitle": "Your order",
     "recapTotal": "Total",

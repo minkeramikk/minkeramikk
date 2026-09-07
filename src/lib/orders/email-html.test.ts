@@ -354,12 +354,32 @@ describe("journey block in the customer email (R4-MAIL-JOURNEY)", () => {
     for (const s of [
       "Bestillingen er mottatt",
       "Betalingen er registrert",
-      "Keramikken lages for hånd",
-      "Sendt med forsikret frakt",
+      "Keramikken håndmales i Italia",
+      "Sendt med forsikret frakt og sporing",
     ]) {
       expect(mail.html).toContain(s);
       expect(mail.text).toContain(s);
     }
+    expect(mail.html).toContain("Slik er prosessen videre");
+  });
+
+  it("carries four bare titles — R4-MAIL-COPY Ⓒ dropped the descriptions", () => {
+    const mail = customerEmail({
+      name: "Kari", code: "MK-2302", locale: "no", items, setUrl: null, theme,
+      journeyAt: at,
+    });
+    for (const gone of [
+      "Kvitteringen ligger i innboksen din.",
+      "Vi har mottatt betalingen din.",
+      "Håndmalt hos keramikerne våre i Italia.",
+      "Du får sporingsnummer på e-post.",
+    ]) {
+      expect(mail.html).not.toContain(gone);
+      expect(mail.text).not.toContain(gone);
+    }
+    // the "Status {date}" row and the "· nå" marker are NOT descriptions
+    expect(mail.text).toContain("[x] Bestillingen er mottatt · nå");
+    expect(mail.text).toContain("Status 1. september 2026");
   });
 
   it("carries the frozen 'as of' date, so a mail reopened later still reads true", () => {

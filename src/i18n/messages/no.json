@@ -308,15 +308,11 @@
       "warning": "skriv bestillingsnummeret i meldingsfeltet i Vipps, ellers finner vi ikke betalingen din."
     },
     "steps": {
-      "title": "Hva skjer nå",
+      "title": "Slik er prosessen videre",
       "receivedTitle": "Bestillingen er mottatt",
-      "receivedDesc": "Kvitteringen ligger i innboksen din.",
       "paidTitle": "Betalingen er registrert",
-      "paidDesc": "Vi har mottatt betalingen din.",
-      "productionTitle": "Keramikken lages for hånd",
-      "productionDesc": "Håndmalt hos keramikerne våre i Italia.",
-      "shippedTitle": "Sendt med forsikret frakt",
-      "shippedDesc": "Du får sporingsnummer på e-post."
+      "productionTitle": "Keramikken håndmales i Italia",
+      "shippedTitle": "Sendt med forsikret frakt og sporing"
     },
     "recapTitle": "Din bestilling",
     "recapTotal": "Totalt",

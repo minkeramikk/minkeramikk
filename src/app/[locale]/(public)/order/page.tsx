@@ -290,13 +290,8 @@ export default async function OrderConfirmationPage({
             >
               {i <= current ? "✓" : ""}
             </span>
-            <span>
-              <b className="block text-[13.5px] font-medium">
-                {t(`steps.${key}Title`)}
-              </b>
-              <span className="text-xs text-muted-foreground">
-                {t(`steps.${key}Desc`)}
-              </span>
+            <span className="text-[13.5px] font-medium">
+              {t(`steps.${key}Title`)}
             </span>
           </div>
         ))}

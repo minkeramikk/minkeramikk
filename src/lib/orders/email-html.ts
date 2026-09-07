@@ -199,31 +199,36 @@ const DISCOUNT_HEX = "#5d7d52";
  * sentences as `order.steps.*` in the next-intl dictionaries — the page
  * resolves those keys, the mails resolve these, because a mail renders outside
  * a request context (same reason `COPY` above exists at all).
- * TODO:nb-review — Norwegian from mockup-mail-stepper.html, client's eye wanted.
+ *
+ * R4-MAIL-COPY Ⓒ: four TITLES and nothing else. The one-line descriptions are
+ * gone from the type, not blanked — the client's doc (2/9) draws the block as a
+ * bare four-item checklist, and a `desc: ""` left behind would have every
+ * renderer keep printing an empty second line.
+ * TODO:nb-review — Norwegian from the client's doc, his own wording.
  */
 const JOURNEY_COPY = {
   no: {
-    title: "Hvor bestillingen din står",
+    title: "Slik er prosessen videre",
     asOf: "Status",
     now: "nå",
     locale: "nb-NO",
     steps: {
-      received: { title: "Bestillingen er mottatt", desc: "Kvitteringen ligger i innboksen din." },
-      paid: { title: "Betalingen er registrert", desc: "Vi har mottatt betalingen din." },
-      production: { title: "Keramikken lages for hånd", desc: "Håndmalt hos keramikerne våre i Italia." },
-      shipped: { title: "Sendt med forsikret frakt", desc: "Du får sporingsnummer på e-post." },
+      received: { title: "Bestillingen er mottatt" },
+      paid: { title: "Betalingen er registrert" },
+      production: { title: "Keramikken håndmales i Italia" },
+      shipped: { title: "Sendt med forsikret frakt og sporing" },
     },
   },
   en: {
-    title: "Where your order stands",
+    title: "What happens next",
     asOf: "Status",
     now: "now",
     locale: "en-GB",
     steps: {
-      received: { title: "Order received", desc: "Your receipt is in your inbox." },
-      paid: { title: "Payment registered", desc: "We have received your payment." },
-      production: { title: "Your ceramics are being made", desc: "Hand-painted by our ceramicists in Italy." },
-      shipped: { title: "Shipped, fully insured", desc: "You will get a tracking number by email." },
+      received: { title: "Order received" },
+      paid: { title: "Payment registered" },
+      production: { title: "Ceramics hand-painted in Italy" },
+      shipped: { title: "Shipped with insured, tracked delivery" },
     },
   },
 } as const;
@@ -292,7 +297,6 @@ export function journeyHtml(
             ? ` <span style="color:${esc(theme.accent)};font-weight:bold;">· ${esc(c.now)}</span>`
             : ""
         }</div>
-        <div style="font-size:12px;color:${esc(theme.dark)};opacity:.7;">${esc(s.desc)}</div>
       </td></tr>`;
   }).join("");
 
@@ -322,7 +326,7 @@ export function journeyText(
     const s = c.steps[key];
     const box = i <= current ? "[x]" : "[ ]";
     const now = i === current ? ` · ${c.now}` : "";
-    return `${box} ${s.title}${now} — ${s.desc}`;
+    return `${box} ${s.title}${now}`;
   });
   return `\n${c.title} (${c.asOf} ${journeyDate(locale, at)})\n${lines.join("\n")}\n`;
 }
