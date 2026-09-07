@@ -9,14 +9,14 @@ const items: MailItem[] = [
 ];
 
 describe("customerEmail", () => {
-  const mail = customerEmail({
+  const mailBase = {
     name: "Kari",
     code: "MK-1042",
-    locale: "no",
+    locale: "no" as const,
     items,
-    setUrl: "https://minkeramikk.no/no/configurator?set=MK-A-K2.vietri-flat.2",
     theme,
-  });
+  };
+  const mail = customerEmail(mailBase);
 
   it("inlines the theme tokens as hex (no CSS variables)", () => {
     expect(mail.html).toContain("#7d4f9c"); // accent
@@ -31,9 +31,31 @@ describe("customerEmail", () => {
     expect(mail.html).toContain("Takk for bestillingen"); // NO locale
   });
 
-  it("includes the CA-3 reopen-set link", () => {
-    expect(mail.html).toContain("configurator?set=MK-A-K2.vietri-flat.2");
-    expect(mail.text).toContain("configurator?set=MK-A-K2.vietri-flat.2");
+  it("carries no «Åpne settet ditt på nytt» button any more (R4-MAIL-COPY Ⓑ)", () => {
+    expect(mail.html).not.toContain("Åpne settet");
+    expect(mail.text).not.toContain("Åpne settet");
+    expect(mail.html).not.toContain("configurator?set=");
+    const en = customerEmail({ ...mailBase, locale: "en" });
+    expect(en.html).not.toContain("Reopen your set");
+  });
+
+  it("opens with the thank-you greeting, not a bare «Hei X,» (R4-MAIL-COPY Ⓑ)", () => {
+    expect(mail.subject).toBe("Ordrebekreftelse #MK-1042 – Minkeramikk.no");
+    expect(mail.html).toContain("Hei Kari, og takk for at du handler hos oss!");
+    expect(mail.html).toContain(
+      "Vi setter stor pris på bestillingen din, og gleder oss til å sette i gang med produksjonen."
+    );
+    // the old greeting is not kept above the new one
+    expect(mail.text).not.toContain("Hei Kari,\n");
+    const en = customerEmail({ ...mailBase, locale: "en" });
+    expect(en.subject).toBe("Order confirmation #MK-1042 – Minkeramikk.no");
+    expect(en.html).toContain("Hi Kari, and thank you for shopping with us!");
+  });
+
+  it("capitalises the name the customer typed (R4-MAIL-COPY Ⓐ)", () => {
+    const m = customerEmail({ ...mailBase, name: "daniele d'angeli" });
+    expect(m.html).toContain("Daniele D'Angeli");
+    expect(m.text).toContain("Daniele D'Angeli");
   });
 
   it("keeps a plain-text fallback", () => {
@@ -41,9 +63,8 @@ describe("customerEmail", () => {
     expect(mail.text).toContain("2× Vietri Flat");
   });
 
-  it("omits the reopen link gracefully when there's no set", () => {
-    const m = customerEmail({ name: "Kari", code: "MK-1", locale: "en", items, setUrl: null, theme });
-    expect(m.html).not.toContain("configurator?set=");
+  it("renders the EN locale", () => {
+    const m = customerEmail({ name: "Kari", code: "MK-1", locale: "en", items, theme });
     expect(m.html).toContain("Thank you for your order"); // EN locale
   });
 
@@ -62,7 +83,6 @@ describe("customerEmail", () => {
           customNote: "<b>brun hund</b>",
         },
       ],
-      setUrl: null,
       theme: { light: "#eee", dark: "#222", accent: "#933" },
     });
     expect(out.html).toContain("&lt;b&gt;brun hund&lt;/b&gt;");
@@ -84,7 +104,6 @@ describe("customerEmail", () => {
           customText: "Hei & Åse",
         },
       ],
-      setUrl: null,
       theme: { light: "#eee", dark: "#222", accent: "#933" },
     });
     expect(out.html).toContain("«Hei &amp; Åse»");
@@ -138,7 +157,6 @@ describe("discounted emails (R4-SCONTI)", () => {
     name: "Kari",
     code: "MK-1042",
     locale: "no" as const,
-    setUrl: null,
     theme,
   };
   const baseAdminParams = {
@@ -217,7 +235,7 @@ describe("payment block (R4-TAKK-MAIL)", () => {
   beforeAll(() => {
     process.env.NEXT_PUBLIC_SUPABASE_URL = "https://example.supabase.co";
   });
-  const base = { name: "Kari", code: "MK-1042", items, setUrl: null, theme };
+  const base = { name: "Kari", code: "MK-1042", items, theme };
   const full: VippsSettings = {
     qrImage: "settings/vipps-qr.png",
     number: "123456",
@@ -233,6 +251,62 @@ describe("payment block (R4-TAKK-MAIL)", () => {
       expect(body).toContain("meldingsfeltet");
       expect(body).toContain("MK-1042");
     }
+  });
+
+  it("names the amount in the lead sentence, in html AND text (R4-MAIL-COPY Ⓑ)", () => {
+    const m = customerEmail({ ...base, locale: "no", vipps: full });
+    // the same total the recap row shows: 2 × 500 kr, nb-NO non-breaking spaces
+    const lead = "Vennligst overfør 1\u00a0000\u00a0kr til oss via Vipps.";
+    expect(m.html).toContain(lead);
+    expect(m.text).toContain(lead);
+    const en = customerEmail({ ...base, locale: "en", vipps: full });
+    expect(en.html).toContain("Please transfer");
+    expect(en.html).toContain("to us via Vipps.");
+  });
+
+  it("the warning explains WHY, in bold, and no longer threatens a lost payment (Ⓑ)", () => {
+    const m = customerEmail({ ...base, locale: "no", vipps: full });
+    expect(m.html).toContain(
+      "Skriv bestillingsnummeret i meldingsfeltet i Vipps – <b>det gjør det mye enklere for oss å koble betalingen din til riktig bestilling.</b>"
+    );
+    for (const body of [m.html, m.text]) {
+      expect(body).not.toContain("ellers finner vi ikke");
+      expect(body).toContain("det gjør det mye enklere for oss");
+    }
+    const en = customerEmail({ ...base, locale: "en", vipps: full });
+    expect(en.html).not.toContain("otherwise we cannot match your payment");
+    expect(en.html).toContain("<b>it makes it much easier for us");
+  });
+
+  /** The whole point of Ⓑ: before this card `vipps.link` was rendered NOWHERE,
+   *  so a customer reading the mail on the phone that shows the QR was stuck. */
+  it("prints the Vipps address as a real <a>, plus the scan-or-tap hint", () => {
+    const m = customerEmail({ ...base, locale: "no", vipps: full });
+    expect(m.html).toContain('<a href="https://qr.vipps.no/box/abc"');
+    expect(m.html).toContain(">https://qr.vipps.no/box/abc</a>");
+    expect(m.html).toContain("Du kan enten skanne QR-koden med en annen enhet");
+    // plain text has no image at all — the address has to be there too
+    expect(m.text).toContain("https://qr.vipps.no/box/abc");
+    expect(m.text).toContain("Du kan enten skanne QR-koden med en annen enhet");
+  });
+
+  it("no link configured → no dangling <a> and no hint about tapping one", () => {
+    const m = customerEmail({
+      ...base, locale: "no",
+      vipps: { qrImage: "settings/vipps-qr.png", number: "123456", link: null },
+    });
+    expect(m.html).not.toContain("qr.vipps.no");
+    expect(m.html).not.toContain("trykke direkte på linken");
+    expect(m.text).not.toContain("trykke direkte på linken");
+  });
+
+  it("a link but no QR: the address stays, the «scan it» half of the hint goes", () => {
+    const m = customerEmail({
+      ...base, locale: "no",
+      vipps: { qrImage: null, number: "123456", link: "https://qr.vipps.no/box/abc" },
+    });
+    expect(m.html).toContain('<a href="https://qr.vipps.no/box/abc"');
+    expect(m.html).not.toContain("skanne QR-koden");
   });
 
   it("does the same in English", () => {
@@ -340,24 +414,43 @@ describe("journey block in the customer email (R4-MAIL-JOURNEY)", () => {
       code: "MK-2302",
       locale: "no",
       items,
-      setUrl: null,
       theme,
       journeyAt: at,
     });
     for (const s of [
       "Bestillingen er mottatt",
       "Betalingen er registrert",
-      "Keramikken lages for hånd",
-      "Sendt med forsikret frakt",
+      "Keramikken håndmales i Italia",
+      "Sendt med forsikret frakt og sporing",
     ]) {
       expect(mail.html).toContain(s);
       expect(mail.text).toContain(s);
     }
+    expect(mail.html).toContain("Slik er prosessen videre");
+  });
+
+  it("carries four bare titles — R4-MAIL-COPY Ⓒ dropped the descriptions", () => {
+    const mail = customerEmail({
+      name: "Kari", code: "MK-2302", locale: "no", items, theme,
+      journeyAt: at,
+    });
+    for (const gone of [
+      "Kvitteringen ligger i innboksen din.",
+      "Vi har mottatt betalingen din.",
+      "Håndmalt hos keramikerne våre i Italia.",
+      "Du får sporingsnummer på e-post.",
+    ]) {
+      expect(mail.html).not.toContain(gone);
+      expect(mail.text).not.toContain(gone);
+    }
+    // the "Status {date}" row and the "· nå" marker are NOT descriptions
+    expect(mail.text).toContain("[x] Bestillingen er mottatt · nå");
+    expect(mail.text).toContain("Status 1. september 2026");
   });
 
   it("carries the frozen 'as of' date, so a mail reopened later still reads true", () => {
     const mail = customerEmail({
-      name: "Kari", code: "MK-2302", locale: "no", items, setUrl: null, theme,
+      name: "Kari", code: "MK-2302", locale: "no", items, theme,
       journeyAt: at,
     });
     expect(mail.html).toContain("Status 1. september 2026");
@@ -366,7 +459,7 @@ describe("journey block in the customer email (R4-MAIL-JOURNEY)", () => {
 
   it("marks only 'received' as done on a fresh order, and marks it as now", () => {
     const mail = customerEmail({
-      name: "Kari", code: "MK-2302", locale: "en", items, setUrl: null, theme,
+      name: "Kari", code: "MK-2302", locale: "en", items, theme,
       journeyAt: at,
     });
     expect(mail.text).toContain("[x] Order received");
@@ -377,7 +470,7 @@ describe("journey block in the customer email (R4-MAIL-JOURNEY)", () => {
 
   it("draws dots and ticks WITHOUT images — a client with images off still reads it", () => {
     const mail = customerEmail({
-      name: "Kari", code: "MK-2302", locale: "no", items, setUrl: null, theme,
+      name: "Kari", code: "MK-2302", locale: "no", items, theme,
       journeyAt: at,
     });
     expect(mail.html).not.toContain("<img");

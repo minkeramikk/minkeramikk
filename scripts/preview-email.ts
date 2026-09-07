@@ -2,8 +2,11 @@
  * Anteprima locale delle mail cliente (R4-MAIL-JOURNEY) — TOOLING, non un test.
  *
  * Renderizza le QUATTRO mail del percorso (conferma · pagamento registrato · in
- * produzione · spedita) in NO ed EN e le scrive in docs/evidence/r4-mail-journey/,
+ * produzione · spedita) in NO ed EN e le scrive in docs/evidence/r4-mail-copy/,
  * più il .txt della versione plain-text. I renderer sono puri: nessuna mail parte.
+ *
+ * R4-MAIL-COPY: il nome di prova è scritto in minuscolo apposta — è il difetto
+ * che la card Ⓐ risolve, e l'anteprima deve mostrarlo risolto.
  *
  * I token del tema sono quelli VERI del negozio, letti da `settings`: la card lo
  * chiede esplicitamente, un'evidenza in viola di default non prova niente.
@@ -17,7 +20,7 @@ import { statusEmail } from "../src/lib/orders/status-email";
 import { DEFAULT_THEME, type ThemeTokens } from "../src/lib/theme";
 import { NO_VIPPS, type VippsSettings } from "../src/lib/orders/vipps";
 
-const OUT = "docs/evidence/r4-mail-journey";
+const OUT = "docs/evidence/r4-mail-copy";
 mkdirSync(OUT, { recursive: true });
 
 /** The real tokens, or a LOUD failure — silent DEFAULT_THEME evidence is worse
@@ -57,6 +60,7 @@ const VIPPS: VippsSettings = {
   link: "https://qr.vipps.no/vp/HTCB4pJcp",
 };
 
+const NAME = "daniele d'angeli";
 const CODE = "MK-2302";
 const AT = new Date("2026-09-01T10:00:00Z");
 const PAID_AT = "2026-09-01T09:00:00Z";
@@ -73,51 +77,42 @@ async function main() {
   for (const locale of ["no", "en"] as const) {
     // ① conferma d'ordine (con e senza i dati Vipps: il blocco è all-or-nothing)
     write(`1-confirmation-${locale}`, customerEmail({
-      name: "Kari Nordmann", code: CODE, locale, items,
-      setUrl: "https://minkeramikk.no/no/configurator?step=3&set=demo",
+      name: NAME, code: CODE, locale, items,
       theme, baseUrl: "https://minkeramikk.no", vipps: VIPPS, journeyAt: AT,
     }));
     // R4-FIX Ⓓ: il caso REALE di oggi — QR archiviato, `vipps_number` ancora
     // NULL. È quello in cui la riga a due colonne lasciava il destinatario
     // orfano sul telefono.
     write(`1-confirmation-qr-only-${locale}`, customerEmail({
-      name: "Kari Nordmann", code: CODE, locale, items, setUrl: null,
+      name: NAME, code: CODE, locale, items,
       theme, baseUrl: "https://minkeramikk.no",
       vipps: { qrImage: "settings/vipps-qr.png", number: null, link: null },
       journeyAt: AT,
     }));
     write(`1-confirmation-no-vipps-${locale}`, customerEmail({
-      name: "Kari Nordmann", code: CODE, locale, items, setUrl: null,
+      name: NAME, code: CODE, locale, items,
       theme, baseUrl: "https://minkeramikk.no", vipps: NO_VIPPS, journeyAt: AT,
     }));
 
     // ② pagamento registrato (la mail nuova) — stato ancora `new`, paid_at scritto
     write(`2-paid-${locale}`, statusEmail({
-      kind: "paid", status: "new", code: CODE, customerName: "Kari", locale,
+      kind: "paid", status: "new", code: CODE, customerName: NAME, locale,
       paidAt: PAID_AT, theme, baseUrl: "https://minkeramikk.no", journeyAt: AT,
     })!);
 
     // ③ in produzione
     write(`3-production-${locale}`, statusEmail({
-      status: "in_production", code: CODE, customerName: "Kari", locale,
+      status: "in_production", code: CODE, customerName: NAME, locale,
       paidAt: PAID_AT, theme, baseUrl: "https://minkeramikk.no", journeyAt: AT,
     })!);
 
     // ④ spedita, col tracking
     write(`4-shipped-${locale}`, statusEmail({
-      status: "shipped", code: CODE, customerName: "Kari", locale,
-      paidAt: PAID_AT, trackingCode: "NO123456789",
+      status: "shipped", code: CODE, customerName: NAME, locale,
+      paidAt: PAID_AT, trackingCode: "https://sporing.posten.no/NO123456789",
       theme, baseUrl: "https://minkeramikk.no", journeyAt: AT,
     })!);
   }
-
-  // R4-MAIL-JOURNEY, Decision 4: the rail is a fixed stub, so its worst case is a
-  // step whose description wraps. This render exists to SHOW that cost — it is
-  // evidence, not a state the shop can be in.
-  write("5-rail-worstcase-no", statusEmail({
-    status: "in_production", code: CODE, customerName: "Kari", locale: "no",
-    paidAt: PAID_AT, theme, baseUrl: "https://minkeramikk.no", journeyAt: AT,
-  })!);
 }
 
 main().catch((e) => {

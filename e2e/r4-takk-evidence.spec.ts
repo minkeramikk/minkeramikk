@@ -146,6 +146,12 @@ test(`R4-TAKK: thank-you page — settings "${STATE}", NO/EN, 390/768/1280`, asy
       await expect(page.getByTestId("order-vipps-number")).toHaveCount(
         STATE === "full" ? 1 : 0
       );
+      // R4-MAIL-COPY Ⓔ: the Vipps address is on the page and clickable — the
+      // only route for a reader who cannot scan a QR his own screen is showing.
+      await expect(page.getByTestId("order-vipps-link")).toHaveAttribute(
+        "href",
+        QR_LINK
+      );
     }
 
     await shoot(page, url);

@@ -168,28 +168,6 @@ const toMailItem = (i: OrderItemInput, idx: number, d: CartDiscount): MailItem =
 });
 
 /**
- * "Reopen your set" link for the customer email → the order confirmation page
- * (/order?code=…&set=…), which recaps the set with mini-plates and a share
- * button. Null when no line is shareable. The set-code alphabet is URL-safe by
- * design, so the param stays raw/readable.
- */
-function reopenSetUrl(
-  items: OrderItemInput[],
-  locale: "no" | "en",
-  code: string
-): string | null {
-  const param = encodeSetParam(
-    items.map((i) => ({
-      configCode: i.configCode,
-      productSlug: i.productSlug,
-      quantity: i.quantity,
-    }))
-  );
-  if (!param) return null;
-  return `${siteUrl()}/${locale}/order?code=${encodeURIComponent(code)}&set=${param}`;
-}
-
-/**
  * Admin-only "Replica set" link (R2-6 D) → reopens the whole order as a basket
  * at configurator step 3, ready to re-price/re-order. Codes/slugs/qty only (no
  * prices, like CA-3). Null when no line is replicable.
@@ -238,7 +216,6 @@ export async function sendOrderEmails(
     code: params.code,
     locale: params.locale,
     items,
-    setUrl: reopenSetUrl(params.items, params.locale, params.code),
     theme,
     baseUrl: siteUrl(),
     vipps,
