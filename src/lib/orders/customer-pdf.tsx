@@ -1,6 +1,6 @@
 import "server-only";
 
-import { Document, Page, View, Text, Image, StyleSheet } from "@react-pdf/renderer";
+import { Document, Page, View, Text, Image, Link, StyleSheet } from "@react-pdf/renderer";
 import type { CustomerPdfDoc } from "./customer-pdf-content";
 
 /**
@@ -301,13 +301,22 @@ export function CustomerPdfDocument({
                     doc.payment.showQr && <Text style={s.choice}>{t.payQrLabel}</Text>
                   )}
                   <Text style={s.payMelding}>{doc.payment.melding}</Text>
+                  {doc.payment.link && doc.payment.showQr && (
+                    <Text style={s.payMelding}>{t.payQrHint}</Text>
+                  )}
                 </View>
               </View>
               {/* SOTTO il QR, per esteso. Il PDF arriva per mail: chi lo apre
                   sul telefono non può inquadrare col telefono il QR che quello
                   stesso telefono sta mostrando, e il link è l'unico percorso
                   che gli resta — il caso più probabile, non un ripiego. */}
-              {doc.payment.link && <Text style={s.payLink}>{doc.payment.link}</Text>}
+              {doc.payment.link && (
+                // R4-MAIL-COPY Ⓔ: `Link`, non `Text` — l'indirizzo era stampato
+                // ma morto, e il PDF si legge quasi sempre sullo schermo.
+                <Link src={doc.payment.link} style={s.payLink}>
+                  {doc.payment.link}
+                </Link>
+              )}
             </View>
           )}
 

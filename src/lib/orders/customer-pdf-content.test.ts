@@ -141,6 +141,29 @@ describe("buildCustomerPdfDoc", () => {
     expect(d.payment!.melding).toContain("MK-1042");
   });
 
+  it("il melding dice PERCHÉ, non più che il pagamento si perde (R4-MAIL-COPY Ⓔ)", () => {
+    const d = doc();
+    expect(d.payment!.melding).toBe(
+      "Skriv bestillingsnummeret MK-1042 i meldingsfeltet i Vipps – det gjør det mye enklere for oss å koble betalingen din til riktig bestilling."
+    );
+    expect(d.payment!.melding).not.toContain("ellers finner vi ikke");
+    const en = doc({ locale: "en" });
+    expect(en.payment!.melding).toContain("it makes it much easier for us");
+    expect(en.payment!.melding).not.toContain("otherwise we cannot match");
+  });
+
+  it("porta la riga «scansiona o tocca il link» in entrambe le lingue", () => {
+    expect(doc().labels.payQrHint).toBe(
+      "Du kan enten skanne QR-koden med en annen enhet, eller så kan du trykke direkte på linken for å åpne Vipps."
+    );
+    expect(doc({ locale: "en" }).labels.payQrHint).toContain("tap the link to open Vipps");
+  });
+
+  it("il nome del cliente si stampa con l'iniziale maiuscola (Ⓐ)", () => {
+    const d = doc({ customerName: "daniele d'angeli", address: { address: "Storgata 1" } });
+    expect(d.shipTo!.name).toBe("Daniele D'Angeli");
+  });
+
   it("senza né QR né numero il blocco pagamento sparisce e il documento resta completo", () => {
     const d = doc({ vipps: NO_VIPPS });
     expect(d.payment).toBeNull();

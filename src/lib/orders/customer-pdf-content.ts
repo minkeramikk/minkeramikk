@@ -57,6 +57,7 @@ export interface CustomerPdfLabels {
   payTitle: string;
   payNumberLabel: string;
   payQrLabel: string;
+  payQrHint: string;
   contact: string;
 }
 
@@ -90,6 +91,8 @@ const COPY: Record<"no" | "en", CustomerPdfLabels> = {
     payTitle: "Slik betaler du",
     payNumberLabel: "Vippsnummer",
     payQrLabel: "Skann med Vipps",
+    payQrHint:
+      "Du kan enten skanne QR-koden med en annen enhet, eller så kan du trykke direkte på linken for å åpne Vipps.",
     contact: "Min Keramikk · minkeramikk.no",
   },
   en: {
@@ -115,6 +118,8 @@ const COPY: Record<"no" | "en", CustomerPdfLabels> = {
     payTitle: "How to pay",
     payNumberLabel: "Vipps number",
     payQrLabel: "Scan with Vipps",
+    payQrHint:
+      "You can either scan the QR code with another device, or tap the link to open Vipps.",
     contact: "Min Keramikk · minkeramikk.no",
   },
 };
@@ -142,11 +147,15 @@ export function splitVatInclusive(total: Money): { vat: Money; net: Money } {
 }
 
 /** L'istruzione che è il motivo per cui il PDF esiste: senza il numero d'ordine
- *  nel campo melding la bonifica del pagamento non si aggancia a niente. */
+ *  nel campo melding la bonifica del pagamento non si aggancia a niente.
+ *
+ *  R4-MAIL-COPY Ⓔ: dice PERCHÉ serve, non più «ellers finner vi ikke betalingen
+ *  din» — quella frase diceva al cliente che i suoi soldi sarebbero spariti, e
+ *  non è mai stato vero. Norvegese del cliente (doc 2/9, p.3). */
 const melding = (locale: "no" | "en", code: string) =>
   locale === "no"
-    ? `Skriv bestillingsnummeret ${code} i meldingsfeltet i Vipps — ellers finner vi ikke betalingen din.`
-    : `Write the order number ${code} in the Vipps message field — otherwise we cannot match your payment.`;
+    ? `Skriv bestillingsnummeret ${code} i meldingsfeltet i Vipps – det gjør det mye enklere for oss å koble betalingen din til riktig bestilling.`
+    : `Write the order number ${code} in the Vipps message field – it makes it much easier for us to match your payment to the right order.`;
 
 /**
  * Quante anteprime composite il documento può portare al massimo.

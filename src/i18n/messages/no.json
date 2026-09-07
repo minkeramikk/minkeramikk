@@ -301,11 +301,11 @@
       "lead": "Du betaler beløpet over med Vipps — her er detaljene du trenger. Designet bekrefter vi med deg etterpå.",
       "numberLabel": "Vippsnummer",
       "recipient": "Min Keramikk AS",
-      "scanHint": "Skann koden med Vipps-appen, eller søk opp nummeret manuelt.",
-      "lookupHint": "Søk opp nummeret i Vipps-appen — QR-koden kan ikke skannes fra denne skjermen.",
+      "qrHint": "Du kan enten skanne QR-koden med en annen enhet, eller så kan du trykke direkte på linken for å åpne Vipps.",
       "qrAlt": "Vipps QR-kode",
       "warningLabel": "Viktig:",
-      "warning": "skriv bestillingsnummeret i meldingsfeltet i Vipps, ellers finner vi ikke betalingen din."
+      "warning": "Skriv bestillingsnummeret i meldingsfeltet i Vipps –",
+      "warningEmphasis": "det gjør det mye enklere for oss å koble betalingen din til riktig bestilling."
     },
     "steps": {
       "title": "Slik er prosessen videre",

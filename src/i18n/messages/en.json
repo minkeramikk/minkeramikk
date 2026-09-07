@@ -302,11 +302,11 @@
       "lead": "You pay the amount above with Vipps — here are the details you need. We will confirm the design with you afterwards.",
       "numberLabel": "Vipps number",
       "recipient": "Min Keramikk AS",
-      "scanHint": "Scan the code with the Vipps app, or look the number up manually.",
-      "lookupHint": "Look the number up in the Vipps app — the QR code cannot be scanned from this screen.",
+      "qrHint": "You can either scan the QR code with another device, or tap the link to open Vipps.",
       "qrAlt": "Vipps QR code",
       "warningLabel": "Important:",
-      "warning": "write the order number in the message field in Vipps, otherwise we cannot match your payment."
+      "warning": "Write the order number in the message field in Vipps –",
+      "warningEmphasis": "it makes it much easier for us to match your payment to the right order."
     },
     "steps": {
       "title": "What happens next",

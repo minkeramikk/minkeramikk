@@ -222,18 +222,29 @@ export default async function OrderConfirmationPage({
               <span className="text-xs text-muted-foreground">
                 {t("payment.recipient")}
               </span>
-              {vipps.number && (
-                <span className="mt-1 text-xs text-muted-foreground sm:hidden">
-                  {t("payment.lookupHint")}
-                </span>
-              )}
-              {vipps.qrImage && (
-                <span className="mt-1 hidden text-xs text-muted-foreground sm:block">
-                  {t("payment.scanHint")}
-                </span>
-              )}
             </div>
           </div>
+
+          {/* R4-MAIL-COPY Ⓔ: the Vipps address, written out and clickable.
+              It replaces `scanHint`/`lookupHint`, which told a phone reader the
+              QR «cannot be scanned from this screen» and to look the number up
+              by hand — with a link on the page that advice is now wrong. */}
+          {vipps.link && (
+            <div className="mt-3">
+              <a
+                href={vipps.link}
+                className="break-all text-xs text-primary underline underline-offset-2"
+                data-testid="order-vipps-link"
+              >
+                {vipps.link}
+              </a>
+              {vipps.qrImage && (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {t("payment.qrHint")}
+                </p>
+              )}
+            </div>
+          )}
 
           {/* The single point where a manual payment actually breaks: a payment
               with no order number in the message is money the shop cannot
@@ -252,7 +263,8 @@ export default async function OrderConfirmationPage({
               style={{ color: "color-mix(in oklab, var(--warn), black 30%)" }}
             >
               <b className="font-semibold">{t("payment.warningLabel")}</b>{" "}
-              {t("payment.warning")}
+              {t("payment.warning")}{" "}
+              <b className="font-semibold">{t("payment.warningEmphasis")}</b>
             </p>
             <span
               className="mt-2 inline-block rounded-sm border border-dashed bg-white px-2.5 py-0.5 font-semibold tabular-nums text-foreground"
