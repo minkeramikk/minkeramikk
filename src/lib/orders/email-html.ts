@@ -350,27 +350,37 @@ const WARN_DASH = "#deba99";
 
 const COPY = {
   no: {
-    customerSubject: (c: string) => `Din bestilling ${c} — Min Keramikk`,
-    greeting: (n: string) => `Hei ${n},`,
+    customerSubject: (c: string) => `Ordrebekreftelse #${c} – Minkeramikk.no`,
+    // R4-MAIL-COPY Ⓑ: the greeting IS the thank-you now — «Hei X,» alone is
+    // gone, not kept above it. Client's own Norwegian (doc 2/9, p.1).
+    greeting: (n: string) => `Hei ${n}, og takk for at du handler hos oss!`,
+    introLead:
+      "Vi setter stor pris på bestillingen din, og gleder oss til å sette i gang med produksjonen.",
     thanks: "Takk for bestillingen din!",
     codeLabel: "Bestillingskode",
     // R4-TAKK-MAIL · word-for-word the copy already approved on the thank-you
     // page (`order.payment.*` in no.json): same promise, same wording.
     payTitle: "Slik betaler du", // TODO:nb-review
-    payLead:
-      "Du betaler beløpet over med Vipps — her er detaljene du trenger. Designet bekrefter vi med deg etterpå.", // TODO:nb-review
+    // The amount is IN the sentence: the client asked for an instruction, not a
+    // pointer at a total further up the mail. Client's Norwegian (doc 2/9, p.1).
+    payLead: (amount: string) => `Vennligst overfør ${amount} til oss via Vipps.`,
     payNumberLabel: "Vippsnummer", // TODO:nb-review
     payRecipient: "Min Keramikk AS",
     payQrAlt: "Vipps QR-kode", // TODO:nb-review
     payWarningLabel: "Viktig:", // TODO:nb-review
-    payWarning:
-      "skriv bestillingsnummeret i meldingsfeltet i Vipps, ellers finner vi ikke betalingen din.", // TODO:nb-review
+    // Two halves because the second one is BOLD inside the sentence (doc 2/9,
+    // p.1) — «ellers finner vi ikke betalingen din» is out: it told the customer
+    // his money would be lost, which was never true.
+    payWarning: "Skriv bestillingsnummeret i meldingsfeltet i Vipps –",
+    payWarningEmphasis:
+      "det gjør det mye enklere for oss å koble betalingen din til riktig bestilling.",
+    payQrHint:
+      "Du kan enten skanne QR-koden med en annen enhet, eller så kan du trykke direkte på linken for å åpne Vipps.",
     // Not on the page (there the chip sits under the warning and needs no
     // label); the plain-text part has no layout, so the line needs naming.
     payMeldingLabel: "Melding i Vipps", // TODO:nb-review
     custom:
       "Dette er en spesialbestilling — vi tar kontakt for å bekrefte designet før noe skal betales.",
-    reopen: "Åpne settet ditt på nytt",
     totalLabel: "Totalt",
     // R3-B4 · TODO:alessio-review — provisional wording, same source as cart.insurance.*
     shippingLabel: "Frakt med forsikring",
@@ -389,23 +399,26 @@ const COPY = {
     legalAnd: "og",
   },
   en: {
-    customerSubject: (c: string) => `Your order ${c} — Min Keramikk`,
-    greeting: (n: string) => `Hi ${n},`,
+    customerSubject: (c: string) => `Order confirmation #${c} – Minkeramikk.no`,
+    greeting: (n: string) => `Hi ${n}, and thank you for shopping with us!`,
+    introLead:
+      "We really appreciate your order, and we are looking forward to getting production started.",
     thanks: "Thank you for your order!",
     codeLabel: "Order code",
     payTitle: "How to pay",
-    payLead:
-      "You pay the amount above with Vipps — here are the details you need. We will confirm the design with you afterwards.",
+    payLead: (amount: string) => `Please transfer ${amount} to us via Vipps.`,
     payNumberLabel: "Vipps number",
     payRecipient: "Min Keramikk AS",
     payQrAlt: "Vipps QR code",
     payWarningLabel: "Important:",
-    payWarning:
-      "write the order number in the message field in Vipps, otherwise we cannot match your payment.",
+    payWarning: "Write the order number in the message field in Vipps –",
+    payWarningEmphasis:
+      "it makes it much easier for us to match your payment to the right order.",
+    payQrHint:
+      "You can either scan the QR code with another device, or tap the link to open Vipps.",
     payMeldingLabel: "Message in Vipps",
     custom:
       "This is a custom order — we'll get in touch to confirm the design before anything is paid.",
-    reopen: "Reopen your set",
     totalLabel: "Total",
     shippingLabel: "Insured shipping",
     shippingIncluded: "Included",
@@ -440,11 +453,39 @@ type Copy = (typeof COPY)[keyof typeof COPY];
  * Degrades exactly like the page: `hasVippsDetails` false → nothing is
  * rendered and the mail still reads as a complete receipt.
  */
+/**
+ * R4-MAIL-COPY Ⓑ: the Vipps address, written out and clickable.
+ *
+ * ⚠️ Until this card the mail rendered `vipps.link` NOWHERE — the QR was an
+ * <img>, and mail clients do not let you tap an image reliably. Someone reading
+ * the mail ON the phone that shows the QR could not scan it and had no link to
+ * fall back to. The URL is printed in full, not hidden behind link text: a mail
+ * gets forwarded and printed, and a bare `qr.vipps.no/vp/...` still works then.
+ *
+ * The hint sentence needs a QR to make sense ("scan it, or tap the link"), so
+ * it only shows when there is one; the link itself shows whenever we have it.
+ */
+function vippsLinkHtml(vipps: VippsSettings, theme: ThemeTokens, c: Copy): string {
+  if (!vipps.link) return "";
+  return `<div style="margin-top:12px;font-family:Helvetica,Arial,sans-serif;text-align:center;">
+      <a href="${esc(vipps.link)}" style="font-size:12px;word-break:break-all;color:${esc(
+        theme.accent
+      )};">${esc(vipps.link)}</a>${
+        vipps.qrImage
+          ? `<p style="margin:6px 0 0;font-size:12px;line-height:1.5;opacity:.75;">${esc(
+              c.payQrHint
+            )}</p>`
+          : ""
+      }</div>`;
+}
+
 function paymentHtml(
   vipps: VippsSettings,
   code: string,
   theme: ThemeTokens,
-  c: Copy
+  c: Copy,
+  /** The order total, already formatted — the lead sentence names the amount. */
+  total: string
 ): string {
   const recipient = `<div style="font-size:12px;opacity:.7;padding-top:2px;">${esc(
     c.payRecipient
@@ -483,13 +524,14 @@ function paymentHtml(
   )};border-radius:10px;">
     <div style="font-size:15px;font-weight:bold;">${esc(c.payTitle)}</div>
     <p style="margin:4px 0 0;font-size:12px;line-height:1.5;opacity:.75;">${esc(
-      c.payLead
+      c.payLead(total)
     )}</p>
     ${payDetails}
+    ${vippsLinkHtml(vipps, theme, c)}
     <div style="margin-top:14px;padding:12px 14px;background:${WARN_BG};border:1px solid ${WARN_BORDER};border-radius:8px;">
       <p style="margin:0;font-size:12px;line-height:1.5;color:${WARN_TEXT};"><b>${esc(
         c.payWarningLabel
-      )}</b> ${esc(c.payWarning)}</p>
+      )}</b> ${esc(c.payWarning)} <b>${esc(c.payWarningEmphasis)}</b></p>
       <div style="margin-top:8px;"><span style="display:inline-block;padding:3px 10px;background:#ffffff;border:1px dashed ${WARN_DASH};border-radius:4px;font-family:monospace;font-size:14px;font-weight:bold;color:${esc(
         theme.dark
       )};">${esc(code)}</span></div>
@@ -498,22 +540,29 @@ function paymentHtml(
 }
 
 /** Plain-text twin of `paymentHtml` — the text/plain part must be payable too. */
-function paymentText(vipps: VippsSettings, code: string, c: Copy): string {
+function paymentText(
+  vipps: VippsSettings,
+  code: string,
+  c: Copy,
+  total: string
+): string {
   return (
-    `\n${c.payTitle}\n${c.payLead}\n` +
+    `\n${c.payTitle}\n${c.payLead(total)}\n` +
     (vipps.number ? `${c.payNumberLabel}: ${vipps.number}\n` : "") +
     `${c.payRecipient}\n` +
-    `${c.payWarningLabel} ${c.payWarning}\n${c.payMeldingLabel}: ${code}\n`
+    // Same reason as `vippsLinkHtml`: plain text has no image at all, so the
+    // address is the ONLY way to pay from this part of the message.
+    (vipps.link ? `${vipps.link}\n${vipps.qrImage ? `${c.payQrHint}\n` : ""}` : "") +
+    `${c.payWarningLabel} ${c.payWarning} ${c.payWarningEmphasis}\n${c.payMeldingLabel}: ${code}\n`
   );
 }
 
-/** Customer confirmation, in their locale, with the CA-3 reopen-set link. */
+/** Customer confirmation, in their locale. */
 export function customerEmail(params: {
   name: string;
   code: string;
   locale: "no" | "en";
   items: MailItem[];
-  setUrl: string | null;
   theme: ThemeTokens;
   /** Absolute site origin (siteUrl()): enables the logo + policy links. */
   baseUrl?: string;
@@ -554,14 +603,13 @@ export function customerEmail(params: {
     ? c.shippingIncluded
     : c.shippingToBeConfirmed;
   const text =
-    `${c.greeting(name)}\n\n${c.thanks} ${c.codeLabel}: ${params.code}.\n` +
-    (vipps ? paymentText(vipps, params.code, c) : "") +
+    `${c.greeting(name)}\n${c.introLead}\n\n${c.thanks} ${c.codeLabel}: ${params.code}.\n` +
+    (vipps ? paymentText(vipps, params.code, c, total) : "") +
     journeyText(params.locale, 0, at) +
     `\n${lines}\n\n` +
     (discounted ? `${c.discountLabel}: -${formatMoney(discount, params.locale)}\n` : "") +
     `${c.shippingLabel}: ${shippingValue}\n${c.totalLabel}: ${total}\n\n${c.custom}\n` +
     (discounted ? `${c.indicative}\n` : "") +
-    (params.setUrl ? `\n${c.reopen}: ${params.setUrl}\n` : "") +
     `\nMin Keramikk`;
 
   const codeBox = `<div style="margin:18px 0;padding:14px;text-align:center;background:${esc(
@@ -602,25 +650,15 @@ export function customerEmail(params: {
       )}</p>`
     : "";
 
-  const reopenBtn = params.setUrl
-    ? `<div style="margin:22px 0 4px;"><a href="${esc(
-        params.setUrl
-      )}" style="display:inline-block;background:${esc(
-        params.theme.accent
-      )};color:#ffffff;text-decoration:none;font-size:15px;font-weight:bold;padding:12px 22px;border-radius:999px;">${esc(
-        c.reopen
-      )} →</a></div>`
-    : "";
-
   const bodyHtml = `<p style="margin:0 0 4px;">${esc(c.greeting(name))}</p>
+    <p style="margin:0;">${esc(c.introLead)}</p>
     ${codeBox}
-    ${vipps ? paymentHtml(vipps, params.code, params.theme, c) : ""}
+    ${vipps ? paymentHtml(vipps, params.code, params.theme, c, total) : ""}
     ${journeyHtml(params.theme, params.locale, 0, at)}
     ${itemsTable(params.items, params.theme, params.locale)}
     ${totalRow}
     ${indicativeNote}
-    <p style="margin:18px 0 0;">${esc(c.custom)}</p>
-    ${reopenBtn}`;
+    <p style="margin:18px 0 0;">${esc(c.custom)}</p>`;
 
   return {
     subject: c.customerSubject(params.code),
