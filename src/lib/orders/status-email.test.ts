@@ -45,6 +45,13 @@ describe("statusEmailText — the admin preview", () => {
     expect(without.text).not.toMatch(/undefined|null/);
   });
 
+  it("capitalises the name the customer typed (R4-MAIL-COPY Ⓐ)", () => {
+    const t = statusEmailText({
+      ...base, customerName: "daniele d'angeli", status: "in_production",
+    })!.text;
+    expect(t).toContain("Hei Daniele D'Angeli,");
+  });
+
   it("prints no amount and no currency symbol", () => {
     const t = statusEmailText({ ...base, status: "in_production" })!.text;
     expect(t).not.toMatch(/\bkr\b|€|\$/);

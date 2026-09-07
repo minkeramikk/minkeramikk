@@ -1,6 +1,7 @@
 import { formatMoney, money, multiply, subtract, type Money } from "@/lib/money/money";
 import { shippingStatus } from "@/lib/cart/shipping";
 import { hasVippsDetails, type VippsSettings } from "./vipps";
+import { displayName } from "./customer-name";
 import type { SellerIdentity } from "./seller";
 import type { OrderItemInput } from "./schema";
 import type { CartDiscount } from "@/lib/discounts/discount";
@@ -422,7 +423,7 @@ export function buildCustomerPdfDoc(input: CustomerPdfInput): CustomerPdfDoc {
     shippingIncluded: shippingStatus(discount.total).included,
     shipTo: hasAddress
       ? {
-          name: input.customerName,
+          name: displayName(input.customerName),
           address: addr.address || null,
           zipcode: addr.zipcode || null,
           city: addr.city || null,

@@ -12,6 +12,7 @@
  */
 import { esc, shell, journeyHtml, journeyText, type RenderedEmail } from "./email-html";
 import { currentStep } from "./order-journey";
+import { displayName } from "./customer-name";
 import type { ThemeTokens } from "@/lib/theme";
 import type { OrderStatus } from "./order-status";
 
@@ -155,7 +156,7 @@ export function statusEmailText(
   const s = c[kind];
   const step = currentStep(p.status, p.paidAt);
   const lines = [
-    c.greeting(p.customerName),
+    c.greeting(displayName(p.customerName)),
     "",
     ...s.body,
     "",
@@ -191,7 +192,7 @@ export function statusEmail(
     )
     .join("");
   const bodyHtml =
-    `<p style="margin:0 0 12px;">${esc(c.greeting(p.customerName))}</p>` +
+    `<p style="margin:0 0 12px;">${esc(c.greeting(displayName(p.customerName)))}</p>` +
     s.body.map((b) => `<p style="margin:0 0 10px;">${esc(b)}</p>`).join("") +
     extraHtml +
     (step === null ? "" : journeyHtml(p.theme, p.locale, step, p.journeyAt ?? new Date()));

@@ -9,14 +9,15 @@ const items: MailItem[] = [
 ];
 
 describe("customerEmail", () => {
-  const mail = customerEmail({
+  const mailBase = {
     name: "Kari",
     code: "MK-1042",
-    locale: "no",
+    locale: "no" as const,
     items,
     setUrl: "https://minkeramikk.no/no/configurator?set=MK-A-K2.vietri-flat.2",
     theme,
-  });
+  };
+  const mail = customerEmail(mailBase);
 
   it("inlines the theme tokens as hex (no CSS variables)", () => {
     expect(mail.html).toContain("#7d4f9c"); // accent
@@ -34,6 +35,12 @@ describe("customerEmail", () => {
   it("includes the CA-3 reopen-set link", () => {
     expect(mail.html).toContain("configurator?set=MK-A-K2.vietri-flat.2");
     expect(mail.text).toContain("configurator?set=MK-A-K2.vietri-flat.2");
+  });
+
+  it("capitalises the name the customer typed (R4-MAIL-COPY Ⓐ)", () => {
+    const m = customerEmail({ ...mailBase, name: "daniele d'angeli" });
+    expect(m.html).toContain("Daniele D'Angeli");
+    expect(m.text).toContain("Daniele D'Angeli");
   });
 
   it("keeps a plain-text fallback", () => {

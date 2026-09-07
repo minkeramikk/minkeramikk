@@ -12,6 +12,7 @@ import { formatMoney, money, subtract, sum, type Currency } from "@/lib/money/mo
 import { shippingStatus } from "@/lib/cart/shipping";
 import { assetUrl } from "@/lib/storage";
 import { hasVippsDetails, type VippsSettings } from "./vipps";
+import { displayName } from "./customer-name";
 import { JOURNEY_STEPS } from "./order-journey";
 import type { ThemeTokens } from "@/lib/theme";
 
@@ -521,6 +522,7 @@ export function customerEmail(params: {
   journeyAt?: Date;
 }): RenderedEmail {
   const c = COPY[params.locale];
+  const name = displayName(params.name);
   // A freshly created order is on the first step by definition: it has just
   // been received. No status is read here — this mail IS the receipt.
   const at = params.journeyAt ?? new Date();
@@ -548,7 +550,7 @@ export function customerEmail(params: {
     ? c.shippingIncluded
     : c.shippingToBeConfirmed;
   const text =
-    `${c.greeting(params.name)}\n\n${c.thanks} ${c.codeLabel}: ${params.code}.\n` +
+    `${c.greeting(name)}\n\n${c.thanks} ${c.codeLabel}: ${params.code}.\n` +
     (vipps ? paymentText(vipps, params.code, c) : "") +
     journeyText(params.locale, 0, at) +
     `\n${lines}\n\n` +
@@ -606,7 +608,7 @@ export function customerEmail(params: {
       )} →</a></div>`
     : "";
 
-  const bodyHtml = `<p style="margin:0 0 4px;">${esc(c.greeting(params.name))}</p>
+  const bodyHtml = `<p style="margin:0 0 4px;">${esc(c.greeting(name))}</p>
     ${codeBox}
     ${vipps ? paymentHtml(vipps, params.code, params.theme, c) : ""}
     ${journeyHtml(params.theme, params.locale, 0, at)}
