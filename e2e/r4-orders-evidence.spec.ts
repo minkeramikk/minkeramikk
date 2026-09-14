@@ -121,6 +121,10 @@ test("detail: pipeline v2, full customer data, payment toggle", async ({ page })
     .locator("xpath=ancestor::section[1]")
     .screenshot({ path: `${OUT}/detail-customer-1280.png` });
 
+  // R4-BUGS-C1 Ⓒ: a confirm registers the payment by itself now, so the
+  // "before" shot says what it means only if the order is unpaid on purpose.
+  await adminClient().from("orders").update({ paid_at: null }).eq("id", seeded.orderId);
+  await page.reload();
   const payment = page.getByTestId("paid-form").locator("xpath=ancestor::section[1]");
   await payment.screenshot({ path: `${OUT}/paid-toggle-before-1280.png` });
   await page.getByTestId("paid-toggle").click();
