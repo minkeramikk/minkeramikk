@@ -31,7 +31,10 @@ jobs:
       - name: Ping the keep-alive route in warm mode
         continue-on-error: true
         env:
-          KEEPALIVE_URL: ${{ secrets.KEEPALIVE_URL }}
+          # A repo VARIABLE, not a secret, on purpose: GitHub masks secrets in
+          # the logs, and a masked URL makes curl's error unreadable on the day
+          # a ping fails. The secret is CRON_SECRET, and only CRON_SECRET.
+          KEEPALIVE_URL: ${{ vars.KEEPALIVE_URL }}
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
           curl -fsS -H "Authorization: Bearer $CRON_SECRET" "$KEEPALIVE_URL?mode=warm"
