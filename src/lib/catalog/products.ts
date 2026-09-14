@@ -2,6 +2,7 @@ import "server-only";
 
 import { unstable_cache } from "next/cache";
 import { createPublicClient } from "@/lib/supabase/public";
+import { resilientRead } from "@/lib/supabase/resilient-read";
 import { money, type Money } from "@/lib/money/money";
 import type { Currency } from "@/lib/money/money";
 import { mapTypedAttributes, type TypedAttribute } from "@/lib/catalog/product-attributes";
@@ -52,19 +53,22 @@ export async function getSupplierProducts(
 async function loadSupplierProducts(
   supplierId: string
 ): Promise<SupplierProduct[]> {
-  const supabase = createPublicClient();
+  const data = await resilientRead(`supplier-products:${supplierId}`, async () => {
+    const supabase = createPublicClient();
 
-  const { data, error } = await supabase
-    .from("products")
-    .select(
-      "id, slug, name_no, name_en, description_no, description_en, price_cents, currency, image, pieces, product_attributes(key, label_no, label_en, value, value_num, sort_order), series_no, series_en, product_images(image, sort_order)"
-    )
-    .eq("supplier_id", supplierId)
-    .eq("visible", true)
-    .order("sort_order", { ascending: true });
-  if (error) throw error;
+    const { data, error } = await supabase
+      .from("products")
+      .select(
+        "id, slug, name_no, name_en, description_no, description_en, price_cents, currency, image, pieces, product_attributes(key, label_no, label_en, value, value_num, sort_order), series_no, series_en, product_images(image, sort_order)"
+      )
+      .eq("supplier_id", supplierId)
+      .eq("visible", true)
+      .order("sort_order", { ascending: true });
+    if (error) throw error;
+    return data ?? [];
+  });
 
-  return (data ?? []).map((p) => ({
+  return data.map((p) => ({
     id: p.id,
     slug: p.slug,
     nameNo: p.name_no,
@@ -104,14 +108,20 @@ async function loadDesignProducts(
   designId: string,
   supplierId: string
 ): Promise<SupplierProduct[]> {
-  const supabase = createPublicClient();
-  const { data, error } = await supabase
-    .from("design_products")
-    .select("product_id")
-    .eq("design_id", designId);
-  if (error) throw error;
+  // Only the whitelist read is wrapped here: `loadSupplierProducts` brings its
+  // own retry, and wrapping the whole body would nest the two and turn a
+  // double failure into four queries.
+  const data = await resilientRead(`design-products:${designId}`, async () => {
+    const supabase = createPublicClient();
+    const { data, error } = await supabase
+      .from("design_products")
+      .select("product_id")
+      .eq("design_id", designId);
+    if (error) throw error;
+    return data ?? [];
+  });
 
-  const whitelist = (data ?? []).map((r) => r.product_id);
+  const whitelist = data.map((r) => r.product_id);
   const all = await loadSupplierProducts(supplierId);
   return effectiveProducts(whitelist, all);
 }
@@ -127,14 +137,18 @@ export interface ProductCard {
 }
 
 async function loadProductsBySlug(): Promise<Record<string, ProductCard>> {
-  const supabase = createPublicClient();
-  const { data, error } = await supabase
-    .from("products")
-    .select("slug, name_no, name_en, image, price_cents, currency")
-    .eq("visible", true);
-  if (error) throw error;
+  const data = await resilientRead("products-by-slug", async () => {
+    const supabase = createPublicClient();
+    const { data, error } = await supabase
+      .from("products")
+      .select("slug, name_no, name_en, image, price_cents, currency")
+      .eq("visible", true);
+    if (error) throw error;
+    return data ?? [];
+  });
+
   const out: Record<string, ProductCard> = {};
-  for (const p of data ?? []) {
+  for (const p of data) {
     out[p.slug] = {
       slug: p.slug,
       nameNo: p.name_no,
