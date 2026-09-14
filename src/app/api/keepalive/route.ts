@@ -11,6 +11,19 @@ import { defaultTransport } from "@/lib/orders/email";
 // an `Authorization: Bearer <secret>` header on cron invocations. Any other
 // caller gets 401 and never reaches the database. If CRON_SECRET is unset (dev,
 // preview), the route stays locked — keep-alive only matters in production.
+//
+// `?mode=warm` is the SECOND job, added by R4-504-COLD: keeping the Supabase
+// side warm, not merely unpaused. PostgREST reaps idle connection threads after
+// a few minutes, and the request that has to reopen one can die at the gateway
+// with a 504 — in front of a customer. Every ten minutes (GitHub Actions, see
+// .github/workflows/warmup.yml, because Vercel hobby crons are daily-only) this
+// mode does the anon read and NOTHING else.
+//
+// Skipping `checkUsage()` there is mandatory, not an optimisation: it uses the
+// service-role client and, above 80%, sends a mail. Running it every ten
+// minutes would mean an alert mail every ten minutes. The daily cron calls the
+// route with no parameter and still gets the full behaviour. CRON_SECRET gates
+// both modes identically — no new public route, no exception.
 export const dynamic = "force-dynamic";
 
 // Free-plan caps and the alert threshold. When a metric crosses ALERT_AT we
@@ -28,13 +41,19 @@ export async function GET(request: Request) {
   }
 
   // Keep-alive: least-privilege anon read (head count, no rows) on a public
-  // table. This alone is enough to register activity and reset the pause timer.
+  // table. This alone is enough to register activity and reset the pause timer,
+  // and it is also the whole of the warm-up: it opens the upstream connection
+  // that the next real visitor would otherwise have had to wait for.
   const supabase = await createClient();
   const { error } = await supabase
     .from("designs")
     .select("*", { count: "exact", head: true });
   if (error) {
     return NextResponse.json({ ok: false }, { status: 500 });
+  }
+
+  if (new URL(request.url).searchParams.get("mode") === "warm") {
+    return NextResponse.json({ ok: true });
   }
 
   // Usage health-check (best-effort): never fail the keep-alive over metrics.
