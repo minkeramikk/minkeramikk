@@ -140,18 +140,37 @@ describe("the copy the client wrote (R4-MAIL-COPY Ⓓ)", () => {
     );
   });
 
-  it("every mail signs off «Hilsen oss i Min Keramikk», in text AND html", () => {
+  /**
+   * R4-BUGS-C1 Ⓕ — this assertion is REVERSED on purpose. Until 14/9 it stood
+   * guard over «Hilsen oss i Min Keramikk», which the client had asked for in
+   * the 2/9 copy doc; on 14/9 he replaced it with his own names and the domain.
+   * The test keeps the same job — every mail signs off, in text AND html, in
+   * both languages — against the sign-off that is now the right one.
+   */
+  it("every mail signs off with the names and the domain, in text AND html", () => {
     for (const p of [
       { ...base, kind: "paid" as const, status: "new" as const },
       { ...base, status: "in_production" as const },
       { ...base, status: "shipped" as const },
     ]) {
-      expect(statusEmailText(p)!.text).toContain("Hilsen oss i Min Keramikk");
-      expect(statusEmail({ ...p, theme })!.html).toContain("Hilsen oss i Min Keramikk");
+      expect(statusEmailText(p)!.text).toContain("Hilsen Alessio og Iselin. Minkeramikk.no");
+      expect(statusEmail({ ...p, theme })!.html).toContain(
+        "Hilsen Alessio og Iselin. Minkeramikk.no"
+      );
+      expect(statusEmailText(p)!.text).not.toContain("Min Keramikk");
     }
     expect(
       statusEmail({ ...base, locale: "en", status: "shipped", theme })!.html
-    ).toContain("Best regards, all of us at Min Keramikk");
+    ).toContain("Best regards, Alessio and Iselin. Minkeramikk.no");
+  });
+
+  it("the production subject says Minkeramikk.no, in both languages", () => {
+    expect(statusEmailText({ ...base, status: "in_production" })!.subject).toBe(
+      "Bestillingen MK-1042 er i produksjon — Minkeramikk.no"
+    );
+    expect(
+      statusEmailText({ ...base, locale: "en", status: "in_production" })!.subject
+    ).toBe("Order MK-1042 is in production — Minkeramikk.no");
   });
 
   it("a pasted tracking URL becomes a link; a bare consignment number stays text", () => {

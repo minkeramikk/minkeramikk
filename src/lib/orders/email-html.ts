@@ -96,8 +96,8 @@ export function shell(
   const header = opts.logoUrl
     ? `<img src="${esc(
         opts.logoUrl
-      )}" width="170" alt="Min Keramikk" style="display:block;border:0;outline:none;height:auto;width:170px;max-width:170px;">`
-    : "Min&nbsp;Keramikk";
+      )}" width="170" alt="Minkeramikk.no" style="display:block;border:0;outline:none;height:auto;width:170px;max-width:170px;">`
+    : "Minkeramikk.no";
   return `<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -129,7 +129,7 @@ export function shell(
       )};font-family:Helvetica,Arial,sans-serif;font-size:12px;color:${esc(
         dark
       )};">
-        <div style="opacity:.65;">Min Keramikk · minkeramikk.no</div>
+        <div style="opacity:.65;">Minkeramikk.no</div>
         ${opts.footerExtraHtml ?? ""}
       </td></tr>
     </table>
@@ -553,6 +553,21 @@ function paymentText(
   );
 }
 
+/**
+ * R4-BUGS-C1 Ⓕ — the sign-off, decided by the client on 14/9: the mails close
+ * with the two names and the domain, and say «Min Keramikk» nowhere. One
+ * constant because three renderers use it (confirmation, status mails,
+ * supplier cover) and it must not drift between them.
+ *
+ * ponytail: the names are hardcoded. They belong in `settings`, which has no
+ * admin page yet (known debt) — the day the team changes, this line changes.
+ */
+export const SIGNATURE: Record<"no" | "en", string> = {
+  // TODO:nb-review — resa del TL: Alessio ha scritto solo la versione inglese
+  no: "Hilsen Alessio og Iselin. Minkeramikk.no",
+  en: "Best regards, Alessio and Iselin. Minkeramikk.no",
+};
+
 /** Customer confirmation, in their locale. */
 export function customerEmail(params: {
   name: string;
@@ -606,7 +621,7 @@ export function customerEmail(params: {
     (discounted ? `${c.discountLabel}: -${formatMoney(discount, params.locale)}\n` : "") +
     `${c.shippingLabel}: ${shippingValue}\n${c.totalLabel}: ${total}\n` +
     (discounted ? `${c.indicative}\n` : "") +
-    `\nMin Keramikk`;
+    `\n${SIGNATURE[params.locale]}`;
 
   const codeBox = `<div style="margin:18px 0;padding:14px;text-align:center;background:${esc(
     params.theme.light
@@ -723,7 +738,7 @@ export function supplierEmail(params: {
     `Hi ${params.supplierName},\n\n` +
     `Attached is the production order ${params.orderCode}. ` +
     `Please see the specification (designs, colours and quantities) in the PDF.\n\n` +
-    `Min Keramikk`;
+    SIGNATURE.en;
   const bodyHtml = `<p style="margin:0 0 8px;">Hi ${esc(params.supplierName)},</p>
     <p style="margin:0 0 8px;">Attached is the production order <strong>${esc(
       params.orderCode

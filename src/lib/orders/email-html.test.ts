@@ -257,7 +257,12 @@ describe("payment block (R4-TAKK-MAIL)", () => {
         expect(body).not.toContain("custom order");
         expect(body).not.toContain("Min Keramikk AS");
       }
-      expect(m.text.trimEnd().endsWith("Min Keramikk")).toBe(true);
+      // R4-BUGS-C1 Ⓕ: the sign-off is the client's own, and per locale.
+      const signature =
+        locale === "no"
+          ? "Hilsen Alessio og Iselin. Minkeramikk.no"
+          : "Best regards, Alessio and Iselin. Minkeramikk.no";
+      expect(m.text.trimEnd().endsWith(signature)).toBe(true);
     }
   });
 
