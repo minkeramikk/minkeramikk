@@ -71,7 +71,8 @@ export async function updateOrderStatus(
   // when there is something to ratify (an order at full price gets no
   // timestamp — it would be noise, not information). Only ever SET, never
   // cleared here: an admin who walks a status back keeps the ratification they
-  // gave. Undo is the explicit toggle (toggleDiscountRatified).
+  // gave. R4-BUGS-C1 Ⓑ: the manual toggle is gone — ratification only ever
+  // happens here.
   const ratifies =
     status === "confirmed" &&
     !order.discountRatifiedAt &&
@@ -335,29 +336,3 @@ export async function toggleOrderPaid(formData: FormData): Promise<void> {
   revalidatePath("/admin");
 }
 
-const ratifiedSchema = z.object({
-  id: z.string().uuid(),
-  /** Current state, submitted so the toggle is idempotent per render. */
-  ratified: z.boolean(),
-});
-
-/** ADR 0022 — the shop stands behind the discount it showed. No email of its own. */
-export async function toggleDiscountRatified(formData: FormData): Promise<void> {
-  if (!(await getAdminUser())) return;
-  const parsed = ratifiedSchema.safeParse({
-    id: formData.get("id"),
-    ratified: formData.get("ratified") === "1",
-  });
-  if (!parsed.success) return;
-
-  const supabase = await createClient();
-  await supabase
-    .from("orders")
-    .update({
-      discount_ratified_at: parsed.data.ratified ? null : new Date().toISOString(),
-    })
-    .eq("id", parsed.data.id);
-
-  revalidatePath(`/admin/orders/${parsed.data.id}`);
-  revalidatePath("/admin");
-}
