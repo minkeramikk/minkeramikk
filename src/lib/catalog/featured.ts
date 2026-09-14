@@ -2,6 +2,7 @@ import "server-only";
 
 import { unstable_cache } from "next/cache";
 import { createPublicClient } from "@/lib/supabase/public";
+import { resilientRead } from "@/lib/supabase/resilient-read";
 import { getActiveDesigns } from "./designs";
 import { getDesignDetail } from "./design-options";
 import { getSupplierProducts } from "./products";
@@ -129,14 +130,19 @@ export async function validateFeaturedPayload(
 }
 
 async function loadValidatedFeatured(): Promise<ValidatedFeatured[]> {
-  const supabase = createPublicClient();
-  const { data, error } = await supabase
-    .from("featured_configs")
-    .select("id, kind, payload, label_no, label_en, thumb_image, sort_order")
-    .order("sort_order", { ascending: true });
-  if (error) throw error;
+  // Only the featured rows are wrapped: the validation pass below goes through
+  // `getSupplierProducts` and `resolveDesign`, which carry their own retry.
+  const data = await resilientRead("featured-configs", async () => {
+    const supabase = createPublicClient();
+    const { data, error } = await supabase
+      .from("featured_configs")
+      .select("id, kind, payload, label_no, label_en, thumb_image, sort_order")
+      .order("sort_order", { ascending: true });
+    if (error) throw error;
+    return data ?? [];
+  });
 
-  const rows: FeaturedRow[] = (data ?? []).map((r) => ({
+  const rows: FeaturedRow[] = data.map((r) => ({
     id: r.id,
     kind: r.kind as "design" | "set",
     payload: r.payload,

@@ -2,6 +2,7 @@ import "server-only";
 
 import { unstable_cache } from "next/cache";
 import { createPublicClient } from "@/lib/supabase/public";
+import { resilientRead } from "@/lib/supabase/resilient-read";
 import type { LayerSlot } from "@/lib/configurator/preview";
 
 export interface CategoryOption {
@@ -129,32 +130,43 @@ export async function getDesignDetailSafe(slug: string): Promise<DesignDetail | 
 }
 
 async function loadDesignDetail(slug: string): Promise<DesignDetail | null> {
-  const supabase = createPublicClient();
+  // The three reads retry as one unit — they chain on the same cold connection
+  // and two of them need the design id the first one returns.
+  const rows = await resilientRead(`design-detail:${slug}`, async () => {
+    const supabase = createPublicClient();
 
-  const { data: design, error: designErr } = await supabase
-    .from("designs")
-    .select(
-      "id, slug, code, name, name_no, name_en, accepts_custom_notes, accepts_custom_text, description_step2_no, description_step2_en"
-    )
-    .eq("slug", slug)
-    .maybeSingle();
-  if (designErr) throw designErr;
-  if (!design) return null;
+    const { data: design, error: designErr } = await supabase
+      .from("designs")
+      .select(
+        "id, slug, code, name, name_no, name_en, accepts_custom_notes, accepts_custom_text, description_step2_no, description_step2_en"
+      )
+      .eq("slug", slug)
+      .maybeSingle();
+    if (designErr) throw designErr;
+    // A slug that does not exist is an ANSWER, not a failure: remember it as
+    // one, so the fallback never resurrects a design that was deleted.
+    if (!design) return null;
 
-  const { data: imgRows } = await supabase
-    .from("design_images")
-    .select("image")
-    .eq("design_id", design.id)
-    .order("sort_order", { ascending: true });
+    const { data: imgRows } = await supabase
+      .from("design_images")
+      .select("image")
+      .eq("design_id", design.id)
+      .order("sort_order", { ascending: true });
 
-  const { data: categories, error: catErr } = await supabase
-    .from("option_categories")
-    .select(
-      "id, slug, label_no, label_en, kind, layer_slot, sync_group, sort_order, options(id, code, name, image, hex, layer_image, sort_order, active, is_default, supplier_colors(name, hex, swatch_image))"
-    )
-    .eq("design_id", design.id)
-    .order("sort_order", { ascending: true });
-  if (catErr) throw catErr;
+    const { data: categories, error: catErr } = await supabase
+      .from("option_categories")
+      .select(
+        "id, slug, label_no, label_en, kind, layer_slot, sync_group, sort_order, options(id, code, name, image, hex, layer_image, sort_order, active, is_default, supplier_colors(name, hex, swatch_image))"
+      )
+      .eq("design_id", design.id)
+      .order("sort_order", { ascending: true });
+    if (catErr) throw catErr;
+
+    return { design, imgRows, categories };
+  });
+
+  if (!rows) return null;
+  const { design, imgRows, categories } = rows;
 
   return {
     id: design.id,

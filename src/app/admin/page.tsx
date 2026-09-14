@@ -77,7 +77,7 @@ export default async function AdminOrdersPage({
   ];
 
   return (
-    <AdminShell active="/admin" title="Orders">
+    <AdminShell active="/admin" title="Orders" wide>
       <div data-testid="admin-orders">
         {/* KPIs */}
         <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -205,7 +205,7 @@ export default async function AdminOrdersPage({
                         <div className="text-xs text-muted-foreground">{o.email}</div>
                       </td>
                       <td className="max-w-[260px] px-4 py-3 text-muted-foreground">
-                        <span className="line-clamp-2">{summarizeItems(o.items)}</span>
+                        {summarizeItems(o.items)}
                       </td>
                       <td className="px-4 py-3 text-xs text-muted-foreground">
                         {orderSuppliers(o.items).join(", ")}

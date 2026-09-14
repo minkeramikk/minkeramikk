@@ -15,11 +15,21 @@ export function AdminShell({
   active,
   title,
   action,
+  wide = false,
 }: {
   children: React.ReactNode;
   active: AdminNavHref;
   title: string;
   action?: React.ReactNode;
+  /**
+   * Drop the 1040px cap and take the width of the window (DESIGN-SYSTEM §4).
+   * Opt-in, because the cap is right for the pages that have it by default:
+   * it exists for FORMS, where a long line of text is hard to read, and line
+   * measure is the whole reason for that number. A wide TABLE has the opposite
+   * problem — eight columns treading on each other — so the page that needs the
+   * window says so, and nothing else changes.
+   */
+  wide?: boolean;
 }) {
   return (
     <div className="flex min-h-screen">
@@ -45,7 +55,7 @@ export function AdminShell({
         </nav>
       </aside>
 
-      <main className="min-w-0 max-w-[1040px] flex-1 px-6 py-7 md:px-8">
+      <main className={cn("min-w-0 flex-1 px-6 py-7 md:px-8", !wide && "max-w-[1040px]")}>
         <div className="mb-5 flex items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
             <AdminMobileNav active={active} />

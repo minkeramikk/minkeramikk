@@ -2,6 +2,7 @@ import "server-only";
 
 import { unstable_cache } from "next/cache";
 import { createPublicClient } from "@/lib/supabase/public";
+import { resilientRead } from "@/lib/supabase/resilient-read";
 import {
   getPreviewLayers,
   type LayerSlot,
@@ -37,30 +38,35 @@ export interface DesignSummary {
  * (AC1/AC4 of F01). Supplier names come from the public_suppliers view (ADR 0009).
  */
 async function loadActiveDesigns(): Promise<DesignSummary[]> {
-  const supabase = createPublicClient();
+  // Both reads retry as one unit: they are the same cold connection, and a
+  // half-read catalog is no use to anyone. The mapping below stays outside —
+  // it is pure, so replaying it over a last-good row set is correct.
+  const { designs, suppliers } = await resilientRead("active-designs", async () => {
+    const supabase = createPublicClient();
 
-  const [designsRes, suppliersRes] = await Promise.all([
-    supabase
-      .from("designs")
-      .select(
-        "id, slug, name, name_no, name_en, description_no, description_en, supplier_id, preview_image, sort_order, option_categories(layer_slot, sort_order, options(layer_image, sort_order, active, is_default))"
-      )
-      // Explicit active gate (F10): the configurator shows only published designs
-      // for EVERY viewer — not just anon via RLS. A draft (active=false) created
-      // in the back-office stays hidden until activated, even for a logged-in admin.
-      .eq("active", true)
-      .order("sort_order", { ascending: true }),
-    supabase.from("public_suppliers").select("id, name"),
-  ]);
+    const [designsRes, suppliersRes] = await Promise.all([
+      supabase
+        .from("designs")
+        .select(
+          "id, slug, name, name_no, name_en, description_no, description_en, supplier_id, preview_image, sort_order, option_categories(layer_slot, sort_order, options(layer_image, sort_order, active, is_default))"
+        )
+        // Explicit active gate (F10): the configurator shows only published designs
+        // for EVERY viewer — not just anon via RLS. A draft (active=false) created
+        // in the back-office stays hidden until activated, even for a logged-in admin.
+        .eq("active", true)
+        .order("sort_order", { ascending: true }),
+      supabase.from("public_suppliers").select("id, name"),
+    ]);
 
-  if (designsRes.error) throw designsRes.error;
-  if (suppliersRes.error) throw suppliersRes.error;
+    if (designsRes.error) throw designsRes.error;
+    if (suppliersRes.error) throw suppliersRes.error;
 
-  const supplierNames = new Map(
-    (suppliersRes.data ?? []).map((s) => [s.id as string, s.name as string])
-  );
+    return { designs: designsRes.data ?? [], suppliers: suppliersRes.data ?? [] };
+  });
 
-  return (designsRes.data ?? []).map((d) => {
+  const supplierNames = new Map(suppliers.map((s) => [s.id as string, s.name as string]));
+
+  return designs.map((d) => {
     // default selection = first active option (by sort_order) of each category
     const selected = (d.option_categories ?? [])
       .slice()

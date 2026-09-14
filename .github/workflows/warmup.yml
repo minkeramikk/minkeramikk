@@ -1,0 +1,40 @@
+# Keeps the Supabase connection warm, every ten minutes.
+#
+# Why it lives here and not in vercel.json: the Vercel team is on the hobby
+# plan, where crons run at most once a day. The daily cron in vercel.json has a
+# different job (stopping the free Supabase project from pausing after seven
+# days) and does nothing at all for the cold path.
+#
+# Ten minutes, not five: below five minutes of silence the 504 rate is ~0% and
+# it climbs above that (monitor report 2026-09-14 §2.2), so a ten-minute
+# interval keeps the worst window around ten minutes. Five would double the runs
+# for a gain the numbers do not show. If the monitor still sees expensive
+# wake-ups after a week, this is one line to change.
+name: Warm-up
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+# One ping at a time; a late run is worthless next to a fresh one.
+concurrency:
+  group: warmup
+  cancel-in-progress: true
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      # A failed ping must NOT paint the repo red: if the warm-up stops working
+      # the monitor is what notices, not a badge.
+      - name: Ping the keep-alive route in warm mode
+        continue-on-error: true
+        env:
+          # A repo VARIABLE, not a secret, on purpose: GitHub masks secrets in
+          # the logs, and a masked URL makes curl's error unreadable on the day
+          # a ping fails. The secret is CRON_SECRET, and only CRON_SECRET.
+          KEEPALIVE_URL: ${{ vars.KEEPALIVE_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          curl -fsS -H "Authorization: Bearer $CRON_SECRET" "$KEEPALIVE_URL?mode=warm"

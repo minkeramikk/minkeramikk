@@ -13,20 +13,25 @@ import { EMPTY_CONFIG, type DiscountConfig } from "./discount";
  * of its own: the admin discount actions are rare and already have to revalidate
  * the catalog, and one tag is one less thing to keep in sync.
  *
- * `revalidate: 10` — tag-only invalidation means an out-of-band change (a
+ * `revalidate: 300` — tag-only invalidation means an out-of-band change (a
  * direct SQL update to `settings.quantity_discounts_enabled` or the tier
  * rows, the most likely way this shop first turns the feature on) would
  * otherwise never be noticed by a running server: nothing would ever call
  * `revalidateTag("catalog")`, and the live site would keep serving full
- * prices indefinitely with no error to explain why. The shop must notice
- * such a change within a bounded window; ten seconds of staleness on a
- * config this rarely read costs at most one small anon query per ten
- * seconds. The admin path is unaffected — `revalidateTag` there still
- * invalidates instantly.
+ * prices indefinitely with no error to explain why. That reasoning still
+ * holds — the window just got wider, because the cost estimate behind the
+ * old ten seconds was wrong. One refresh is not "one small anon query": it
+ * is FIVE tables, and measurement (monitor report 2026-09-14) made this the
+ * main source of residual REST traffic — five of eighteen gateway timeouts
+ * in the analysed window landed on `discount_products`, `discount_tiers`
+ * and `discount_rule_products`. Five minutes is the bound on out-of-band
+ * staleness we accept to stop paying that. The admin path is unaffected —
+ * `revalidateTag` there still invalidates instantly, so a change made from
+ * the panel is visible on the site immediately.
  */
 const cached = unstable_cache(loadDiscountConfig, ["discount-config"], {
   tags: ["catalog"],
-  revalidate: 10,
+  revalidate: 300,
 });
 
 /** Never throws — see the note on loadDiscountConfig. The guard is OUTSIDE the
