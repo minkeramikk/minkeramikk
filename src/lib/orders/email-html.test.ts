@@ -242,11 +242,32 @@ describe("payment block (R4-TAKK-MAIL)", () => {
     link: "https://qr.vipps.no/box/abc",
   };
 
+  /**
+   * R4-BUGS-C1 Ⓓ — «va tutto levato. Gli abbiamo appena dato il modo di pagare
+   * con Vipps, non voglio che aspettino per pagare»: the mail that carries the
+   * Vipps details cannot also tell the customer to wait for a call. The
+   * sign-off is asserted in the same breath, because it is the one «Min
+   * Keramikk» in the mail that must NOT have changed.
+   */
+  it("drops the spesialbestilling sentence and keeps the sign-off, NO and EN", () => {
+    for (const locale of ["no", "en"] as const) {
+      const m = customerEmail({ ...base, locale, vipps: full });
+      for (const body of [m.html, m.text]) {
+        expect(body).not.toContain("spesialbestilling");
+        expect(body).not.toContain("custom order");
+        expect(body).not.toContain("Min Keramikk AS");
+      }
+      expect(m.text.trimEnd().endsWith("Min Keramikk")).toBe(true);
+    }
+  });
+
   it("renders number, recipient and the melding warning in html AND text", () => {
     const m = customerEmail({ ...base, locale: "no", vipps: full });
     for (const body of [m.html, m.text]) {
       expect(body).toContain("123456");
-      expect(body).toContain("Min Keramikk AS");
+      // R4-BUGS-C1 Ⓓ: the shop is «Minkeramikk.no» on the order, never «AS».
+      expect(body).toContain("Minkeramikk.no");
+      expect(body).not.toContain("Min Keramikk AS");
       expect(body).toContain("Vippsnummer");
       expect(body).toContain("meldingsfeltet");
       expect(body).toContain("MK-1042");
@@ -323,7 +344,7 @@ describe("payment block (R4-TAKK-MAIL)", () => {
     // strip every <img> — what a client with remote images off effectively shows
     const withoutImages = m.html.replace(/<img[^>]*>/g, "");
     expect(withoutImages).toContain("123456");
-    expect(withoutImages).toContain("Min Keramikk AS");
+    expect(withoutImages).toContain("Minkeramikk.no");
     expect(withoutImages).toContain("meldingsfeltet");
     expect(withoutImages).toContain("MK-1042");
   });
@@ -366,7 +387,7 @@ describe("payment block (R4-TAKK-MAIL)", () => {
       vipps: { qrImage: "settings/vipps-qr.png", number: null, link: null },
     });
     expect(m.html).toContain("Slik betaler du");
-    expect(m.html).toContain("Min Keramikk AS");
+    expect(m.html).toContain("Minkeramikk.no");
     expect(m.html).toContain("meldingsfeltet");
     // no empty "Vippsnummer" label dangling over a missing number
     expect(m.html).not.toContain("Vippsnummer");

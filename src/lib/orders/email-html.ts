@@ -365,7 +365,7 @@ const COPY = {
     // pointer at a total further up the mail. Client's Norwegian (doc 2/9, p.1).
     payLead: (amount: string) => `Vennligst overfør ${amount} til oss via Vipps.`,
     payNumberLabel: "Vippsnummer", // TODO:nb-review
-    payRecipient: "Min Keramikk AS",
+    payRecipient: "Minkeramikk.no",
     payQrAlt: "Vipps QR-kode", // TODO:nb-review
     payWarningLabel: "Viktig:", // TODO:nb-review
     // Two halves because the second one is BOLD inside the sentence (doc 2/9,
@@ -379,8 +379,6 @@ const COPY = {
     // Not on the page (there the chip sits under the warning and needs no
     // label); the plain-text part has no layout, so the line needs naming.
     payMeldingLabel: "Melding i Vipps", // TODO:nb-review
-    custom:
-      "Dette er en spesialbestilling — vi tar kontakt for å bekrefte designet før noe skal betales.",
     totalLabel: "Totalt",
     // R3-B4 · TODO:alessio-review — provisional wording, same source as cart.insurance.*
     shippingLabel: "Frakt med forsikring",
@@ -408,7 +406,7 @@ const COPY = {
     payTitle: "How to pay",
     payLead: (amount: string) => `Please transfer ${amount} to us via Vipps.`,
     payNumberLabel: "Vipps number",
-    payRecipient: "Min Keramikk AS",
+    payRecipient: "Minkeramikk.no",
     payQrAlt: "Vipps QR code",
     payWarningLabel: "Important:",
     payWarning: "Write the order number in the message field in Vipps –",
@@ -417,8 +415,6 @@ const COPY = {
     payQrHint:
       "You can either scan the QR code with another device, or tap the link to open Vipps.",
     payMeldingLabel: "Message in Vipps",
-    custom:
-      "This is a custom order — we'll get in touch to confirm the design before anything is paid.",
     totalLabel: "Total",
     shippingLabel: "Insured shipping",
     shippingIncluded: "Included",
@@ -608,7 +604,7 @@ export function customerEmail(params: {
     journeyText(params.locale, 0, at) +
     `\n${lines}\n\n` +
     (discounted ? `${c.discountLabel}: -${formatMoney(discount, params.locale)}\n` : "") +
-    `${c.shippingLabel}: ${shippingValue}\n${c.totalLabel}: ${total}\n\n${c.custom}\n` +
+    `${c.shippingLabel}: ${shippingValue}\n${c.totalLabel}: ${total}\n` +
     (discounted ? `${c.indicative}\n` : "") +
     `\nMin Keramikk`;
 
@@ -657,8 +653,7 @@ export function customerEmail(params: {
     ${journeyHtml(params.theme, params.locale, 0, at)}
     ${itemsTable(params.items, params.theme, params.locale)}
     ${totalRow}
-    ${indicativeNote}
-    <p style="margin:18px 0 0;">${esc(c.custom)}</p>`;
+    ${indicativeNote}`;
 
   return {
     subject: c.customerSubject(params.code),

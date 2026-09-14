@@ -165,7 +165,7 @@ export function CustomerPdfDocument({
             il margine superiore che le serve, invece di partire dal bordo. */}
         <View style={s.top} fixed>
           <View>
-            <Text style={s.brand}>Min Keramikk</Text>
+            <Text style={s.brand}>Minkeramikk.no</Text>
             <Text style={s.topSub}>{t.title}</Text>
           </View>
           <View>
