@@ -64,6 +64,18 @@ function paidForm(paid: boolean) {
   return fd;
 }
 
+/**
+ * `.eq()` is awaited on its own by most writes, and chained with
+ * `.is("paid_at", null).select("id")` by the payment registration — one
+ * thenable does both, and `rows` is what the conditional update matched.
+ */
+function chain(result: { data?: unknown; error: unknown }) {
+  return {
+    then: (ok: (v: unknown) => unknown) => Promise.resolve(result).then(ok),
+    is: () => ({ select: () => Promise.resolve(result) }),
+  };
+}
+
 /** Every `update({...})` the action sent to the orders table. */
 const writes = () => update.mock.calls.map(([payload]) => payload);
 const events = () => recordOrderEvent.mock.calls.map(([, kind, meta]) => [kind, meta]);
@@ -73,7 +85,7 @@ describe("confirming an order registers the payment", () => {
     vi.clearAllMocks();
     isAdmin.mockResolvedValue({ id: "admin" });
     update.mockReturnValue({ eq });
-    eq.mockResolvedValue({ error: null });
+    eq.mockReturnValue(chain({ data: [{ id: ORDER_ID }], error: null }));
     sendStatusEmail.mockResolvedValue(true);
   });
 
@@ -128,6 +140,20 @@ describe("confirming an order registers the payment", () => {
     expect(writes().some((w) => typeof w.paid_at === "string")).toBe(true);
     expect(sendStatusEmail).not.toHaveBeenCalled();
     expect(events()).toContainEqual(["payment_registered", { email: "skipped" }]);
+  });
+
+  it("mails nothing when the conditional update matched no row", async () => {
+    // Two confirms landing together: the first one wins the write, the second
+    // reads an unpaid order but changes nothing — and must not mail.
+    getOrder.mockResolvedValue(order());
+    eq.mockReturnValue(chain({ data: [], error: null }));
+    const { updateOrderStatus } = await import("./actions");
+
+    const res = await updateOrderStatus({}, statusForm());
+
+    expect(sendStatusEmail).not.toHaveBeenCalled();
+    expect(events().some(([kind]) => kind === "payment_registered")).toBe(false);
+    expect(res.notice).not.toContain("Payment registered");
   });
 
   it("still clears the payment by hand, mailing nothing", async () => {

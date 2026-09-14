@@ -14,6 +14,9 @@ import { PRODUCT_THUMB_WIDTH } from "@/lib/asset-variants";
 import { formatMoney, money, multiply, percentOf, subtract } from "@/lib/money/money";
 import { displayPhotos } from "@/lib/catalog/product-photos";
 import { ATTR_ICON } from "@/components/ui-domain/attribute-icons";
+// ponytail: imported across the tree from the configurator route. It belongs
+// in components/ui-domain now that two callers share it — a move, not a fix,
+// so it waits for a card that has a reason to touch both files.
 import { DesignDescription } from "@/app/[locale]/(public)/configurator/design-description";
 import {
   attributeLabel,

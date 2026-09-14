@@ -281,9 +281,11 @@ export async function updateOrderTracking(formData: FormData): Promise<void> {
  * the log entry, in one place, because two moments now do it — the manual
  * toggle and the move to `confirmed`.
  *
- * IDEMPOTENT by the `paidAt` guard: an order already marked paid is left
- * exactly as it is and mails nothing. Confirming an order twice, or confirming
- * one whose payment was registered by hand, must not mail the customer twice.
+ * IDEMPOTENT, and by the WRITE, not by the read before it: the update carries
+ * `.is("paid_at", null)` and only goes on if it actually changed a row. The
+ * read-then-write pair would let two confirms land together and mail the
+ * customer twice — with one admin that is theory, but the condition costs a
+ * line and removes the question.
  *
  * Returns what happened to the mail so the caller can say it in its notice;
  * `null` means nothing was registered (already paid, or unreadable).
@@ -294,8 +296,14 @@ async function registerPaymentAndNotify(orderId: string): Promise<EmailOutcome |
 
   const paidAt = new Date().toISOString();
   const supabase = await createClient();
-  const { error } = await supabase.from("orders").update({ paid_at: paidAt }).eq("id", orderId);
-  if (error) return null;
+  const { data, error } = await supabase
+    .from("orders")
+    .update({ paid_at: paidAt })
+    .eq("id", orderId)
+    .is("paid_at", null)
+    .select("id");
+  // No row changed → somebody else registered it between the read and here.
+  if (error || !data || data.length === 0) return null;
 
   // R4-ORDERS-PLUS: this mail is the only new one in the project — without
   // its outcome in the log it would also be the only one whose fate is

@@ -339,15 +339,13 @@ export default async function OrderDetailPage({
                   automatic on `confirmed` (ADR 0022), so a manual toggle next to
                   it only read as a second, contradictory way to do it. */}
               {orderDiscount(order.items).amountCents > 0 && (
-                <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
-                  <div>
-                    <DiscountRatifiedBadge ratifiedAt={order.discountRatifiedAt} />
-                    {order.discountRatifiedAt && (
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {fmtDateTime(order.discountRatifiedAt)}
-                      </p>
-                    )}
-                  </div>
+                <div className="mt-4 border-t border-border pt-4">
+                  <DiscountRatifiedBadge ratifiedAt={order.discountRatifiedAt} />
+                  {order.discountRatifiedAt && (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {fmtDateTime(order.discountRatifiedAt)}
+                    </p>
+                  )}
                 </div>
               )}
 

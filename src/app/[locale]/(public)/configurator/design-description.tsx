@@ -39,7 +39,7 @@ export function DesignDescription({
         ref={ref}
         data-testid={testId}
         className={
-          "text-sm text-muted-foreground" +
+          "text-sm leading-relaxed text-muted-foreground" +
           // "mobile": clamp below sm only, desktop shows the full text
           (!expanded ? (clamp === "always" ? " line-clamp-3" : " line-clamp-3 sm:line-clamp-none") : "")
         }
