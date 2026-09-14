@@ -93,7 +93,7 @@ const COPY: Record<"no" | "en", CustomerPdfLabels> = {
     payQrLabel: "Skann med Vipps",
     payQrHint:
       "Du kan enten skanne QR-koden med en annen enhet, eller så kan du trykke direkte på linken for å åpne Vipps.",
-    contact: "Min Keramikk · minkeramikk.no",
+    contact: "Minkeramikk.no",
   },
   en: {
     title: "Order summary",
@@ -120,7 +120,7 @@ const COPY: Record<"no" | "en", CustomerPdfLabels> = {
     payQrLabel: "Scan with Vipps",
     payQrHint:
       "You can either scan the QR code with another device, or tap the link to open Vipps.",
-    contact: "Min Keramikk · minkeramikk.no",
+    contact: "Minkeramikk.no",
   },
 };
 

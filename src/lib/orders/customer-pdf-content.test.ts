@@ -97,7 +97,7 @@ describe("buildCustomerPdfDoc", () => {
   });
 
   it("i contatti pubblici del negozio, invece, CI SONO (card §Cosa)", () => {
-    expect(doc().labels.contact).toContain("minkeramikk");
+    expect(doc().labels.contact).toBe("Minkeramikk.no");
   });
 
   it("le scelte per categoria portano il NOME del colore, non l'hex", () => {

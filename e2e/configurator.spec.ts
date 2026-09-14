@@ -440,8 +440,10 @@ test.describe("R2-3+R2-4 expandable card", () => {
       await expect(chips).toContainText("Farge");
       await expect(chips).toContainText("Blå");
 
-      // R3-VARIE-D: "Product details" is always open — no toggle to click and
-      // no orphan aria-expanded control left behind.
+      // R3-VARIE-D: "Product details" is always there — no section to open and
+      // no orphan aria-expanded control left behind. (R4-BUGS-C1 Ⓔ clamps the
+      // text to three lines with a «Vis mer» toggle; the paragraph itself is
+      // rendered either way, which is what this asserts.)
       await expect(sheet.getByTestId("product-details")).toBeVisible();
       await expect(sheet.getByTestId("details-toggle")).toHaveCount(0);
 

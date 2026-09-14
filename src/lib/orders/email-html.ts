@@ -96,8 +96,8 @@ export function shell(
   const header = opts.logoUrl
     ? `<img src="${esc(
         opts.logoUrl
-      )}" width="170" alt="Min Keramikk" style="display:block;border:0;outline:none;height:auto;width:170px;max-width:170px;">`
-    : "Min&nbsp;Keramikk";
+      )}" width="170" alt="Minkeramikk.no" style="display:block;border:0;outline:none;height:auto;width:170px;max-width:170px;">`
+    : "Minkeramikk.no";
   return `<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -129,7 +129,7 @@ export function shell(
       )};font-family:Helvetica,Arial,sans-serif;font-size:12px;color:${esc(
         dark
       )};">
-        <div style="opacity:.65;">Min Keramikk · minkeramikk.no</div>
+        <div style="opacity:.65;">Minkeramikk.no</div>
         ${opts.footerExtraHtml ?? ""}
       </td></tr>
     </table>
@@ -365,7 +365,7 @@ const COPY = {
     // pointer at a total further up the mail. Client's Norwegian (doc 2/9, p.1).
     payLead: (amount: string) => `Vennligst overfør ${amount} til oss via Vipps.`,
     payNumberLabel: "Vippsnummer", // TODO:nb-review
-    payRecipient: "Min Keramikk AS",
+    payRecipient: "Minkeramikk.no",
     payQrAlt: "Vipps QR-kode", // TODO:nb-review
     payWarningLabel: "Viktig:", // TODO:nb-review
     // Two halves because the second one is BOLD inside the sentence (doc 2/9,
@@ -379,8 +379,6 @@ const COPY = {
     // Not on the page (there the chip sits under the warning and needs no
     // label); the plain-text part has no layout, so the line needs naming.
     payMeldingLabel: "Melding i Vipps", // TODO:nb-review
-    custom:
-      "Dette er en spesialbestilling — vi tar kontakt for å bekrefte designet før noe skal betales.",
     totalLabel: "Totalt",
     // R3-B4 · TODO:alessio-review — provisional wording, same source as cart.insurance.*
     shippingLabel: "Frakt med forsikring",
@@ -408,7 +406,7 @@ const COPY = {
     payTitle: "How to pay",
     payLead: (amount: string) => `Please transfer ${amount} to us via Vipps.`,
     payNumberLabel: "Vipps number",
-    payRecipient: "Min Keramikk AS",
+    payRecipient: "Minkeramikk.no",
     payQrAlt: "Vipps QR code",
     payWarningLabel: "Important:",
     payWarning: "Write the order number in the message field in Vipps –",
@@ -417,8 +415,6 @@ const COPY = {
     payQrHint:
       "You can either scan the QR code with another device, or tap the link to open Vipps.",
     payMeldingLabel: "Message in Vipps",
-    custom:
-      "This is a custom order — we'll get in touch to confirm the design before anything is paid.",
     totalLabel: "Total",
     shippingLabel: "Insured shipping",
     shippingIncluded: "Included",
@@ -557,6 +553,21 @@ function paymentText(
   );
 }
 
+/**
+ * R4-BUGS-C1 Ⓕ — the sign-off, decided by the client on 14/9: the mails close
+ * with the two names and the domain, and say «Min Keramikk» nowhere. One
+ * constant because three renderers use it (confirmation, status mails,
+ * supplier cover) and it must not drift between them.
+ *
+ * ponytail: the names are hardcoded. They belong in `settings`, which has no
+ * admin page yet (known debt) — the day the team changes, this line changes.
+ */
+export const SIGNATURE: Record<"no" | "en", string> = {
+  // TODO:nb-review — resa del TL: Alessio ha scritto solo la versione inglese
+  no: "Hilsen Alessio og Iselin. Minkeramikk.no",
+  en: "Best regards, Alessio and Iselin. Minkeramikk.no",
+};
+
 /** Customer confirmation, in their locale. */
 export function customerEmail(params: {
   name: string;
@@ -608,9 +619,9 @@ export function customerEmail(params: {
     journeyText(params.locale, 0, at) +
     `\n${lines}\n\n` +
     (discounted ? `${c.discountLabel}: -${formatMoney(discount, params.locale)}\n` : "") +
-    `${c.shippingLabel}: ${shippingValue}\n${c.totalLabel}: ${total}\n\n${c.custom}\n` +
+    `${c.shippingLabel}: ${shippingValue}\n${c.totalLabel}: ${total}\n` +
     (discounted ? `${c.indicative}\n` : "") +
-    `\nMin Keramikk`;
+    `\n${SIGNATURE[params.locale]}`;
 
   const codeBox = `<div style="margin:18px 0;padding:14px;text-align:center;background:${esc(
     params.theme.light
@@ -657,8 +668,7 @@ export function customerEmail(params: {
     ${journeyHtml(params.theme, params.locale, 0, at)}
     ${itemsTable(params.items, params.theme, params.locale)}
     ${totalRow}
-    ${indicativeNote}
-    <p style="margin:18px 0 0;">${esc(c.custom)}</p>`;
+    ${indicativeNote}`;
 
   return {
     subject: c.customerSubject(params.code),
@@ -728,7 +738,7 @@ export function supplierEmail(params: {
     `Hi ${params.supplierName},\n\n` +
     `Attached is the production order ${params.orderCode}. ` +
     `Please see the specification (designs, colours and quantities) in the PDF.\n\n` +
-    `Min Keramikk`;
+    SIGNATURE.en;
   const bodyHtml = `<p style="margin:0 0 8px;">Hi ${esc(params.supplierName)},</p>
     <p style="margin:0 0 8px;">Attached is the production order <strong>${esc(
       params.orderCode

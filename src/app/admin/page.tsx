@@ -165,7 +165,7 @@ export default async function AdminOrdersPage({
         ) : (
           <>
             {/* desktop table (§3.5) */}
-            <div className="hidden overflow-hidden rounded-lg border border-border bg-card md:block">
+            <div className="hidden overflow-x-auto rounded-lg border border-border bg-card md:block">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border text-left text-[11px] uppercase tracking-[0.06em] text-muted-foreground">
@@ -205,7 +205,7 @@ export default async function AdminOrdersPage({
                         <div className="text-xs text-muted-foreground">{o.email}</div>
                       </td>
                       <td className="max-w-[260px] px-4 py-3 text-muted-foreground">
-                        {summarizeItems(o.items)}
+                        <span className="line-clamp-2">{summarizeItems(o.items)}</span>
                       </td>
                       <td className="px-4 py-3 text-xs text-muted-foreground">
                         {orderSuppliers(o.items).join(", ")}
@@ -219,10 +219,10 @@ export default async function AdminOrdersPage({
                           <PaidBadge paidAt={o.paidAt} />
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-xs text-muted-foreground">
+                      <td className="px-4 py-3 text-xs whitespace-nowrap text-muted-foreground">
                         {received(o.createdAt)}
                       </td>
-                      <td className="px-4 py-3 text-right">
+                      <td className="px-4 py-3 text-right whitespace-nowrap">
                         <Link
                           href={`/admin/orders/${o.id}`}
                           data-testid="order-open"

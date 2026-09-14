@@ -10,7 +10,7 @@
  * a place that has no order lines, and would hardcode a currency into copy that
  * may have to serve an EUR market later.
  */
-import { esc, shell, journeyHtml, journeyText, type RenderedEmail } from "./email-html";
+import { esc, shell, journeyHtml, journeyText, SIGNATURE, type RenderedEmail } from "./email-html";
 import { currentStep } from "./order-journey";
 import { displayName } from "./customer-name";
 import type { ThemeTokens } from "@/lib/theme";
@@ -76,7 +76,7 @@ const COPY: Record<"no" | "en", LocaleCopy> = {
   no: {
     // TODO:nb-review — nuovi testi R4-ORDERS, revisione del cliente
     greeting: (n) => `Hei ${n},`,
-    signature: "Hilsen oss i Min Keramikk",
+    signature: SIGNATURE.no,
     trackingLabel: "Sporingsnummer",
     // R4-MAIL-COPY Ⓓ — the client's own Norwegian (doc 2/9, p.3-4)
     paid: {
@@ -87,7 +87,7 @@ const COPY: Record<"no" | "en", LocaleCopy> = {
       ],
     },
     in_production: {
-      subject: (code) => `Bestillingen ${code} er i produksjon — Min Keramikk`,
+      subject: (code) => `Bestillingen ${code} er i produksjon — Minkeramikk.no`,
       heading: "Bestillingen er i produksjon",
       body: [
         "Keramikken din er nå under produksjon i Italia!",
@@ -105,7 +105,7 @@ const COPY: Record<"no" | "en", LocaleCopy> = {
   },
   en: {
     greeting: (n) => `Hi ${n},`,
-    signature: "Best regards, all of us at Min Keramikk",
+    signature: SIGNATURE.en,
     trackingLabel: "Tracking number",
     paid: {
       subject: (code) => `Payment received — order ${code}`,
@@ -115,7 +115,7 @@ const COPY: Record<"no" | "en", LocaleCopy> = {
       ],
     },
     in_production: {
-      subject: (code) => `Order ${code} is in production — Min Keramikk`,
+      subject: (code) => `Order ${code} is in production — Minkeramikk.no`,
       heading: "Your order is in production",
       body: [
         "Your ceramics are now in production in Italy!",

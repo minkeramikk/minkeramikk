@@ -71,7 +71,8 @@ export async function updateOrderStatus(
   // when there is something to ratify (an order at full price gets no
   // timestamp — it would be noise, not information). Only ever SET, never
   // cleared here: an admin who walks a status back keeps the ratification they
-  // gave. Undo is the explicit toggle (toggleDiscountRatified).
+  // gave. R4-BUGS-C1 Ⓑ: the manual toggle is gone — ratification only ever
+  // happens here.
   const ratifies =
     status === "confirmed" &&
     !order.discountRatifiedAt &&
@@ -119,6 +120,21 @@ export async function updateOrderStatus(
   // The log. `order.status` was read BEFORE the update, so `from` is the real
   // one. Never throws (order-events.server.ts): the status is already saved.
   await recordOrderEvent(id, "status_changed", { from: order.status, to: status, email });
+
+  // R4-BUGS-C1 Ⓒ — confirming IS constating the payment: Alessio sees the Vipps
+  // arrive, then confirms. Same write, same mail, same log entry as the manual
+  // toggle, which stays for the anomalies (refund, payment outside Vipps). The
+  // guard is the caller's half of the idempotence; the function has the other.
+  if (status === "confirmed" && !order.paidAt) {
+    const paidEmail = await registerPaymentAndNotify(id);
+    if (paidEmail === "failed") {
+      notice += " Payment registered, but the email to the customer failed.";
+    } else if (paidEmail?.startsWith("sent:")) {
+      notice += ` Payment registered and emailed to ${order.email}.`;
+    } else if (paidEmail) {
+      notice += " Payment registered.";
+    }
+  }
   // "dialog or form" (card §B): a tracking code typed in the confirm dialog is
   // a tracking save like any other, and belongs in the register the same way.
   if (trackingCode) await recordOrderEvent(id, "tracking_set", { code: trackingCode });
@@ -260,6 +276,64 @@ export async function updateOrderTracking(formData: FormData): Promise<void> {
   revalidatePath("/admin");
 }
 
+/**
+ * R4-BUGS-C1 Ⓒ — registering the payment: the write, the customer mail and
+ * the log entry, in one place, because two moments now do it — the manual
+ * toggle and the move to `confirmed`.
+ *
+ * IDEMPOTENT, and by the WRITE, not by the read before it: the update carries
+ * `.is("paid_at", null)` and only goes on if it actually changed a row. The
+ * read-then-write pair would let two confirms land together and mail the
+ * customer twice — with one admin that is theory, but the condition costs a
+ * line and removes the question.
+ *
+ * Returns what happened to the mail so the caller can say it in its notice;
+ * `null` means nothing was registered (already paid, or unreadable).
+ */
+async function registerPaymentAndNotify(orderId: string): Promise<EmailOutcome | null> {
+  const order = await getOrder(orderId);
+  if (!order || order.paidAt) return null;
+
+  const paidAt = new Date().toISOString();
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("orders")
+    .update({ paid_at: paidAt })
+    .eq("id", orderId)
+    .is("paid_at", null)
+    .select("id");
+  // No row changed → somebody else registered it between the read and here.
+  if (error || !data || data.length === 0) return null;
+
+  // R4-ORDERS-PLUS: this mail is the only new one in the project — without
+  // its outcome in the log it would also be the only one whose fate is
+  // invisible. A cancelled order mails nothing, which is `skipped`: nothing
+  // was sent.
+  let email: EmailOutcome = "skipped";
+  // No mail for a cancelled order (R4-MAIL-JOURNEY §A), and never one that
+  // could fail the caller — the timestamp is already persisted.
+  if (order.status !== "cancelled") {
+    try {
+      await sendStatusEmail({
+        kind: "paid",
+        status: order.status,
+        code: order.code,
+        customerName: order.customerName,
+        customerEmail: order.email,
+        locale: order.locale === "en" ? "en" : "no",
+        trackingCode: order.trackingCode,
+        paidAt,
+      });
+      email = `sent:${order.email}`;
+    } catch (e) {
+      email = "failed";
+      console.error(`order ${order.code}: payment saved but email failed`, e);
+    }
+  }
+  await recordOrderEvent(orderId, "payment_registered", { email });
+  return email;
+}
+
 const paidSchema = z.object({
   id: z.string().uuid(),
   /** Current state, submitted so the toggle is idempotent per render. */
@@ -287,77 +361,22 @@ export async function toggleOrderPaid(formData: FormData): Promise<void> {
 
   // `paid` is the CURRENT state, so the toggle is idempotent per render:
   // currently paid → we are clearing; currently unpaid → we are registering.
-  const registering = !parsed.data.paid;
-  const paidAt = registering ? new Date().toISOString() : null;
-
-  const supabase = await createClient();
-  const { error } = await supabase
-    .from("orders")
-    .update({ paid_at: paidAt })
-    .eq("id", parsed.data.id);
-  if (error) return;
-
-  if (registering) {
-    // R4-ORDERS-PLUS: this mail is the only new one in the project — without
-    // its outcome in the log it would also be the only one whose fate is
-    // invisible. A cancelled order (or one that can no longer be read) mails
-    // nothing, which is `skipped`: nothing was sent.
-    let email: EmailOutcome = "skipped";
-    const order = await getOrder(parsed.data.id);
-    // No mail for a cancelled order (R4-MAIL-JOURNEY §A), and never one that
-    // could fail the toggle — the timestamp is already persisted.
-    if (order && order.status !== "cancelled") {
-      try {
-        await sendStatusEmail({
-          kind: "paid",
-          status: order.status,
-          code: order.code,
-          customerName: order.customerName,
-          customerEmail: order.email,
-          locale: order.locale === "en" ? "en" : "no",
-          trackingCode: order.trackingCode,
-          paidAt,
-        });
-        email = `sent:${order.email}`;
-      } catch (e) {
-        email = "failed";
-        console.error(`order ${order.code}: payment saved but email failed`, e);
-      }
-    }
-    await recordOrderEvent(parsed.data.id, "payment_registered", { email });
-  } else {
-    // Undoing sends nothing (R4-MAIL-JOURNEY §C), so the meta is empty by
-    // decision — not by omission.
+  if (parsed.data.paid) {
+    // Clearing. Undoing sends nothing (R4-MAIL-JOURNEY §C), so the meta is
+    // empty by decision — not by omission.
+    const supabase = await createClient();
+    const { error } = await supabase
+      .from("orders")
+      .update({ paid_at: null })
+      .eq("id", parsed.data.id);
+    if (error) return;
     await recordOrderEvent(parsed.data.id, "payment_cleared", {});
+  } else {
+    // Registering — the same path `confirmed` takes (R4-BUGS-C1 Ⓒ).
+    await registerPaymentAndNotify(parsed.data.id);
   }
 
   revalidatePath(`/admin/orders/${parsed.data.id}`);
   revalidatePath("/admin");
 }
 
-const ratifiedSchema = z.object({
-  id: z.string().uuid(),
-  /** Current state, submitted so the toggle is idempotent per render. */
-  ratified: z.boolean(),
-});
-
-/** ADR 0022 — the shop stands behind the discount it showed. No email of its own. */
-export async function toggleDiscountRatified(formData: FormData): Promise<void> {
-  if (!(await getAdminUser())) return;
-  const parsed = ratifiedSchema.safeParse({
-    id: formData.get("id"),
-    ratified: formData.get("ratified") === "1",
-  });
-  if (!parsed.success) return;
-
-  const supabase = await createClient();
-  await supabase
-    .from("orders")
-    .update({
-      discount_ratified_at: parsed.data.ratified ? null : new Date().toISOString(),
-    })
-    .eq("id", parsed.data.id);
-
-  revalidatePath(`/admin/orders/${parsed.data.id}`);
-  revalidatePath("/admin");
-}

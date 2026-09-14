@@ -201,6 +201,9 @@ test("AC3: shipped without a tracking code needs an explicit acknowledgement", a
 });
 
 test("AC4: the payment toggle sets and clears paid_at, and the badge follows", async ({ page }) => {
+  // R4-BUGS-C1 Ⓒ: the order arrives here ALREADY paid — the AC3 confirm above
+  // registers the payment now. The test reads the badge first and asserts the
+  // round trip, so it protects the toggle from whichever state it starts in.
   await loginAdmin(page);
   await page.goto(`/admin/orders/${seeded.orderId}`);
   const badge = page.getByTestId("paid-badge");
@@ -259,7 +262,12 @@ test("AC8: a status that no longer mails says «no email» — that is how the c
   await page.getByTestId("status-save").click();
   await page.getByTestId("status-confirm").click();
 
-  await expect(page.getByTestId("timeline-row").last()).toContainText("Confirmed · no email");
+  // R4-BUGS-C1 Ⓒ: confirming can now append a `payment_registered` row after
+  // the status one, so what is asserted is the Confirmed row itself, not
+  // whichever row happens to be last.
+  await expect(page.getByTestId("timeline-row").filter({ hasText: "Confirmed" }).last()).toContainText(
+    "Confirmed · no email"
+  );
 });
 
 test("AC9: undoing a payment is logged, and logged as sending nothing", async ({ page }, t) => {

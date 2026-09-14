@@ -7,8 +7,22 @@ import { useTranslations } from "next-intl";
  * F36 step-2: design description. Desktop always shows full text; mobile
  * clamps to 3 lines and only shows a "Vis mer/Vis mindre" toggle when the
  * text actually overflows the clamp (measured via scrollHeight after mount).
+ *
+ * R4-BUGS-C1 Ⓔ: `clamp="always"` keeps the clamp and the toggle at every
+ * breakpoint — what the product sheet needs, where a long description pushes
+ * the buy row off the screen on desktop too. The default leaves step 2 exactly
+ * as it was.
  */
-export function DesignDescription({ text }: { text: string }) {
+export function DesignDescription({
+  text,
+  clamp = "mobile",
+  testId,
+}: {
+  text: string;
+  clamp?: "mobile" | "always";
+  /** The caller's own hook for tests — the paragraph is what they look for. */
+  testId?: string;
+}) {
   const t = useTranslations("configurator.step2");
   const ref = useRef<HTMLParagraphElement>(null);
   const [expanded, setExpanded] = useState(false);
@@ -23,20 +37,24 @@ export function DesignDescription({ text }: { text: string }) {
     <div>
       <p
         ref={ref}
+        data-testid={testId}
         className={
-          "text-sm text-muted-foreground" +
-          // clamp only on mobile; desktop (sm+) always shows full text
-          (!expanded ? " line-clamp-3 sm:line-clamp-none" : "")
+          "text-sm leading-relaxed text-muted-foreground" +
+          // "mobile": clamp below sm only, desktop shows the full text
+          (!expanded ? (clamp === "always" ? " line-clamp-3" : " line-clamp-3 sm:line-clamp-none") : "")
         }
       >
         {text}
       </p>
-      {/* toggle only when the mobile clamp actually hides text (TODO:nb-review NO copy: showMore/showLess) */}
+      {/* toggle only when the clamp actually hides text (TODO:nb-review NO copy: showMore/showLess) */}
       {overflows && (
         <button
           type="button"
           onClick={() => setExpanded((v) => !v)}
-          className="mt-1 text-sm font-medium text-[var(--mk-accent)] sm:hidden"
+          className={
+            "mt-1 text-sm font-medium text-[var(--mk-accent)]" +
+            (clamp === "always" ? "" : " sm:hidden")
+          }
         >
           {expanded ? t("showLess") : t("showMore")}
         </button>

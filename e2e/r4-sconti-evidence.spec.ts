@@ -354,20 +354,19 @@ test.describe("admin: an order that actually carries a discount", () => {
     await deleteOrder(seeded?.orderId ?? "");
   });
 
-  test("admin-order-discount + admin-ratify + admin-order-deal (1280)", async ({ page }) => {
+  test("admin-order-discount + admin-order-deal (1280)", async ({ page }) => {
     await page.setViewportSize(DESKTOP);
     await loginAdmin(page);
     await page.goto(`/admin/orders/${seeded.orderId}`);
 
-    // full page: totals block (subtotal/discount/total) + the ratify section,
+    // full page: totals block (subtotal/discount/total) + the ratified badge,
     // both in frame — the whole discounted rendering path in one shot.
     await expect(page.getByTestId("detail-discount")).toBeVisible();
     await page.screenshot({ path: `${OUT}/admin-order-discount-1280.png`, fullPage: true });
 
-    // tighter close-up: the Payment & shipping section, badge + ratify toggle.
-    const paymentSection = page.getByTestId("ratify-form").locator("xpath=ancestor::section[1]");
-    await expect(paymentSection.getByTestId("discount-badge")).toBeVisible();
-    await paymentSection.screenshot({ path: `${OUT}/admin-ratify-1280.png` });
+    // R4-BUGS-C1 Ⓑ: the ratify toggle is gone, and with it the close-up that
+    // was anchored to its form. The badge itself is still the thing to see.
+    await expect(page.getByTestId("discount-badge")).toBeVisible();
 
     // R4-SCONTI ② — the SAME order, its discount reclassified as a fixed DEAL
     // (order_items.discount_source is a free-text column from migration

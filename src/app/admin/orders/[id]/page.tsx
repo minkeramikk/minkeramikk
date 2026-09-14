@@ -30,7 +30,6 @@ import { OrderTimeline } from "@/components/admin/order-timeline";
 import { PaidBadge } from "@/components/ui-domain/paid-badge";
 import { DiscountRatifiedBadge } from "@/components/ui-domain/discount-badge";
 import {
-  toggleDiscountRatified,
   toggleOrderPaid,
   updateOrderTracking,
 } from "../actions";
@@ -335,32 +334,18 @@ export default async function OrderDetailPage({
               </p>
 
               {/* R4-SCONTI: only when the order actually carries a discount — an
-                  undiscounted order must not grow a control that means nothing. */}
+                  undiscounted order must not grow a badge that means nothing.
+                  R4-BUGS-C1 Ⓑ: badge and timestamp only. The ratification is
+                  automatic on `confirmed` (ADR 0022), so a manual toggle next to
+                  it only read as a second, contradictory way to do it. */}
               {orderDiscount(order.items).amountCents > 0 && (
-                <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
-                  <div>
-                    <DiscountRatifiedBadge ratifiedAt={order.discountRatifiedAt} />
-                    {order.discountRatifiedAt && (
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {fmtDateTime(order.discountRatifiedAt)}
-                      </p>
-                    )}
-                  </div>
-                  <form action={toggleDiscountRatified} data-testid="ratify-form">
-                    <input type="hidden" name="id" value={order.id} />
-                    <input
-                      type="hidden"
-                      name="ratified"
-                      value={order.discountRatifiedAt ? "1" : "0"}
-                    />
-                    <button
-                      type="submit"
-                      data-testid="ratify-toggle"
-                      className="rounded-lg border border-border px-3 py-1.5 text-sm"
-                    >
-                      {order.discountRatifiedAt ? "Un-ratify" : "Ratify discount"}
-                    </button>
-                  </form>
+                <div className="mt-4 border-t border-border pt-4">
+                  <DiscountRatifiedBadge ratifiedAt={order.discountRatifiedAt} />
+                  {order.discountRatifiedAt && (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {fmtDateTime(order.discountRatifiedAt)}
+                    </p>
+                  )}
                 </div>
               )}
 
