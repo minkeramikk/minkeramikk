@@ -14,6 +14,7 @@ import { PRODUCT_THUMB_WIDTH } from "@/lib/asset-variants";
 import { formatMoney, money, multiply, percentOf, subtract } from "@/lib/money/money";
 import { displayPhotos } from "@/lib/catalog/product-photos";
 import { ATTR_ICON } from "@/components/ui-domain/attribute-icons";
+import { DesignDescription } from "@/app/[locale]/(public)/configurator/design-description";
 import {
   attributeLabel,
   formatAttributeValue,
@@ -322,13 +323,15 @@ export function ProductSheet({
               </ul>
             )}
 
+            {/* R4-BUGS-C1 Ⓔ: clamped to 3 lines with a «Vis mer» toggle — a long
+                description used to push the ladder and the buy row out of view.
+                Same component as step 2, which keeps its mobile-only clamp. */}
             {description && (
-              <p
-                data-testid="product-details"
-                className="text-sm leading-relaxed text-muted-foreground"
-              >
-                {description}
-              </p>
+              <DesignDescription
+                text={description}
+                clamp="always"
+                testId="product-details"
+              />
             )}
 
             {/* §3.26: the scale, then the buy row, and nothing between them —
