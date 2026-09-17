@@ -107,9 +107,33 @@ export function CartLineRow({
               </>
             ) : (
               <>
+                {/* Fix round 1 / task 8: the mockup's Line(r) puts a mini
+                    design preview + a colour dot per selection here (Thumb +
+                    Dots) — a legacy line without `layers` skips the preview,
+                    same fallback CartLineThumb already uses. Ceramic size
+                    (mockup's "· Ø 26 cm") is a deliberate gap: neither
+                    CartLine nor configSnapshot carries a dimension field, and
+                    adding one is model work this PR doesn't own. */}
+                {line.layers && line.layers.length > 0 && (
+                  <DesignRound layers={line.layers} className="size-4 rounded-sm" />
+                )}
                 <span className="font-medium text-foreground">
                   {designLabel(line.configSnapshot, locale) ?? "—"}
                 </span>
+                {line.configSnapshot && line.configSnapshot.selections.some((s) => s.hex) && (
+                  <span className="inline-flex shrink-0 items-center gap-0.5">
+                    {line.configSnapshot.selections
+                      .filter((s) => s.hex)
+                      .map((s) => (
+                        <span
+                          key={s.label}
+                          aria-hidden
+                          className="size-2.5 rounded-full border border-black/10"
+                          style={{ background: s.hex ?? undefined }}
+                        />
+                      ))}
+                  </span>
+                )}
                 {line.configSnapshot && (
                   <span className="truncate">
                     · {formatSelections(line.configSnapshot.selections, locale)}
