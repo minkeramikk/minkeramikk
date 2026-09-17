@@ -267,6 +267,17 @@
     "unpaint": {
       "action": "Unpaint…"
     },
+    "unpaintDialog": {
+      "eyebrow": "Unpaint",
+      "title": "Take the colours off — keep the ceramic.",
+      "body": "The {unit} go back to <b>unpainted</b> in your basket, same price and discount. Paint them again later with any palette.",
+      "unitPiece": "{count, plural, one {piece} other {pieces}}",
+      "unitSet": "{count, plural, one {set} other {sets}}",
+      "howMany": "How many?",
+      "all": "All {n}",
+      "confirm": "Unpaint {n} {unit}",
+      "keepPainted": "Keep them painted"
+    },
     "colourBadge": {
       "custom": "Custom colours",
       "studio": "Studio colours"

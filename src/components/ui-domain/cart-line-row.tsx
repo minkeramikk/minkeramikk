@@ -14,8 +14,10 @@ import type { LineDiscount } from "@/lib/discounts/discount";
  * First selection colour of a line → colour-chip fallback for CartLineThumb.
  * Moved here from ceramics-step.tsx (task 8): this row is now its only
  * caller — cart-menu.tsx (steps 1–2 drawer) keeps its own identical copy.
+ * Exported (task 11): `UnpaintDialog`'s line card needs the exact same
+ * fallback for the line it is unpainting — a second copy would drift.
  */
-function thumbHex(line: CartLine): string | undefined {
+export function thumbHex(line: CartLine): string | undefined {
   return line.configSnapshot?.selections.find((s) => s.hex)?.hex ?? undefined;
 }
 

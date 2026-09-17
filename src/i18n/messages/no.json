@@ -266,6 +266,17 @@
     "unpaint": {
       "action": "Gjør umalt…"
     },
+    "unpaintDialog": {
+      "eyebrow": "Gjør umalt",
+      "title": "Ta bort fargene — behold keramikken.",
+      "body": "{unit} går tilbake til <b>umalt</b> i handlekurven, samme pris og rabatt. Du kan male dem igjen senere med hvilken som helst palett.",
+      "unitPiece": "{count, plural, one {del} other {deler}}",
+      "unitSet": "{count, plural, one {sett} other {sett}}",
+      "howMany": "Hvor mange?",
+      "all": "Alle {n}",
+      "confirm": "Gjør {n} {unit} umalt",
+      "keepPainted": "Behold dem malt"
+    },
     "colourBadge": {
       "custom": "Egendefinerte farger",
       "studio": "Studioets farger"

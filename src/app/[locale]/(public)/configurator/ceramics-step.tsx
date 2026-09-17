@@ -49,6 +49,7 @@ import { Truck, Plus, ArrowUpRight } from "lucide-react";
 import type { ResolvedSharedSet } from "./resolve-shared-set";
 import { ProductSheet } from "@/components/ui-domain/product-sheet";
 import { AddedSheet } from "@/components/ui-domain/added-sheet";
+import { UnpaintDialog } from "@/components/ui-domain/unpaint-dialog";
 import { NextStepPill, PillIcon } from "@/components/ui-domain/next-step-pill";
 
 export interface CeramicProduct {
@@ -218,6 +219,7 @@ export function CeramicsStep({
     remove,
     clear,
     paint,
+    unpaint,
     discount,
     discountConfig,
     setCurrentConfigCode,
@@ -285,6 +287,35 @@ export function CeramicsStep({
       Math.min(Math.max(1, paintN[line.id] ?? line.quantity), line.quantity),
     [paintN]
   );
+  /**
+   * Bug fix (task 11 review): an unpainted line's id is `${productId}::unpainted`
+   * — it RECURS, because `cart.ts` gives every unpainted lot of one product the
+   * same id (there is only ever one at a time). `paintNFor` clamps a stored
+   * number DOWN when its line shrinks, but nothing dropped the entry when the
+   * line disappeared entirely (paint in full, «Remove all»). So a number typed
+   * for one unpainted lot survived to be read by the NEXT lot of the same
+   * product — which should start at its own quantity, not someone else's leftover.
+   * Root cause lives here, in the one place that owns `paintN`, not in each
+   * caller that can make a line disappear (paint, remove): whenever the cart no
+   * longer has a line for some id, that id's entry is stale by definition.
+   */
+  useEffect(() => {
+    setPaintN((m) => {
+      const liveIds = new Set(cart.map((l) => l.id));
+      const next: Record<string, number> = {};
+      let changed = false;
+      for (const [id, v] of Object.entries(m)) {
+        if (liveIds.has(id)) next[id] = v;
+        else changed = true;
+      }
+      return changed ? next : m;
+    });
+  }, [cart]);
+  /** R5-UNPAINTED task 11: id of the line the `UnpaintDialog` is open for, or
+   *  null. The dialog itself keeps rendering its last line through the exit
+   *  animation (see its own comment) — this id only drives whether it's open. */
+  const [unpaintId, setUnpaintId] = useState<string | null>(null);
+  const unpaintLine = cart.find((l) => l.id === unpaintId) ?? null;
   /** CA-3 C: share feedback under the panel header (aria-live). */
   const [shareState, setShareState] = useState<
     | null
@@ -805,9 +836,11 @@ export function CeramicsStep({
                   onQty={(q) => setQuantity(line.id, q)}
                   onRemove={() => remove(line.id)}
                   // Task 10: paint n pieces onto the config currently on
-                  // screen. Task 11 still owns the unpaint dialog.
+                  // screen. Task 11: open the dialog, keyed by line id — it
+                  // reads the live line itself, so it always shows current
+                  // quantity even if the cart changes while it's open.
                   onPaint={(n) => paint(line.id, n, configCode, snapshot, designLayers)}
-                  onUnpaint={() => {}}
+                  onUnpaint={() => setUnpaintId(line.id)}
                   n={paintNFor(line)}
                   onN={(next) =>
                     setPaintN((m) => ({
@@ -1321,6 +1354,20 @@ export function CeramicsStep({
           locale={locale}
         />
       )}
+
+      {/* R5-UNPAINTED task 11: the inverse of Paint. Rendered once, at the end
+          of the step, driven by `unpaintId` — same pattern as `ProductSheet`
+          above. `unpaint()` is the pure primitive's context wrapper
+          (use-cart.ts); this component only decides WHEN and with WHAT n. */}
+      <UnpaintDialog
+        line={unpaintLine}
+        locale={locale}
+        onOpenChange={(open) => !open && setUnpaintId(null)}
+        onConfirm={(n) => {
+          if (unpaintLine) unpaint(unpaintLine.id, n);
+          setUnpaintId(null);
+        }}
+      />
 
       {/* §3.20: visible confirmation, replacing the old sr-only announcement.
           The live region is mounted for good and only its content toggles — a
