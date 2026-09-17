@@ -5,8 +5,10 @@ import {
   cartPieces,
   cartTotal,
   itemCount,
+  lineKey,
   lineSubtotal,
   removeLine,
+  unpaintedPieces,
   updateQuantity,
   type Cart,
   type NewCartLine,
@@ -204,5 +206,36 @@ describe("bundle transaction (R4-upsell, D-C2)", () => {
 
     expect(folded).toHaveLength(1);
     expect(folded[0].quantity).toBe(5);
+  });
+});
+
+describe("unpainted lines", () => {
+  const bare: NewCartLine = { ...vietriFlat, configCode: null, configSnapshot: null };
+
+  it("keys an unpainted line by product", () => {
+    expect(lineKey("p-flat", null)).toBe("p-flat::unpainted");
+  });
+
+  it("merges two unpainted adds of the same product", () => {
+    let cart = addToCart([], { ...bare, quantity: 2 });
+    cart = addToCart(cart, { ...bare, quantity: 3 });
+    expect(cart).toHaveLength(1);
+    expect(cart[0].quantity).toBe(5);
+    expect(cart[0].configCode).toBeNull();
+  });
+
+  it("keeps the unpainted line apart from the painted one", () => {
+    let cart = addToCart([], vietriFlat);
+    cart = addToCart(cart, bare);
+    expect(cart).toHaveLength(2);
+  });
+
+  it("counts unpainted PIECES, sets included", () => {
+    const cart = addToCart(addToCart([], { ...bare, quantity: 2, pieces: 3 }), vietriFlat);
+    expect(unpaintedPieces(cart)).toBe(6);
+  });
+
+  it("counts nothing when every line is painted", () => {
+    expect(unpaintedPieces(addToCart([], vietriFlat))).toBe(0);
   });
 });

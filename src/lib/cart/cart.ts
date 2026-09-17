@@ -72,8 +72,13 @@ export interface CartLine {
   unitPriceCents: number;
   currency: Currency;
   quantity: number;
-  /** Reloadable configurator code (interim: the configurator query string; F04 formalizes). */
-  configCode: string;
+  /**
+   * Reloadable configurator code. `null` = an UNPAINTED line (R5-UNPAINTED):
+   * the ceramic is in the basket at full price and the colours are chosen
+   * later. `configSnapshot` and `layers` are null/absent on such a line; the
+   * gate against ordering one lives on the ORDER, not on the cart.
+   */
+  configCode: string | null;
   configSnapshot: ConfigSnapshot | null;
   /**
    * F19 — the DESIGN pattern layers (no plate) for the mini composited preview
@@ -115,8 +120,11 @@ export type NewCartLine = Omit<CartLine, "id" | "quantity"> & {
   quantity?: number;
 };
 
-export function lineKey(productId: string, configCode: string): string {
-  return `${productId}::${configCode}`;
+/** The key half of an unpainted line's id — one such line per product. */
+export const UNPAINTED_KEY = "unpainted";
+
+export function lineKey(productId: string, configCode: string | null): string {
+  return `${productId}::${configCode ?? UNPAINTED_KEY}`;
 }
 
 /** Add a line; if an identical (product + config) line exists, merge quantity. */
@@ -198,4 +206,16 @@ export function designLabel(
   if (!snapshot) return null;
   const localized = locale === "no" ? snapshot.designNameNo : snapshot.designNameEn;
   return localized ?? snapshot.designName ?? null;
+}
+
+/**
+ * R5-UNPAINTED — physical pieces with no colours yet. Pieces, not lines: the
+ * basket box, the header marker and the CTA all say «N pieces», and one line
+ * can be a set of N (F29), exactly like `cartPieces`.
+ */
+export function unpaintedPieces(cart: Cart): number {
+  return cart.reduce(
+    (n, l) => n + (l.configCode === null ? (l.pieces ?? 1) * l.quantity : 0),
+    0
+  );
 }
