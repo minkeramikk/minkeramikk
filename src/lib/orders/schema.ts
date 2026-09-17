@@ -86,6 +86,14 @@ export const orderItemSchema = z.object({
 
 export type OrderItemInput = z.infer<typeof orderItemSchema>;
 
+/** R5-UNPAINTED: an `OrderItemInput` whose colour is settled. `createOrder`'s
+ *  refusal gate (see create.ts) is the ONLY place that produces this — by
+ *  narrowing, never by casting — and everything past it (order rows, the
+ *  confirmation mail) is typed against this, not the raw payload, so a
+ *  `config_code`/`configCode` column or field that must never be null gets a
+ *  compile-time guarantee instead of a runtime hope. */
+export type PaintedOrderItem = OrderItemInput & { configCode: string };
+
 /**
  * The customer-facing form fields (also validated client-side).
  *

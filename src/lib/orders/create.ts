@@ -2,7 +2,7 @@ import "server-only";
 
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import type { Json } from "@/lib/supabase/types";
-import { orderPayloadSchema, type OrderItemInput } from "./schema";
+import { orderPayloadSchema, type OrderItemInput, type PaintedOrderItem } from "./schema";
 import { buildOrderItemRows } from "./build";
 import { verifyTurnstile } from "./turnstile";
 import { sendOrderEmails, type EmailTransport } from "./email";
@@ -54,8 +54,12 @@ export async function createOrder(
   // R5-UNPAINTED — the gate is on the ORDER, not on the cart: a basket may hold
   // colourless lines all day, an order may not. Before Turnstile, before the
   // discount, before any email: nothing downstream (lab PDF, plate compositing)
-  // has a design to work from.
-  if (payload.items.some((i) => i.configCode === null)) {
+  // has a design to work from. The refusal and the narrowing are the same
+  // act: `items` below is PaintedOrderItem[] (see schema.ts), so build.ts's
+  // row and email.ts's mail item can declare config_code/configCode as a
+  // plain `string` instead of re-deriving the same null-check themselves.
+  const items = payload.items;
+  if (!items.every((i): i is PaintedOrderItem => i.configCode !== null)) {
     return { ok: false, status: 400, error: "unpainted" };
   }
 
@@ -71,7 +75,7 @@ export async function createOrder(
   const discountConfig = deps.config ?? (await getDiscountConfig());
   const keyOf = (_i: OrderItemInput, idx: number) => String(idx);
   const discount = computeCartDiscount(
-    payload.items.map((i, idx) => ({
+    items.map((i, idx) => ({
       id: String(idx),
       productId: i.productId,
       unitPriceCents: i.unitPriceCents,
@@ -89,7 +93,7 @@ export async function createOrder(
     p_phone: payload.phone || "",
     p_message: payload.message || "",
     p_locale: payload.locale,
-    p_items: buildOrderItemRows(payload.items, discount, keyOf) as unknown as Json,
+    p_items: buildOrderItemRows(items, discount, keyOf) as unknown as Json,
     p_address: payload.address || "",
     p_zipcode: payload.zipcode || "",
     p_country: payload.country || "",
@@ -133,7 +137,7 @@ export async function createOrder(
           code: orderCode,
           customerName: payload.customerName,
           locale: payload.locale,
-          items: payload.items,
+          items,
           discount,
           address: {
             address: payload.address,
@@ -157,7 +161,7 @@ export async function createOrder(
           customerName: payload.customerName,
           customerEmail: payload.email,
           locale: payload.locale,
-          items: payload.items,
+          items,
           discount,
           pdf,
         },
