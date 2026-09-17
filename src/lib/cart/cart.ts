@@ -162,11 +162,43 @@ export function removeLine(cart: Cart, id: string): Cart {
 }
 
 /**
+ * Shared plumbing for `paintLines`/`unpaintLines`: shrink the source line to
+ * `remaining` and land `moved` pieces on `dest` (everything the destination
+ * line needs, quantity aside). `addToCart`'s merge-or-append is right in every
+ * case except one: source emptied + no destination line yet, where a plain
+ * append would drop the new line at the bottom of the basket. That one case
+ * gets the source's own array index instead, so painting/unpainting a whole
+ * row leaves it exactly where the customer touched it.
+ */
+function moveQuantity(
+  cart: Cart,
+  lineId: string,
+  remaining: number,
+  moved: number,
+  dest: NewCartLine
+): Cart {
+  const srcIndex = cart.findIndex((l) => l.id === lineId);
+  const rest = updateQuantity(cart, lineId, remaining);
+  const newLine = { ...dest, quantity: moved };
+  if (remaining > 0) return addToCart(rest, newLine);
+
+  const destId = lineKey(dest.productId, dest.configCode);
+  if (rest.some((l) => l.id === destId)) return addToCart(rest, newLine);
+
+  const withDest = [...rest];
+  withDest.splice(srcIndex, 0, { ...newLine, id: destId });
+  return withDest;
+}
+
+/**
  * R5-UNPAINTED — move `n` pieces off a line onto the SAME product wearing
  * `configCode`. Pure and total: the moved pieces are clamped to what the line
  * holds, the source disappears when it empties, and the destination merges
  * through `addToCart` when it already exists. Painting is therefore just a
- * transfer — the price, the pieces and the discount never move.
+ * transfer — the price, the pieces and the discount never move. When the
+ * source empties into a destination that doesn't exist yet, the new line
+ * takes the source's own array index (see `moveQuantity`) instead of
+ * teleporting to the bottom of the basket.
  */
 export function paintLines(
   cart: Cart,
@@ -179,30 +211,30 @@ export function paintLines(
   const src = cart.find((l) => l.id === lineId);
   if (!src || n <= 0) return cart;
   const moved = Math.min(n, src.quantity);
-  const rest = updateQuantity(cart, lineId, src.quantity - moved);
-  return addToCart(rest, {
+  return moveQuantity(cart, lineId, src.quantity - moved, moved, {
     ...src,
     configCode,
     configSnapshot,
     layers,
-    quantity: moved,
   });
 }
 
-/** The inverse: `n` pieces go back to the product's unpainted line, colours off. */
+/**
+ * The inverse: `n` pieces go back to the product's unpainted line, colours
+ * off. Same index-preserving move as `paintLines` (see `moveQuantity`) when
+ * the source empties into a destination that doesn't exist yet.
+ */
 export function unpaintLines(cart: Cart, lineId: string, n: number): Cart {
   const src = cart.find((l) => l.id === lineId);
   if (!src || n <= 0 || src.configCode === null) return cart;
   const moved = Math.min(n, src.quantity);
-  const rest = updateQuantity(cart, lineId, src.quantity - moved);
-  return addToCart(rest, {
+  return moveQuantity(cart, lineId, src.quantity - moved, moved, {
     ...src,
     configCode: null,
     configSnapshot: null,
     // `layers` is what a row would composite; an unpainted row has nothing to
     // composite. Explicit, because the spread above would carry them over.
     layers: undefined,
-    quantity: moved,
   });
 }
 

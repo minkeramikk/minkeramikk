@@ -350,4 +350,51 @@ describe("unpainted lines", () => {
     expect(paintLines(cart, "p-flat::unpainted", 0, CODE, snap)).toEqual(cart);
     expect(paintLines(cart, "nope", 1, CODE, snap)).toEqual(cart);
   });
+
+  // The row the customer just touched must stay where it was — painting or
+  // unpainting a whole line must not teleport it to the bottom of the basket.
+  describe("array order", () => {
+    const mug = { ...servering, productId: "p-mug", configCode: "design=other" };
+
+    it("painting a fully-unpainted MIDDLE line leaves the painted line at the same index", () => {
+      let cart = addToCart([], vietriFlat); // index 0
+      cart = addToCart(cart, { ...servering, configCode: null, configSnapshot: null, quantity: 3 }); // index 1, unpainted
+      cart = addToCart(cart, mug); // index 2
+      cart = paintLines(cart, lineKey("p-stor", null), 3, CODE, snap);
+      expect(cart).toHaveLength(3);
+      expect(cart[1].productId).toBe("p-stor");
+      expect(cart[1].configCode).toBe(CODE);
+    });
+
+    it("unpainting a fully-painted MIDDLE line leaves the unpainted line at the same index", () => {
+      let cart = addToCart([], vietriFlat); // index 0
+      cart = addToCart(cart, { ...servering, configCode: CODE, quantity: 2 }); // index 1, painted
+      cart = addToCart(cart, mug); // index 2
+      cart = unpaintLines(cart, lineKey("p-stor", CODE), 2);
+      expect(cart).toHaveLength(3);
+      expect(cart[1].productId).toBe("p-stor");
+      expect(cart[1].configCode).toBeNull();
+    });
+
+    it("painting into a destination that already exists does not move that destination", () => {
+      let cart = addToCart([], { ...vietriFlat, configCode: CODE, quantity: 4 }); // index 0, destination
+      cart = addToCart(cart, mug); // index 1
+      cart = addToCart(cart, { ...vietriFlat, configCode: null, configSnapshot: null, quantity: 2 }); // index 2, source
+      cart = paintLines(cart, "p-flat::unpainted", 2, CODE, snap);
+      expect(cart).toHaveLength(2);
+      expect(cart[0].id).toBe(`p-flat::${CODE}`);
+      expect(cart[0].quantity).toBe(6);
+      expect(cart[1].productId).toBe("p-mug");
+    });
+
+    it("a partial paint still leaves the source where it was", () => {
+      let cart = addToCart([], { ...servering, configCode: null, configSnapshot: null, quantity: 3 }); // index 0, source
+      cart = addToCart(cart, vietriFlat); // index 1
+      cart = paintLines(cart, "p-stor::unpainted", 2, CODE, snap);
+      expect(cart).toHaveLength(3);
+      expect(cart[0].id).toBe("p-stor::unpainted");
+      expect(cart[0].quantity).toBe(1);
+      expect(cart[2].id).toBe(`p-stor::${CODE}`);
+    });
+  });
 });
