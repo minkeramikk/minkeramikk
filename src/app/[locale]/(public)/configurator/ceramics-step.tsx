@@ -19,6 +19,7 @@ import {
   designLabel,
   itemCount,
   lineKey,
+  unpaintedPieces,
   type CartLayer,
   type ConfigSnapshot,
   type NewCartLine,
@@ -438,6 +439,9 @@ export function CeramicsStep({
   const count = hydrated ? itemCount(cart) : 0;
   /** R4-CTA-STICKY: the bar counts PIECES, not lines — a set is N deler. */
   const pieces = hydrated ? cartPieces(cart) : 0;
+  /** R5-UNPAINTED task 9: the basket's own explanation box, mirroring the
+   *  header marker (cart-menu.tsx) — pieces, not lines. */
+  const unpaintedInBasket = hydrated ? unpaintedPieces(cart) : 0;
   /** The mobile order block — the sticky bar's CTA queries the form inside it. */
   const orderBlockRef = useRef<HTMLDivElement>(null);
   /**
@@ -751,6 +755,19 @@ export function CeramicsStep({
   const cartPanel = (
     <div className="flex flex-col gap-0" data-testid="docked-cart">
       <h2 className="mb-3 text-base font-semibold">{t("cartTitle")}</h2>
+
+      {/* R5-UNPAINTED task 9: explicit, no button inside — Paint lives on the
+          row itself (task 10). Pieces, not lines, like the header marker.
+          TODO:nb-review — cart.unpainted.note NO copy is new, unreviewed. */}
+      {unpaintedInBasket > 0 && (
+        <p
+          data-testid="basket-unpainted-note"
+          className="mb-1 rounded-sm bg-muted px-3 py-2 text-xs text-foreground/80"
+        >
+          <span className="text-warn">○</span>{" "}
+          {t("unpainted.note", { count: unpaintedInBasket })}
+        </p>
+      )}
 
       {count === 0 ? (
         <p className="py-6 text-sm text-muted-foreground">{t("empty")}</p>
