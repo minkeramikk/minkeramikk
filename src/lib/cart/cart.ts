@@ -161,6 +161,51 @@ export function removeLine(cart: Cart, id: string): Cart {
   return cart.filter((l) => l.id !== id);
 }
 
+/**
+ * R5-UNPAINTED — move `n` pieces off a line onto the SAME product wearing
+ * `configCode`. Pure and total: the moved pieces are clamped to what the line
+ * holds, the source disappears when it empties, and the destination merges
+ * through `addToCart` when it already exists. Painting is therefore just a
+ * transfer — the price, the pieces and the discount never move.
+ */
+export function paintLines(
+  cart: Cart,
+  lineId: string,
+  n: number,
+  configCode: string,
+  configSnapshot: ConfigSnapshot | null,
+  layers?: CartLayer[]
+): Cart {
+  const src = cart.find((l) => l.id === lineId);
+  if (!src || n <= 0) return cart;
+  const moved = Math.min(n, src.quantity);
+  const rest = updateQuantity(cart, lineId, src.quantity - moved);
+  return addToCart(rest, {
+    ...src,
+    configCode,
+    configSnapshot,
+    layers,
+    quantity: moved,
+  });
+}
+
+/** The inverse: `n` pieces go back to the product's unpainted line, colours off. */
+export function unpaintLines(cart: Cart, lineId: string, n: number): Cart {
+  const src = cart.find((l) => l.id === lineId);
+  if (!src || n <= 0 || src.configCode === null) return cart;
+  const moved = Math.min(n, src.quantity);
+  const rest = updateQuantity(cart, lineId, src.quantity - moved);
+  return addToCart(rest, {
+    ...src,
+    configCode: null,
+    configSnapshot: null,
+    // `layers` is what a row would composite; an unpainted row has nothing to
+    // composite. Explicit, because the spread above would carry them over.
+    layers: undefined,
+    quantity: moved,
+  });
+}
+
 // M3, fix wave: zero production callers since R4-SCONTI (computeCartDiscount
 // owns the discounted totals now) — retained only because cart.test.ts and
 // shipping.test.ts still exercise these two directly.

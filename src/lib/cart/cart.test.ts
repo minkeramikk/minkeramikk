@@ -7,8 +7,10 @@ import {
   itemCount,
   lineKey,
   lineSubtotal,
+  paintLines,
   removeLine,
   unpaintedPieces,
+  unpaintLines,
   updateQuantity,
   type Cart,
   type NewCartLine,
@@ -237,5 +239,77 @@ describe("unpainted lines", () => {
 
   it("counts nothing when every line is painted", () => {
     expect(unpaintedPieces(addToCart([], vietriFlat))).toBe(0);
+  });
+
+  const CODE = "MK-ALICI-A1";
+  const snap = { designSlug: "alici", designName: "Alici", selections: [] };
+
+  it("paints 2 of 3: a painted line of 2 and an unpainted rest of 1", () => {
+    const cart = paintLines(
+      addToCart([], { ...vietriFlat, configCode: null, configSnapshot: null, quantity: 3 }),
+      "p-flat::unpainted",
+      2,
+      CODE,
+      snap
+    );
+    expect(cart).toHaveLength(2);
+    const painted = cart.find((l) => l.configCode === CODE)!;
+    const rest = cart.find((l) => l.configCode === null)!;
+    expect(painted.quantity).toBe(2);
+    expect(painted.id).toBe(`p-flat::${CODE}`);
+    expect(painted.configSnapshot).toBe(snap);
+    expect(rest.quantity).toBe(1);
+  });
+
+  it("paints into an existing line of the same config instead of a second one", () => {
+    let cart = addToCart([], { ...vietriFlat, configCode: CODE, quantity: 4 });
+    cart = addToCart(cart, { ...vietriFlat, configCode: null, configSnapshot: null, quantity: 2 });
+    cart = paintLines(cart, "p-flat::unpainted", 2, CODE, snap);
+    expect(cart).toHaveLength(1);
+    expect(cart[0].quantity).toBe(6);
+  });
+
+  it("paints all of them: the unpainted line is gone", () => {
+    const cart = paintLines(
+      addToCart([], { ...vietriFlat, configCode: null, configSnapshot: null, quantity: 3 }),
+      "p-flat::unpainted",
+      3,
+      CODE,
+      snap
+    );
+    expect(cart).toHaveLength(1);
+    expect(cart[0].configCode).toBe(CODE);
+  });
+
+  it("never moves more pieces than the line holds", () => {
+    const cart = paintLines(
+      addToCart([], { ...vietriFlat, configCode: null, configSnapshot: null, quantity: 2 }),
+      "p-flat::unpainted",
+      9,
+      CODE,
+      snap
+    );
+    expect(cart).toHaveLength(1);
+    expect(cart[0].quantity).toBe(2);
+  });
+
+  it("unpaints 2 of 4 and fuses with the unpainted line already there", () => {
+    let cart = addToCart([], { ...vietriFlat, configCode: CODE, quantity: 4, layers: [{ src: "a.png" }] });
+    cart = addToCart(cart, { ...vietriFlat, configCode: null, configSnapshot: null, quantity: 1 });
+    cart = unpaintLines(cart, `p-flat::${CODE}`, 2);
+    expect(cart).toHaveLength(2);
+    const bareLine = cart.find((l) => l.configCode === null)!;
+    expect(bareLine.quantity).toBe(3);
+    expect(bareLine.configSnapshot).toBeNull();
+    expect(bareLine.layers).toBeUndefined();
+    expect(bareLine.plateImage).toBe(cart.find((l) => l.configCode === CODE)!.plateImage);
+    expect(cart.find((l) => l.configCode === CODE)!.quantity).toBe(2);
+  });
+
+  it("does nothing on a line that is already unpainted, or on n ≤ 0", () => {
+    const cart = addToCart([], { ...vietriFlat, configCode: null, configSnapshot: null, quantity: 2 });
+    expect(unpaintLines(cart, "p-flat::unpainted", 1)).toEqual(cart);
+    expect(paintLines(cart, "p-flat::unpainted", 0, CODE, snap)).toEqual(cart);
+    expect(paintLines(cart, "nope", 1, CODE, snap)).toEqual(cart);
   });
 });
