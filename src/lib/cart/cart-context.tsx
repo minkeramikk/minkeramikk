@@ -161,7 +161,10 @@ export function CartProvider({
               currency: l.currency,
               quantity: l.quantity,
               dealRuleId: l.dealRuleId,
-              configCode: l.configCode,
+              // R5-UNPAINTED: DiscountLineInput.configCode is string|undefined,
+              // never null — an unpainted line still counts for its quantity
+              // tier, it just has no design to match a suggestion donor on.
+              configCode: l.configCode ?? undefined,
             })),
             config,
             { supplierOf, supplierOfProduct, allowedProduct, currentConfigCode }

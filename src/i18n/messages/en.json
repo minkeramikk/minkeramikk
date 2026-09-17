@@ -217,6 +217,7 @@
     "total": "Total price",
     "design": "Design",
     "button": "{count, plural, =0 {Cart, empty} one {Cart, # item} other {Cart, # items}}",
+    "buttonUnpainted": "{count, plural, =0 {Basket, empty} one {Basket, # item} other {Basket, # items}}, {unpainted} unpainted",
     "description": "Review your items and send your order.",
     "viewBasket": "View basket",
     "backToCart": "Back to basket",

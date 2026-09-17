@@ -294,8 +294,25 @@ describe("unpainted lines", () => {
   });
 
   it("unpaints 2 of 4 and fuses with the unpainted line already there", () => {
-    let cart = addToCart([], { ...vietriFlat, configCode: CODE, quantity: 4, layers: [{ src: "a.png" }] });
-    cart = addToCart(cart, { ...vietriFlat, configCode: null, configSnapshot: null, quantity: 1 });
+    // R5-UNPAINTED test fix: a real plateImage here (the fixture leaves it
+    // undefined) so the assertion below actually falsifies if unpaintLines
+    // ever dropped the field — undefined === undefined would pass either way.
+    let cart = addToCart([], {
+      ...vietriFlat,
+      configCode: CODE,
+      quantity: 4,
+      layers: [{ src: "a.png" }],
+      plateImage: "https://example.test/plate.png",
+    });
+    // same product ⇒ same ceramic photo, painted or not — the pre-existing
+    // bare line carries it too, exactly as a real cart would.
+    cart = addToCart(cart, {
+      ...vietriFlat,
+      configCode: null,
+      configSnapshot: null,
+      quantity: 1,
+      plateImage: "https://example.test/plate.png",
+    });
     cart = unpaintLines(cart, `p-flat::${CODE}`, 2);
     expect(cart).toHaveLength(2);
     const bareLine = cart.find((l) => l.configCode === null)!;

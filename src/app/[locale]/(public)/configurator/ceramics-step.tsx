@@ -349,7 +349,10 @@ export function CeramicsStep({
         currency: l.currency,
         quantity: l.quantity,
         dealRuleId: l.dealRuleId,
-        configCode: l.configCode,
+        // R5-UNPAINTED: DiscountLineInput.configCode is string|undefined,
+        // never null — an unpainted line still counts for its quantity tier,
+        // it just has no design to match a suggestion donor on.
+        configCode: l.configCode ?? undefined,
       })),
     [cart]
   );
@@ -859,18 +862,25 @@ export function CeramicsStep({
                     line={line}
                     locale={locale}
                     editSlot={
-                      <button
-                        type="button"
-                        data-testid="cart-edit-design"
-                        onClick={() =>
-                          router.push(
-                            `/configurator?code=${encodeURIComponent(line.configCode)}&step=2`
-                          )
-                        }
-                        className="shrink-0 text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
-                      >
-                        ✎ {t("line.edit")}
-                      </button>
+                      // R5-UNPAINTED: an unpainted row has no design to reopen
+                      // at step 2 — no slot, not a slot to nothing. The `?? ""`
+                      // never actually fires here (the ternary already excludes
+                      // null) — it's only so TS narrows past the onClick
+                      // closure, which it won't do for a property access.
+                      line.configCode === null ? undefined : (
+                        <button
+                          type="button"
+                          data-testid="cart-edit-design"
+                          onClick={() =>
+                            router.push(
+                              `/configurator?code=${encodeURIComponent(line.configCode ?? "")}&step=2`
+                            )
+                          }
+                          className="shrink-0 text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+                        >
+                          ✎ {t("line.edit")}
+                        </button>
+                      )
                     }
                   />
                 )}

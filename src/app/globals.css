@@ -21,6 +21,10 @@
   --color-status-delivered: var(--status-delivered);
   --color-status-paid: var(--status-paid);
   --color-discount: var(--discount);
+  /* R5-UNPAINTED: the header's unpainted marker is the first `text-warn`
+     consumer — `--warn` existed only as a raw var (order/page.tsx inlines it
+     via style={}), so it had no Tailwind utility yet. */
+  --color-warn: var(--warn);
   --color-sidebar-ring: var(--ring);
   --color-sidebar-border: var(--ink-muted);
   --color-sidebar-accent-foreground: var(--ink-foreground);
