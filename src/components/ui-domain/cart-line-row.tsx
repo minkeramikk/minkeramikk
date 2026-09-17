@@ -1,8 +1,9 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { Eraser, Trash2 } from "lucide-react";
+import { Brush, Eraser, Trash2 } from "lucide-react";
 import { CartLineThumb } from "@/components/ui-domain/cart-line-thumb";
+import { DesignRound } from "@/components/ui-domain/design-round";
 import { SetBadge } from "@/components/ui-domain/set-badge";
 import { formatMoney } from "@/lib/money/money";
 import { designLabel, type CartLayer, type CartLine } from "@/lib/cart/cart";
@@ -27,16 +28,18 @@ function thumbHex(line: CartLine): string | undefined {
  * brief's own "1:1" markup had dropped them, so the mockup wins per the card's
  * own tie-break rule).
  *
- * Owns NO state: `open`/`onToggleDetails` and every mutation arrive as props,
- * so this stays a pure render of whatever the parent's cart state is right
- * now — task 10 adds the "how many to paint" number the same way.
+ * Owns NO state: `open`/`onToggleDetails` and every mutation arrive as props
+ * — task 10's "how many to paint" number (`n`) is no exception, it lives in
+ * the parent's `Record<lineId, number>` (mirrors the mockup's `S3.n[id]`) and
+ * arrives here as `n`/`onN`, so this stays a pure render of whatever the
+ * parent's cart state is right now.
  *
- * Two gaps are left on purpose for the next cards:
- * - the unpainted actions row (task 10 — palette picker + Paint button);
+ * One gap is left on purpose for the next card:
  * - the details panel (task 12 — a new step-3 drilldown, NOT CartLineRecap,
  *   which stays legacy-only for the steps 1–2 drawer).
- * A painted line already gets a real quantity stepper and Remove here, so
- * nothing is unusable between commits.
+ * A painted line already gets a real quantity stepper and Remove here, and
+ * an unpainted one now gets its n/N paint selector, so nothing is unusable
+ * between commits.
  */
 export function CartLineRow({
   line,
@@ -46,7 +49,10 @@ export function CartLineRow({
   onToggleDetails,
   onQty,
   onRemove,
+  onPaint,
   onUnpaint,
+  n,
+  onN,
   currentThumb,
 }: {
   line: CartLine;
@@ -56,10 +62,12 @@ export function CartLineRow({
   onToggleDetails: () => void;
   onQty: (quantity: number) => void;
   onRemove: () => void;
-  /** Task 10 wires this to the real paint mutation; the row that would call
-   *  it (the unpainted actions row) is that task's own gap. */
   onPaint: (n: number) => void;
   onUnpaint: () => void;
+  /** How many of `line.quantity` the Paint button will move — owned by the
+   *  parent (see class comment above), clamped there to [1, line.quantity]. */
+  n: number;
+  onN: (next: number) => void;
   currentThumb: { layers: CartLayer[]; label: string };
 }) {
   // TODO:nb-review — cart.unpainted.* / cart.unpaint.action NO copy is new,
@@ -126,12 +134,61 @@ export function CartLineRow({
           )}
         </div>
 
-        {/* actions row — task 10 (unpainted palette picker + Paint button).
-            A painted line's quantity stepper is real now, not a gap: nothing
-            between this commit and task 10 is left unusable. */}
+        {/* actions row — the unpainted case is the n/N paint selector (task
+            10); the palette PICKER the mockup opens from this same chip is
+            task 12's card, not this one: here the chip is a static read of
+            `currentThumb`, no menu, no ▾ affordance promising one. */}
         <div className="col-start-2 col-span-2 flex items-end">
-          {!unpainted && (
-            <div className="flex w-full items-center gap-1.5 pt-2">
+          <div className="flex w-full items-center gap-1.5 pt-2">
+            {unpainted ? (
+              <>
+                <span
+                  data-testid="paint-chip"
+                  className="flex h-9 items-center gap-1.5 rounded-sm border border-border bg-card pl-1 pr-2 text-xs font-medium"
+                >
+                  <DesignRound layers={currentThumb.layers} className="size-6 rounded-sm" />
+                  <span className="max-w-[120px] truncate">{currentThumb.label}</span>
+                </span>
+                <div className="flex h-9 items-center rounded-sm border border-border bg-card">
+                  <button
+                    type="button"
+                    aria-label="-"
+                    data-testid="paint-n-dec"
+                    onClick={() => onN(Math.max(1, n - 1))}
+                    className="flex size-9 items-center justify-center"
+                  >
+                    −
+                  </button>
+                  <span className="w-8 text-center text-sm tabular-nums">
+                    {n}
+                    <span className="text-muted-foreground">/{line.quantity}</span>
+                  </span>
+                  <button
+                    type="button"
+                    aria-label="+"
+                    data-testid="paint-n-inc"
+                    onClick={() => onN(Math.min(line.quantity, n + 1))}
+                    className="flex size-9 items-center justify-center"
+                  >
+                    +
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  data-testid="paint-line"
+                  onClick={() => onPaint(n)}
+                  className="relative ml-auto flex h-9 items-center gap-1.5 rounded-sm bg-primary px-3.5 text-xs font-semibold text-primary-foreground"
+                >
+                  <Brush className="size-3.5" aria-hidden />
+                  {t("unpainted.paint")}
+                  {n < line.quantity && (
+                    <span className="absolute -right-1.5 -top-1.5 grid size-5 place-items-center rounded-full bg-ink text-[10px] font-bold text-ink-foreground shadow">
+                      {n}
+                    </span>
+                  )}
+                </button>
+              </>
+            ) : (
               <div className="flex h-9 items-center rounded-sm border border-border bg-card">
                 <button
                   type="button"
@@ -153,8 +210,8 @@ export function CartLineRow({
                   +
                 </button>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
         <div className="col-span-3 mt-1.5 flex items-center justify-between text-[11px]">

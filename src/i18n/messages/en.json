@@ -261,7 +261,8 @@
       "label": "Unpainted",
       "pieces": "{count, plural, one {# piece} other {# pieces}}",
       "note": "{count, plural, one {# piece is} other {# pieces are}} still unpainted — choose a palette on the row, then paint.",
-      "removeAll": "Remove all"
+      "removeAll": "Remove all",
+      "paint": "Paint"
     },
     "unpaint": {
       "action": "Unpaint…"

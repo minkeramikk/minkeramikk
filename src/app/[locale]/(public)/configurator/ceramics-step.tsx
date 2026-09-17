@@ -217,6 +217,7 @@ export function CeramicsStep({
     setQuantity,
     remove,
     clear,
+    paint,
     discount,
     discountConfig,
     setCurrentConfigCode,
@@ -271,6 +272,19 @@ export function CeramicsStep({
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   /** CA-3 E: id of the one expanded cart row (one at a time), or null. */
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  /**
+   * R5-UNPAINTED task 10: "how many to paint" per unpainted line — the row
+   * owns none of this (mirrors the mockup's `S3.n[id]`). Read through
+   * `paintNFor` below, which clamps to the line's current quantity, so a
+   * stale stored value (from before a partial paint shrank the line) never
+   * renders or submits out of range — the row never has to know.
+   */
+  const [paintN, setPaintN] = useState<Record<string, number>>({});
+  const paintNFor = useCallback(
+    (line: { id: string; quantity: number }) =>
+      Math.min(Math.max(1, paintN[line.id] ?? line.quantity), line.quantity),
+    [paintN]
+  );
   /** CA-3 C: share feedback under the panel header (aria-live). */
   const [shareState, setShareState] = useState<
     | null
@@ -790,11 +804,17 @@ export function CeramicsStep({
                   }
                   onQty={(q) => setQuantity(line.id, q)}
                   onRemove={() => remove(line.id)}
-                  // Tasks 10/11 wire these to the real paint mutation and the
-                  // unpaint dialog; the actions row that would call onPaint is
-                  // task 10's own gap, and no dialog exists yet for onUnpaint.
-                  onPaint={() => {}}
+                  // Task 10: paint n pieces onto the config currently on
+                  // screen. Task 11 still owns the unpaint dialog.
+                  onPaint={(n) => paint(line.id, n, configCode, snapshot, designLayers)}
                   onUnpaint={() => {}}
+                  n={paintNFor(line)}
+                  onN={(next) =>
+                    setPaintN((m) => ({
+                      ...m,
+                      [line.id]: Math.min(Math.max(1, next), line.quantity),
+                    }))
+                  }
                   currentThumb={{
                     layers: designLayers,
                     label: formatSelections(snapshot.selections, locale),
