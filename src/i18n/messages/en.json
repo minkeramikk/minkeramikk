@@ -288,6 +288,7 @@
     "title": "Order",
     "sending": "Sending…",
     "error": "Something went wrong. Please try again.",
+    "unpaintedError": "Some pieces in your basket are still unpainted — paint them before you order.",
     "success": "Order sent!",
     "confirmTitle": "Thank you for your order!",
     "confirmLead": "We have received your order. You will get an email shortly with your receipt and payment details.",

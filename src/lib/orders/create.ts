@@ -51,6 +51,14 @@ export async function createOrder(
   }
   const payload = parsed.data;
 
+  // R5-UNPAINTED — the gate is on the ORDER, not on the cart: a basket may hold
+  // colourless lines all day, an order may not. Before Turnstile, before the
+  // discount, before any email: nothing downstream (lab PDF, plate compositing)
+  // has a design to work from.
+  if (payload.items.some((i) => i.configCode === null)) {
+    return { ok: false, status: 400, error: "unpainted" };
+  }
+
   const verify = deps.verify ?? verifyTurnstile;
   if (!(await verify(payload.turnstileToken))) {
     return { ok: false, status: 400, error: "turnstile failed" };

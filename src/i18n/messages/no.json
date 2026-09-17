@@ -287,6 +287,7 @@
     "title": "Bestill",
     "sending": "Sender…",
     "error": "Noe gikk galt. Prøv igjen.",
+    "unpaintedError": "Noen deler i handlekurven er fortsatt umalte — mal dem før du bestiller.",
     "success": "Bestilling sendt!",
     "confirmTitle": "Takk for bestillingen!",
     "confirmLead": "Vi har mottatt bestillingen din. Du får straks en e-post med kvittering og betalingsdetaljer.",

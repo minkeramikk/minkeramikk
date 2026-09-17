@@ -60,7 +60,10 @@ export const orderItemSchema = z.object({
   unitPriceCents: z.number().int().nonnegative().max(100_000_000),
   currency: z.enum(CURRENCIES),
   quantity: z.number().int().positive().max(10_000),
-  configCode: z.string().min(1),
+  /** R5-UNPAINTED: shape-valid, business-invalid. The null is accepted HERE so
+   *  the refusal below it can name the reason («unpainted») instead of a
+   *  blanket «invalid payload»; `createOrder` rejects it immediately after. */
+  configCode: z.string().min(1).nullable(),
   // The snapshot is trusted-by-shape EXCEPT the free-text note and inscription,
   // which are sanitised + length-checked here (AC7, F38). passthrough keeps
   // the other fields.
