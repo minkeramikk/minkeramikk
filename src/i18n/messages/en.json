@@ -257,6 +257,14 @@
       "ceramic": "Ceramic",
       "customText": "Inscription"
     },
+    "unpainted": {
+      "label": "Unpainted",
+      "pieces": "{count, plural, one {# piece} other {# pieces}}",
+      "removeAll": "Remove all"
+    },
+    "unpaint": {
+      "action": "Unpaint…"
+    },
     "colourBadge": {
       "custom": "Custom colours",
       "studio": "Studio colours"

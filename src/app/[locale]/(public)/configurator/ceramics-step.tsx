@@ -7,7 +7,6 @@ import { useSearchParams } from "next/navigation";
 import { usePathname, useRouter } from "@/i18n/navigation";
 import { Stepper } from "@/components/ui-domain/stepper";
 import { DesignRound } from "@/components/ui-domain/design-round";
-import { CartLineThumb } from "@/components/ui-domain/cart-line-thumb";
 import { OrderForm } from "@/components/ui-domain/order-form";
 import { Button } from "@/components/ui/button";
 import { assetUrl } from "@/lib/storage";
@@ -20,7 +19,6 @@ import {
   designLabel,
   itemCount,
   lineKey,
-  type CartLine,
   type CartLayer,
   type ConfigSnapshot,
   type NewCartLine,
@@ -35,9 +33,8 @@ import {
 } from "@/lib/discounts/discount";
 import { ladderFor } from "@/lib/discounts/ladder";
 import { SetBadge } from "@/components/ui-domain/set-badge";
-import { CartLineRecap } from "@/components/ui-domain/cart-line-recap";
+import { CartLineRow } from "@/components/ui-domain/cart-line-row";
 import { useShippingTotalSuffix } from "@/components/ui-domain/cart-shipping-row";
-import { CartLinePrice, CartDiscountNudge } from "@/components/ui-domain/cart-discount-row";
 import { CartSuggestion } from "@/components/ui-domain/cart-suggestion";
 import { CartTotals } from "@/components/ui-domain/cart-totals";
 import {
@@ -78,11 +75,6 @@ export interface DesignRef {
   name: string;
   supplierId: string;
   supplierName: string | null;
-}
-
-/** First selection colour of a cart line → colour chip fallback. */
-function thumbHex(line: CartLine): string | undefined {
-  return line.configSnapshot?.selections.find((s) => s.hex)?.hex ?? undefined;
 }
 
 /**
@@ -765,127 +757,33 @@ export function CeramicsStep({
       ) : (
         <>
           <div data-testid="cart-list" className="flex flex-col">
-            {cart.map((line) => (
-              <div
-                key={line.id}
-                data-testid="cart-line"
-                className="border-b border-border/60 py-3 last:border-0"
-              >
-                <div className="flex gap-3">
-                <CartLineThumb
-                  layers={line.layers}
-                  hex={thumbHex(line)}
-                  plateImage={line.plateImage}
+            {/* R5-UNPAINTED task 8: unpainted lines float to the top, exactly
+                as the mockup sorts them (renderS3: (a.code?1:0)-(b.code?1:0)). */}
+            {[...cart]
+              .sort((a, b) => Number(a.configCode !== null) - Number(b.configCode !== null))
+              .map((line) => (
+                <CartLineRow
+                  key={line.id}
+                  line={line}
+                  locale={locale}
+                  d={discount.perLine[line.id]}
+                  open={expandedId === line.id}
+                  onToggleDetails={() =>
+                    setExpandedId((id) => (id === line.id ? null : line.id))
+                  }
+                  onQty={(q) => setQuantity(line.id, q)}
+                  onRemove={() => remove(line.id)}
+                  // Tasks 10/11 wire these to the real paint mutation and the
+                  // unpaint dialog; the actions row that would call onPaint is
+                  // task 10's own gap, and no dialog exists yet for onUnpaint.
+                  onPaint={() => {}}
+                  onUnpaint={() => {}}
+                  currentThumb={{
+                    layers: designLayers,
+                    label: formatSelections(snapshot.selections, locale),
+                  }}
                 />
-                <div className="min-w-0 flex-1">
-                  <p className="flex items-center gap-1.5 text-sm font-medium">
-                    <span className="truncate">
-                      {locale === "no" ? line.productNameNo : line.productNameEn}
-                    </span>
-                    {/* F29: set marker on the cart row (legacy lines lack
-                        `pieces` → SetBadge renders nothing) */}
-                    <SetBadge count={line.pieces ?? 1} className="shrink-0" />
-                  </p>
-                  <p className="truncate text-xs text-muted-foreground">
-                    {designLabel(line.configSnapshot, locale) ?? "—"}
-                  </p>
-                  <div className="mt-1.5 flex items-center gap-2">
-                    <div className="flex items-center rounded-sm border border-border">
-                      <button
-                        type="button"
-                        aria-label="-"
-                        data-testid="docked-qty-dec"
-                        onClick={() => setQuantity(line.id, line.quantity - 1)}
-                        className="flex size-11 items-center justify-center sm:size-9"
-                      >
-                        −
-                      </button>
-                      <span className="w-7 text-center text-sm tabular-nums">
-                        {line.quantity}
-                      </span>
-                      <button
-                        type="button"
-                        aria-label="+"
-                        data-testid="docked-qty-inc"
-                        onClick={() => setQuantity(line.id, line.quantity + 1)}
-                        className="flex size-11 items-center justify-center sm:size-9"
-                      >
-                        +
-                      </button>
-                    </div>
-                    <button
-                      type="button"
-                      data-testid="docked-remove"
-                      onClick={() => remove(line.id)}
-                      className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
-                    >
-                      {t("remove")}
-                    </button>
-                  </div>
-                  <CartDiscountNudge
-                    productQty={
-                      line.productId ? discount.qtyByProduct[line.productId] ?? 0 : 0
-                    }
-                    tiers={discountConfig.tiers}
-                    pct={discount.perLine[line.id]?.pct ?? 0}
-                    eligible={discount.perLine[line.id]?.tierEligible ?? false}
-                    pendingDeal={discount.perLine[line.id]?.pendingDeal}
-                  />
-                </div>
-                <div className="flex shrink-0 flex-col items-end justify-between self-stretch">
-                  <CartLinePrice d={discount.perLine[line.id]} locale={locale} />
-                  {/* CA-3 E: expansion as a LABELLED action (the bare ▾ icon
-                      read as decoration) — price top-right, toggle BOTTOM
-                      right on the qty/Remove baseline (mb compensates the
-                      qty box centring); one row open at a time */}
-                  <button
-                    type="button"
-                    data-testid="cart-expand"
-                    aria-expanded={expandedId === line.id}
-                    onClick={() =>
-                      setExpandedId((id) => (id === line.id ? null : line.id))
-                    }
-                    className="mb-2.5 text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground max-sm:mb-3.5"
-                  >
-                    {expandedId === line.id
-                      ? `${t("line.collapse")} ▴`
-                      : `${t("line.expand")} ▾`}
-                  </button>
-                </div>
-                </div>
-
-                {/* CA-3 E: inline detail (frame 2) — big composition from the
-                    line's stored F19 layers (zero fetch), readable selections
-                    from the snapshot (R1-FB1 extended to the cart), edit+remove. */}
-                {expandedId === line.id && (
-                  <CartLineRecap
-                    line={line}
-                    locale={locale}
-                    editSlot={
-                      // R5-UNPAINTED: an unpainted row has no design to reopen
-                      // at step 2 — no slot, not a slot to nothing. The `?? ""`
-                      // never actually fires here (the ternary already excludes
-                      // null) — it's only so TS narrows past the onClick
-                      // closure, which it won't do for a property access.
-                      line.configCode === null ? undefined : (
-                        <button
-                          type="button"
-                          data-testid="cart-edit-design"
-                          onClick={() =>
-                            router.push(
-                              `/configurator?code=${encodeURIComponent(line.configCode ?? "")}&step=2`
-                            )
-                          }
-                          className="shrink-0 text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
-                        >
-                          ✎ {t("line.edit")}
-                        </button>
-                      )
-                    }
-                  />
-                )}
-              </div>
-            ))}
+              ))}
           </div>
 
           <CartSuggestion />

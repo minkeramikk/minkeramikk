@@ -256,6 +256,14 @@
       "ceramic": "Keramikk",
       "customText": "Tekst"
     },
+    "unpainted": {
+      "label": "Umalt",
+      "pieces": "{count, plural, one {# del} other {# deler}}",
+      "removeAll": "Fjern alle"
+    },
+    "unpaint": {
+      "action": "Gjør umalt…"
+    },
     "colourBadge": {
       "custom": "Egendefinerte farger",
       "studio": "Studioets farger"
