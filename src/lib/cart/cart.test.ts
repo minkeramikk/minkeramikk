@@ -323,6 +323,27 @@ describe("unpainted lines", () => {
     expect(cart.find((l) => l.configCode === CODE)!.quantity).toBe(2);
   });
 
+  it("never unpaints more pieces than the line holds", () => {
+    const cart = unpaintLines(
+      addToCart([], { ...vietriFlat, configCode: CODE, quantity: 2 }),
+      `p-flat::${CODE}`,
+      9
+    );
+    expect(cart).toHaveLength(1);
+    expect(cart[0].configCode).toBeNull();
+    expect(cart[0].quantity).toBe(2);
+  });
+
+  it("unpaints all of them: the painted line is gone", () => {
+    const cart = unpaintLines(
+      addToCart([], { ...vietriFlat, configCode: CODE, quantity: 3 }),
+      `p-flat::${CODE}`,
+      3
+    );
+    expect(cart).toHaveLength(1);
+    expect(cart[0].configCode).toBeNull();
+  });
+
   it("does nothing on a line that is already unpainted, or on n ≤ 0", () => {
     const cart = addToCart([], { ...vietriFlat, configCode: null, configSnapshot: null, quantity: 2 });
     expect(unpaintLines(cart, "p-flat::unpainted", 1)).toEqual(cart);

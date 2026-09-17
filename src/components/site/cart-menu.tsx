@@ -116,7 +116,7 @@ export function CartMenu() {
               <span
                 data-testid="cart-badge-unpainted"
                 aria-hidden
-                className="absolute -bottom-0.5 right-1 text-[10px] leading-none font-semibold text-warn"
+                className="absolute -bottom-0.5 right-1 text-[10px] leading-none font-semibold text-warn-on-dark"
               >
                 ○{unpainted}
               </span>

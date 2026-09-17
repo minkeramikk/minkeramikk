@@ -25,6 +25,10 @@
      consumer — `--warn` existed only as a raw var (order/page.tsx inlines it
      via style={}), so it had no Tailwind utility yet. */
   --color-warn: var(--warn);
+  /* R5-UNPAINTED fix-wave: `--warn` on `--mk-dark` (header) is ~3.6:1, under
+     the 4.5:1 AA floor at 10px. Lightened via color-mix (ADR 0008) — 14% white
+     is the smallest step that clears the floor (~4.53:1 against #2b2330). */
+  --color-warn-on-dark: var(--warn-on-dark);
   --color-sidebar-ring: var(--ring);
   --color-sidebar-border: var(--ink-muted);
   --color-sidebar-accent-foreground: var(--ink-foreground);
@@ -134,6 +138,7 @@
      §2.1). Not a status and not --destructive: nothing has gone wrong, the
      customer simply must not skip the step. Tints via color-mix, as usual. */
   --warn: #b26a00;
+  --warn-on-dark: color-mix(in oklab, var(--warn), white 14%);
 
   /* shape & elevation */
   --radius: 16px;
