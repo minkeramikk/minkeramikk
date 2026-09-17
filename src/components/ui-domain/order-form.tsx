@@ -69,7 +69,10 @@ export function OrderForm({
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (hasUnpainted) return;
+    if (hasUnpainted) {
+      setStatus("unpainted");
+      return;
+    }
     const parsed = orderFormSchema.safeParse({ ...form, acceptTerms });
     if (!parsed.success) {
       const errs: Record<string, boolean> = {};

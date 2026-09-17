@@ -198,7 +198,14 @@ export function CartProvider({
       const from =
         cart.cart.find((l) => l.id === suggestion.fromLineId) ??
         cart.cart.find(
-          (l) => l.productId && suggestion.rule.triggerProductIds.includes(l.productId)
+          (l) =>
+            l.productId &&
+            suggestion.rule.triggerProductIds.includes(l.productId) &&
+            // R5-UNPAINTED: an offer inherits the donor's design — a line with
+            // no design cannot donate. Without this the engine's own donor
+            // pick (which already skips unpainted lines) would be silently
+            // undone by this fallback landing on one anyway.
+            l.configCode !== null
         );
       if (!from) return;
       const line = buildSuggestionLine(suggestion, from);

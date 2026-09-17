@@ -121,7 +121,7 @@ export type NewCartLine = Omit<CartLine, "id" | "quantity"> & {
 };
 
 /** The key half of an unpainted line's id — one such line per product. */
-export const UNPAINTED_KEY = "unpainted";
+const UNPAINTED_KEY = "unpainted";
 
 export function lineKey(productId: string, configCode: string | null): string {
   return `${productId}::${configCode ?? UNPAINTED_KEY}`;
