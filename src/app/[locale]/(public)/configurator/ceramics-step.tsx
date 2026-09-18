@@ -6,11 +6,10 @@ import { useLocale, useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
 import { usePathname, useRouter } from "@/i18n/navigation";
 import { Stepper } from "@/components/ui-domain/stepper";
-import { DesignRound } from "@/components/ui-domain/design-round";
 import { OrderForm } from "@/components/ui-domain/order-form";
 import { PaletteBar } from "@/components/ui-domain/palette-bar";
 import { PaletteChip } from "@/components/ui-domain/palette-chip";
-import { PaletteSheet } from "@/components/ui-domain/palette-sheet";
+import { PaintingStrip } from "@/components/ui-domain/painting-strip";
 import { nameFor, paletteFor, sortCurrentDesignFirst } from "@/lib/palettes/palettes";
 import type { PaletteWords } from "@/lib/palettes/name-lists";
 import { cn } from "@/lib/utils";
@@ -266,7 +265,6 @@ export function CeramicsStep({
   const to = useTranslations("order");
   const ta = useTranslations("actions");
   const tPaletteBar = useTranslations("palettes.bar");
-  const tSheet = useTranslations("palettes.sheet");
   const locale = useLocale() as "no" | "en";
   const router = useRouter();
   const pathname = usePathname();
@@ -1479,11 +1477,7 @@ export function CeramicsStep({
   // R5-PALETTES task 13: the mobile strip below WAS that box's phone twin
   // (design + selected options, an "Edit" shortcut) — it becomes the
   // mockup's `MobStrip` instead: the bar's own job (name what's painting),
-  // not the design's. `sticky top-14`, unlike the desktop bar's `sticky
-  // top-0` (task 8's own fix): the mobile header IS sticky
-  // (site-header.tsx, `max-md:sticky max-md:top-0`, h-14), so `top-14` here
-  // is the mockup's own value, unmodified — it only needed adjusting for
-  // the desktop bar, whose header never sticks at all.
+  // not the design's.
   //
   // Fix wave PR3 finding 4: no `hasConfig` gate any more. That gate made
   // sense while this was a recap of an explicit choice (AC4); now it's the
@@ -1493,95 +1487,50 @@ export function CeramicsStep({
   // or a `?set=` landing still has SOME palette painting (`paintingLabel`
   // already falls back to `designName`), and the phone customer deserves to
   // be told, and given the sheet, same as desktop.
+  //
+  // TL "menu sopra come step3" (PR3 round 3): step 2 grew this exact same
+  // strip, so the markup/behaviour now lives once in `<PaintingStrip>`
+  // (components/ui-domain/painting-strip.tsx) — this call site only supplies
+  // step 3's own values (`design.slug`, `activePalette`, `paintWithFromSheet`
+  // …); the strip's own WHY (the full-bleed trick, `sticky top-14`, the
+  // `SheetTrigger` reasoning) lives in that file now, not duplicated here.
   const paintingStrip = (
-    <div
-      data-testid="step3-your-selection-strip"
-      // `-mx-5 px-4`: cancel `main`'s own `px-5` (public-shell.tsx) and
-      // re-pad with the mockup's own value — same full-bleed trick as the
-      // desktop bar's, needed here too: the mockup's strip runs edge-to-edge,
-      // not boxed like the card this replaces.
-      // PR3 fix ("spazio sopra in step 3, attaccalo sotto header titoli"):
-      // `-mt-7` cancels `main`'s TOP padding too, the same half of the trick
-      // the desktop bar already carries (`className="... md:-mt-7 ..."` a
-      // few hundred lines down) — this strip only ever cancelled the sides,
-      // leaving `main`'s 28px `py-7` sitting above it as dead space between
-      // the sticky site header and the strip on first paint. `sticky top-14`
-      // below is unaffected: that's a scroll-threshold, not a static offset.
-      className="sticky top-14 z-30 -mx-5 -mt-7 mb-3.5 flex items-center gap-2.5 border-b border-border bg-[var(--mk-canvas)] px-4 py-2 md:hidden"
-    >
-      <DesignRound layers={designLayers} className="size-9" />
-      {/* `paintingLabel`, not a second computation — the one name for
-          "what's painting" this file already settled on (TL follow-up,
-          same variable the bar's own chip and the basket header read). */}
-      <div className="min-w-0 leading-tight">
-        <p className="text-[10px] uppercase tracking-[0.06em] text-muted-foreground">
-          {tPaletteBar("eyebrowPaint")}
-        </p>
-        <p className="truncate text-[13.5px] font-semibold">
-          {paintingLabel}{" "}
-          <span className="font-normal text-muted-foreground">· {designName}</span>
-        </p>
-      </div>
-      {/* Fix wave PR3 finding 9: the strip is the sheet's ONE opener — a real
-          `SheetTrigger` (not a hand-rolled button) gets `aria-haspopup`,
-          `aria-controls` and, on close, focus restored to THIS button for
-          free (Radix's `triggerRef`, wired only when a `Trigger` is used).
-          `PaletteChip`'s own rename input restores focus by hand because it
-          has no single canonical opener to be a `Trigger` for — this button
-          does, so it gets the real thing instead of a second hand-rolled copy. */}
-      <PaletteSheet
-        trigger={
-          <button
-            type="button"
-            data-testid="palette-sheet-trigger"
-            // `min-h-11 sm:min-h-9`: same touch-target rescue as `PaletteChip`'s
-            // select button (task 13's carried-in fix) — the mockup's own `h-9`
-            // (36px) is a mouse-era size, kept only from `sm` up.
-            className={cn(
-              "ml-auto flex min-h-11 shrink-0 items-center gap-1 rounded-full border bg-card px-3 text-[12.5px] font-medium sm:min-h-9",
-              paletteSheetOpen ? "border-primary shadow-[0_0_0_1px_var(--ring)]" : "border-border"
-            )}
-          >
-            {tSheet("trigger")}
-            <span aria-hidden className="text-muted-foreground">
-              {paletteSheetOpen ? "▴" : "▾"}
-            </span>
-          </button>
-        }
-        open={paletteSheetOpen}
-        onOpenChange={setPaletteSheetOpen}
-        palettes={palettes}
-        currentDesignSlug={design.slug}
-        activeCode={activePalette?.code ?? null}
-        draft={!activePalette}
-        draftName={paintingLabel}
-        draftLayers={designLayers}
-        locale={locale}
-        onPick={paintWithFromSheet}
-        onNewPalette={() => {
-          setPaletteSheetOpen(false);
-          goToStep(2);
-        }}
-        onSaveDraft={() => {
-          saveDraftAsPalette();
-          setPaletteSheetOpen(false);
-        }}
-        // PR3 round 2: the sheet gained rename/delete (it had neither) so it
-        // can do what the removed step-2 tab's chips did, now that step 2
-        // opens this SAME sheet too. `renamingPaletteCode`/`renamePalette`/
-        // `deletePalette` already exist in this file — the desktop bar's own
-        // `paletteChips` a few hundred lines down already wire them the same
-        // way, this is the sheet's equivalent, not a new mechanism.
-        renamingCode={renamingPaletteCode}
-        onRenameStart={(code) => setRenamingPaletteCode(code)}
-        onRenameConfirm={(code, name) => {
-          renamePalette(code, name);
-          setRenamingPaletteCode(null);
-        }}
-        onRenameCancel={() => setRenamingPaletteCode(null)}
-        onDelete={(code) => deletePalette(code)}
-      />
-    </div>
+    <PaintingStrip
+      testId="step3-your-selection-strip"
+      designLayers={designLayers}
+      paintingLabel={paintingLabel}
+      designName={designName}
+      palettes={palettes}
+      currentDesignSlug={design.slug}
+      activeCode={activePalette?.code ?? null}
+      draft={!activePalette}
+      locale={locale}
+      onPick={paintWithFromSheet}
+      onNewPalette={() => {
+        setPaletteSheetOpen(false);
+        goToStep(2);
+      }}
+      onSaveDraft={() => {
+        saveDraftAsPalette();
+        setPaletteSheetOpen(false);
+      }}
+      // PR3 round 2: the sheet gained rename/delete (it had neither) so it
+      // can do what the removed step-2 tab's chips did, now that step 2
+      // opens this SAME sheet too. `renamingPaletteCode`/`renamePalette`/
+      // `deletePalette` already exist in this file — the desktop bar's own
+      // `paletteChips` a few hundred lines down already wire them the same
+      // way, this is the sheet's equivalent, not a new mechanism.
+      renamingCode={renamingPaletteCode}
+      onRenameStart={(code) => setRenamingPaletteCode(code)}
+      onRenameConfirm={(code, name) => {
+        renamePalette(code, name);
+        setRenamingPaletteCode(null);
+      }}
+      onRenameCancel={() => setRenamingPaletteCode(null)}
+      onDelete={(code) => deletePalette(code)}
+      open={paletteSheetOpen}
+      onOpenChange={setPaletteSheetOpen}
+    />
   );
 
   // ── R4-CTA-STICKY: mobile order bar ──────────────────────────────────────

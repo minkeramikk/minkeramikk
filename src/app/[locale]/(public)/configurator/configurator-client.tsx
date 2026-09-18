@@ -49,12 +49,13 @@ import { cn } from "@/lib/utils";
 import type { DesignDetail } from "@/lib/catalog/design-options";
 import type { PreviewLayer } from "@/lib/configurator/preview";
 import { useCartContext } from "@/lib/cart/cart-context";
+import { designLabel } from "@/lib/cart/cart";
 import { buildConfigLinePayload } from "@/lib/configurator/line-payload";
 import { nameFor, paletteFor, sortCurrentDesignFirst } from "@/lib/palettes/palettes";
 import type { PaletteWords } from "@/lib/palettes/name-lists";
 import { PaletteBar } from "@/components/ui-domain/palette-bar";
 import { PaletteChip } from "@/components/ui-domain/palette-chip";
-import { PaletteSheet } from "@/components/ui-domain/palette-sheet";
+import { PaintingStrip } from "@/components/ui-domain/painting-strip";
 import { DesignRound } from "@/components/ui-domain/design-round";
 
 /** Pagina di ispirazione del cliente (fuori sito, apre in nuova scheda). */
@@ -402,6 +403,12 @@ export function ConfiguratorClient({
         onBlur={() => setTyping(false)}
         aria-label={t("customText.title")}
         aria-describedby="custom-text-helper"
+        // ponytail: `scroll-mt-14` only clears the header (3.5rem) — since
+        // `<PaintingStrip>` landed as a second, non-typing-aware sticky
+        // layer above the canvas (TL "menu sopra come step3"), a keyboard
+        // focus could land this field `--mk-strip-h` short. Out of this
+        // task's brief (no typing-scenario check in it); revisit if a
+        // report says the field lands under the strip.
         className="w-full rounded-sm border border-input bg-card p-2 text-base focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring md:text-sm max-md:scroll-mt-14"
       />
       <div className="mt-1 flex items-start justify-between gap-3">
@@ -587,6 +594,10 @@ export function ConfiguratorClient({
   const activePaletteName =
     matchedPalette?.name ?? nameFor(draftCode, draftPayload.snapshot, paletteWords);
   const activePaletteLayers = matchedPalette?.layers ?? draftPayload.designLayers;
+  /** The design pattern's own name, for `<PaintingStrip>`'s "· design"
+   *  suffix — same source ceramics-step.tsx's own `designName` reads
+   *  (`designLabel()` on the snapshot), just this step's own snapshot. */
+  const activeDesignName = designLabel(draftPayload.snapshot, locale as "no" | "en") ?? "";
 
   function saveDraftAsPalette() {
     const now = Date.now();
@@ -907,6 +918,50 @@ export function ConfiguratorClient({
         />
       )}
 
+      {/* TL "menu sopra come step3" (PR3 round 3): step 2's mobile opener
+          moves from floating above the option lane (inside the editor card)
+          to HERE — sticky directly under the header, first thing in the
+          step's own flow, same spot step 3's `paintingStrip` occupies
+          (ceramics-step.tsx). Desktop is unaffected: the component itself is
+          `md:hidden`, same as the bar above. `activePaletteName`/
+          `activeDesignName` are this step's own "what's painting" values —
+          reused here, not recomputed a second time for the strip. */}
+      {step === 2 && (
+        <PaintingStrip
+          testId="step2-painting-strip"
+          designLayers={activePaletteLayers}
+          paintingLabel={activePaletteName}
+          designName={activeDesignName}
+          palettes={palettes}
+          currentDesignSlug={selected.slug}
+          activeCode={matchedPalette?.code ?? null}
+          draft={!matchedPalette}
+          locale={locale as "no" | "en"}
+          onPick={(code) => {
+            loadPalette(code);
+            setPaletteSheetOpen(false);
+          }}
+          onNewPalette={() => {
+            resetPaletteDraft();
+            setPaletteSheetOpen(false);
+          }}
+          onSaveDraft={() => {
+            saveDraftAsPalette();
+            setPaletteSheetOpen(false);
+          }}
+          renamingCode={renamingPaletteCode}
+          onRenameStart={(code) => setRenamingPaletteCode(code)}
+          onRenameConfirm={(code, name) => {
+            renamePalette(code, name);
+            setRenamingPaletteCode(null);
+          }}
+          onRenameCancel={() => setRenamingPaletteCode(null)}
+          onDelete={(code) => deletePalette(code)}
+          open={paletteSheetOpen}
+          onOpenChange={setPaletteSheetOpen}
+        />
+      )}
+
       {/* CA-2: the top cluster holds ONLY the stepper (orientation + step
           jumps, F18). The advance/back CTAs live in-flow at the END of the
           options column — no climb back to the top on desktop. Decision closed
@@ -993,7 +1048,18 @@ export function ConfiguratorClient({
         data-typing={step === 2 && typing ? "1" : undefined}
         style={
           step === 2
-            ? ({ "--mk-canvas-h": "clamp(200px,38svh,300px)" } as React.CSSProperties)
+            ? ({
+                "--mk-canvas-h": "clamp(200px,38svh,300px)",
+                // TL "menu sopra come step3": `<PaintingStrip>` is now a
+                // SECOND sticky layer above the canvas (mobile only), so
+                // both the canvas's own `top` and the tab lane's `top` below
+                // (`data-tabs-bar`) need to sit this much further down —
+                // MEASURED (not hand-calculated: this card already paid for
+                // a 68-vs-69px rounding bug once, see `docked-cart-panel`'s
+                // own comment further up), one number here, `calc()`'d into
+                // both instead of typed twice.
+                "--mk-strip-h": "61px",
+              } as React.CSSProperties)
             : undefined
         }
       >
@@ -1086,17 +1152,26 @@ export function ConfiguratorClient({
             // senza bordo il bianco si fonde con la prima card. Costo
             // verticale 0 — `box-sizing: border-box` la tiene dentro
             // `--mk-canvas-h`.
-            // `top-14` = the ink header's `h-14`, which is itself `max-md:sticky
-            // top-0` (site-header.tsx): the canvas parks UNDER it, not behind it.
+            // `top-[calc(3.5rem+var(--mk-strip-h))]` = the ink header's `h-14`
+            // (3.5rem, itself `max-md:sticky top-0`, site-header.tsx) PLUS
+            // `<PaintingStrip>` now sitting between them as its own sticky
+            // layer (TL "menu sopra come step3") — the canvas parks under
+            // BOTH, not just the header. Was a bare `top-14` before the
+            // strip existed; `--mk-strip-h` is declared once, above.
             // R4-POLISH: l'altezza del canvas è pubblicata come `--mk-canvas-h`
             // sul contenitore per essere fonte unica SOLO per questa classe
             // (che la consuma per lo `h-[...]` sopra). Il campo scritta NON la
             // usa: il suo `max-md:scroll-mt-14` (sotto) è l'altezza del solo
             // header ink, apposta senza il canvas — quando il campo ha il
             // focus il canvas ha già mollato lo sticky (`data-typing`), quindi
-            // in alto non resta altro che l'header.
+            // in alto non resta altro che l'header — `<PaintingStrip>` NON
+            // molla (nessun `data-typing` selector la tocca, sta fuori dalla
+            // griglia che lo porta): resta un secondo strato fisso di
+            // `--mk-strip-h` sopra l'header anche a tastiera aperta. Non
+            // corretto qui (il brief di questo task non tocca lo scenario
+            // tastiera) — vedi il TODO più sotto vicino a `scroll-mt-14`.
             step === 2 &&
-              "max-md:sticky max-md:top-14 max-md:-mx-5 max-md:h-[var(--mk-canvas-h)] max-md:flex-none max-md:items-center max-md:justify-center max-md:gap-1 max-md:px-5 max-md:pt-2 max-md:border-b max-md:border-border max-md:bg-[var(--mk-canvas)]"
+              "max-md:sticky max-md:top-[calc(3.5rem+var(--mk-strip-h))] max-md:-mx-5 max-md:h-[var(--mk-canvas-h)] max-md:flex-none max-md:items-center max-md:justify-center max-md:gap-1 max-md:px-5 max-md:pt-2 max-md:border-b max-md:border-border max-md:bg-[var(--mk-canvas)]"
           )}
         >
           <div
@@ -1305,67 +1380,13 @@ export function ConfiguratorClient({
           >
             {/* R4-FIX 1: nessun trattino in testa al pannello. Non trascinava
                 niente — affordance falsa, rimossa. */}
-            {/* PR3 round 2 (TL): the mobile «Palettes» tab that used to open
-                this lane's panel is GONE — it read as one more design option
-                (Animal/Main colour/Plants), which it isn't. Reachable from
-                the TOP instead, ABOVE the option lane: same `PaletteSheet`
-                step 3 already opens from its own strip (palette-sheet.tsx),
-                wired here too — one sheet, one way to manage palettes on a
-                phone, not a second bespoke panel. Mirrors step 3's own
-                trigger almost exactly (dot + label + chevron); "manage" not
-                "paint" is the right eyebrow here (`palettes.bar.eyebrowManage`
-                — reuse, matches the desktop bar's own mode split, §3.28). */}
-            <div className="mb-2 flex md:hidden">
-              <PaletteSheet
-                trigger={
-                  <button
-                    type="button"
-                    data-testid="step2-palettes-trigger"
-                    className={cn(
-                      "flex min-h-11 items-center gap-1.5 rounded-full border bg-card px-3.5 text-[12.5px] font-medium sm:min-h-9",
-                      paletteSheetOpen
-                        ? "border-primary shadow-[0_0_0_1px_var(--ring)]"
-                        : "border-border"
-                    )}
-                  >
-                    <DesignRound layers={activePaletteLayers} className="size-4" />
-                    {tPaletteBar("eyebrowManage")}
-                    <span aria-hidden className="text-muted-foreground">
-                      {paletteSheetOpen ? "▴" : "▾"}
-                    </span>
-                  </button>
-                }
-                open={paletteSheetOpen}
-                onOpenChange={setPaletteSheetOpen}
-                palettes={palettes}
-                currentDesignSlug={selected.slug}
-                activeCode={matchedPalette?.code ?? null}
-                draft={!matchedPalette}
-                draftName={activePaletteName}
-                draftLayers={activePaletteLayers}
-                locale={locale as "no" | "en"}
-                onPick={(code) => {
-                  loadPalette(code);
-                  setPaletteSheetOpen(false);
-                }}
-                onNewPalette={() => {
-                  resetPaletteDraft();
-                  setPaletteSheetOpen(false);
-                }}
-                onSaveDraft={() => {
-                  saveDraftAsPalette();
-                  setPaletteSheetOpen(false);
-                }}
-                renamingCode={renamingPaletteCode}
-                onRenameStart={(code) => setRenamingPaletteCode(code)}
-                onRenameConfirm={(code, name) => {
-                  renamePalette(code, name);
-                  setRenamingPaletteCode(null);
-                }}
-                onRenameCancel={() => setRenamingPaletteCode(null)}
-                onDelete={(code) => deletePalette(code)}
-              />
-            </div>
+            {/* PR3 round 3 (TL "menu sopra come step3"): the mobile control
+                that used to live HERE, floating above the option lane inside
+                this card, is gone too — moved to `<PaintingStrip>`, sticky
+                directly under the header (see the top of this component's
+                `step === 2` block, mirroring step 3's own strip position).
+                One opener for the sheet, in one place, not a second one
+                surviving in the editor card. */}
             {/* R4-STEP2 (mockup .cats): corsia tab orizzontale — solo mobile.
                 Dot = colore selezionato della categoria, conteggio = opzioni.
                 I ruoli tab esistono solo dove esiste la corsia (isDesktop).
@@ -1382,17 +1403,20 @@ export function ConfiguratorClient({
                 prime lettere delle frasi a sinistra risultavano sbiadite. Il
                 riferimento è questo wrapper, e nient'altro. */}
             {/* R4-FOLLOWUPS Ⓒ: la barra è STICKY subito sotto il canvas
-                (`top` = header 3.5rem + `--mk-canvas-h`, la stessa variabile che
-                dà l'altezza al canvas), su fondo `card` e sopra il contenuto
-                del pannello (`z-20`, sotto il canvas che è `z-30`). Così i
-                titoli delle categorie restano raggiungibili anche a pagina
-                scrollata in fondo, senza tornare su. `sticky` sostituisce
-                `relative`: è comunque un elemento posizionato, quindi le fade
-                `absolute` qui sotto continuano a risolversi su questo wrapper
-                (R4-FIX 5) — e il wrapper è `md:hidden`, non esiste da md in su. */}
+                (`top` = header 3.5rem + `--mk-strip-h` + `--mk-canvas-h`, le
+                stesse variabili che posizionano/dimensionano canvas e strip —
+                TL "menu sopra come step3" ha inserito `--mk-strip-h` come
+                terzo addendo, non un valore nuovo), su fondo `card` e sopra
+                il contenuto del pannello (`z-20`, sotto il canvas che è
+                `z-30`). Così i titoli delle categorie restano raggiungibili
+                anche a pagina scrollata in fondo, senza tornare su. `sticky`
+                sostituisce `relative`: è comunque un elemento posizionato,
+                quindi le fade `absolute` qui sotto continuano a risolversi
+                su questo wrapper (R4-FIX 5) — e il wrapper è `md:hidden`,
+                non esiste da md in su. */}
             <div
               data-tabs-bar
-              className="sticky top-[calc(3.5rem+var(--mk-canvas-h))] z-20 -mx-3 flex-none bg-[var(--mk-canvas)] px-3 md:hidden"
+              className="sticky top-[calc(3.5rem+var(--mk-strip-h)+var(--mk-canvas-h))] z-20 -mx-3 flex-none bg-[var(--mk-canvas)] px-3 md:hidden"
             >
               <div
                 ref={tabsRef}
