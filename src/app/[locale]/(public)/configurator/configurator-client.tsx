@@ -54,6 +54,7 @@ import { nameFor, paletteFor, sortCurrentDesignFirst } from "@/lib/palettes/pale
 import type { PaletteWords } from "@/lib/palettes/name-lists";
 import { PaletteBar } from "@/components/ui-domain/palette-bar";
 import { PaletteChip } from "@/components/ui-domain/palette-chip";
+import { DesignRound } from "@/components/ui-domain/design-round";
 
 /** Pagina di ispirazione del cliente (fuori sito, apre in nuova scheda). */
 const INSPIRATION_URL = "https://www.minkeramikk.no/inspirasjon";
@@ -63,6 +64,13 @@ const INSPIRATION_URL = "https://www.minkeramikk.no/inspirasjon";
  *  categoria di catalogo, quindi ha una chiave sintetica; costante di modulo,
  *  identità stabile fra i render. */
 const WISHES_TAB = "__wishes";
+
+/** R5-PALETTES task 12 — the mobile «Palettes» tab (mockup `#sM`,
+ *  `function Phone`). Same non-category-tab mechanism as `WISHES_TAB` above:
+ *  a synthetic key, module-level so its identity never changes across
+ *  renders. Desktop never sees this tab (it has the sticky `PaletteBar`
+ *  instead, task 8) — the whole thing is `md:hidden`. */
+const PALETTES_TAB = "__palettes";
 
 export interface DesignChoice {
   id: string;
@@ -562,12 +570,24 @@ export function ConfiguratorClient({
   const [renamingPaletteCode, setRenamingPaletteCode] = useState<string | null>(
     null
   );
+  /**
+   * R5-PALETTES task 12 — the ONE "what's on screen" label, mirroring
+   * ceramics-step.tsx's own `paintingLabel` comment: a saved match names it,
+   * else the deterministic `nameFor()` draft label. Computed ONCE so the
+   * mobile Palettes tab's dot, its draft chip, the save button and the new
+   * save-strip can never drift apart the way the desktop bar's chip and
+   * `saveDraftAsPalette` used to (two separate `nameFor()` calls below,
+   * now one).
+   */
+  const activePaletteName =
+    matchedPalette?.name ?? nameFor(draftCode, draftPayload.snapshot, paletteWords);
+  const activePaletteLayers = matchedPalette?.layers ?? draftPayload.designLayers;
 
   function saveDraftAsPalette() {
     const now = Date.now();
     savePalette({
       code: draftCode,
-      name: nameFor(draftCode, draftPayload.snapshot, paletteWords),
+      name: activePaletteName,
       designSlug: selected.slug,
       snapshot: draftPayload.snapshot,
       layers: draftPayload.designLayers,
@@ -595,6 +615,24 @@ export function ConfiguratorClient({
     params.set("code", code);
     params.set("step", "2");
     router.push(`${pathname}?${params.toString()}`);
+  }
+
+  /**
+   * R5-PALETTES task 12 — mobile Palettes tab's «+ New»: resets the draft to
+   * the DESIGN'S OWN DEFAULTS (`resolveSelections`'s fallback, same
+   * `pickDefaultOption` step 1 already uses on first paint). Deliberately
+   * different from step 3's own «+ New palette» (ceramics-step.tsx), which
+   * reopens step 2 keeping whatever is on screen so it can be tweaked — the
+   * card for THIS chip is explicit: reset, not carry-forward. `code=` is
+   * dropped too, so a saved match's colours don't win the next decode.
+   */
+  function resetPaletteDraft() {
+    const params = new URLSearchParams(searchParams.toString());
+    for (const key of [...params.keys()]) {
+      if (key.startsWith("opt_")) params.delete(key);
+    }
+    params.delete("code");
+    router.push(`${pathname}?${params.toString()}`, { scroll: false });
   }
 
   function selectDesign(d: DesignChoice) {
@@ -792,10 +830,33 @@ export function ConfiguratorClient({
     <PaletteChip
       key="draft"
       code={draftCode}
-      name={nameFor(draftCode, draftPayload.snapshot, paletteWords)}
+      name={activePaletteName}
       layers={draftPayload.designLayers}
       draft
     />
+  );
+  /** R5-PALETTES task 12 — mobile Palettes tab panel only (mockup `#sM`'s
+   *  `NewChip`): same visual as step 3's own «+ New palette»
+   *  (ceramics-step.tsx `newPaletteChip`), but wired to `resetPaletteDraft`
+   *  (see that function's own comment for why this one resets instead of
+   *  carrying forward). Desktop has no equivalent chip today — only the
+   *  bar's «Save as palette» button (task 8) — so this stays local to the
+   *  mobile panel below. */
+  const newPaletteDraftChip = (
+    <button
+      type="button"
+      data-testid="palette-chip-new"
+      onClick={resetPaletteDraft}
+      className="flex h-12 shrink-0 items-center gap-2.5 rounded-full border border-dashed border-primary/50 pl-1.5 pr-4 text-[13.5px] text-primary hover:bg-muted"
+    >
+      <span
+        aria-hidden
+        className="grid size-9 place-items-center rounded-full border border-dashed border-primary/60 text-lg leading-none"
+      >
+        +
+      </span>
+      {tPaletteBar("new")}
+    </button>
   );
 
   return (
@@ -1300,6 +1361,36 @@ export function ConfiguratorClient({
                 // segnale che c'è dell'altro.
                 className="flex touch-pan-x snap-x snap-proximity gap-1 overflow-x-auto overscroll-x-contain scroll-smooth scroll-px-11 px-1 pb-0.5 pt-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
               >
+                {/* R5-PALETTES task 12 (mockup `#sM`'s `tabs` array, `id:"palettes"`
+                    always first): the mobile «Palettes» tab — same non-category-tab
+                    pattern as «Fargeønsker» below, but FIRST instead of last. Dot =
+                    the 16px thumb of whatever is on screen right now (draft or the
+                    saved match — `activePaletteLayers`, computed once above), not a
+                    colour swatch. Count via the same `step2.tabCount` template the
+                    category tabs already use. */}
+                <button
+                  type="button"
+                  id={tabId(PALETTES_TAB)}
+                  role={isDesktop ? undefined : "tab"}
+                  aria-selected={isDesktop ? undefined : activeTab === PALETTES_TAB}
+                  aria-controls={isDesktop ? undefined : tabPanelId(PALETTES_TAB)}
+                  tabIndex={activeTab === PALETTES_TAB ? 0 : -1}
+                  data-testid="category-tab-palettes"
+                  onClick={() => setActiveTab(PALETTES_TAB)}
+                  className={cn(
+                    "flex min-h-11 flex-none snap-start scroll-mx-1 items-center gap-2 rounded-full px-3.5 text-[12.5px]",
+                    "focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring",
+                    activeTab === PALETTES_TAB
+                      ? "bg-secondary font-semibold text-primary"
+                      : "text-muted-foreground"
+                  )}
+                >
+                  <DesignRound layers={activePaletteLayers} className="size-4" />
+                  {t("step2.tabCount", {
+                    name: t("step2.palettesTab"),
+                    count: palettes.length,
+                  })}
+                </button>
                 {detail.categories.map((cat) => {
                   const sel = selections[cat.slug];
                   const selOpt = cat.options.find((o) => o.id === sel);
@@ -1426,6 +1517,47 @@ export function ConfiguratorClient({
               <h2 className="mt-1 text-xl font-semibold">{t("step2.titleDetails")}</h2>
               <p className="mt-0.5 text-sm text-muted-foreground">
                 {designName(selected)}
+              </p>
+            </div>
+
+            {/* R5-PALETTES task 12 — the «Palettes» tab's own panel (mockup
+                `#sM`'s `lane` when `tab==="palettes"`): a horizontal lane of
+                the SAME chips the desktop bar already builds above
+                (`leadPaletteChip`/`otherPaletteChips` — draft or active
+                match first, then every other saved palette, current design's
+                own leading via `sortCurrentDesignFirst`, no second sort),
+                plus the mobile-only «+ New» chip. Mobile only — desktop has
+                the sticky `PaletteBar` instead (task 8) — so `md:hidden`,
+                never `md:contents`: unlike the «Fargeønsker» panel below,
+                nothing here belongs in the desktop layout at all.
+                // TODO:nb-review — step2.palettesTab / step2.palettesHint /
+                step2.palettesHintUnsaved */}
+            <div
+              id={tabPanelId(PALETTES_TAB)}
+              role={isDesktop ? undefined : "tabpanel"}
+              aria-labelledby={isDesktop ? undefined : tabId(PALETTES_TAB)}
+              data-testid="step2-palettes-panel"
+              className={cn(
+                "min-w-0 md:hidden",
+                "max-md:-mx-3 max-md:flex max-md:flex-col",
+                activeTab !== PALETTES_TAB && "max-md:hidden"
+              )}
+            >
+              <div
+                data-testid="palette-lane-mobile"
+                // B1 (same as the tabs corsia and every other lane in this
+                // panel): `touch-pan-x` tells the browser the gesture here is
+                // horizontal, `overscroll-x-contain` stops the scroll chain
+                // reaching the page at either end.
+                className="flex touch-pan-x snap-x snap-proximity gap-2 overflow-x-auto overscroll-x-contain px-3 py-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+              >
+                {leadPaletteChip}
+                {otherPaletteChips}
+                {newPaletteDraftChip}
+              </div>
+              <p className="px-3 pb-2 text-[11px] text-muted-foreground">
+                {t("step2.palettesHint")}
+                {!matchedPalette && ` ${t("step2.palettesHintUnsaved")}`}
               </p>
             </div>
 
@@ -1650,6 +1782,45 @@ export function ConfiguratorClient({
                 no `viewport-fit=cover`, so there is no safe area to read) — it
                 is in the padding so the row is already correct the day that
                 lands, not because it does something now. */}
+            {/* R5-PALETTES task 12 — «Save as palette» strip (mockup `#sM`'s
+                bottom-of-`Phone()` block, both states). The mockup puts this
+                strip AND the nav row above INSIDE one `sticky bottom-0`
+                container — deliberately NOT followed here, for exactly the
+                reason the comment right above this one already proves with
+                evidence: a bottom-sticky bar is a FIXED bar until it reaches
+                its flow position, and this panel's page continues below the
+                fold, so it would sit on top of the option lane at first
+                paint. This strip goes in normal flow, directly above the nav
+                row — same fix, same place, one paragraph up. Mobile only:
+                desktop's equivalent is the bar's own `extra` button (task 8).
+                `activePaletteName`/`activePaletteLayers` are the SAME values
+                the Palettes tab's dot and draft chip already use — computed
+                once, above.
+                // TODO:nb-review — step2.paletteStripUnsaved / step2.paletteStripSaved */}
+            <div
+              data-testid="step2-palette-strip"
+              className="md:hidden flex min-h-11 items-center gap-2 px-1 pb-2 text-[13px]"
+            >
+              <DesignRound layers={activePaletteLayers} className="size-6" />
+              <span className="min-w-0 flex-1 truncate">
+                <b className="font-semibold">{activePaletteName}</b>{" "}
+                <span className="text-muted-foreground">
+                  {matchedPalette
+                    ? t("step2.paletteStripSaved")
+                    : t("step2.paletteStripUnsaved")}
+                </span>
+              </span>
+              {!matchedPalette && (
+                <button
+                  type="button"
+                  data-testid="save-palette-mobile"
+                  onClick={saveDraftAsPalette}
+                  className="ml-auto flex h-11 shrink-0 items-center justify-center rounded-sm border-2 border-primary bg-primary/10 px-4 text-xs font-semibold"
+                >
+                  {tPaletteBar("save")}
+                </button>
+              )}
+            </div>
             <div
               // R4-STEP2-SHEET: sotto md la riga nav è dentro il foglio, non una
               // barra a sé — stessa campitura `--mk-canvas` del canvas e del
