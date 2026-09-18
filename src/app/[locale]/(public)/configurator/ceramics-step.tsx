@@ -8,6 +8,9 @@ import { usePathname, useRouter } from "@/i18n/navigation";
 import { Stepper } from "@/components/ui-domain/stepper";
 import { DesignRound } from "@/components/ui-domain/design-round";
 import { OrderForm } from "@/components/ui-domain/order-form";
+import { PaletteBar } from "@/components/ui-domain/palette-bar";
+import { PaletteChip } from "@/components/ui-domain/palette-chip";
+import { paletteFor } from "@/lib/palettes/palettes";
 import { Button } from "@/components/ui/button";
 import { assetUrl } from "@/lib/storage";
 import { PRODUCT_CARD_WIDTH, PRODUCT_THUMB_WIDTH } from "@/lib/asset-variants";
@@ -235,6 +238,7 @@ export function CeramicsStep({
   const tc = useTranslations("configurator");
   const to = useTranslations("order");
   const ta = useTranslations("actions");
+  const tPaletteBar = useTranslations("palettes.bar");
   const locale = useLocale() as "no" | "en";
   const router = useRouter();
   const pathname = usePathname();
@@ -254,6 +258,12 @@ export function CeramicsStep({
     setCurrentConfigCode,
     acceptSuggestion,
     allowedProduct: cartAllowedProduct,
+    palettes,
+    palettesHydrated,
+    activeCode,
+    setActiveCode,
+    touch: touchPalette,
+    rename: renamePalette,
   } = useCartContext();
 
   /**
@@ -267,6 +277,118 @@ export function CeramicsStep({
     setCurrentConfigCode(configCode);
     return () => setCurrentConfigCode(null);
   }, [configCode, setCurrentConfigCode]);
+
+  /**
+   * R5-PALETTES task 9 — which palette is painting. Same rule as step 2's own
+   * `matchedPalette` (card §4-bis: the active palette IS the URL): `configCode`
+   * is a server prop derived from the URL, so whichever saved palette shares
+   * its code is the one actually in use, full stop — no separate "current
+   * palette" state to drift out of sync with what a ceramic will be painted
+   * with when added.
+   */
+  const activePalette = paletteFor(palettes, configCode);
+
+  /**
+   * `activeCode` (persisted, cross-tab) is a DIFFERENT thing: a "last chosen"
+   * pointer for surfaces that have no URL to read (the next PR's header/mobile
+   * strip). Task 8 only ever WROTE it (on save); this is the first task that
+   * READS it, which is also the first chance to hit the bug its own review
+   * flagged — it can point at a palette that no longer exists (evicted by the
+   * LRU when an 11th palette is saved, or wiped because another tab wrote a
+   * different list). So: never trust the raw pointer, always resolve through
+   * `paletteFor`, and reconcile in both directions — follow the URL forward
+   * when it names a save, clear the pointer when it names nothing.
+   */
+  useEffect(() => {
+    if (!palettesHydrated) return;
+    if (activePalette) {
+      if (activeCode !== activePalette.code) setActiveCode(activePalette.code);
+      return;
+    }
+    if (activeCode && !paletteFor(palettes, activeCode)) setActiveCode(null);
+  }, [palettesHydrated, activePalette, activeCode, palettes, setActiveCode]);
+
+  /** The one chip currently in rename mode (only one at a time — task 8's own rule). */
+  const [renamingPaletteCode, setRenamingPaletteCode] = useState<string | null>(
+    null
+  );
+
+  /**
+   * Picking a chip: it becomes the active palette by becoming the URL (§4-bis)
+   * — `configCode`/`snapshot`/`designLayers` are server props derived from it,
+   * so this one navigation is also what repaints the canvas/thumbnails and
+   * what the next "Add to basket" will use (built from those same props).
+   * `touch()` bumps the LRU key so this save doesn't look unused next time the
+   * list is trimmed.
+   */
+  function paintWith(code: string) {
+    touchPalette(code, Date.now());
+    setActiveCode(code);
+    router.push(`/configurator?code=${code}&step=3`);
+  }
+
+  /**
+   * The lane's chips: every saved palette, dim (and inert — card §6, switching
+   * design from here is a later card) when it belongs to a different design,
+   * else selectable and — if it's the one painting — carrying the brush badge.
+   */
+  const paletteChips = palettes.map((p) => {
+    const dim = p.designSlug !== design.slug;
+    if (dim) {
+      return (
+        <PaletteChip
+          key={p.code}
+          code={p.code}
+          name={p.name}
+          layers={p.layers}
+          dim
+          dimDesignName={designLabel(p.snapshot, locale) ?? p.designSlug}
+        />
+      );
+    }
+    const isActive = activePalette?.code === p.code;
+    return (
+      <PaletteChip
+        key={p.code}
+        code={p.code}
+        name={p.name}
+        layers={p.layers}
+        active={isActive}
+        brush={isActive}
+        renaming={renamingPaletteCode === p.code}
+        onSelect={() => paintWith(p.code)}
+        onRenameStart={() => setRenamingPaletteCode(p.code)}
+        onRenameConfirm={(next) => {
+          renamePalette(p.code, next);
+          setRenamingPaletteCode(null);
+        }}
+        onRenameCancel={() => setRenamingPaletteCode(null)}
+      />
+    );
+  });
+
+  /**
+   * «+ New palette»: step 2 of the CURRENT design (`goToStep`, defined below,
+   * keeps every other param — colours included, so this opens on what's on
+   * screen right now, ready to tweak into something new rather than starting
+   * from the design's own defaults).
+   */
+  const newPaletteChip = (
+    <button
+      type="button"
+      data-testid="palette-chip-new"
+      onClick={() => goToStep(2)}
+      className="flex h-12 shrink-0 items-center gap-2.5 rounded-full border border-dashed border-primary/50 pl-1.5 pr-4 text-[13.5px] text-primary hover:bg-muted"
+    >
+      <span
+        aria-hidden
+        className="grid size-9 place-items-center rounded-full border border-dashed border-primary/60 text-lg leading-none"
+      >
+        +
+      </span>
+      {tPaletteBar("new")}
+    </button>
+  );
 
   /**
    * R4-STEP3: id of the product whose `ProductSheet` is OPEN — no preselection
@@ -1087,34 +1209,11 @@ export function CeramicsStep({
     </div>
   );
 
-  // F37 ①: desktop "Ditt valg" — sits ABOVE the cart in the sticky column,
-  // visually SEPARATE from it (accent left border). Present even with an empty
-  // basket. "Endre farger" returns to step 2 keeping the config (goToStep).
-  const yourSelectionBox = hasConfig && (
-    <div
-      data-testid="step3-your-selection"
-      className="mb-4 flex items-center gap-3.5 rounded-sm border border-border border-l-4 border-l-primary bg-card p-4"
-    >
-      <DesignRound layers={designLayers} className="size-14" />
-      <div className="min-w-0">
-        <p className="text-[10.5px] uppercase tracking-[0.06em] text-muted-foreground">
-          {tc("yourSelection.kicker")}
-        </p>
-        <p className="truncate text-sm font-semibold">{designName}</p>
-        <p className="text-xs text-muted-foreground">
-          {formatSelections(snapshot.selections, locale, { withLabels: true })}
-        </p>
-      </div>
-      <button
-        type="button"
-        data-testid="your-selection-edit"
-        onClick={() => goToStep(2)}
-        className="ml-auto flex min-h-11 shrink-0 items-center text-xs font-semibold text-primary hover:underline"
-      >
-        {tc("yourSelection.edit")} ›
-      </button>
-    </div>
-  );
+  // R5-PALETTES task 9: the desktop "Ditt valg" box is GONE — the PaletteBar
+  // above the step now says which palette is painting (mockup `#s3a`'s option
+  // A carries no such card in the basket column; the bar replaces it). The
+  // mobile strip below is untouched — it becomes "Painting with" in a later
+  // PR, not this one.
 
   // F37 ①: mobile strip — compact, IN-FLOW (never fixed), an entry-point anchor
   // under the title. Options abbreviated (no labels). Scrolls away with content.
@@ -1263,6 +1362,29 @@ export function CeramicsStep({
       // of the order block stay under it and the CTA is unreachable.
       className={showStickyBar ? "pb-24 md:pb-0" : undefined}
     >
+      {/* R5-PALETTES task 9: the paint-mode bar, desktop only — mobile gets its
+          own «Palettes» tab in a later card, same split step 2 made (task 8).
+          Same full-bleed trick as there: `-mx-5 -mt-7` cancels exactly
+          `main`'s own padding (public-shell.tsx) so the bar sits flush under
+          the header before any scroll, and `sticky top-0` (not `top-14` — see
+          palette-bar.tsx) pins it once scrolled, because the desktop site
+          header isn't sticky at all (site-header.tsx:15). The classes land on
+          `PaletteBar` itself via `className`, not a wrapper: a sticky element
+          only stays pinned as long as its OWN parent is taller than it is, and
+          that parent here is this whole step (`data-testid="ceramics-step"`),
+          not a div sized to just the bar. */}
+      <PaletteBar
+        mode="paint"
+        sticky
+        className="hidden md:-mx-5 md:-mt-7 md:mb-6 md:block"
+        chips={
+          <>
+            {paletteChips}
+            {newPaletteChip}
+          </>
+        }
+      />
+
       {/* F21: nav cluster — stepper always; Back active; Next disabled at step 3 */}
       <div className="mb-4 flex items-center gap-2" data-testid="step-nav">
         <Button
@@ -1428,12 +1550,18 @@ export function CeramicsStep({
             kicker + <h2> above the grid, so the rail is nudged down by their
             combined height (measured 64.5px at md and above — both are
             fixed-size text blocks, so one constant covers every breakpoint).
-            Update this if that heading block changes. */}
+            Update this if that heading block changes.
+            R5-PALETTES task 9: `top-4` (1rem) is now BELOW the sticky
+            PaletteBar's own pinned height (68px) — without the offset this
+            panel would slide up under the bar instead of stopping clear of
+            it, the same "second sticky bug" task 8's report fixed for step
+            2's canvas. `calc(68px+1rem)` keeps the original 1rem breathing
+            room, just measured from the bar's bottom edge, not the viewport
+            top. */}
         <div
-          className="hidden min-w-0 rounded-sm border border-border bg-card p-5 md:mt-16 md:block md:sticky md:top-4 md:self-start"
+          className="hidden min-w-0 rounded-sm border border-border bg-card p-5 md:mt-16 md:block md:sticky md:top-[calc(68px+1rem)] md:self-start"
           data-testid="docked-cart-panel"
         >
-          {yourSelectionBox}
           {cartPanel}
         </div>
       </div>

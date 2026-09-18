@@ -361,7 +361,8 @@
       "eyebrowPaint": "Maler med",
       "manageCount": "{count} av {max} lagret",
       "paintHint": "Trykk på en rad · eller legg til",
-      "save": "Lagre som palett"
+      "save": "Lagre som palett",
+      "new": "Ny palett"
     }
   }
 }
