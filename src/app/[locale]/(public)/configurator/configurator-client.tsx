@@ -222,12 +222,18 @@ export function ConfiguratorClient({
   /** R4-RESTYLE: la corsia tab è fatta SOLO di gruppi-opzione — «Detaljer» e
    *  «Bilder» non esistono più (i loro contenuti sono in pagina, sopra il
    *  pannello). Quindi la tab attiva è sempre lo slug di una categoria. */
+  // Fix wave PR3 finding 11: `?? ""` matched no tab at all when a design has
+  // zero categories — every tab's `tabIndex` is `-1` unless it's the active
+  // one, so `""` left NOTHING focusable and the new Palettes tab (mobile's
+  // only way to reach step 2's palette lane) unreachable. `PALETTES_TAB`
+  // always exists (module-level constant, not gated on `detail.categories`),
+  // so it's the one fallback that's always a real, selectable tab.
   const [activeTab, setActiveTab] = useState<string>(
-    detail.categories[0]?.slug ?? ""
+    detail.categories[0]?.slug ?? PALETTES_TAB
   );
   // design nuovo = categorie nuove: la tab attiva torna alla prima.
   useEffect(() => {
-    setActiveTab(detail.categories[0]?.slug ?? "");
+    setActiveTab(detail.categories[0]?.slug ?? PALETTES_TAB);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- key on design only
   }, [selected.slug]);
   const colorLock = searchParams.get("lock") === "1";
@@ -614,7 +620,11 @@ export function ConfiguratorClient({
     const params = new URLSearchParams(searchParams.toString());
     params.set("code", code);
     params.set("step", "2");
-    router.push(`${pathname}?${params.toString()}`);
+    // Fix wave PR3 finding 3: `resetPaletteDraft` a few lines below already
+    // passes this — a phone picks a chip mid-page (the mobile tab lane sits
+    // well past the fold), and without it every tap threw the customer back
+    // to the top. The sticky desktop bar hid the same bug there.
+    router.push(`${pathname}?${params.toString()}`, { scroll: false });
   }
 
   /**
@@ -841,11 +851,17 @@ export function ConfiguratorClient({
    *  (see that function's own comment for why this one resets instead of
    *  carrying forward). Desktop has no equivalent chip today — only the
    *  bar's «Save as palette» button (task 8) — so this stays local to the
-   *  mobile panel below. */
+   *  mobile panel below.
+   *
+   *  Fix wave PR3 finding 13: `palette-chip-new` (unqualified) is also
+   *  step 3's carry-forward «+ New palette» (ceramics-step.tsx) — same
+   *  testid, two different behaviours (that one keeps the on-screen
+   *  colours and opens step 2; this one resets to the design's defaults).
+   *  `-reset` names what THIS one specifically does. */
   const newPaletteDraftChip = (
     <button
       type="button"
-      data-testid="palette-chip-new"
+      data-testid="palette-chip-new-reset"
       onClick={resetPaletteDraft}
       className="flex h-12 shrink-0 items-center gap-2.5 rounded-full border border-dashed border-primary/50 pl-1.5 pr-4 text-[13.5px] text-primary hover:bg-muted"
     >

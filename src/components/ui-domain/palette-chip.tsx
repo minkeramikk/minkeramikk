@@ -223,12 +223,20 @@ export function PaletteChip({
             // in the tree and tabbable; `group-focus-within` reveals it as soon
             // as focus lands anywhere in the chip (the SELECT button first,
             // since it's the earlier sibling), not only on the button itself.
+            //
+            // Fix wave PR3 finding 5: that hover/focus reveal is a no-op on a
+            // phone — no hover, and nothing focuses a button it can't see to
+            // tap in the first place. This chip only renders touch-side today
+            // in step 2's mobile Palettes tab (task 12), always at `active`
+            // for the one it's rendered on — so below `sm` it's just always
+            // shown, at the 44px minimum; `sm:` restores the exact hover/focus
+            // reveal at the mockup's 24px for every pointer-driven surface.
             <button
               type="button"
               onClick={onRenameStart}
               aria-label={t("rename")}
               title={t("rename")}
-              className="ml-1 grid size-6 shrink-0 place-items-center rounded-full text-muted-foreground opacity-0 pointer-events-none transition-opacity hover:bg-secondary group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:pointer-events-auto"
+              className="ml-1 grid size-11 shrink-0 place-items-center rounded-full text-muted-foreground opacity-100 pointer-events-auto transition-opacity hover:bg-secondary sm:size-6 sm:opacity-0 sm:pointer-events-none sm:group-hover:opacity-100 sm:group-hover:pointer-events-auto sm:group-focus-within:opacity-100 sm:group-focus-within:pointer-events-auto"
             >
               ✎
             </button>
@@ -240,12 +248,23 @@ export function PaletteChip({
             // together risks reintroducing that coupling by editing "the
             // rename button" and silently carrying delete along, or vice
             // versa. Two small siblings, two independent classNames.
+            //
+            // Fix wave PR3 finding 5: unlike ✎, this one renders for every
+            // saved chip, not only the active one — below `sm` it only gets
+            // the always-shown/44px treatment when `active`, same scope the
+            // ✎ button already has (a non-active chip on a phone stays as
+            // unreachable as before this fix; widening that is a bigger,
+            // separate change nobody asked for here).
             <button
               type="button"
               onClick={onDelete}
               aria-label={t("delete")}
               title={t("delete")}
-              className="ml-1 grid size-6 shrink-0 place-items-center rounded-full text-muted-foreground opacity-0 pointer-events-none transition-opacity hover:bg-secondary group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:pointer-events-auto"
+              className={cn(
+                "ml-1 grid shrink-0 place-items-center rounded-full text-muted-foreground transition-opacity hover:bg-secondary",
+                "sm:size-6 sm:opacity-0 sm:pointer-events-none sm:group-hover:opacity-100 sm:group-hover:pointer-events-auto sm:group-focus-within:opacity-100 sm:group-focus-within:pointer-events-auto",
+                active ? "size-11 opacity-100 pointer-events-auto" : "size-6 opacity-0 pointer-events-none"
+              )}
             >
               ✕
             </button>
