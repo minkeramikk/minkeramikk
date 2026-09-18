@@ -85,11 +85,17 @@ export function usePalettes() {
       // (Next, or a chip tap) before that render happens — the navigation
       // would unmount this hook first, dropping the save. Carried from PR
       // 1's review (task 8 step 2).
-      if (typeof window !== "undefined") {
+      // Fix wave B finding 5 (minor) — same `palettesHydrated` guard the
+      // effect above already has. `palettes` is `[]` pre-hydration, so a
+      // `save()` that somehow fired before the mount effect ran would build
+      // `next` off an empty list and this write would clobber whatever was
+      // already on disk. No caller does that today (practically
+      // unreachable), but the guard is one word, not a redesign.
+      if (typeof window !== "undefined" && palettesHydrated) {
         window.localStorage.setItem(LIST_KEY, JSON.stringify(next));
       }
     },
-    [palettes]
+    [palettes, palettesHydrated]
   );
   const rename = useCallback((code: string, name: string) => {
     setPalettes((list) => renamePalette(list, code, name));

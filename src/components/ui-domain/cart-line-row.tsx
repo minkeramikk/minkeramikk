@@ -1,6 +1,6 @@
 "use client";
 
-import { useId } from "react";
+import { useEffect, useId, useRef } from "react";
 import { useTranslations } from "next-intl";
 import { Brush, Eraser, Trash2 } from "lucide-react";
 import { CartLineThumb } from "@/components/ui-domain/cart-line-thumb";
@@ -9,7 +9,7 @@ import { SetBadge } from "@/components/ui-domain/set-badge";
 import { formatMoney, money } from "@/lib/money/money";
 import { designLabel, type CartLayer, type CartLine } from "@/lib/cart/cart";
 import { formatSelections } from "@/lib/configurator/readable-selections";
-import { paletteFor, type Palette } from "@/lib/palettes/palettes";
+import { paletteFor, sortCurrentDesignFirst, type Palette } from "@/lib/palettes/palettes";
 import type { LineDiscount } from "@/lib/discounts/discount";
 import { cn } from "@/lib/utils";
 
@@ -124,7 +124,29 @@ export function CartLineRow({
   // at; `useId()` (not the line/cart id) so two rows never collide even if a
   // line id somehow repeats within one render.
   const pickerPanelId = useId();
+  // Fix wave B finding 4 — picking a pill unmounts the panel (mirrors the
+  // unpaint dialog's own `onCloseAutoFocus`, DESIGN-SYSTEM §3.14, but this
+  // toggle is a plain disclosure, not a Radix primitive, so there's no such
+  // hook to hang the restore on). Only reclaim focus when it actually fell
+  // to `<body>` — a Tab out of the panel already sent focus somewhere real
+  // before this effect runs, and forcing it back to the toggle would fight
+  // that legitimate move.
+  const pickerToggleRef = useRef<HTMLButtonElement>(null);
+  const wasPickerOpen = useRef(pickerOpen);
+  useEffect(() => {
+    if (wasPickerOpen.current && !pickerOpen && document.activeElement === document.body) {
+      pickerToggleRef.current?.focus();
+    }
+    wasPickerOpen.current = pickerOpen;
+  }, [pickerOpen]);
   const unpainted = line.configCode === null;
+  // Fix wave B finding 2 — zero saved palettes is the state every customer
+  // starts in; the ▾ promises a picker, and with nothing to pick that
+  // promise is empty (an open panel with no pills in it). The chip already
+  // has a rule for this (no affordance it can't back up), so the toggle
+  // follows it: no ▾, and the button goes inert (`disabled`, not just
+  // unstyled) instead of opening on nothing.
+  const hasPalettes = palettes.length > 0;
   /** Does the thumb column hold two images (design over ceramic), or just one? */
   const hasPlate = Boolean(line.plateImage);
   const isSet = (line.pieces ?? 1) > 1;
@@ -311,12 +333,17 @@ export function CartLineRow({
             {unpainted ? (
               <>
                 <button
+                  ref={pickerToggleRef}
                   type="button"
                   data-testid="paint-chip"
                   data-code={currentThumb.code}
-                  aria-expanded={pickerOpen}
-                  aria-controls={pickerPanelId}
-                  onClick={onTogglePicker}
+                  disabled={!hasPalettes}
+                  aria-expanded={hasPalettes ? pickerOpen : undefined}
+                  // Finding 5 (minor) — an id only meaningful while the panel
+                  // it names actually exists; pointing at it while closed
+                  // described a node that wasn't there.
+                  aria-controls={hasPalettes && pickerOpen ? pickerPanelId : undefined}
+                  onClick={hasPalettes ? onTogglePicker : undefined}
                   // `flex-1 min-w-0`: no fixed cap on the label (a magic
                   // number like 32px is a stub, not a label, once the
                   // thumb+icon already carry the colour meaning) — instead
@@ -346,7 +373,16 @@ export function CartLineRow({
                   // same mechanism as the mobile side) when there isn't —
                   // matching every other reset on this row, which stays
                   // `lg`-gated, not `md` (see the row comment above).
-                  className="flex h-11 min-w-0 flex-1 items-center gap-1 rounded-sm border border-border bg-card pl-1 pr-1 text-xs font-medium sm:h-9 lg:flex-initial lg:gap-1.5 lg:pr-2"
+                  className={cn(
+                    "flex h-11 min-w-0 flex-1 items-center gap-1 rounded-sm border bg-card pl-1 pr-1 text-xs font-medium sm:h-9 lg:flex-initial lg:gap-1.5 lg:pr-2",
+                    // Finding 5 (minor) — the mockup's OPEN trigger carries
+                    // `border-primary shadow-[0_0_0_1px_var(--ring)]`, not
+                    // just a glyph flip; this had dropped the border/ring half.
+                    pickerOpen
+                      ? "border-primary shadow-[0_0_0_1px_var(--ring)]"
+                      : "border-border",
+                    !hasPalettes && "disabled:cursor-not-allowed"
+                  )}
                 >
                   <DesignRound layers={currentThumb.layers} className="size-6 shrink-0 rounded-sm" />
                   {/* Dots first, then the name — same order as the painted
@@ -359,10 +395,13 @@ export function CartLineRow({
                   <span className="min-w-0 truncate">{currentThumb.label}</span>
                   {/* Task 10 — the mockup's `▾`/`▴` (`picker?'▴':'▾'`); `shrink-0`
                       so a long palette name truncates before this ever gives
-                      ground, same rule as the dots beside it. */}
-                  <span aria-hidden className="shrink-0 text-muted-foreground">
-                    {pickerOpen ? "▴" : "▾"}
-                  </span>
+                      ground, same rule as the dots beside it. Finding 2: no
+                      glyph at all when there's nothing to pick. */}
+                  {hasPalettes && (
+                    <span aria-hidden className="shrink-0 text-muted-foreground">
+                      {pickerOpen ? "▴" : "▾"}
+                    </span>
+                  )}
                 </button>
                 <div
                   role="group"
@@ -494,7 +533,10 @@ export function CartLineRow({
             aria-label={t("unpainted.pickerLabel")}
             className="col-span-2 mt-1.5 flex flex-wrap items-center gap-1.5 md:col-span-3"
           >
-            {palettes.map((p) => {
+            {/* Card §4-bis (added mid-PR): current design's own palettes
+                lead, the rest trail dimmed — same stable sort as the bar's
+                chips, not a filter (a dim pill stays reachable, just inert). */}
+            {sortCurrentDesignFirst(palettes, currentDesignSlug).map((p) => {
               const dim = p.designSlug !== currentDesignSlug;
               const active = p.code === currentThumb.code;
               return (
@@ -518,6 +560,14 @@ export function CartLineRow({
                 >
                   <DesignRound layers={p.layers} className="size-6 shrink-0 rounded-sm" />
                   <span className="max-w-[108px] truncate">{p.name}</span>
+                  {/* Finding 5 (minor) — the mockup's dim pill carries the
+                      other design's name ("· Limoni"); the chips already do
+                      this (dimDesignName), the pills hadn't caught up. */}
+                  {dim && (
+                    <span className="shrink-0 text-[10px] text-muted-foreground">
+                      · {designLabel(p.snapshot, locale) ?? p.designSlug}
+                    </span>
+                  )}
                 </button>
               );
             })}

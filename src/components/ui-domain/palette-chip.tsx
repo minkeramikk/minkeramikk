@@ -81,6 +81,21 @@ export function PaletteChip({
     }
   }, [renaming, name]);
 
+  // Fix wave B finding 4 — Enter/Esc unmount the `<input>` and there's no
+  // Radix `onCloseAutoFocus` here to catch the fall (this is a plain
+  // conditional render, not a dialog primitive): same restore-to-opener idea
+  // as the unpaint dialog (DESIGN-SYSTEM §3.14), done by hand. Guarded on
+  // `document.activeElement === document.body` so a blur that's really a Tab
+  // to the NEXT control (focus already moved somewhere real) isn't overridden.
+  const selectRef = useRef<HTMLButtonElement>(null);
+  const wasRenaming = useRef(renaming);
+  useEffect(() => {
+    if (wasRenaming.current && !renaming && document.activeElement === document.body) {
+      selectRef.current?.focus();
+    }
+    wasRenaming.current = renaming;
+  }, [renaming]);
+
   function settle(kind: "confirm" | "cancel") {
     if (settledRef.current) return;
     settledRef.current = true;
@@ -153,6 +168,7 @@ export function PaletteChip({
       ) : (
         <>
           <button
+            ref={selectRef}
             type="button"
             onClick={onSelect}
             disabled={dim}
