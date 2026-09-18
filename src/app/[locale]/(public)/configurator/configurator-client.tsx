@@ -51,6 +51,7 @@ import type { PreviewLayer } from "@/lib/configurator/preview";
 import { useCartContext } from "@/lib/cart/cart-context";
 import { buildConfigLinePayload } from "@/lib/configurator/line-payload";
 import { nameFor, paletteFor } from "@/lib/palettes/palettes";
+import type { PaletteWords } from "@/lib/palettes/name-lists";
 import { PaletteBar } from "@/components/ui-domain/palette-bar";
 import { PaletteChip } from "@/components/ui-domain/palette-chip";
 
@@ -155,6 +156,7 @@ export function ConfiguratorClient({
   detailsBySlug,
   ceramicThumbs = {},
   featuredSlot = null,
+  paletteWords,
 }: {
   designs: DesignChoice[];
   detailsBySlug: Record<string, DesignDetail>;
@@ -162,6 +164,16 @@ export function ConfiguratorClient({
   ceramicThumbs?: Record<string, string[]>;
   /** F28: server-rendered featured strip — step 1 only, between stepper and grid. */
   featuredSlot?: React.ReactNode;
+  /**
+   * Fix-wave finding 3: `nameFor()`'s default parameter calls `paletteWords()`,
+   * which reads `process.env.MK_PALETTE_WORDS` — fine on the server, always
+   * `undefined` here since this is `"use client"` (Next.js only inlines
+   * `NEXT_PUBLIC_*` into the client bundle, and this must NOT become public,
+   * card §2/§4-bis). The server component that renders us
+   * (`configurator/page.tsx`) resolves `paletteWords()` once and hands the
+   * result down, so an operator's override still reaches the customer's save.
+   */
+  paletteWords: PaletteWords;
 }) {
   const t = useTranslations("configurator");
   const locale = useLocale();
@@ -550,7 +562,7 @@ export function ConfiguratorClient({
     const now = Date.now();
     savePalette({
       code: draftCode,
-      name: nameFor(draftCode, draftPayload.snapshot),
+      name: nameFor(draftCode, draftPayload.snapshot, paletteWords),
       designSlug: selected.slug,
       snapshot: draftPayload.snapshot,
       layers: draftPayload.designLayers,
@@ -757,7 +769,7 @@ export function ConfiguratorClient({
     <PaletteChip
       key="draft"
       code={draftCode}
-      name={nameFor(draftCode, draftPayload.snapshot)}
+      name={nameFor(draftCode, draftPayload.snapshot, paletteWords)}
       layers={draftPayload.designLayers}
       draft
     />

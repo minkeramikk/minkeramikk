@@ -13,6 +13,7 @@ import {
   type CodecDesign,
 } from "@/lib/configurator/config-code";
 import { getFeaturedConfigs } from "@/lib/catalog/featured";
+import { paletteWords } from "@/lib/palettes/name-lists";
 import { FeaturedStrip } from "./featured-strip";
 import { ConfiguratorClient } from "./configurator-client";
 import { CeramicsStep } from "./ceramics-step";
@@ -263,6 +264,11 @@ export default async function ConfiguratorPage({
         designs={designs}
         detailsBySlug={detailsBySlug}
         ceramicThumbs={ceramicThumbs}
+        // Fix-wave finding 3: resolved HERE, server-side, so
+        // `MK_PALETTE_WORDS` (not `NEXT_PUBLIC_*`, deliberately — card
+        // §2/§4-bis says it must not become public) actually reaches the
+        // client instead of always reading `undefined` from the browser.
+        paletteWords={paletteWords()}
         featuredSlot={
           featured.length > 0 ? (
             <FeaturedStrip
