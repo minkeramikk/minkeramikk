@@ -161,9 +161,6 @@
       "counter": "{count}/{max}"
     },
     "yourSelection": {
-      "kicker": "Ditt valg",
-      "edit": "Endre farger",
-      "editShort": "Endre",
       "pairCaption": "Denne keramikken + ditt design"
     },
     "ladder": {
@@ -376,7 +373,8 @@
     },
     "sheet": {
       "trigger": "Paletter",
-      "newHint": "åpner steg 2"
+      "newHint": "åpner steg 2",
+      "hintSaved": "Trykk på en rute for å bytte"
     }
   }
 }

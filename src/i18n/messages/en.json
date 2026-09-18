@@ -162,9 +162,6 @@
       "counter": "{count}/{max}"
     },
     "yourSelection": {
-      "kicker": "Your selection",
-      "edit": "Edit colours",
-      "editShort": "Edit",
       "pairCaption": "This ceramic + your design"
     },
     "ladder": {
@@ -377,7 +374,8 @@
     },
     "sheet": {
       "trigger": "Palettes",
-      "newHint": "opens step 2"
+      "newHint": "opens step 2",
+      "hintSaved": "Tap a tile to switch"
     }
   }
 }

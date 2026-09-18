@@ -398,7 +398,12 @@ export function CeramicsStep({
     }
     params.set("code", code);
     params.set("step", "3");
-    router.push(`${pathname}?${params.toString()}`);
+    // Fix wave PR3 finding 3: the sheet is the phone's ONLY way to pick a
+    // palette here, opened mid-page from the sticky strip — without
+    // `scroll: false` every tap threw the customer back to the top of step
+    // 3, same bug `loadPalette` (configurator-client.tsx) had. The sticky
+    // desktop bar hid it there too; `resetPaletteDraft` already got this right.
+    router.push(`${pathname}?${params.toString()}`, { scroll: false });
   }
 
   /** The sheet's own tile pick: same effect as a chip tap (`paintWith`), plus
@@ -1311,7 +1316,14 @@ export function CeramicsStep({
             {!hasUnpainted && checkoutOpen ? (
               // scroll-mt: the mobile header is sticky and 56px tall, so a
               // bare scrollIntoView would park the form's first rows under it.
-              <div data-testid="docked-checkout-form" className="scroll-mt-[4.5rem]">
+              // Fix wave PR3 finding 2: `md:scroll-mt-[4.5rem]` is that
+              // desktop-header-only value, unchanged — but below `md` the
+              // header now stacks with `paintingStrip`'s own `sticky top-14`
+              // (task 13), ~111-117px combined, not 72px. Measured value below.
+              <div
+                data-testid="docked-checkout-form"
+                className="scroll-mt-[7.5rem] md:scroll-mt-[4.5rem]"
+              >
                 <button
                   type="button"
                   data-testid="docked-back-to-cart"
@@ -1472,7 +1484,16 @@ export function CeramicsStep({
   // (site-header.tsx, `max-md:sticky max-md:top-0`, h-14), so `top-14` here
   // is the mockup's own value, unmodified — it only needed adjusting for
   // the desktop bar, whose header never sticks at all.
-  const paintingStrip = hasConfig && (
+  //
+  // Fix wave PR3 finding 4: no `hasConfig` gate any more. That gate made
+  // sense while this was a recap of an explicit choice (AC4); now it's the
+  // ONLY mobile way to see what's painting and reach the sheet, and the
+  // desktop `PaletteBar` a few hundred lines down carries no such gate
+  // either — it always renders, just `hidden` below `md`. A bare `?step=3`
+  // or a `?set=` landing still has SOME palette painting (`paintingLabel`
+  // already falls back to `designName`), and the phone customer deserves to
+  // be told, and given the sheet, same as desktop.
+  const paintingStrip = (
     <div
       data-testid="step3-your-selection-strip"
       // `-mx-5 px-4`: cancel `main`'s own `px-5` (public-shell.tsx) and
@@ -1494,24 +1515,49 @@ export function CeramicsStep({
           <span className="font-normal text-muted-foreground">· {designName}</span>
         </p>
       </div>
-      <button
-        type="button"
-        data-testid="palette-sheet-trigger"
-        onClick={() => setPaletteSheetOpen(true)}
-        aria-expanded={paletteSheetOpen}
-        // `min-h-11 sm:min-h-9`: same touch-target rescue as `PaletteChip`'s
-        // select button (task 13's carried-in fix) — the mockup's own `h-9`
-        // (36px) is a mouse-era size, kept only from `sm` up.
-        className={cn(
-          "ml-auto flex min-h-11 shrink-0 items-center gap-1 rounded-full border bg-card px-3 text-[12.5px] font-medium sm:min-h-9",
-          paletteSheetOpen ? "border-primary shadow-[0_0_0_1px_var(--ring)]" : "border-border"
-        )}
-      >
-        {tSheet("trigger")}
-        <span aria-hidden className="text-muted-foreground">
-          {paletteSheetOpen ? "▴" : "▾"}
-        </span>
-      </button>
+      {/* Fix wave PR3 finding 9: the strip is the sheet's ONE opener — a real
+          `SheetTrigger` (not a hand-rolled button) gets `aria-haspopup`,
+          `aria-controls` and, on close, focus restored to THIS button for
+          free (Radix's `triggerRef`, wired only when a `Trigger` is used).
+          `PaletteChip`'s own rename input restores focus by hand because it
+          has no single canonical opener to be a `Trigger` for — this button
+          does, so it gets the real thing instead of a second hand-rolled copy. */}
+      <PaletteSheet
+        trigger={
+          <button
+            type="button"
+            data-testid="palette-sheet-trigger"
+            // `min-h-11 sm:min-h-9`: same touch-target rescue as `PaletteChip`'s
+            // select button (task 13's carried-in fix) — the mockup's own `h-9`
+            // (36px) is a mouse-era size, kept only from `sm` up.
+            className={cn(
+              "ml-auto flex min-h-11 shrink-0 items-center gap-1 rounded-full border bg-card px-3 text-[12.5px] font-medium sm:min-h-9",
+              paletteSheetOpen ? "border-primary shadow-[0_0_0_1px_var(--ring)]" : "border-border"
+            )}
+          >
+            {tSheet("trigger")}
+            <span aria-hidden className="text-muted-foreground">
+              {paletteSheetOpen ? "▴" : "▾"}
+            </span>
+          </button>
+        }
+        open={paletteSheetOpen}
+        onOpenChange={setPaletteSheetOpen}
+        palettes={palettes}
+        currentDesignSlug={design.slug}
+        activeCode={activePalette?.code ?? null}
+        draft={!activePalette}
+        locale={locale}
+        onPick={paintWithFromSheet}
+        onNewPalette={() => {
+          setPaletteSheetOpen(false);
+          goToStep(2);
+        }}
+        onSaveDraft={() => {
+          saveDraftAsPalette();
+          setPaletteSheetOpen(false);
+        }}
+      />
     </div>
   );
 
@@ -1524,7 +1570,12 @@ export function CeramicsStep({
   // never a second order CTA on screen: the form is open (the bar's own
   // destination, and a fixed bar sitting on the fields while the keyboard is up
   // is worse than useless), or the panel's CTA has scrolled into view.
-  const showStickyBar = count > 0 && !sheetOpen;
+  //
+  // Fix wave PR3 finding 10: `!paletteSheetOpen` joins `!sheetOpen` for the
+  // exact same reason stated above (the file's own rule) — the palette
+  // sheet is a second fixed bottom layer just like the product sheet, and
+  // was the one case this line forgot to name.
+  const showStickyBar = count > 0 && !sheetOpen && !paletteSheetOpen;
   const stickyBar = showStickyBar && !checkoutOpen && !orderCtaInView && (
     <div
       data-testid="step3-sticky-bar"
@@ -1683,6 +1734,16 @@ export function CeramicsStep({
         }
       />
 
+      {/* Fix wave PR3 finding 7: the mockup (`Phone3`) puts `MobStrip`
+          directly under the header, above the "Step 3 of 3" kicker — this
+          used to render inside the left column, below both the stepper and
+          the `<h2>`. For a `sticky` element DOM order IS scroll order, so
+          that wasn't cosmetic: it mirrors the desktop `PaletteBar` right
+          above (also ahead of the nav cluster), and doesn't fight anything
+          here — the nav cluster and shared-set banner below are ordinary
+          in-flow siblings, no sticky/z-index of their own to collide with. */}
+      {paintingStrip}
+
       {/* F21: nav cluster — stepper always; Back active; Next disabled at step 3 */}
       <div className="mb-4 flex items-center gap-2" data-testid="step-nav">
         <Button
@@ -1800,8 +1861,6 @@ export function CeramicsStep({
           </p>
           <h2 className="mb-4 mt-1 text-xl font-semibold">{t("title")}</h2>
 
-          {paintingStrip}
-
           {/* §3.18: one section per series, 22px apart; 2 cols / gap-2.5 under
               960px, 3 cols / gap-3 from 960px. */}
           <div className="flex flex-col gap-[22px]" data-testid="ceramics-grid">
@@ -1897,28 +1956,12 @@ export function CeramicsStep({
         />
       )}
 
-      {/* R5-PALETTES task 13 — the mobile strip's own "Palettes ▾" sheet.
-          Same pattern as `ProductSheet` above: mounted for good, driven by
-          `paletteSheetOpen`, so it can play its own exit animation instead
-          of unmounting mid-transition. */}
-      <PaletteSheet
-        open={paletteSheetOpen}
-        onOpenChange={setPaletteSheetOpen}
-        palettes={palettes}
-        currentDesignSlug={design.slug}
-        activeCode={activePalette?.code ?? null}
-        draft={!activePalette}
-        locale={locale}
-        onPick={paintWithFromSheet}
-        onNewPalette={() => {
-          setPaletteSheetOpen(false);
-          goToStep(2);
-        }}
-        onSaveDraft={() => {
-          saveDraftAsPalette();
-          setPaletteSheetOpen(false);
-        }}
-      />
+      {/* R5-PALETTES task 13's `PaletteSheet` moved into `paintingStrip`
+          itself (fix wave PR3 finding 9) — it now renders its own trigger
+          via `SheetTrigger`, which only wires focus-restore correctly when
+          `Trigger` and `Content` share one `<Sheet>` root positioned where
+          the trigger button actually lives, not down here as a second,
+          disconnected instance. */}
 
       {/* R5-UNPAINTED task 11: the inverse of Paint. Rendered once, at the end
           of the step, driven by `unpaintId` — same pattern as `ProductSheet`

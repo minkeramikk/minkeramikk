@@ -48,8 +48,13 @@ export function thumbHex(line: CartLine): string | undefined {
  * The line's colours as dots. TL, 18/9: on the row the dots ARE the colours —
  * spelling the names out next to them only bought a truncation («Amalfi Dyr NO
  * ●●●● · Esel · Verde…»). The names live one tap away, in the details panel.
+ *
+ * Exported (fix wave PR3 finding 6): `palette-sheet.tsx`'s `PaletteTile` drew
+ * the same dots from a near-identical copy, `PaletteDots` — and that copy
+ * had drifted off ADR 0008 (`border-black/10` instead of the `border-border`
+ * token). One component, one border colour, not two to keep in sync.
  */
-function Dots({ hexes }: { hexes: string[] }) {
+export function Dots({ hexes }: { hexes: string[] }) {
   if (hexes.length === 0) return null;
   return (
     <span className="inline-flex shrink-0 items-center gap-0.5">

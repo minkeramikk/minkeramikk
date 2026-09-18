@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import {
   Sheet,
@@ -7,8 +8,10 @@ import {
   SheetDescription,
   SheetHeader,
   SheetTitle,
+  SheetTrigger,
 } from "@/components/ui/sheet";
 import { DesignRound } from "@/components/ui-domain/design-round";
+import { Dots } from "@/components/ui-domain/cart-line-row";
 import { designLabel } from "@/lib/cart/cart";
 import { MAX_PALETTES, sortCurrentDesignFirst, type Palette } from "@/lib/palettes/palettes";
 import { cn } from "@/lib/utils";
@@ -33,6 +36,7 @@ import { cn } from "@/lib/utils";
  * site, not through a prop, and this is one more.
  */
 export function PaletteSheet({
+  trigger,
   open,
   onOpenChange,
   palettes,
@@ -44,6 +48,14 @@ export function PaletteSheet({
   onNewPalette,
   onSaveDraft,
 }: {
+  /** The one control that opens this sheet (the strip's "Palettes ▾"
+   *  button). Rendered via `SheetTrigger asChild`, inside the SAME `<Sheet>`
+   *  as `SheetContent` below — that's what lets Radix wire `aria-haspopup`,
+   *  `aria-controls` and restore focus to it on close by itself (fix wave
+   *  PR3 finding 9). `PaletteChip`'s ✎ does the focus-restore part by hand
+   *  because it has no single canonical opener to be a `Trigger` for; this
+   *  button does. */
+  trigger: ReactNode;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   /** Every saved palette, any design — this component does its own sort/dim split. */
@@ -70,12 +82,19 @@ export function PaletteSheet({
   // the slot count, "Save as palette" and "New palette" are the exact same
   // strings the desktop bar already shows for the exact same things — one
   // name per concept, not a second copy of it for the phone.
+  //
+  // Fix wave PR3 finding 12: `palettes.bar.paintHintSaved` is the ONE
+  // exception — its copy says «tap a CHIP to switch», true on the desktop
+  // bar, wrong here (this grid is TILES). `palettes.sheet.hintSaved` is its
+  // own key for that reason alone; `paintHintDraft` has no such word in it
+  // and is still shared, per the rule above.
   const t = useTranslations("palettes.sheet");
   const tBar = useTranslations("palettes.bar");
   const sorted = sortCurrentDesignFirst(palettes, currentDesignSlug);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetTrigger asChild>{trigger}</SheetTrigger>
       <SheetContent
         side="bottom"
         data-testid="palette-sheet"
@@ -88,7 +107,7 @@ export function PaletteSheet({
               · {tBar("manageCount", { count: palettes.length, max: MAX_PALETTES })}
             </span>
           </SheetTitle>
-          <SheetDescription>{tBar(draft ? "paintHintDraft" : "paintHintSaved")}</SheetDescription>
+          <SheetDescription>{draft ? tBar("paintHintDraft") : t("hintSaved")}</SheetDescription>
         </SheetHeader>
 
         <div className="flex flex-col gap-3 px-4">
@@ -183,29 +202,12 @@ function PaletteTile({
       <span className="min-w-0 leading-tight">
         <span className="block truncate font-medium">{palette.name}</span>
         <span className="block truncate text-[10px] text-muted-foreground">
-          {dim ? dimDesignName : <PaletteDots hexes={hexes} />}
+          {/* Fix wave PR3 finding 6: was its own near-copy of `cart-line-row.tsx`'s
+              `Dots` (the mockup's `Dots(code)`) that had drifted off ADR 0008's
+              tokens-only rule — same colour swatches, now the one component. */}
+          {dim ? dimDesignName : <Dots hexes={hexes} />}
         </span>
       </span>
     </button>
-  );
-}
-
-/** The mockup's `Dots(code)` — small colour swatches standing in for the
- *  palette's own thumbnail. Generalised to however many selections have a
- *  hex (the mockup's fixed centre/rim pair is demo data; a real design can
- *  have more or fewer colour categories), not hardcoded to two. */
-function PaletteDots({ hexes }: { hexes: string[] }) {
-  if (hexes.length === 0) return null;
-  return (
-    <span className="inline-flex items-center gap-0.5 align-middle">
-      {hexes.map((hex, i) => (
-        <span
-          key={`${hex}-${i}`}
-          aria-hidden
-          className="size-2.5 shrink-0 rounded-full border border-black/10"
-          style={{ background: hex }}
-        />
-      ))}
-    </span>
   );
 }

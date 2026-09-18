@@ -475,12 +475,13 @@ test.describe("R2-3+R2-4 expandable card", () => {
       // the recap, so it's guarded by the same hasRecap check.
       if (hasRecap) {
         // R5-PALETTES task 9 took the desktop "Endre farger" link out with
-        // the desktop "Ditt valg" box — same fix as the recap assert above,
-        // the mobile branch is untouched. `back-step` (nav cluster, desktop
-        // only — see ceramics-step.tsx) is the real control that still
-        // returns to step 2 with the design in the URL.
+        // the desktop "Ditt valg" box, and PR 3's mobile strip replaced the
+        // old `your-selection-edit-mobile` control with nothing equivalent
+        // (task 13's rewrite) — the `Stepper` (ceramics-step.tsx) is the one
+        // control that returns to step 2 at every width, so both branches
+        // now go through it: `step-2` on mobile, `back-step` on desktop.
         if (isMobile) {
-          await page.getByTestId("your-selection-edit-mobile").click();
+          await page.getByTestId("step-2").click();
         } else {
           await page.getByTestId("back-step").click();
         }
