@@ -106,7 +106,17 @@ export function CartLineRow({
       data-unpainted={unpainted || undefined}
       className="border-b border-border/60 py-3 last:border-0"
     >
-      <div className="grid grid-cols-[auto_1fr_auto] gap-x-3">
+      {/* Task 14 — mobile row (DESIGN-SYSTEM §3.19: breakpoint classes, never
+          a JS media query). Binding source: docs/revision5/mockup-palettebar.html,
+          `MobLine(r)` («Step 3 · mobile»). Two columns under `md` (thumb +
+          body), three from `md` (thumb + body + price) — the price block
+          below is rendered ONCE and reparented with `md:contents`: at mobile
+          the wrapping div is a flex row (title beside price), at `md` it
+          stops generating its own box so its two children become direct
+          grid items and fall into the desktop grid's auto-placed 2nd/3rd
+          columns. A second, duplicated price node would be read twice by a
+          screen reader — this is the one-node alternative. */}
+      <div className="grid grid-cols-[auto_1fr] gap-x-3 md:grid-cols-[auto_1fr_auto]">
         <div className="row-span-2">
           <CartLineThumb
             unpainted={unpainted}
@@ -115,87 +125,99 @@ export function CartLineRow({
             plateImage={line.plateImage}
           />
         </div>
-        <div className="min-w-0">
-          <div className="flex items-center gap-1.5 text-sm font-medium leading-tight">
-            <span className="truncate">
-              {locale === "no" ? line.productNameNo : line.productNameEn}
-            </span>
-            {/* F29: legacy lines lack `pieces` → SetBadge renders nothing */}
-            <SetBadge count={line.pieces ?? 1} className="shrink-0" />
+        <div className="flex min-w-0 items-start justify-between gap-2 md:contents">
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5 text-sm font-medium leading-tight">
+              <span className="truncate">
+                {locale === "no" ? line.productNameNo : line.productNameEn}
+              </span>
+              {/* F29: legacy lines lack `pieces` → SetBadge renders nothing */}
+              <SetBadge count={line.pieces ?? 1} className="shrink-0" />
+            </div>
+            <div className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+              {unpainted ? (
+                <>
+                  <span className="text-warn-on-light">○ {t("unpainted.label")}</span>
+                  {" · "}
+                  {/* Fix round 2 (finding 7): the mockup prints the LINE's own
+                      quantity, not physical pieces — a set-of-3 ×2 line is "2
+                      sets", not "6 pieces". Same unit vocabulary as the unpaint
+                      dialog, not a third one. */}
+                  {line.quantity}{" "}
+                  {t(isSet ? "unpaintDialog.unitSet" : "unpaintDialog.unitPiece", {
+                    count: line.quantity,
+                  })}
+                </>
+              ) : (
+                <>
+                  {/* Fix round 1 / task 8: the mockup's Line(r) puts a mini
+                      design preview + a colour dot per selection here (Thumb +
+                      Dots) — a legacy line without `layers` skips the preview,
+                      same fallback CartLineThumb already uses. Ceramic size
+                      (mockup's "· Ø 26 cm") is a deliberate gap: neither
+                      CartLine nor configSnapshot carries a dimension field, and
+                      adding one is model work this PR doesn't own. */}
+                  {line.layers && line.layers.length > 0 && (
+                    <DesignRound layers={line.layers} className="size-4 rounded-sm" />
+                  )}
+                  <span className="font-medium text-foreground">
+                    {designLabel(line.configSnapshot, locale) ?? "—"}
+                  </span>
+                  {line.configSnapshot && line.configSnapshot.selections.some((s) => s.hex) && (
+                    <span className="inline-flex shrink-0 items-center gap-0.5">
+                      {line.configSnapshot.selections
+                        .filter((s) => s.hex)
+                        .map((s) => (
+                          <span
+                            key={s.label}
+                            aria-hidden
+                            className="size-2.5 rounded-full border border-border"
+                            style={{ background: s.hex ?? undefined }}
+                          />
+                        ))}
+                    </span>
+                  )}
+                  {line.configSnapshot && (
+                    <span className="truncate">
+                      · {formatSelections(line.configSnapshot.selections, locale)}
+                    </span>
+                  )}
+                </>
+              )}
+            </div>
           </div>
-          <div className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
-            {unpainted ? (
-              <>
-                <span className="text-warn-on-light">○ {t("unpainted.label")}</span>
-                {" · "}
-                {/* Fix round 2 (finding 7): the mockup prints the LINE's own
-                    quantity, not physical pieces — a set-of-3 ×2 line is "2
-                    sets", not "6 pieces". Same unit vocabulary as the unpaint
-                    dialog, not a third one. */}
-                {line.quantity}{" "}
-                {t(isSet ? "unpaintDialog.unitSet" : "unpaintDialog.unitPiece", {
-                  count: line.quantity,
-                })}
-              </>
-            ) : (
-              <>
-                {/* Fix round 1 / task 8: the mockup's Line(r) puts a mini
-                    design preview + a colour dot per selection here (Thumb +
-                    Dots) — a legacy line without `layers` skips the preview,
-                    same fallback CartLineThumb already uses. Ceramic size
-                    (mockup's "· Ø 26 cm") is a deliberate gap: neither
-                    CartLine nor configSnapshot carries a dimension field, and
-                    adding one is model work this PR doesn't own. */}
-                {line.layers && line.layers.length > 0 && (
-                  <DesignRound layers={line.layers} className="size-4 rounded-sm" />
-                )}
-                <span className="font-medium text-foreground">
-                  {designLabel(line.configSnapshot, locale) ?? "—"}
-                </span>
-                {line.configSnapshot && line.configSnapshot.selections.some((s) => s.hex) && (
-                  <span className="inline-flex shrink-0 items-center gap-0.5">
-                    {line.configSnapshot.selections
-                      .filter((s) => s.hex)
-                      .map((s) => (
-                        <span
-                          key={s.label}
-                          aria-hidden
-                          className="size-2.5 rounded-full border border-border"
-                          style={{ background: s.hex ?? undefined }}
-                        />
-                      ))}
-                  </span>
-                )}
-                {line.configSnapshot && (
-                  <span className="truncate">
-                    · {formatSelections(line.configSnapshot.selections, locale)}
-                  </span>
-                )}
-              </>
+          <div className="flex shrink-0 flex-col items-end">
+            <span data-testid="cart-line-net" className="text-sm font-semibold tabular-nums">
+              {formatMoney(d.net, locale)}
+            </span>
+            {d.pct > 0 && (
+              <s
+                data-testid="cart-line-full"
+                aria-hidden
+                className="text-[11px] tabular-nums text-muted-foreground"
+              >
+                {formatMoney(d.full, locale)}
+              </s>
             )}
           </div>
-        </div>
-        <div className="flex flex-col items-end">
-          <span data-testid="cart-line-net" className="text-sm font-semibold tabular-nums">
-            {formatMoney(d.net, locale)}
-          </span>
-          {d.pct > 0 && (
-            <s
-              data-testid="cart-line-full"
-              aria-hidden
-              className="text-[11px] tabular-nums text-muted-foreground"
-            >
-              {formatMoney(d.full, locale)}
-            </s>
-          )}
         </div>
 
         {/* actions row — the unpainted case is the n/N paint selector (task
             10); the palette PICKER the mockup opens from this same chip is
             task 12's card, not this one: here the chip is a static read of
-            `currentThumb`, no menu, no ▾ affordance promising one. */}
-        <div className="col-start-2 col-span-2 flex items-end">
-          <div className="flex w-full items-center gap-1.5 pt-2">
+            `currentThumb`, no menu, no ▾ affordance promising one. Under
+            `md` it auto-places into the body column (mockup `MobLine` gives
+            it no col-* class at all — the thumb's own `row-span-2` already
+            keeps col 1 out of reach); from `md` it explicitly spans the two
+            right-hand columns, same as the pre-mobile layout. */}
+        <div className="flex items-end md:col-start-2 md:col-span-2">
+          {/* `flex-wrap`: at 390 with 44px touch targets (the stepper alone
+              is ~120px), chip + stepper + Paint button no longer fit on one
+              line — the mockup's own row assumes 36px buttons throughout.
+              Wrapping (Paint drops to its own line, `ml-auto` still pulls it
+              right) keeps every target at its real size instead of shrinking
+              them back below 44px to force a single row. */}
+          <div className="flex w-full flex-wrap items-center gap-1.5 pt-2">
             {unpainted ? (
               <>
                 <span
@@ -237,7 +259,7 @@ export function CartLineRow({
                   type="button"
                   data-testid="paint-line"
                   onClick={() => onPaint(n)}
-                  className="relative ml-auto flex h-9 items-center gap-1.5 rounded-sm bg-primary px-3.5 text-xs font-semibold text-primary-foreground"
+                  className="relative ml-auto flex h-11 items-center gap-1.5 rounded-sm bg-primary px-3.5 text-xs font-semibold text-primary-foreground sm:h-9"
                 >
                   <Brush className="size-3.5" aria-hidden />
                   {t("unpainted.paint")}
@@ -288,7 +310,10 @@ export function CartLineRow({
           </div>
         </div>
 
-        <div className="col-span-3 mt-1.5 flex items-center justify-between text-[11px]">
+        {/* full-bleed row, under the thumb too — matches mockup MobLine's
+            `col-span-2` (mobile) / Line's `col-span-3` (desktop), same
+            treatment as the actions row above but reaching col 1 as well. */}
+        <div className="col-span-2 mt-1.5 flex items-center justify-between text-[11px] md:col-span-3">
           {/* Fix round 2 (finding 9): a painted LEGACY line has no
               `configSnapshot` — the details panel below never renders one,
               so the toggle must not promise it either. */}
@@ -345,7 +370,7 @@ export function CartLineRow({
         {open && !unpainted && line.configSnapshot && (
           <div
             data-testid="cart-line-detail"
-            className="col-span-3 mt-2 grid grid-cols-[112px_1fr] gap-4 rounded-sm border border-primary/30 bg-card/60 p-3"
+            className="col-span-2 mt-2 grid grid-cols-[112px_1fr] gap-4 rounded-sm border border-primary/30 bg-card/60 p-3 md:col-span-3"
           >
             {/* Composed preview, same compositing as CartLineThumb/CartLineRecap
                 (multiply-blend the recolour layers) at the mockup's size-28 —
