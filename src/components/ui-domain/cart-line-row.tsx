@@ -128,7 +128,11 @@ export function CartLineRow({
         <div className="flex min-w-0 items-start justify-between gap-2 md:contents">
           <div className="min-w-0">
             <div className="flex items-center gap-1.5 text-sm font-medium leading-tight">
-              <span className="truncate">
+              {/* `min-w-0`: same bug class the chip caught with a long
+                  `formatSelections` — a nowrap flex item's `truncate`
+                  can't shrink below its own content width without it. The
+                  product name is DB text, not bounded by anything upstream. */}
+              <span className="min-w-0 truncate">
                 {locale === "no" ? line.productNameNo : line.productNameEn}
               </span>
               {/* F29: legacy lines lack `pieces` → SetBadge renders nothing */}
@@ -182,7 +186,14 @@ export function CartLineRow({
                     </span>
                   )}
                   {line.configSnapshot && (
-                    <span className="truncate">
+                    // `min-w-0`: same bug class as the chip's — `truncate`
+                    // alone doesn't shrink a nowrap flex item below its own
+                    // content width, so a design with many categories
+                    // (`formatSelections` can run long — see the chip's own
+                    // comment above) would otherwise push this whole info
+                    // line wider than the body column, same as the chip did
+                    // before it had one.
+                    <span className="min-w-0 truncate">
                       · {formatSelections(line.configSnapshot.selections, locale)}
                     </span>
                   )}
@@ -263,13 +274,25 @@ export function CartLineRow({
                   // the stepper and Paint (both sized to their own
                   // intrinsic widths, `flex-grow: 0`) leave behind — more
                   // room at 390 than 375, more in /no/ than /en/ (Paint's
-                  // own footprint is wider there). `lg:flex-none` (not
-                  // `md:`, matching every other reset on this row — see the
-                  // row comment above) stops it from stretching across the
-                  // rail once the row's other trims restore PR 2's own
-                  // sizing at 1024+; below that it's still the mobile-safe,
-                  // narrow-rail-safe row, same as 768 itself.
-                  className="flex h-11 min-w-0 flex-1 items-center gap-1 rounded-sm border border-border bg-card pl-1 pr-1 text-xs font-medium sm:h-9 lg:flex-none lg:gap-1.5 lg:pr-2"
+                  // own footprint is wider there).
+                  //
+                  // `lg:flex-initial` (`flex: 0 1 auto`, NOT `lg:flex-none`
+                  // — a real cart caught this: `flex-none` is `flex: 0 0
+                  // 0 auto`, no shrink, so a design with many categories
+                  // (`formatSelections` can read like "Svane / Swan ·
+                  // Celeste · Verde Ramina Carico · Giallo · Arancio
+                  // Vietri · No color") rendered at its full intrinsic
+                  // width and pushed Paint clean out of the panel —
+                  // `truncate` on the label can't help an item that never
+                  // shrinks, it has no width to truncate against). Grow
+                  // still stays 0, so the chip never stretches across the
+                  // rail at 1024+ the way it does below `lg`; it just
+                  // takes its natural width when there's room and
+                  // truncates (via `min-w-0` + the label's own `truncate`,
+                  // same mechanism as the mobile side) when there isn't —
+                  // matching every other reset on this row, which stays
+                  // `lg`-gated, not `md` (see the row comment above).
+                  className="flex h-11 min-w-0 flex-1 items-center gap-1 rounded-sm border border-border bg-card pl-1 pr-1 text-xs font-medium sm:h-9 lg:flex-initial lg:gap-1.5 lg:pr-2"
                 >
                   <DesignRound layers={currentThumb.layers} className="size-6 shrink-0 rounded-sm" />
                   <span className="min-w-0 truncate">{currentThumb.label}</span>
