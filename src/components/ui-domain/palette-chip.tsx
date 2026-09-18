@@ -181,7 +181,15 @@ export function PaletteChip({
             onClick={onSelect}
             disabled={dim}
             aria-current={active ? "true" : undefined}
-            className="flex min-w-0 flex-1 items-center gap-2.5 text-left disabled:cursor-not-allowed"
+            // R5-PALETTES task 13 (carried in, card 1's own lesson): the chip's
+            // OUTER div is h-12, but only this <button> receives clicks/taps —
+            // with no height of its own it shrinks to the thumb's 36px, under
+            // the 44px touch minimum now that chips render on the phone (step 2's
+            // Palettes tab). `min-h-11 sm:min-h-9` is the site-wide fix for
+            // exactly this shape (cart-line-row.tsx's qty steppers): 44px where
+            // a touch screen is the only input, back to the mockup's 36px from
+            // `sm` up where a pointer usually is.
+            className="flex min-h-11 min-w-0 flex-1 items-center gap-2.5 text-left disabled:cursor-not-allowed sm:min-h-9"
           >
             {brush ? (
               <span className="relative shrink-0">
