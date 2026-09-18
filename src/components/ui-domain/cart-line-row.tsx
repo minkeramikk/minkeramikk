@@ -160,7 +160,11 @@ export function CartLineRow({
                   {line.layers && line.layers.length > 0 && (
                     <DesignRound layers={line.layers} className="size-4 rounded-sm" />
                   )}
-                  <span className="font-medium text-foreground">
+                  {/* `min-w-0 truncate`: a long single-token design name
+                      (no spaces to wrap on) could otherwise push this
+                      metadata line past the 290px body column at 390 —
+                      matches its `· {formatSelections(...)}` sibling below. */}
+                  <span className="min-w-0 truncate font-medium text-foreground">
                     {designLabel(line.configSnapshot, locale) ?? "—"}
                   </span>
                   {line.configSnapshot && line.configSnapshot.selections.some((s) => s.hex) && (
@@ -211,24 +215,59 @@ export function CartLineRow({
             keeps col 1 out of reach); from `md` it explicitly spans the two
             right-hand columns, same as the pre-mobile layout. */}
         <div className="flex items-end md:col-start-2 md:col-span-2">
-          {/* At 390 with 44px touch targets, chip + stepper + Paint only
-              share one line the way mockup `MobLine` does it — the label
-              capped at 64px (below) plus every non-target gap/padding on
-              this row trimmed by a few px. `flex-wrap` stays as the safety
-              net for a genuinely long name, not the everyday path: none of
-              these trims touch a tap target's own size. */}
-          <div className="flex w-full flex-wrap items-center gap-1 pt-2">
+          {/* Fit at 375 AND 390, in BOTH locales — not just 390/no, which
+              happened to have 4px of slack while 390/en (295px needed) and
+              375/either (275px available) genuinely wrapped. The fix is
+              SHRINKING, not wrapping: both the chip's label (its own
+              comment, below) and the Paint button's label get a `max-width`
+              — a `max-width` is what actually bounds an item's size for
+              `flex-wrap`'s line-fit decision (it uses each item's
+              hypothetical/un-shrunk size to decide breaks; `min-width`
+              alone, which Paint also carries, only sets how far it can
+              shrink AFTER it's already on a line — it does nothing for the
+              fit decision by itself, which is why min-w-0 alone didn't fix
+              this). With both caps in place the row's real content fits
+              within budget at every width/locale combo this card supports,
+              so `flex-wrap` stays a genuine last resort — dormant today,
+              not the everyday path — rather than deleted outright.
+
+              Every trim on this row resets at `lg` (1024px), not `md`
+              (768px): `ceramics-step.tsx`'s own two-column layout
+              (`md:grid-cols-2`) makes the desktop rail a 50/50 split of the
+              viewport, so at exactly 768 the rail is ~350px wide — narrower
+              than the row needs for PR 2's full desktop sizing (chip +
+              stepper + Paint at their natural widths measured ~306px
+              against a ~248px actions column, a real page overflow caught
+              by testing 768 specifically, not 1280 alone). The row stays in
+              its mobile-safe, shrink-first mode through the whole 768-1023
+              range and only takes PR 2's own numbers back at 1024+, where
+              the rail is comfortably wide again. */}
+          <div className="flex w-full flex-wrap items-center gap-1 pt-2 lg:flex-nowrap lg:gap-1.5">
             {unpainted ? (
               <>
                 <span
                   data-testid="paint-chip"
-                  className="flex h-9 items-center gap-1 rounded-sm border border-border bg-card pl-1 pr-1 text-xs font-medium"
+                  className="flex h-11 items-center gap-1 rounded-sm border border-border bg-card pl-1 pr-1 text-xs font-medium sm:h-9 lg:gap-1.5 lg:pr-2"
                 >
                   <DesignRound layers={currentThumb.layers} className="size-6 rounded-sm" />
                   {/* Mockup MobLine caps this at 64px (Line, desktop, at
-                      120px) — this is the main squeeze that gets the row
-                      onto one line at 390. */}
-                  <span className="max-w-[64px] truncate md:max-w-[120px]">
+                      120px), but that number assumed 36px buttons
+                      throughout — this codebase's real 44px stepper leaves
+                      less room than the mockup had. 32px is the value that
+                      actually clears the tightest real combo (375 / en/,
+                      "Paint" being wider than "Mal"): available body width
+                      is viewport − 40 (shell `px-5`) − 48 (thumb) − 12
+                      (`gap-x-3`) = 275px at 375; stepper (122) + this cap
+                      (32 + ~46px of the chip's own icon/padding/border) +
+                      Paint at its full untruncated width (~65px "Paint")
+                      + gaps leaves single-digit px of margin — genuinely
+                      tight, not comfortable, which is why Paint's own label
+                      (below) ALSO gets a defensive max-width: a max-width
+                      (unlike `min-width`) is what actually bounds an
+                      item's size for the flex-wrap line-fit decision, so
+                      both caps together are what keeps `flex-wrap` a true
+                      last resort instead of the everyday path. */}
+                  <span className="max-w-[32px] truncate lg:max-w-[120px]">
                     {currentThumb.label}
                   </span>
                 </span>
@@ -246,7 +285,10 @@ export function CartLineRow({
                   >
                     −
                   </button>
-                  <span className="w-8 text-center text-sm tabular-nums" aria-live="polite">
+                  {/* `min-w-8 px-1` not a fixed `w-8`: a two-digit quantity
+                      ("10/12") is wider than 32px and would overflow into
+                      the −/+ buttons on either side otherwise. */}
+                  <span className="min-w-8 px-1 text-center text-sm tabular-nums" aria-live="polite">
                     {n}
                     <span className="text-muted-foreground">/{line.quantity}</span>
                   </span>
@@ -264,10 +306,31 @@ export function CartLineRow({
                   type="button"
                   data-testid="paint-line"
                   onClick={() => onPaint(n)}
-                  className="relative ml-auto flex h-11 items-center gap-1 rounded-sm bg-primary px-2 text-xs font-semibold text-primary-foreground sm:h-9"
+                  // `min-w-0`: removes the button's default content-based
+                  // minimum, so it CAN shrink below its label's full width —
+                  // paired with the label's own `max-w`/`truncate` below,
+                  // which is what actually matters for the flex-wrap
+                  // line-fit decision (a `max-width` bounds an item's
+                  // hypothetical size for that decision; `min-width` alone
+                  // does not — see the chip's own comment above for the
+                  // width budget this and the chip cap were sized against).
+                  // The brush icon (`shrink-0`) and the paint-count badge
+                  // always survive; only the word can give ground.
+                  // `lg:min-w-max` resets the shrink-permission itself, not
+                  // just the padding — and resets at `lg` (1024px), same as
+                  // the row's other trims (see the row comment above): at
+                  // 768 the desktop rail (`ceramics-step.tsx`'s own
+                  // `md:grid-cols-2`, a 50/50 split) is only ~350px wide,
+                  // too narrow for chip + stepper + Paint at PR 2's full
+                  // desktop sizing (~306px needed against a measured ~248px
+                  // actions column) — resetting this at `md` instead of
+                  // `lg` was tried first and produced a real page overflow
+                  // at 768, caught by testing that width specifically
+                  // rather than trusting 1280 to stand in for "desktop".
+                  className="relative ml-auto flex h-11 min-w-0 items-center gap-1 rounded-sm bg-primary px-2 text-xs font-semibold text-primary-foreground sm:h-9 lg:min-w-max lg:gap-1.5 lg:px-3.5"
                 >
-                  <Brush className="size-3.5" aria-hidden />
-                  {t("unpainted.paint")}
+                  <Brush className="size-3.5 shrink-0" aria-hidden />
+                  <span className="max-w-[52px] truncate">{t("unpainted.paint")}</span>
                   {/* TL change (fix round 1): badge reads from 2 upward, not
                       only the partial case — a 2-piece row at its default 2/2
                       showed NO badge before and only grew one after a −
@@ -328,7 +391,12 @@ export function CartLineRow({
               data-testid="cart-expand"
               aria-expanded={open}
               onClick={onToggleDetails}
-              className="text-muted-foreground underline underline-offset-2 hover:text-foreground"
+              // `min-h-11 -my-2 py-2`: this row came in at PR 2 as a bare
+              // text-[11px] button (~16px hit area) — a real 44px tap
+              // target under `md`, without moving the visible baseline: the
+              // negative margin gives the extra height back to the
+              // surrounding flow, and `md:` resets to PR 2's own rhythm.
+              className="inline-flex min-h-11 -my-2 items-center py-2 text-muted-foreground underline underline-offset-2 hover:text-foreground md:my-0 md:min-h-0 md:py-0"
             >
               {open ? `${t("line.collapse")} ▴` : `${t("line.expand")} ▾`}
             </button>
@@ -341,7 +409,7 @@ export function CartLineRow({
                 type="button"
                 data-testid="cart-unpaint"
                 onClick={onUnpaint}
-                className="flex items-center gap-1 text-muted-foreground hover:text-foreground"
+                className="flex min-h-11 -my-2 items-center gap-1 py-2 text-muted-foreground hover:text-foreground md:my-0 md:min-h-0 md:py-0"
               >
                 <Eraser className="size-3" aria-hidden />
                 {t("unpaint.action")}
@@ -351,7 +419,7 @@ export function CartLineRow({
               type="button"
               data-testid="docked-remove"
               onClick={onRemove}
-              className="flex items-center gap-1 text-muted-foreground hover:text-foreground"
+              className="flex min-h-11 -my-2 items-center gap-1 py-2 text-muted-foreground hover:text-foreground md:my-0 md:min-h-0 md:py-0"
             >
               <Trash2 className="size-3" aria-hidden />
               {unpainted ? t("unpainted.removeAll") : t("remove")}
