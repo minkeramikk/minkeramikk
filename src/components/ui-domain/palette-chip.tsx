@@ -49,6 +49,13 @@ export interface PaletteChipProps {
   onRenameConfirm?: (name: string) => void;
   /** Fires on Escape, or on Enter/blur with an empty/unchanged draft. */
   onRenameCancel?: () => void;
+  /**
+   * Delete affordance (✕) — only meaningful for a SAVED palette: the caller
+   * simply doesn't pass this for a `draft` chip (nothing to delete yet).
+   * No confirm step on either side of this callback (deletePalette.ts's own
+   * comment has the WHY) — clicking it deletes immediately.
+   */
+  onDelete?: () => void;
 }
 
 export function PaletteChip({
@@ -65,6 +72,7 @@ export function PaletteChip({
   onRenameStart,
   onRenameConfirm,
   onRenameCancel,
+  onDelete,
 }: PaletteChipProps) {
   // TODO:nb-review — palettes.chip.* NO copy is new, unreviewed (no live-site source: R5-PALETTES).
   const t = useTranslations("palettes.chip");
@@ -215,6 +223,23 @@ export function PaletteChip({
               className="ml-1 grid size-6 shrink-0 place-items-center rounded-full text-muted-foreground opacity-0 pointer-events-none transition-opacity hover:bg-secondary group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:pointer-events-auto"
             >
               ✎
+            </button>
+          )}
+          {onDelete && (
+            // Same reveal rule as ✎ above, deliberately copy-pasted rather
+            // than shared: the ✎ had a `display:none` bug that made it
+            // mouse-only (a Critical finding) — anything DRY-ing these two
+            // together risks reintroducing that coupling by editing "the
+            // rename button" and silently carrying delete along, or vice
+            // versa. Two small siblings, two independent classNames.
+            <button
+              type="button"
+              onClick={onDelete}
+              aria-label={t("delete")}
+              title={t("delete")}
+              className="ml-1 grid size-6 shrink-0 place-items-center rounded-full text-muted-foreground opacity-0 pointer-events-none transition-opacity hover:bg-secondary group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:pointer-events-auto"
+            >
+              ✕
             </button>
           )}
         </>

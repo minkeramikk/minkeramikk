@@ -357,13 +357,15 @@
     "chip": {
       "unsaved": "Ulagret",
       "rename": "Endre navn",
-      "renameLabel": "Palettnavn"
+      "renameLabel": "Palettnavn",
+      "delete": "Slett palett"
     },
     "bar": {
       "eyebrowManage": "Dine paletter",
       "eyebrowPaint": "Maler med",
       "manageCount": "{count} av {max} lagret",
-      "paintHint": "Trykk på en rad · eller legg til",
+      "paintHintDraft": "Disse fargene er ikke lagret ennå",
+      "paintHintSaved": "Trykk på en chip for å bytte",
       "save": "Lagre som palett",
       "new": "Ny palett"
     }

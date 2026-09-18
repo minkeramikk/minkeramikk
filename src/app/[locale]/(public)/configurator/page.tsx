@@ -202,6 +202,7 @@ export default async function ConfiguratorPage({
               hasExplicitDesign={explicitDesignChoice}
               selections={selById}
               sharedSet={sharedSet}
+              paletteWords={paletteWords()}
             />
         </section>
       );

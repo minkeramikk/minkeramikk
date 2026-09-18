@@ -19,6 +19,18 @@ type PaletteBarProps = (
   | { mode: "manage"; count: number }
   | { mode: "paint"; count?: undefined }
 ) & {
+  /**
+   * `mode="paint"` only (ignored in `manage`): whether the chip painting
+   * right now is the unsaved on-screen colours rather than a saved palette
+   * (R5-PALETTES follow-up). Lives in the shared part of the type, not the
+   * `paint` arm of the union above — a discriminated union requires every
+   * destructured key to exist on EVERY arm, and this is meaningless (but
+   * harmless) on `manage`, not absent from the type. Picks the subtitle:
+   * with a draft on screen, say these colours aren't saved; with saved
+   * palettes, say how to switch — the old one-liner ("Tap a row · or add")
+   * assumed there was always at least one chip to tap.
+   */
+  draft?: boolean;
   /** The chip row — typically a list of `PaletteChip`, plus a "+ New palette" chip. */
   chips: ReactNode;
   /** Right-hand slot, outside the scrolling lane — e.g. "Save as palette". */
@@ -38,6 +50,7 @@ type PaletteBarProps = (
 export function PaletteBar({
   mode,
   count,
+  draft = false,
   chips,
   extra,
   sticky = false,
@@ -46,8 +59,17 @@ export function PaletteBar({
   // TODO:nb-review — palettes.bar.* NO copy is new, unreviewed (no live-site source: R5-PALETTES).
   const t = useTranslations("palettes.bar");
   const eyebrow = mode === "manage" ? t("eyebrowManage") : t("eyebrowPaint");
+  // R5-PALETTES follow-up: the old single `paintHint` ("Tap a row · or add")
+  // described a bar that always had at least one saved chip to tap — false
+  // the moment nothing is saved yet (the draft chip has nothing to switch
+  // TO). Two truths instead of one guess: with a draft on screen, say these
+  // colours aren't saved; with saved palettes, say how to switch.
   const subtitle =
-    mode === "manage" ? t("manageCount", { count, max: MAX_PALETTES }) : t("paintHint");
+    mode === "manage"
+      ? t("manageCount", { count, max: MAX_PALETTES })
+      : draft
+        ? t("paintHintDraft")
+        : t("paintHintSaved");
 
   return (
     <div

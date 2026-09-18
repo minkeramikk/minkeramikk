@@ -358,13 +358,15 @@
     "chip": {
       "unsaved": "Unsaved",
       "rename": "Rename",
-      "renameLabel": "Palette name"
+      "renameLabel": "Palette name",
+      "delete": "Delete palette"
     },
     "bar": {
       "eyebrowManage": "Your palettes",
       "eyebrowPaint": "Painting with",
       "manageCount": "{count} of {max} saved",
-      "paintHint": "Tap a row · or add",
+      "paintHintDraft": "These colours aren't saved yet",
+      "paintHintSaved": "Tap a chip to switch",
       "save": "Save as palette",
       "new": "New palette"
     }

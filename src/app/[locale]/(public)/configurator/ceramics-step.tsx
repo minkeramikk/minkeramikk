@@ -10,7 +10,8 @@ import { DesignRound } from "@/components/ui-domain/design-round";
 import { OrderForm } from "@/components/ui-domain/order-form";
 import { PaletteBar } from "@/components/ui-domain/palette-bar";
 import { PaletteChip } from "@/components/ui-domain/palette-chip";
-import { paletteFor, sortCurrentDesignFirst } from "@/lib/palettes/palettes";
+import { nameFor, paletteFor, sortCurrentDesignFirst } from "@/lib/palettes/palettes";
+import type { PaletteWords } from "@/lib/palettes/name-lists";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { assetUrl } from "@/lib/storage";
@@ -230,6 +231,7 @@ export function CeramicsStep({
   hasExplicitDesign,
   selections = {},
   sharedSet = null,
+  paletteWords,
 }: {
   products: CeramicProduct[];
   design: DesignRef;
@@ -252,6 +254,11 @@ export function CeramicsStep({
   selections?: Record<string, string>;
   /** CA-3: server-resolved `?set=` lines (live prices), or null when no set. */
   sharedSet?: ResolvedSharedSet | null;
+  /** Resolved server-side once (page.tsx) — a `"use client"` file can't read
+   *  `MK_PALETTE_WORDS` itself (fix wave finding, task 8/9). Only needed for
+   *  `nameFor()` on the draft chip below; every SAVED palette already
+   *  carries its own name. */
+  paletteWords: PaletteWords;
 }) {
   const t = useTranslations("cart");
   // TODO:nb-review NO copy: step3.seriesCount · stickyBar.title · stickyBar.pieces
@@ -282,8 +289,10 @@ export function CeramicsStep({
     palettesHydrated,
     activeCode,
     setActiveCode,
+    save: savePalette,
     touch: touchPalette,
     rename: renamePalette,
+    remove: deletePalette,
   } = useCartContext();
 
   /**
@@ -394,6 +403,7 @@ export function CeramicsStep({
           layers={p.layers}
           dim
           dimDesignName={designLabel(p.snapshot, locale) ?? p.designSlug}
+          onDelete={() => deletePalette(p.code)}
         />
       );
     }
@@ -414,9 +424,59 @@ export function CeramicsStep({
           setRenamingPaletteCode(null);
         }}
         onRenameCancel={() => setRenamingPaletteCode(null)}
+        onDelete={() => deletePalette(p.code)}
       />
     );
   });
+
+  /**
+   * R5-PALETTES follow-up (TL, after PR 2) — step 3's whole job is naming
+   * what's painting, and it said NOTHING when the on-screen config matched
+   * no save: every ceramic added right then IS painted with those colours,
+   * the bar just didn't say so. `activePalette` null means exactly "nothing
+   * saved matches `configCode`" (same read as step 2's own `matchedPalette`
+   * — card §4-bis, the URL is the one source of truth), so this chip covers
+   * that gap with two states `PaletteChip` already has: `draft` (dashed,
+   * "Unsaved", the colours' own label) because it isn't saved, `brush`
+   * because it's what will paint. NOT `active` — that skin is a solid
+   * `bg-card` + ring, and the ternary in palette-chip.tsx checks `active`
+   * FIRST, so passing both would silently drop the dashed "unsaved" look
+   * this chip exists to show. Deliberately NOT auto-saved on arrival (TL
+   * ruling): the 10-slot LRU would burn a slot, and the name, on a palette
+   * the customer never chose to keep — "Save as palette" below is the one
+   * way this becomes a real entry.
+   */
+  const draftChip = !activePalette && (
+    <PaletteChip
+      key="draft"
+      code={configCode}
+      name={nameFor(configCode, snapshot, paletteWords)}
+      layers={designLayers}
+      draft
+      brush
+    />
+  );
+
+  /** Mirrors step 2's `saveDraftAsPalette` (configurator-client.tsx) — same
+   *  builder inputs (`configCode`/`snapshot`/`designLayers` are this step's
+   *  own server props, already the exact shape `buildConfigLinePayload`
+   *  would produce), just no note/text ever enters a palette. `setActiveCode`
+   *  here is a courtesy for immediacy; the reconciliation effect above would
+   *  land on the same value a tick later regardless, once `activePalette`
+   *  starts resolving through the freshly-saved code. */
+  function saveDraftAsPalette() {
+    const now = Date.now();
+    savePalette({
+      code: configCode,
+      name: nameFor(configCode, snapshot, paletteWords),
+      designSlug: design.slug,
+      snapshot,
+      layers: designLayers,
+      createdAt: now,
+      usedAt: now,
+    });
+    setActiveCode(configCode);
+  }
 
   /**
    * «+ New palette»: step 2 of the CURRENT design (`goToStep`, defined below,
@@ -1537,13 +1597,29 @@ export function CeramicsStep({
           not a div sized to just the bar. */}
       <PaletteBar
         mode="paint"
+        draft={!activePalette}
         sticky
         className="hidden md:-mx-5 md:-mt-7 md:mb-6 md:block"
         chips={
           <>
+            {draftChip}
             {paletteChips}
             {newPaletteChip}
           </>
+        }
+        extra={
+          // Same rule as step 2's own "Save as palette" (configurator-client.tsx):
+          // only when the draft matches no save — once it's saved, `activePalette`
+          // resolves and the draft chip (and this button) both go away together.
+          !activePalette && (
+            <button
+              type="button"
+              onClick={saveDraftAsPalette}
+              className="ml-auto flex h-12 shrink-0 items-center gap-2 rounded-full border-2 border-primary bg-primary/10 px-5 text-[13.5px] font-semibold hover:bg-primary/20"
+            >
+              {tPaletteBar("save")}
+            </button>
+          )
         }
       />
 

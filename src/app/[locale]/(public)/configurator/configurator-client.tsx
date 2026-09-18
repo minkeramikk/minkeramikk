@@ -538,8 +538,13 @@ export function ConfiguratorClient({
   // (cart-context.tsx) with the header/step 3 — this screen never touches
   // localStorage directly.
   const tPaletteBar = useTranslations("palettes.bar");
-  const { palettes, setActiveCode, save: savePalette, rename: renamePalette } =
-    useCartContext();
+  const {
+    palettes,
+    setActiveCode,
+    save: savePalette,
+    rename: renamePalette,
+    remove: deletePalette,
+  } = useCartContext();
   // The DRAFT is exactly what step 3 would turn into a cart line: same
   // builder, same inputs (card §3). No note/text carried in — a palette is a
   // set of COLOURS, and neither one ever enters the config code either
@@ -752,6 +757,7 @@ export function ConfiguratorClient({
             layers={p.layers}
             dim
             dimDesignName={dimDesign ? designName(dimDesign) : p.designSlug}
+            onDelete={() => deletePalette(p.code)}
           />
         );
       }
@@ -762,6 +768,7 @@ export function ConfiguratorClient({
           name={p.name}
           layers={p.layers}
           onSelect={() => loadPalette(p.code)}
+          onDelete={() => deletePalette(p.code)}
         />
       );
     });
@@ -779,6 +786,7 @@ export function ConfiguratorClient({
         setRenamingPaletteCode(null);
       }}
       onRenameCancel={() => setRenamingPaletteCode(null)}
+      onDelete={() => deletePalette(matchedPalette.code)}
     />
   ) : (
     <PaletteChip
