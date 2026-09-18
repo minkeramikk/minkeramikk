@@ -1169,13 +1169,30 @@ export function CeramicsStep({
       </div>
       {/* Same pill as the cart panel's CTA (§3.16) and the same label key, so
           R-PAY reskins both from one place. It carries the arrow because it
-          DOES advance the funnel — see the e2e note in r-extra-pill. */}
+          DOES advance the funnel — see the e2e note in r-extra-pill.
+          Fix round 1: `hasUnpainted` reskins it exactly like the panel's own
+          primary pill (tertiary, `unpainted.cta`, no arrow — this tap does
+          NOT send the order) and its `onClick` stops touching `checkoutOpen`
+          entirely. Before this fix, tapping it while unpainted did
+          `flushSync(() => setCheckoutOpen(true))`, which the panel's own
+          `!hasUnpainted && checkoutOpen` gate stops from ever mounting the
+          form — but `stickyBar` below is gated on `!checkoutOpen`, so the
+          bar hid itself with nothing to show for it, AND `checkoutOpen`
+          stayed stuck `true` forever (both `setCheckoutOpen(false)` call
+          sites live inside the branch this state can never reach), so the
+          form popped open unprompted the moment the last piece got
+          painted. */}
       <NextStepPill
         data-testid="sticky-bar-checkout"
         className="shrink-0"
-        label={to("title")}
-        arrow
+        variant={hasUnpainted ? "tertiary" : "primary"}
+        label={hasUnpainted ? t("unpainted.cta", { count: unpaintedInBasket }) : to("title")}
+        arrow={!hasUnpainted}
         onClick={() => {
+          if (hasUnpainted) {
+            focusFirstUnpaintedRow();
+            return;
+          }
           // Giro garanzia: one tap must land the customer IN the form with the
           // keyboard already up — scrolling to a collapsed cart and making them
           // hunt for a second CTA was the complaint. `flushSync` renders the
@@ -1196,9 +1213,15 @@ export function CeramicsStep({
             ?.focus({ preventScroll: true });
         }}
         icon={
-          <PillIcon>
-            <Truck className="size-5 text-primary" />
-          </PillIcon>
+          hasUnpainted ? (
+            <PillIcon variant="tertiary">
+              <Brush className="size-5 text-muted-foreground" />
+            </PillIcon>
+          ) : (
+            <PillIcon>
+              <Truck className="size-5 text-primary" />
+            </PillIcon>
+          )
         }
       />
     </div>
