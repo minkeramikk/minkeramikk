@@ -1498,9 +1498,16 @@ export function CeramicsStep({
       data-testid="step3-your-selection-strip"
       // `-mx-5 px-4`: cancel `main`'s own `px-5` (public-shell.tsx) and
       // re-pad with the mockup's own value — same full-bleed trick as the
-      // desktop bar's `-mx-5`, needed here too: the mockup's strip runs
-      // edge-to-edge, not boxed like the card this replaces.
-      className="sticky top-14 z-30 -mx-5 mb-3.5 flex items-center gap-2.5 border-b border-border bg-[var(--mk-canvas)] px-4 py-2 md:hidden"
+      // desktop bar's, needed here too: the mockup's strip runs edge-to-edge,
+      // not boxed like the card this replaces.
+      // PR3 fix ("spazio sopra in step 3, attaccalo sotto header titoli"):
+      // `-mt-7` cancels `main`'s TOP padding too, the same half of the trick
+      // the desktop bar already carries (`className="... md:-mt-7 ..."` a
+      // few hundred lines down) — this strip only ever cancelled the sides,
+      // leaving `main`'s 28px `py-7` sitting above it as dead space between
+      // the sticky site header and the strip on first paint. `sticky top-14`
+      // below is unaffected: that's a scroll-threshold, not a static offset.
+      className="sticky top-14 z-30 -mx-5 -mt-7 mb-3.5 flex items-center gap-2.5 border-b border-border bg-[var(--mk-canvas)] px-4 py-2 md:hidden"
     >
       <DesignRound layers={designLayers} className="size-9" />
       {/* `paintingLabel`, not a second computation — the one name for
@@ -1547,6 +1554,8 @@ export function CeramicsStep({
         currentDesignSlug={design.slug}
         activeCode={activePalette?.code ?? null}
         draft={!activePalette}
+        draftName={paintingLabel}
+        draftLayers={designLayers}
         locale={locale}
         onPick={paintWithFromSheet}
         onNewPalette={() => {
@@ -1557,6 +1566,20 @@ export function CeramicsStep({
           saveDraftAsPalette();
           setPaletteSheetOpen(false);
         }}
+        // PR3 round 2: the sheet gained rename/delete (it had neither) so it
+        // can do what the removed step-2 tab's chips did, now that step 2
+        // opens this SAME sheet too. `renamingPaletteCode`/`renamePalette`/
+        // `deletePalette` already exist in this file — the desktop bar's own
+        // `paletteChips` a few hundred lines down already wire them the same
+        // way, this is the sheet's equivalent, not a new mechanism.
+        renamingCode={renamingPaletteCode}
+        onRenameStart={(code) => setRenamingPaletteCode(code)}
+        onRenameConfirm={(code, name) => {
+          renamePalette(code, name);
+          setRenamingPaletteCode(null);
+        }}
+        onRenameCancel={() => setRenamingPaletteCode(null)}
+        onDelete={(code) => deletePalette(code)}
       />
     </div>
   );
@@ -1695,22 +1718,26 @@ export function CeramicsStep({
         "md:[&_*:focus-visible]:scroll-mt-[69px]"
       )}
     >
-      {/* R5-PALETTES task 9: the paint-mode bar, desktop only — mobile gets its
-          own «Palettes» tab in a later card, same split step 2 made (task 8).
-          Same full-bleed trick as there: `-mx-5 -mt-7` cancels exactly
-          `main`'s own padding (public-shell.tsx) so the bar sits flush under
-          the header before any scroll, and `sticky top-0` (not `top-14` — see
-          palette-bar.tsx) pins it once scrolled, because the desktop site
-          header isn't sticky at all (site-header.tsx:15). The classes land on
-          `PaletteBar` itself via `className`, not a wrapper: a sticky element
-          only stays pinned as long as its OWN parent is taller than it is, and
-          that parent here is this whole step (`data-testid="ceramics-step"`),
-          not a div sized to just the bar. */}
+      {/* R5-PALETTES task 9: the paint-mode bar, desktop only — mobile gets
+          its own "Painting with" strip + sheet, same split step 2 makes
+          (task 8). `-mt-7` cancels `main`'s own top padding (public-shell.tsx)
+          so the bar sits flush under the header before any scroll, and
+          `sticky top-0` (not `top-14` — see palette-bar.tsx) pins it once
+          scrolled, because the desktop site header isn't sticky at all
+          (site-header.tsx:15). The HORIZONTAL full-bleed (PR3 fix — the bar
+          used to stop short of the viewport edges, capped at `main`'s own
+          `max-w-[1060px]`) is now owned by `PaletteBar` itself
+          (`md:w-screen md:ml-[calc(50%-50vw)]`) — no `-mx-5` needed here,
+          it only ever cancelled `main`'s padding, not its width cap. The
+          classes land on `PaletteBar` itself via `className`, not a wrapper:
+          a sticky element only stays pinned as long as its OWN parent is
+          taller than it is, and that parent here is this whole step
+          (`data-testid="ceramics-step"`), not a div sized to just the bar. */}
       <PaletteBar
         mode="paint"
         draft={!activePalette}
         sticky
-        className="hidden md:-mx-5 md:-mt-7 md:mb-6 md:block"
+        className="hidden md:-mt-7 md:mb-6 md:block"
         chips={
           <>
             {draftChip}
