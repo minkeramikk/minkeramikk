@@ -112,6 +112,17 @@ export interface CartLine {
    * dictate a price. Optional/back-compatible like `layers`: no migration.
    */
   dealRuleId?: string;
+  /**
+   * R5-PALETTES §4-bis — the ceramic's own dimensional attribute (e.g.
+   * "Ø 26 cm"), frozen at add-time. A PAIR, not one localised string: mirrors
+   * `productNameNo`/`productNameEn` (R2-7) for the exact same reason — a
+   * single string would freeze the row into whichever language it was added
+   * in, and the cart is read in both. Optional/back-compatible like `layers`:
+   * a line saved before this field existed simply has neither, and the row
+   * prints no stray "·" for it. No migration.
+   */
+  sizeLabelNo?: string;
+  sizeLabelEn?: string;
 }
 
 export type Cart = CartLine[];

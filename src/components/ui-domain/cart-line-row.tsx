@@ -103,6 +103,9 @@ export function CartLineRow({
   /** Does the thumb column hold two images (design over ceramic), or just one? */
   const hasPlate = Boolean(line.plateImage);
   const isSet = (line.pieces ?? 1) > 1;
+  // R5-PALETTES §4-bis: locale-picked like productNameNo/En — undefined on a
+  // legacy line, and the info line below prints nothing for it (AC 5).
+  const sizeLabel = locale === "no" ? line.sizeLabelNo : line.sizeLabelEn;
   // Fix round 2 (blocker 1) — same colour-source rule as the retired
   // `CartLineRecap`: `customNote` is present (possibly "") only when the
   // design takes notes; non-empty ⇒ custom colours, "" ⇒ studio's, absent ⇒
@@ -179,10 +182,7 @@ export function CartLineRow({
                   {/* Fix round 1 / task 8: the mockup's Line(r) puts a mini
                       design preview + a colour dot per selection here (Thumb +
                       Dots) — a legacy line without `layers` skips the preview,
-                      same fallback CartLineThumb already uses. Ceramic size
-                      (mockup's "· Ø 26 cm") is a deliberate gap: neither
-                      CartLine nor configSnapshot carries a dimension field, and
-                      adding one is model work this PR doesn't own. */}
+                      same fallback CartLineThumb already uses. */}
                   {line.layers && line.layers.length > 0 && (
                     <DesignRound layers={line.layers} className="size-4 rounded-sm" />
                   )}
@@ -197,6 +197,11 @@ export function CartLineRow({
                       .map((sel) => sel.hex)
                       .filter((hex): hex is string => Boolean(hex))}
                   />
+                  {/* R5-PALETTES §4-bis (mockup "· Ø 26 cm"): a PAIR, read by
+                      locale like every other bilingual field on the line —
+                      absent on a line saved before this field existed, so no
+                      stray "·" prints for it (AC 5). */}
+                  {sizeLabel && <span className="shrink-0">· {sizeLabel}</span>}
                 </>
               )}
             </div>

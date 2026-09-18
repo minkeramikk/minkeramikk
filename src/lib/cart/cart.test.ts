@@ -351,6 +351,19 @@ describe("unpainted lines", () => {
     expect(paintLines(cart, "nope", 1, CODE, snap)).toEqual(cart);
   });
 
+  it("carries the ceramic's size through paint and unpaint", () => {
+    const withSize = {
+      ...vietriFlat,
+      configCode: null,
+      configSnapshot: null,
+      quantity: 2,
+      sizeLabelNo: "Ø 26 cm",
+      sizeLabelEn: "Ø 26 cm",
+    };
+    const cart = paintLines(addToCart([], withSize), "p-flat::unpainted", 1, "MK-A-1", snap);
+    expect(cart.every((l) => l.sizeLabelNo === "Ø 26 cm")).toBe(true);
+  });
+
   // The row the customer just touched must stay where it was — painting or
   // unpainting a whole line must not teleport it to the bottom of the basket.
   describe("array order", () => {

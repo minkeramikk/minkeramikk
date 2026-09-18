@@ -590,6 +590,10 @@ export function CeramicsStep({
    * would silently give the two buttons different lines.
    */
   function buildBaseLine(selected: CeramicProduct, quantity: number = qty): NewCartLine {
+    // R5-PALETTES §4-bis: same dimensional attribute `CeramicCard` reads for
+    // its own meta line — not re-derived, just formatted in both locales so
+    // the cart row (read in either) never freezes into the add-time language.
+    const size = publicAttributes(selected.attributes).find((a) => a.key !== "custom");
     return {
       productId: selected.id,
       productNameNo: selected.nameNo,
@@ -607,6 +611,8 @@ export function CeramicsStep({
         : undefined,
       productSlug: selected.slug,
       pieces: selected.pieces,
+      sizeLabelNo: size ? formatAttributeValue(size, "no") : undefined,
+      sizeLabelEn: size ? formatAttributeValue(size, "en") : undefined,
     };
   }
 
