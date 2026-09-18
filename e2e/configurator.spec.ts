@@ -407,15 +407,20 @@ test.describe("R2-3+R2-4 expandable card", () => {
       const sheet = page.getByTestId("product-sheet");
       await expect(sheet).toBeVisible();
 
-      // F37: current config still visible at step 3 — desktop box on the
-      // `desktop` project, mobile strip on `mobile` (mutually exclusive via
-      // md:block / md:hidden), plus the composed ceramic+design pair on BOTH.
+      // F37: current config still visible at step 3 — mobile strip on the
+      // `mobile` project, plus the composed ceramic+design pair on BOTH.
       // Guard: the recap renders ONLY when the design has config layers
       // (designLayers.length > 0) — configurator/page.tsx:44-48 deliberately
       // anticipates an active-but-layer-less design being picked first by
       // sort_order, so a firm assert here could red on a different seed.
       // Absent recap = the AC4 degrade path: layer-less design → none of the
       // three blocks render, gracefully (nothing to assert beyond that).
+      //
+      // R5-PALETTES task 9 broke the desktop half of this: the desktop
+      // "Ditt valg" box (`step3-your-selection`) is gone, replaced by the
+      // sticky PaletteBar — that's what now says which palette is painting
+      // (card's rule: specs get touched only when they break, and this one
+      // breaks). Assert the bar instead; the mobile branch is untouched.
       const isMobile = testInfo.project.name === "mobile";
       const hasRecap = (await sheet.getByTestId("expanded-composed-preview").count()) > 0;
       if (hasRecap) {
@@ -423,7 +428,7 @@ test.describe("R2-3+R2-4 expandable card", () => {
         if (isMobile) {
           await expect(page.getByTestId("step3-your-selection-strip")).toBeVisible();
         } else {
-          await expect(page.getByTestId("step3-your-selection")).toBeVisible();
+          await expect(page.getByTestId("palette-bar")).toBeVisible();
         }
       } else {
         const description =
