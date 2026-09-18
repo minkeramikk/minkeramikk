@@ -54,6 +54,7 @@ import { nameFor, paletteFor, sortCurrentDesignFirst } from "@/lib/palettes/pale
 import type { PaletteWords } from "@/lib/palettes/name-lists";
 import { PaletteBar } from "@/components/ui-domain/palette-bar";
 import { PaletteChip } from "@/components/ui-domain/palette-chip";
+import { PaletteSheet } from "@/components/ui-domain/palette-sheet";
 import { DesignRound } from "@/components/ui-domain/design-round";
 
 /** Pagina di ispirazione del cliente (fuori sito, apre in nuova scheda). */
@@ -64,13 +65,6 @@ const INSPIRATION_URL = "https://www.minkeramikk.no/inspirasjon";
  *  categoria di catalogo, quindi ha una chiave sintetica; costante di modulo,
  *  identità stabile fra i render. */
 const WISHES_TAB = "__wishes";
-
-/** R5-PALETTES task 12 — the mobile «Palettes» tab (mockup `#sM`,
- *  `function Phone`). Same non-category-tab mechanism as `WISHES_TAB` above:
- *  a synthetic key, module-level so its identity never changes across
- *  renders. Desktop never sees this tab (it has the sticky `PaletteBar`
- *  instead, task 8) — the whole thing is `md:hidden`. */
-const PALETTES_TAB = "__palettes";
 
 export interface DesignChoice {
   id: string;
@@ -222,18 +216,19 @@ export function ConfiguratorClient({
   /** R4-RESTYLE: la corsia tab è fatta SOLO di gruppi-opzione — «Detaljer» e
    *  «Bilder» non esistono più (i loro contenuti sono in pagina, sopra il
    *  pannello). Quindi la tab attiva è sempre lo slug di una categoria. */
-  // Fix wave PR3 finding 11: `?? ""` matched no tab at all when a design has
-  // zero categories — every tab's `tabIndex` is `-1` unless it's the active
-  // one, so `""` left NOTHING focusable and the new Palettes tab (mobile's
-  // only way to reach step 2's palette lane) unreachable. `PALETTES_TAB`
-  // always exists (module-level constant, not gated on `detail.categories`),
-  // so it's the one fallback that's always a real, selectable tab.
-  const [activeTab, setActiveTab] = useState<string>(
-    detail.categories[0]?.slug ?? PALETTES_TAB
-  );
+  // PR3 round 2: `PALETTES_TAB` (the module-level fallback fix wave PR3
+  // finding 11 introduced) is gone with the tab it existed for — the
+  // Palettes tab is no longer in this lane at all, reached instead from a
+  // control above it (see `paletteSheetOpen` below), so there is no longer
+  // a "one tab that always exists" to fall back to. Back to `?? ""`,
+  // exactly as this read before that tab ever existed: a design with zero
+  // categories leaves the (category-only, «Fargeønsker») lane with nothing
+  // selected, same pre-existing edge case this card didn't introduce and
+  // isn't the one to fix.
+  const [activeTab, setActiveTab] = useState<string>(detail.categories[0]?.slug ?? "");
   // design nuovo = categorie nuove: la tab attiva torna alla prima.
   useEffect(() => {
-    setActiveTab(detail.categories[0]?.slug ?? PALETTES_TAB);
+    setActiveTab(detail.categories[0]?.slug ?? "");
     // eslint-disable-next-line react-hooks/exhaustive-deps -- key on design only
   }, [selected.slug]);
   const colorLock = searchParams.get("lock") === "1";
@@ -576,12 +571,16 @@ export function ConfiguratorClient({
   const [renamingPaletteCode, setRenamingPaletteCode] = useState<string | null>(
     null
   );
+  /** PR3 round 2 — the mobile palette sheet's own open/close, mirroring
+   *  ceramics-step.tsx's `paletteSheetOpen` (same `PaletteSheet`, wired at
+   *  this step too now that the removed Palettes tab no longer covers it). */
+  const [paletteSheetOpen, setPaletteSheetOpen] = useState(false);
   /**
    * R5-PALETTES task 12 — the ONE "what's on screen" label, mirroring
    * ceramics-step.tsx's own `paintingLabel` comment: a saved match names it,
    * else the deterministic `nameFor()` draft label. Computed ONCE so the
-   * mobile Palettes tab's dot, its draft chip, the save button and the new
-   * save-strip can never drift apart the way the desktop bar's chip and
+   * mobile palette sheet's trigger dot, the draft chip, the save button and
+   * the save-strip can never drift apart the way the desktop bar's chip and
    * `saveDraftAsPalette` used to (two separate `nameFor()` calls below,
    * now one).
    */
@@ -628,13 +627,15 @@ export function ConfiguratorClient({
   }
 
   /**
-   * R5-PALETTES task 12 — mobile Palettes tab's «+ New»: resets the draft to
+   * PR3 round 2 — the mobile palette sheet's «+ New»: resets the draft to
    * the DESIGN'S OWN DEFAULTS (`resolveSelections`'s fallback, same
    * `pickDefaultOption` step 1 already uses on first paint). Deliberately
    * different from step 3's own «+ New palette» (ceramics-step.tsx), which
-   * reopens step 2 keeping whatever is on screen so it can be tweaked — the
-   * card for THIS chip is explicit: reset, not carry-forward. `code=` is
-   * dropped too, so a saved match's colours don't win the next decode.
+   * reopens step 2 keeping whatever is on screen so it can be tweaked — this
+   * one is explicit: reset, not carry-forward (unsurprising here, we're
+   * already ON step 2). `code=` is dropped too, so a saved match's colours
+   * don't win the next decode. Formerly the removed mobile Palettes tab's
+   * «+ New» chip; same function, now wired to the sheet's `onNewPalette`.
    */
   function resetPaletteDraft() {
     const params = new URLSearchParams(searchParams.toString());
@@ -845,36 +846,6 @@ export function ConfiguratorClient({
       draft
     />
   );
-  /** R5-PALETTES task 12 — mobile Palettes tab panel only (mockup `#sM`'s
-   *  `NewChip`): same visual as step 3's own «+ New palette»
-   *  (ceramics-step.tsx `newPaletteChip`), but wired to `resetPaletteDraft`
-   *  (see that function's own comment for why this one resets instead of
-   *  carrying forward). Desktop has no equivalent chip today — only the
-   *  bar's «Save as palette» button (task 8) — so this stays local to the
-   *  mobile panel below.
-   *
-   *  Fix wave PR3 finding 13: `palette-chip-new` (unqualified) is also
-   *  step 3's carry-forward «+ New palette» (ceramics-step.tsx) — same
-   *  testid, two different behaviours (that one keeps the on-screen
-   *  colours and opens step 2; this one resets to the design's defaults).
-   *  `-reset` names what THIS one specifically does. */
-  const newPaletteDraftChip = (
-    <button
-      type="button"
-      data-testid="palette-chip-new-reset"
-      onClick={resetPaletteDraft}
-      className="flex h-12 shrink-0 items-center gap-2.5 rounded-full border border-dashed border-primary/50 pl-1.5 pr-4 text-[13.5px] text-primary hover:bg-muted"
-    >
-      <span
-        aria-hidden
-        className="grid size-9 place-items-center rounded-full border border-dashed border-primary/60 text-lg leading-none"
-      >
-        +
-      </span>
-      {tPaletteBar("new")}
-    </button>
-  );
-
   return (
     // R4-RESTYLE: no `data-editor` hook and no height chain — the globals.css
     // block that locked the viewport is gone. Under md step 2 is an ordinary
@@ -889,15 +860,18 @@ export function ConfiguratorClient({
       // lands on next.
       className={step === 2 ? "md:[&_*:focus-visible]:scroll-mt-[69px]" : undefined}
     >
-      {/* R5-PALETTES task 8: desktop only (mobile gets its own «Palettes» tab
-          in a later card — mockup `#sM`). `main` (public-shell.tsx) wraps
-          every page in `px-5 py-7`; `-mx-5 -mt-7` cancels exactly that so the
-          bar sits flush under the header before any scroll, full width of
-          the page's own max-w column — the closest this file can get to the
-          mockup's bar (which sits OUTSIDE `<main>` entirely) without
-          touching the shared shell for one screen. `sticky top-0` (not
-          `top-14`, see palette-bar.tsx) is what then pins it once scrolled:
-          the desktop site header is NOT sticky (site-header.tsx:15,
+      {/* R5-PALETTES task 8: desktop only (mobile gets its own top palette
+          control — PR3 round 2, replacing the removed «Palettes» tab).
+          `main` (public-shell.tsx) wraps every page in `px-5 py-7`; `-mt-7`
+          cancels the top half of that so the bar sits flush under the
+          header before any scroll. The HORIZONTAL full-bleed (PR3 fix —
+          the bar used to stop short of the viewport edges, capped at
+          `main`'s own `max-w-[1060px]`) is now owned by `PaletteBar` itself
+          (`md:w-screen md:ml-[calc(50%-50vw)]`, see that component) — no
+          `-mx-5` needed here any more, it would only have cancelled
+          `main`'s padding, not its width cap. `sticky top-0` (not `top-14`,
+          see palette-bar.tsx) is what then pins it once scrolled: the
+          desktop site header is NOT sticky (site-header.tsx:15,
           `max-md:sticky` — R2-6 C, desktop chrome unchanged), so `top-14`
           would park the bar 56px below the viewport top with page content
           showing above it.
@@ -912,7 +886,7 @@ export function ConfiguratorClient({
           mode="manage"
           count={palettes.length}
           sticky
-          className="hidden md:-mx-5 md:-mt-7 md:mb-6 md:block"
+          className="hidden md:-mt-7 md:mb-6 md:block"
           chips={
             <>
               {leadPaletteChip}
@@ -1331,6 +1305,67 @@ export function ConfiguratorClient({
           >
             {/* R4-FIX 1: nessun trattino in testa al pannello. Non trascinava
                 niente — affordance falsa, rimossa. */}
+            {/* PR3 round 2 (TL): the mobile «Palettes» tab that used to open
+                this lane's panel is GONE — it read as one more design option
+                (Animal/Main colour/Plants), which it isn't. Reachable from
+                the TOP instead, ABOVE the option lane: same `PaletteSheet`
+                step 3 already opens from its own strip (palette-sheet.tsx),
+                wired here too — one sheet, one way to manage palettes on a
+                phone, not a second bespoke panel. Mirrors step 3's own
+                trigger almost exactly (dot + label + chevron); "manage" not
+                "paint" is the right eyebrow here (`palettes.bar.eyebrowManage`
+                — reuse, matches the desktop bar's own mode split, §3.28). */}
+            <div className="mb-2 flex md:hidden">
+              <PaletteSheet
+                trigger={
+                  <button
+                    type="button"
+                    data-testid="step2-palettes-trigger"
+                    className={cn(
+                      "flex min-h-11 items-center gap-1.5 rounded-full border bg-card px-3.5 text-[12.5px] font-medium sm:min-h-9",
+                      paletteSheetOpen
+                        ? "border-primary shadow-[0_0_0_1px_var(--ring)]"
+                        : "border-border"
+                    )}
+                  >
+                    <DesignRound layers={activePaletteLayers} className="size-4" />
+                    {tPaletteBar("eyebrowManage")}
+                    <span aria-hidden className="text-muted-foreground">
+                      {paletteSheetOpen ? "▴" : "▾"}
+                    </span>
+                  </button>
+                }
+                open={paletteSheetOpen}
+                onOpenChange={setPaletteSheetOpen}
+                palettes={palettes}
+                currentDesignSlug={selected.slug}
+                activeCode={matchedPalette?.code ?? null}
+                draft={!matchedPalette}
+                draftName={activePaletteName}
+                draftLayers={activePaletteLayers}
+                locale={locale as "no" | "en"}
+                onPick={(code) => {
+                  loadPalette(code);
+                  setPaletteSheetOpen(false);
+                }}
+                onNewPalette={() => {
+                  resetPaletteDraft();
+                  setPaletteSheetOpen(false);
+                }}
+                onSaveDraft={() => {
+                  saveDraftAsPalette();
+                  setPaletteSheetOpen(false);
+                }}
+                renamingCode={renamingPaletteCode}
+                onRenameStart={(code) => setRenamingPaletteCode(code)}
+                onRenameConfirm={(code, name) => {
+                  renamePalette(code, name);
+                  setRenamingPaletteCode(null);
+                }}
+                onRenameCancel={() => setRenamingPaletteCode(null)}
+                onDelete={(code) => deletePalette(code)}
+              />
+            </div>
             {/* R4-STEP2 (mockup .cats): corsia tab orizzontale — solo mobile.
                 Dot = colore selezionato della categoria, conteggio = opzioni.
                 I ruoli tab esistono solo dove esiste la corsia (isDesktop).
@@ -1377,36 +1412,6 @@ export function ConfiguratorClient({
                 // segnale che c'è dell'altro.
                 className="flex touch-pan-x snap-x snap-proximity gap-1 overflow-x-auto overscroll-x-contain scroll-smooth scroll-px-11 px-1 pb-0.5 pt-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
               >
-                {/* R5-PALETTES task 12 (mockup `#sM`'s `tabs` array, `id:"palettes"`
-                    always first): the mobile «Palettes» tab — same non-category-tab
-                    pattern as «Fargeønsker» below, but FIRST instead of last. Dot =
-                    the 16px thumb of whatever is on screen right now (draft or the
-                    saved match — `activePaletteLayers`, computed once above), not a
-                    colour swatch. Count via the same `step2.tabCount` template the
-                    category tabs already use. */}
-                <button
-                  type="button"
-                  id={tabId(PALETTES_TAB)}
-                  role={isDesktop ? undefined : "tab"}
-                  aria-selected={isDesktop ? undefined : activeTab === PALETTES_TAB}
-                  aria-controls={isDesktop ? undefined : tabPanelId(PALETTES_TAB)}
-                  tabIndex={activeTab === PALETTES_TAB ? 0 : -1}
-                  data-testid="category-tab-palettes"
-                  onClick={() => setActiveTab(PALETTES_TAB)}
-                  className={cn(
-                    "flex min-h-11 flex-none snap-start scroll-mx-1 items-center gap-2 rounded-full px-3.5 text-[12.5px]",
-                    "focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring",
-                    activeTab === PALETTES_TAB
-                      ? "bg-secondary font-semibold text-primary"
-                      : "text-muted-foreground"
-                  )}
-                >
-                  <DesignRound layers={activePaletteLayers} className="size-4" />
-                  {t("step2.tabCount", {
-                    name: t("step2.palettesTab"),
-                    count: palettes.length,
-                  })}
-                </button>
                 {detail.categories.map((cat) => {
                   const sel = selections[cat.slug];
                   const selOpt = cat.options.find((o) => o.id === sel);
@@ -1533,47 +1538,6 @@ export function ConfiguratorClient({
               <h2 className="mt-1 text-xl font-semibold">{t("step2.titleDetails")}</h2>
               <p className="mt-0.5 text-sm text-muted-foreground">
                 {designName(selected)}
-              </p>
-            </div>
-
-            {/* R5-PALETTES task 12 — the «Palettes» tab's own panel (mockup
-                `#sM`'s `lane` when `tab==="palettes"`): a horizontal lane of
-                the SAME chips the desktop bar already builds above
-                (`leadPaletteChip`/`otherPaletteChips` — draft or active
-                match first, then every other saved palette, current design's
-                own leading via `sortCurrentDesignFirst`, no second sort),
-                plus the mobile-only «+ New» chip. Mobile only — desktop has
-                the sticky `PaletteBar` instead (task 8) — so `md:hidden`,
-                never `md:contents`: unlike the «Fargeønsker» panel below,
-                nothing here belongs in the desktop layout at all.
-                // TODO:nb-review — step2.palettesTab / step2.palettesHint /
-                step2.palettesHintUnsaved */}
-            <div
-              id={tabPanelId(PALETTES_TAB)}
-              role={isDesktop ? undefined : "tabpanel"}
-              aria-labelledby={isDesktop ? undefined : tabId(PALETTES_TAB)}
-              data-testid="step2-palettes-panel"
-              className={cn(
-                "min-w-0 md:hidden",
-                "max-md:-mx-3 max-md:flex max-md:flex-col",
-                activeTab !== PALETTES_TAB && "max-md:hidden"
-              )}
-            >
-              <div
-                data-testid="palette-lane-mobile"
-                // B1 (same as the tabs corsia and every other lane in this
-                // panel): `touch-pan-x` tells the browser the gesture here is
-                // horizontal, `overscroll-x-contain` stops the scroll chain
-                // reaching the page at either end.
-                className="flex touch-pan-x snap-x snap-proximity gap-2 overflow-x-auto overscroll-x-contain px-3 py-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-              >
-                {leadPaletteChip}
-                {otherPaletteChips}
-                {newPaletteDraftChip}
-              </div>
-              <p className="px-3 pb-2 text-[11px] text-muted-foreground">
-                {t("step2.palettesHint")}
-                {!matchedPalette && ` ${t("step2.palettesHintUnsaved")}`}
               </p>
             </div>
 
