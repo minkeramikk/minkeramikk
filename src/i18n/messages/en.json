@@ -257,15 +257,17 @@
       "ceramic": "Ceramic",
       "customText": "Inscription",
       "config": "Config",
-      "price": "Price"
+      "price": "Price",
+      "code": "Code",
+      "pieces": "{count, plural, one {# piece} other {# pieces}}"
     },
     "unpainted": {
       "label": "Unpainted",
-      "pieces": "{count, plural, one {# piece} other {# pieces}}",
-      "note": "{count, plural, one {# piece is} other {# pieces are}} still unpainted — choose a palette on the row, then paint.",
+      "note": "{count, plural, one {# piece is} other {# pieces are}} still unpainted — choose the colours on the row, then Paint.",
       "removeAll": "Remove all",
       "paint": "Paint",
-      "cta": "Paint {count, plural, one {# piece} other {# pieces}} first"
+      "cta": "Paint {count, plural, one {# piece} other {# pieces}} first",
+      "paintCount": "How many to paint"
     },
     "unpaint": {
       "action": "Unpaint…"
@@ -273,7 +275,7 @@
     "unpaintDialog": {
       "eyebrow": "Unpaint",
       "title": "Take the colours off — keep the ceramic.",
-      "body": "The {unit} go back to <b>unpainted</b> in your basket, same price and discount. Paint them again later with any palette.",
+      "body": "The {unit} go back to <b>unpainted</b> in your basket, same price and discount. Paint them again later.",
       "unitPiece": "{count, plural, one {piece} other {pieces}}",
       "unitSet": "{count, plural, one {set} other {sets}}",
       "howMany": "How many?",

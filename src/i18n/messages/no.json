@@ -256,15 +256,17 @@
       "ceramic": "Keramikk",
       "customText": "Tekst",
       "config": "Konfigurasjon",
-      "price": "Pris"
+      "price": "Pris",
+      "code": "Kode",
+      "pieces": "{count, plural, one {# del} other {# deler}}"
     },
     "unpainted": {
       "label": "Umalt",
-      "pieces": "{count, plural, one {# del} other {# deler}}",
-      "note": "{count, plural, one {# del er fortsatt umalt} other {# deler er fortsatt umalte}} — velg en palett på raden, og mal.",
+      "note": "{count, plural, one {# del er fortsatt umalt} other {# deler er fortsatt umalte}} — velg fargene på raden, og trykk Mal.",
       "removeAll": "Fjern alle",
       "paint": "Mal",
-      "cta": "Mal {count, plural, one {# stk} other {# stk}} først"
+      "cta": "Mal {count} stk først",
+      "paintCount": "Hvor mange å male"
     },
     "unpaint": {
       "action": "Gjør umalt…"
@@ -272,7 +274,7 @@
     "unpaintDialog": {
       "eyebrow": "Gjør umalt",
       "title": "Ta bort fargene — behold keramikken.",
-      "body": "{unit} går tilbake til <b>umalt</b> i handlekurven, samme pris og rabatt. Du kan male dem igjen senere med hvilken som helst palett.",
+      "body": "{unit} går tilbake til <b>umalt</b> i handlekurven, samme pris og rabatt. Du kan male dem igjen senere.",
       "unitPiece": "{count, plural, one {del} other {deler}}",
       "unitSet": "{count, plural, one {sett} other {sett}}",
       "howMany": "Hvor mange?",
