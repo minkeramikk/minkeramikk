@@ -218,18 +218,23 @@ export function CartLineRow({
           {/* Fit at 375 AND 390, in BOTH locales — not just 390/no, which
               happened to have 4px of slack while 390/en (295px needed) and
               375/either (275px available) genuinely wrapped. The fix is
-              SHRINKING, not wrapping: both the chip's label (its own
-              comment, below) and the Paint button's label get a `max-width`
-              — a `max-width` is what actually bounds an item's size for
+              SHRINKING, not wrapping: the chip (its own comment, below) is
+              `flex-1 min-w-0` with no cap at all, so it always absorbs
+              whatever the stepper and Paint (their own intrinsic sizes)
+              leave behind, and Paint's own label carries a defensive
+              `max-width` so IT can't be the thing that forces a wrap
+              either — a `max-width` (or a `0` flex-basis, the chip's own
+              trick) is what actually bounds an item's size for
               `flex-wrap`'s line-fit decision (it uses each item's
               hypothetical/un-shrunk size to decide breaks; `min-width`
               alone, which Paint also carries, only sets how far it can
               shrink AFTER it's already on a line — it does nothing for the
               fit decision by itself, which is why min-w-0 alone didn't fix
-              this). With both caps in place the row's real content fits
-              within budget at every width/locale combo this card supports,
-              so `flex-wrap` stays a genuine last resort — dormant today,
-              not the everyday path — rather than deleted outright.
+              this originally). Between the chip absorbing the slack and
+              Paint's own cap, the row's real content fits at every
+              width/locale combo this card supports, so `flex-wrap` stays a
+              genuine last resort — dormant today, not the everyday path —
+              rather than deleted outright.
 
               Every trim on this row resets at `lg` (1024px), not `md`
               (768px): `ceramics-step.tsx`'s own two-column layout
@@ -247,29 +252,27 @@ export function CartLineRow({
               <>
                 <span
                   data-testid="paint-chip"
-                  className="flex h-11 items-center gap-1 rounded-sm border border-border bg-card pl-1 pr-1 text-xs font-medium sm:h-9 lg:gap-1.5 lg:pr-2"
+                  // `flex-1 min-w-0`: no fixed cap on the label (a magic
+                  // number like 32px is a stub, not a label, once the
+                  // thumb+icon already carry the colour meaning) — instead
+                  // the chip's own `flex-basis` is 0, so it contributes ~0
+                  // to `flex-wrap`'s line-fit decision (that decision uses
+                  // each item's hypothetical/un-shrunk size; a `0` basis is
+                  // the smallest possible one) and it can never be the
+                  // reason the row wraps. It then grows to fill whatever
+                  // the stepper and Paint (both sized to their own
+                  // intrinsic widths, `flex-grow: 0`) leave behind — more
+                  // room at 390 than 375, more in /no/ than /en/ (Paint's
+                  // own footprint is wider there). `lg:flex-none` (not
+                  // `md:`, matching every other reset on this row — see the
+                  // row comment above) stops it from stretching across the
+                  // rail once the row's other trims restore PR 2's own
+                  // sizing at 1024+; below that it's still the mobile-safe,
+                  // narrow-rail-safe row, same as 768 itself.
+                  className="flex h-11 min-w-0 flex-1 items-center gap-1 rounded-sm border border-border bg-card pl-1 pr-1 text-xs font-medium sm:h-9 lg:flex-none lg:gap-1.5 lg:pr-2"
                 >
-                  <DesignRound layers={currentThumb.layers} className="size-6 rounded-sm" />
-                  {/* Mockup MobLine caps this at 64px (Line, desktop, at
-                      120px), but that number assumed 36px buttons
-                      throughout — this codebase's real 44px stepper leaves
-                      less room than the mockup had. 32px is the value that
-                      actually clears the tightest real combo (375 / en/,
-                      "Paint" being wider than "Mal"): available body width
-                      is viewport − 40 (shell `px-5`) − 48 (thumb) − 12
-                      (`gap-x-3`) = 275px at 375; stepper (122) + this cap
-                      (32 + ~46px of the chip's own icon/padding/border) +
-                      Paint at its full untruncated width (~65px "Paint")
-                      + gaps leaves single-digit px of margin — genuinely
-                      tight, not comfortable, which is why Paint's own label
-                      (below) ALSO gets a defensive max-width: a max-width
-                      (unlike `min-width`) is what actually bounds an
-                      item's size for the flex-wrap line-fit decision, so
-                      both caps together are what keeps `flex-wrap` a true
-                      last resort instead of the everyday path. */}
-                  <span className="max-w-[32px] truncate lg:max-w-[120px]">
-                    {currentThumb.label}
-                  </span>
+                  <DesignRound layers={currentThumb.layers} className="size-6 shrink-0 rounded-sm" />
+                  <span className="min-w-0 truncate">{currentThumb.label}</span>
                 </span>
                 <div
                   role="group"
