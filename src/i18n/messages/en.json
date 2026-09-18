@@ -350,5 +350,12 @@
     "shareCta": "Share your set",
     "shareCopied": "Link copied!",
     "pieceCount": "{count, plural, one {# piece} other {# pieces}}"
+  },
+  "palettes": {
+    "chip": {
+      "unsaved": "Unsaved",
+      "rename": "Rename",
+      "renameLabel": "Palette name"
+    }
   }
 }

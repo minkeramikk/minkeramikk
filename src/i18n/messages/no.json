@@ -349,5 +349,12 @@
     "shareCta": "Del settet",
     "shareCopied": "Lenke kopiert!",
     "pieceCount": "{count, plural, one {# del} other {# deler}}"
+  },
+  "palettes": {
+    "chip": {
+      "unsaved": "Ulagret",
+      "rename": "Endre navn",
+      "renameLabel": "Palettnavn"
+    }
   }
 }
