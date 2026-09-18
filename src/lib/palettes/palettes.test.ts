@@ -1,5 +1,15 @@
 import { describe, it, expect } from "vitest";
-import { savePalette, renamePalette, touchPalette, paletteFor, MAX_PALETTES, type Palette } from "./palettes";
+import {
+  savePalette,
+  renamePalette,
+  touchPalette,
+  paletteFor,
+  paletteFamily,
+  nameFor,
+  MAX_PALETTES,
+  type Palette,
+} from "./palettes";
+import { DEFAULT_WORDS } from "./name-lists";
 
 const make = (code: string, at = 0): Palette => ({
   code, name: `P-${code}`, designSlug: "alici",
@@ -50,5 +60,45 @@ describe("palette store", () => {
     renamePalette(list, "A", "X");
     touchPalette(list, "A", 5);
     expect(list).toEqual(copy);
+  });
+});
+
+const snap = (...sel: { label: string; option: string; hex: string | null }[]) => ({
+  designSlug: "alici", designName: "Alici", selections: sel,
+});
+
+describe("naming", () => {
+  it("puts the hue in the right family", () => {
+    expect(paletteFamily("#3877b9")).toBe("blue");
+    expect(paletteFamily("#3f6525")).toBe("green");
+    expect(paletteFamily("#e05f4c")).toBe("red");
+    expect(paletteFamily("#ecae67")).toBe("yellow");
+    expect(paletteFamily("#a3759f")).toBe("purple");
+    expect(paletteFamily("#9b9b9b")).toBe("neutral");   // no saturation ⇒ no hue
+  });
+
+  it("is deterministic and always a word from the family's list", () => {
+    const s = snap({ label: "Hovedfarge", option: "Blu", hex: "#3877b9" });
+    const a = nameFor("MK-ALICI-A1", s);
+    expect(nameFor("MK-ALICI-A1", s)).toBe(a);
+    expect(DEFAULT_WORDS.blue).toContain(a);
+    expect(a).not.toMatch(/\d/);
+  });
+
+  it("prefers the design's MAIN COLOUR category over the first hexed selection", () => {
+    const s = snap(
+      { label: "Kant", option: "Verde", hex: "#3f6525" },
+      { label: "Hovedfarge", option: "Blu", hex: "#3877b9" },
+    );
+    expect(DEFAULT_WORDS.blue).toContain(nameFor("MK-A-1", s));
+  });
+
+  it("falls back to the first hexed selection when no main-colour category exists", () => {
+    const s = snap({ label: "Dyr", option: "Gris", hex: null }, { label: "Kant", option: "Verde", hex: "#3f6525" });
+    expect(DEFAULT_WORDS.green).toContain(nameFor("MK-A-1", s));
+  });
+
+  it("never returns an empty name, even with no colours at all", () => {
+    expect(nameFor("MK-A-1", snap()).length).toBeGreaterThan(0);
   });
 });
