@@ -205,7 +205,15 @@ export function CartLineRow({
                 >
                   <Brush className="size-3.5" aria-hidden />
                   {t("unpainted.paint")}
-                  {n < line.quantity && (
+                  {/* TL change (fix round 1): badge reads from 2 upward, not
+                      only the partial case — a 2-piece row at its default 2/2
+                      showed NO badge before and only grew one after a −
+                      press. Any row with more than one unit to choose from
+                      always carries its current n; a single-unit row (n is
+                      always 1 of 1, nothing to choose) still shows none. This
+                      is a deliberate divergence from the mockup, which only
+                      badges the partial case. */}
+                  {line.quantity > 1 && (
                     <span className="absolute -right-1.5 -top-1.5 grid size-5 place-items-center rounded-full bg-ink text-[10px] font-bold text-ink-foreground shadow">
                       {n}
                     </span>

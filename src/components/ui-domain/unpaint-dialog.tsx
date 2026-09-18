@@ -61,9 +61,9 @@ export function UnpaintDialog({
 
   // How many of `line.quantity` to unpaint — starts at 1 (mockup: `unpaint(id)`
   // sets `S3.dlg={id,n:1}`), never at N: unpainting is opt-in per piece.
-  const [n, setN] = useState(1);
+  const [nRaw, setNRaw] = useState(1);
   useEffect(() => {
-    if (line) setN(1);
+    if (line) setNRaw(1);
     // Reset only when a DIFFERENT line opens, not on every render of the same one.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [line?.id]);
@@ -75,6 +75,14 @@ export function UnpaintDialog({
   if (line) lastLine.current = line;
   const shown = line ?? lastLine.current;
   if (!shown) return null;
+
+  // Fix round 1: clamp on every RENDER, not only inside the +/−/All handlers.
+  // While this dialog sits open, another tab can sync a smaller quantity for
+  // the SAME line through `use-cart`'s `storage` listener — `unpaintLines`
+  // itself clamps the real move (nothing over-moves), but without this the
+  // stepper and the confirm pill could still keep showing a bigger number
+  // than what's actually left. Same recipe as `paintNFor` in ceramics-step.tsx.
+  const n = Math.min(Math.max(1, nRaw), shown.quantity);
 
   const isSet = (shown.pieces ?? 1) > 1;
   const unitKey = isSet ? "unitSet" : "unitPiece";
@@ -157,7 +165,7 @@ export function UnpaintDialog({
               type="button"
               aria-label="-"
               data-testid="unpaint-n-dec"
-              onClick={() => setN((v) => Math.max(1, v - 1))}
+              onClick={() => setNRaw((v) => Math.max(1, v - 1))}
               className="flex size-10 items-center justify-center text-base"
             >
               −
@@ -169,7 +177,7 @@ export function UnpaintDialog({
               type="button"
               aria-label="+"
               data-testid="unpaint-n-inc"
-              onClick={() => setN((v) => Math.min(shown.quantity, v + 1))}
+              onClick={() => setNRaw((v) => Math.min(shown.quantity, v + 1))}
               className="flex size-10 items-center justify-center text-base"
             >
               +
@@ -178,7 +186,7 @@ export function UnpaintDialog({
           <button
             type="button"
             data-testid="unpaint-n-all"
-            onClick={() => setN(shown.quantity)}
+            onClick={() => setNRaw(shown.quantity)}
             className={cn(
               "h-10 rounded-sm border border-border bg-card px-3 text-xs font-medium",
               n === shown.quantity && "border-primary shadow-[0_0_0_1px_var(--ring)]"

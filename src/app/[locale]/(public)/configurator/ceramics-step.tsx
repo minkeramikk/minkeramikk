@@ -316,17 +316,23 @@ export function CeramicsStep({
       Math.min(Math.max(1, paintN[line.id] ?? line.quantity), line.quantity),
     [paintN]
   );
+  /** R5-UNPAINTED task 11: id of the line the `UnpaintDialog` is open for, or
+   *  null. The dialog itself keeps rendering its last line through the exit
+   *  animation (see its own comment) — this id only drives whether it's open. */
+  const [unpaintId, setUnpaintId] = useState<string | null>(null);
+  const unpaintLine = cart.find((l) => l.id === unpaintId) ?? null;
   /**
-   * Bug fix (task 11 review): an unpainted line's id is `${productId}::unpainted`
-   * — it RECURS, because `cart.ts` gives every unpainted lot of one product the
-   * same id (there is only ever one at a time). `paintNFor` clamps a stored
-   * number DOWN when its line shrinks, but nothing dropped the entry when the
-   * line disappeared entirely (paint in full, «Remove all»). So a number typed
-   * for one unpainted lot survived to be read by the NEXT lot of the same
-   * product — which should start at its own quantity, not someone else's leftover.
-   * Root cause lives here, in the one place that owns `paintN`, not in each
-   * caller that can make a line disappear (paint, remove): whenever the cart no
-   * longer has a line for some id, that id's entry is stale by definition.
+   * Bug fix (task 11 review): a cart line id RECURS — `cart.ts` gives every
+   * unpainted lot of a product (and every painted lot of one config) the SAME
+   * id, because there is only ever one such line at a time. `paintNFor` above
+   * clamps a stored number DOWN when its line shrinks, but nothing dropped
+   * the entry — or `unpaintId` itself — when a line disappeared entirely
+   * (paint in full, «Remove all», a cross-tab sync). Left alone, a number (or
+   * an OPEN dialog) meant for one lot survives to land on the NEXT lot of the
+   * same product, which should start untouched. Root cause lives here, in the
+   * one place that owns both `paintN` and `unpaintId`, not in each caller that
+   * can make a line disappear: whenever the cart no longer has a line for some
+   * id, that id's entry — and a dialog pinned to it — is stale by definition.
    */
   useEffect(() => {
     setPaintN((m) => {
@@ -339,12 +345,8 @@ export function CeramicsStep({
       }
       return changed ? next : m;
     });
+    setUnpaintId((id) => (id && !cart.some((l) => l.id === id) ? null : id));
   }, [cart]);
-  /** R5-UNPAINTED task 11: id of the line the `UnpaintDialog` is open for, or
-   *  null. The dialog itself keeps rendering its last line through the exit
-   *  animation (see its own comment) — this id only drives whether it's open. */
-  const [unpaintId, setUnpaintId] = useState<string | null>(null);
-  const unpaintLine = cart.find((l) => l.id === unpaintId) ?? null;
   /** CA-3 C: share feedback under the panel header (aria-live). */
   const [shareState, setShareState] = useState<
     | null
