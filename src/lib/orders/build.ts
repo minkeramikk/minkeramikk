@@ -5,7 +5,7 @@
  */
 import { money, sum, type Money } from "@/lib/money/money";
 import type { CartDiscount } from "@/lib/discounts/discount";
-import type { OrderItemInput } from "./schema";
+import type { OrderItemInput, PaintedOrderItem } from "./schema";
 
 /** Snake-case row shape the create_order() SQL function consumes (jsonb items). */
 export interface OrderItemRow {
@@ -30,9 +30,9 @@ export interface OrderItemRow {
  * discount fields, if any, are ignored by construction — they are not read here.
  */
 export function buildOrderItemRows(
-  items: OrderItemInput[],
+  items: PaintedOrderItem[],
   discount: CartDiscount,
-  keyOf: (item: OrderItemInput, index: number) => string
+  keyOf: (item: PaintedOrderItem, index: number) => string
 ): OrderItemRow[] {
   return items.map((i, idx) => {
     const d = discount.perLine[keyOf(i, idx)];

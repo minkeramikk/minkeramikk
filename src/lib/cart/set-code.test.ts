@@ -72,6 +72,16 @@ describe("encodeSetParam", () => {
   it("empty cart → empty string", () => {
     expect(encodeSetParam([])).toBe("");
   });
+
+  // R5-UNPAINTED: a null configCode is falsy, so the existing `.filter()`
+  // already drops the row — this only pins the widened signature.
+  it("leaves an unpainted line out of the link", () => {
+    const encoded = encodeSetParam([
+      { configCode: null, productSlug: "vietri-dinner", quantity: 2 },
+      { configCode: "MK-ALICI-A1", productSlug: "vietri-side", quantity: 1 },
+    ]);
+    expect(encoded).toBe("MK-ALICI-A1.vietri-side.1");
+  });
 });
 
 describe("decodeSetParam — round trip", () => {

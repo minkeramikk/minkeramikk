@@ -7,7 +7,6 @@ import { useSearchParams } from "next/navigation";
 import { usePathname, useRouter } from "@/i18n/navigation";
 import { Stepper } from "@/components/ui-domain/stepper";
 import { DesignRound } from "@/components/ui-domain/design-round";
-import { CartLineThumb } from "@/components/ui-domain/cart-line-thumb";
 import { OrderForm } from "@/components/ui-domain/order-form";
 import { Button } from "@/components/ui/button";
 import { assetUrl } from "@/lib/storage";
@@ -20,7 +19,7 @@ import {
   designLabel,
   itemCount,
   lineKey,
-  type CartLine,
+  unpaintedPieces,
   type CartLayer,
   type ConfigSnapshot,
   type NewCartLine,
@@ -35,9 +34,8 @@ import {
 } from "@/lib/discounts/discount";
 import { ladderFor } from "@/lib/discounts/ladder";
 import { SetBadge } from "@/components/ui-domain/set-badge";
-import { CartLineRecap } from "@/components/ui-domain/cart-line-recap";
+import { CartLineRow } from "@/components/ui-domain/cart-line-row";
 import { useShippingTotalSuffix } from "@/components/ui-domain/cart-shipping-row";
-import { CartLinePrice, CartDiscountNudge } from "@/components/ui-domain/cart-discount-row";
 import { CartSuggestion } from "@/components/ui-domain/cart-suggestion";
 import { CartTotals } from "@/components/ui-domain/cart-totals";
 import {
@@ -47,10 +45,11 @@ import {
 } from "@/lib/catalog/product-attributes";
 import { groupBySeries } from "@/lib/configurator/product-series";
 import { formatSelections } from "@/lib/configurator/readable-selections";
-import { Truck, Plus, ArrowUpRight } from "lucide-react";
+import { Truck, Plus, ArrowUpRight, Brush } from "lucide-react";
 import type { ResolvedSharedSet } from "./resolve-shared-set";
 import { ProductSheet } from "@/components/ui-domain/product-sheet";
 import { AddedSheet } from "@/components/ui-domain/added-sheet";
+import { UnpaintDialog } from "@/components/ui-domain/unpaint-dialog";
 import { NextStepPill, PillIcon } from "@/components/ui-domain/next-step-pill";
 
 export interface CeramicProduct {
@@ -78,11 +77,6 @@ export interface DesignRef {
   name: string;
   supplierId: string;
   supplierName: string | null;
-}
-
-/** First selection colour of a cart line → colour chip fallback. */
-function thumbHex(line: CartLine): string | undefined {
-  return line.configSnapshot?.selections.find((s) => s.hex)?.hex ?? undefined;
 }
 
 /**
@@ -161,6 +155,35 @@ function CeramicCard({
 }
 
 /**
+ * Task 13 — the docked order pill's "go paint it" action, and the mobile
+ * bar's own paint-first pill in the next PR (R5-UNPAINTED PR 3): same target,
+ * same behaviour, so it is written ONCE here rather than twice. Pure DOM
+ * query, no React state: `CartLineRow` already stamps `data-unpainted` on the
+ * first unpainted row and a `data-testid="paint-line"` on its Paint button
+ * (mockup's CTA scrolls to the row then "focuses the chip" — the chip is a
+ * static `<span>` in this card, so the Paint button is the actionable focus
+ * target instead, per the card's own note).
+ *
+ * NOT a bare `document.querySelector` (the card's own snippet, and the
+ * mockup's single-page demo, both get away with one): `cartPanel` above is
+ * rendered TWICE, mobile section + desktop rail (`md:hidden`/`hidden
+ * md:block`), so BOTH copies of every row are always in the DOM and an
+ * unscoped query can resolve to the `display:none` half — exactly the
+ * failure mode the sticky bar's own click handler already scopes around a
+ * few hundred lines down. `offsetParent !== null` is the cheap "not
+ * display:none" check; it skips straight to whichever copy is actually on
+ * screen at the current breakpoint.
+ */
+export function focusFirstUnpaintedRow() {
+  const rows = document.querySelectorAll<HTMLElement>(
+    '[data-testid="cart-line"][data-unpainted]'
+  );
+  const row = Array.from(rows).find((r) => r.offsetParent !== null);
+  row?.scrollIntoView({ behavior: "smooth", block: "center" });
+  row?.querySelector<HTMLElement>('[data-testid="paint-line"]')?.focus({ preventScroll: true });
+}
+
+/**
  * Step 3 — two-panel layout (F21).
  *
  * Desktop (≥768): left = ceramic selector; right = docked inline cart always
@@ -224,6 +247,8 @@ export function CeramicsStep({
     setQuantity,
     remove,
     clear,
+    paint,
+    unpaint,
     discount,
     discountConfig,
     setCurrentConfigCode,
@@ -278,6 +303,55 @@ export function CeramicsStep({
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   /** CA-3 E: id of the one expanded cart row (one at a time), or null. */
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  /**
+   * R5-UNPAINTED task 10: "how many to paint" per unpainted line — the row
+   * owns none of this (mirrors the mockup's `S3.n[id]`). Read through
+   * `paintNFor` below, which clamps to the line's current quantity, so a
+   * stale stored value (from before a partial paint shrank the line) never
+   * renders or submits out of range — the row never has to know.
+   */
+  const [paintN, setPaintN] = useState<Record<string, number>>({});
+  const paintNFor = useCallback(
+    (line: { id: string; quantity: number }) =>
+      Math.min(Math.max(1, paintN[line.id] ?? line.quantity), line.quantity),
+    [paintN]
+  );
+  /** R5-UNPAINTED task 11: id of the line the `UnpaintDialog` is open for, or
+   *  null. The dialog itself keeps rendering its last line through the exit
+   *  animation (see its own comment) — this id only drives whether it's open. */
+  const [unpaintId, setUnpaintId] = useState<string | null>(null);
+  const unpaintLine = cart.find((l) => l.id === unpaintId) ?? null;
+  /**
+   * Bug fix (task 11 review): a cart line id RECURS — `cart.ts` gives every
+   * unpainted lot of a product (and every painted lot of one config) the SAME
+   * id, because there is only ever one such line at a time. `paintNFor` above
+   * clamps a stored number DOWN when its line shrinks, but nothing dropped
+   * the entry — or `unpaintId` itself — when a line disappeared entirely
+   * (paint in full, «Remove all», a cross-tab sync). Left alone, a number (or
+   * an OPEN dialog) meant for one lot survives to land on the NEXT lot of the
+   * same product, which should start untouched. Root cause lives here, in the
+   * one place that owns both `paintN` and `unpaintId`, not in each caller that
+   * can make a line disappear: whenever the cart no longer has a line for some
+   * id, that id's entry — and a dialog pinned to it — is stale by definition.
+   *
+   * Fix round 2 (finding 2): `expandedId` (declared above) is a THIRD state
+   * keyed the same recurring way — pruned here too, so a removed-then-
+   * recreated line never mounts already expanded.
+   */
+  useEffect(() => {
+    setPaintN((m) => {
+      const liveIds = new Set(cart.map((l) => l.id));
+      const next: Record<string, number> = {};
+      let changed = false;
+      for (const [id, v] of Object.entries(m)) {
+        if (liveIds.has(id)) next[id] = v;
+        else changed = true;
+      }
+      return changed ? next : m;
+    });
+    setUnpaintId((id) => (id && !cart.some((l) => l.id === id) ? null : id));
+    setExpandedId((id) => (id && !cart.some((l) => l.id === id) ? null : id));
+  }, [cart]);
   /** CA-3 C: share feedback under the panel header (aria-live). */
   const [shareState, setShareState] = useState<
     | null
@@ -349,7 +423,10 @@ export function CeramicsStep({
         currency: l.currency,
         quantity: l.quantity,
         dealRuleId: l.dealRuleId,
-        configCode: l.configCode,
+        // R5-UNPAINTED: DiscountLineInput.configCode is string|undefined,
+        // never null — an unpainted line still counts for its quantity tier,
+        // it just has no design to match a suggestion donor on.
+        configCode: l.configCode ?? undefined,
       })),
     [cart]
   );
@@ -443,6 +520,23 @@ export function CeramicsStep({
   const count = hydrated ? itemCount(cart) : 0;
   /** R4-CTA-STICKY: the bar counts PIECES, not lines — a set is N deler. */
   const pieces = hydrated ? cartPieces(cart) : 0;
+  /** R5-UNPAINTED task 9: the basket's own explanation box, mirroring the
+   *  header marker (cart-menu.tsx) — pieces, not lines. */
+  const unpaintedInBasket = hydrated ? unpaintedPieces(cart) : 0;
+  /** Task 13: the order CTA and the checkout form both gate on this. */
+  const hasUnpainted = unpaintedInBasket > 0;
+  /**
+   * Fix round 2 (finding 3) — task 13's render gate (`!hasUnpainted &&
+   * checkoutOpen` below) only stops the form from being SHOWN; it never
+   * flips `checkoutOpen` back to false, and both `setCheckoutOpen(false)`
+   * call sites live inside the branch this state can no longer reach once a
+   * line goes unpainted mid-checkout. Left alone, the mobile sticky bar
+   * (gated on `!checkoutOpen`) hides itself with nothing to show for it, and
+   * the form pops back open unprompted the moment the last piece is painted.
+   */
+  useEffect(() => {
+    if (hasUnpainted) setCheckoutOpen(false);
+  }, [hasUnpainted]);
   /** The mobile order block — the sticky bar's CTA queries the form inside it. */
   const orderBlockRef = useRef<HTMLDivElement>(null);
   /**
@@ -757,125 +851,65 @@ export function CeramicsStep({
     <div className="flex flex-col gap-0" data-testid="docked-cart">
       <h2 className="mb-3 text-base font-semibold">{t("cartTitle")}</h2>
 
+      {/* R5-UNPAINTED task 9: explicit, no button inside — Paint lives on the
+          row itself (task 10). Pieces, not lines, like the header marker.
+          TODO:nb-review — cart.unpainted.note NO copy is new, unreviewed. */}
+      {unpaintedInBasket > 0 && (
+        <p
+          data-testid="basket-unpainted-note"
+          className="mb-1 rounded-sm bg-muted px-3 py-2 text-xs text-foreground/80"
+        >
+          <span className="text-warn">○</span>{" "}
+          {t("unpainted.note", { count: unpaintedInBasket })}
+        </p>
+      )}
+
       {count === 0 ? (
         <p className="py-6 text-sm text-muted-foreground">{t("empty")}</p>
       ) : (
         <>
           <div data-testid="cart-list" className="flex flex-col">
-            {cart.map((line) => (
-              <div
-                key={line.id}
-                data-testid="cart-line"
-                className="border-b border-border/60 py-3 last:border-0"
-              >
-                <div className="flex gap-3">
-                <CartLineThumb
-                  layers={line.layers}
-                  hex={thumbHex(line)}
-                  plateImage={line.plateImage}
+            {/* R5-UNPAINTED task 8: unpainted lines float to the top, exactly
+                as the mockup sorts them (renderS3: (a.code?1:0)-(b.code?1:0)). */}
+            {[...cart]
+              .sort((a, b) => Number(a.configCode !== null) - Number(b.configCode !== null))
+              .map((line) => (
+                <CartLineRow
+                  key={line.id}
+                  line={line}
+                  locale={locale}
+                  d={discount.perLine[line.id]}
+                  open={expandedId === line.id}
+                  onToggleDetails={() =>
+                    setExpandedId((id) => (id === line.id ? null : line.id))
+                  }
+                  onQty={(q) => setQuantity(line.id, q)}
+                  onRemove={() => remove(line.id)}
+                  // Task 10: paint n pieces onto the config currently on
+                  // screen. Task 11: open the dialog, keyed by line id — it
+                  // reads the live line itself, so it always shows current
+                  // quantity even if the cart changes while it's open.
+                  onPaint={(n) => paint(line.id, n, configCode, snapshot, designLayers)}
+                  onUnpaint={() => setUnpaintId(line.id)}
+                  n={paintNFor(line)}
+                  onN={(next) =>
+                    setPaintN((m) => ({
+                      ...m,
+                      [line.id]: Math.min(Math.max(1, next), line.quantity),
+                    }))
+                  }
+                  currentThumb={{
+                    layers: designLayers,
+                    // The DESIGN's name, not the colour list: on a phone the
+                    // list truncated to "Gris · V…", which says nothing. The
+                    // dots beside it carry the colours (TL, 18/9).
+                    label: designName,
+                    hexes: snapshot.selections
+                      .map((sel) => sel.hex)
+                      .filter((hex): hex is string => Boolean(hex)),
+                  }}
                 />
-                <div className="min-w-0 flex-1">
-                  <p className="flex items-center gap-1.5 text-sm font-medium">
-                    <span className="truncate">
-                      {locale === "no" ? line.productNameNo : line.productNameEn}
-                    </span>
-                    {/* F29: set marker on the cart row (legacy lines lack
-                        `pieces` → SetBadge renders nothing) */}
-                    <SetBadge count={line.pieces ?? 1} className="shrink-0" />
-                  </p>
-                  <p className="truncate text-xs text-muted-foreground">
-                    {designLabel(line.configSnapshot, locale) ?? "—"}
-                  </p>
-                  <div className="mt-1.5 flex items-center gap-2">
-                    <div className="flex items-center rounded-sm border border-border">
-                      <button
-                        type="button"
-                        aria-label="-"
-                        data-testid="docked-qty-dec"
-                        onClick={() => setQuantity(line.id, line.quantity - 1)}
-                        className="flex size-11 items-center justify-center sm:size-9"
-                      >
-                        −
-                      </button>
-                      <span className="w-7 text-center text-sm tabular-nums">
-                        {line.quantity}
-                      </span>
-                      <button
-                        type="button"
-                        aria-label="+"
-                        data-testid="docked-qty-inc"
-                        onClick={() => setQuantity(line.id, line.quantity + 1)}
-                        className="flex size-11 items-center justify-center sm:size-9"
-                      >
-                        +
-                      </button>
-                    </div>
-                    <button
-                      type="button"
-                      data-testid="docked-remove"
-                      onClick={() => remove(line.id)}
-                      className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
-                    >
-                      {t("remove")}
-                    </button>
-                  </div>
-                  <CartDiscountNudge
-                    productQty={
-                      line.productId ? discount.qtyByProduct[line.productId] ?? 0 : 0
-                    }
-                    tiers={discountConfig.tiers}
-                    pct={discount.perLine[line.id]?.pct ?? 0}
-                    eligible={discount.perLine[line.id]?.tierEligible ?? false}
-                    pendingDeal={discount.perLine[line.id]?.pendingDeal}
-                  />
-                </div>
-                <div className="flex shrink-0 flex-col items-end justify-between self-stretch">
-                  <CartLinePrice d={discount.perLine[line.id]} locale={locale} />
-                  {/* CA-3 E: expansion as a LABELLED action (the bare ▾ icon
-                      read as decoration) — price top-right, toggle BOTTOM
-                      right on the qty/Remove baseline (mb compensates the
-                      qty box centring); one row open at a time */}
-                  <button
-                    type="button"
-                    data-testid="cart-expand"
-                    aria-expanded={expandedId === line.id}
-                    onClick={() =>
-                      setExpandedId((id) => (id === line.id ? null : line.id))
-                    }
-                    className="mb-2.5 text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground max-sm:mb-3.5"
-                  >
-                    {expandedId === line.id
-                      ? `${t("line.collapse")} ▴`
-                      : `${t("line.expand")} ▾`}
-                  </button>
-                </div>
-                </div>
-
-                {/* CA-3 E: inline detail (frame 2) — big composition from the
-                    line's stored F19 layers (zero fetch), readable selections
-                    from the snapshot (R1-FB1 extended to the cart), edit+remove. */}
-                {expandedId === line.id && (
-                  <CartLineRecap
-                    line={line}
-                    locale={locale}
-                    editSlot={
-                      <button
-                        type="button"
-                        data-testid="cart-edit-design"
-                        onClick={() =>
-                          router.push(
-                            `/configurator?code=${encodeURIComponent(line.configCode)}&step=2`
-                          )
-                        }
-                        className="shrink-0 text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
-                      >
-                        ✎ {t("line.edit")}
-                      </button>
-                    }
-                  />
-                )}
-              </div>
-            ))}
+              ))}
           </div>
 
           <CartSuggestion />
@@ -890,7 +924,12 @@ export function CeramicsStep({
           <div className="mt-3 flex flex-col gap-3 border-t border-border pt-3">
             <CartTotals totalTestId="docked-total" />
 
-            {checkoutOpen ? (
+            {/* Task 13: `!hasUnpainted` gates the form shut even if it was
+                already open when the basket picked up a new unpainted line
+                (e.g. adding a ceramic mid-checkout) — the order can never
+                leave with colourless pieces, so the form can never be on
+                screen with one either (Task 4's client half). */}
+            {!hasUnpainted && checkoutOpen ? (
               // scroll-mt: the mobile header is sticky and 56px tall, so a
               // bare scrollIntoView would park the form's first rows under it.
               <div data-testid="docked-checkout-form" className="scroll-mt-[4.5rem]">
@@ -920,19 +959,45 @@ export function CeramicsStep({
                     cui si ricomincia, e tiene il carrello (F03/F16). */}
                 {/* Camioncino, non freccia: l'ordine parte: non c'è uno step
                     successivo nel wizard (nota-step3-cart.md). */}
-                <NextStepPill
-                  data-testid="docked-checkout"
-                  className="w-full"
-                  caption={t("checkoutKicker")}
-                  label={to("title")}
-                  arrow
-                  icon={
-                    <PillIcon>
-                      <Truck className="size-5 text-primary" />
-                    </PillIcon>
-                  }
-                  onClick={() => setCheckoutOpen(true)}
-                />
+                {/* Task 13 (mockup: bottom of `renderS3`) — while anything is
+                    unpainted, the pill that would open checkout is replaced,
+                    not merely disabled: it becomes a tertiary "go paint it"
+                    CTA that scrolls to and focuses the first unpainted row's
+                    Paint button (`focusFirstUnpaintedRow`, shared with the
+                    mobile bar in the next PR). No `arrow`: unlike "Bestill"
+                    this click doesn't advance the funnel, matching the other
+                    non-advancing pills in this stack (`new-design-cta`,
+                    `share-set`) that also render arrow-less.
+                    TODO:nb-review — cart.unpainted.cta NO copy is new,
+                    unreviewed. */}
+                {hasUnpainted ? (
+                  <NextStepPill
+                    variant="tertiary"
+                    data-testid="docked-paint-first"
+                    className="w-full"
+                    label={t("unpainted.cta", { count: unpaintedInBasket })}
+                    icon={
+                      <PillIcon variant="tertiary">
+                        <Brush className="size-5 text-muted-foreground" />
+                      </PillIcon>
+                    }
+                    onClick={focusFirstUnpaintedRow}
+                  />
+                ) : (
+                  <NextStepPill
+                    data-testid="docked-checkout"
+                    className="w-full"
+                    caption={t("checkoutKicker")}
+                    label={to("title")}
+                    arrow
+                    icon={
+                      <PillIcon>
+                        <Truck className="size-5 text-primary" />
+                      </PillIcon>
+                    }
+                    onClick={() => setCheckoutOpen(true)}
+                  />
+                )}
                 {/* R4-BTN-SCALE AC4: le due azioni basse sono un GRUPPO, non
                     due pari del primario. Wrapper `gap-2` dentro il `gap-3`
                     dello stack → ritmo a due livelli: 12px staccano «Bestill»,
@@ -1127,13 +1192,30 @@ export function CeramicsStep({
       </div>
       {/* Same pill as the cart panel's CTA (§3.16) and the same label key, so
           R-PAY reskins both from one place. It carries the arrow because it
-          DOES advance the funnel — see the e2e note in r-extra-pill. */}
+          DOES advance the funnel — see the e2e note in r-extra-pill.
+          Fix round 1: `hasUnpainted` reskins it exactly like the panel's own
+          primary pill (tertiary, `unpainted.cta`, no arrow — this tap does
+          NOT send the order) and its `onClick` stops touching `checkoutOpen`
+          entirely. Before this fix, tapping it while unpainted did
+          `flushSync(() => setCheckoutOpen(true))`, which the panel's own
+          `!hasUnpainted && checkoutOpen` gate stops from ever mounting the
+          form — but `stickyBar` below is gated on `!checkoutOpen`, so the
+          bar hid itself with nothing to show for it, AND `checkoutOpen`
+          stayed stuck `true` forever (both `setCheckoutOpen(false)` call
+          sites live inside the branch this state can never reach), so the
+          form popped open unprompted the moment the last piece got
+          painted. */}
       <NextStepPill
         data-testid="sticky-bar-checkout"
         className="shrink-0"
-        label={to("title")}
-        arrow
+        variant={hasUnpainted ? "tertiary" : "primary"}
+        label={hasUnpainted ? t("unpainted.cta", { count: unpaintedInBasket }) : to("title")}
+        arrow={!hasUnpainted}
         onClick={() => {
+          if (hasUnpainted) {
+            focusFirstUnpaintedRow();
+            return;
+          }
           // Giro garanzia: one tap must land the customer IN the form with the
           // keyboard already up — scrolling to a collapsed cart and making them
           // hunt for a second CTA was the complaint. `flushSync` renders the
@@ -1154,9 +1236,15 @@ export function CeramicsStep({
             ?.focus({ preventScroll: true });
         }}
         icon={
-          <PillIcon>
-            <Truck className="size-5 text-primary" />
-          </PillIcon>
+          hasUnpainted ? (
+            <PillIcon variant="tertiary">
+              <Brush className="size-5 text-muted-foreground" />
+            </PillIcon>
+          ) : (
+            <PillIcon>
+              <Truck className="size-5 text-primary" />
+            </PillIcon>
+          )
         }
       />
     </div>
@@ -1376,6 +1464,25 @@ export function CeramicsStep({
           locale={locale}
         />
       )}
+
+      {/* R5-UNPAINTED task 11: the inverse of Paint. Rendered once, at the end
+          of the step, driven by `unpaintId` — same pattern as `ProductSheet`
+          above. `unpaint()` is the pure primitive's context wrapper
+          (use-cart.ts); this component only decides WHEN and with WHAT n. */}
+      <UnpaintDialog
+        line={unpaintLine}
+        locale={locale}
+        onOpenChange={(open) => !open && setUnpaintId(null)}
+        onConfirm={(n) => {
+          if (unpaintLine) unpaint(unpaintLine.id, n);
+          setUnpaintId(null);
+        }}
+        // Fix round 2 (finding 4): confirming removes the row that opened
+        // this dialog (the painted line becomes/joins the unpainted one), so
+        // the dialog's own default focus-return (the row's «Unpaint…»
+        // button) is a silent no-op. Hand focus to the survivor instead.
+        onConfirmed={focusFirstUnpaintedRow}
+      />
 
       {/* §3.20: visible confirmation, replacing the old sr-only announcement.
           The live region is mounted for good and only its content toggles — a

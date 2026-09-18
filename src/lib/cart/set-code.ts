@@ -52,10 +52,12 @@ export function clampQty(qty: number): number {
 /**
  * Encode cart lines into the `set=` param value. Lines without a usable
  * configCode or productSlug are skipped (legacy localStorage rows — the share
- * UI surfaces a "not shareable" notice with the skipped count).
+ * UI surfaces a "not shareable" notice with the skipped count) — the same
+ * `.filter()` below also drops an unpainted line (R5-UNPAINTED: configCode is
+ * `null`, falsy), since a link with no design to reopen isn't shareable either.
  */
 export function encodeSetParam(
-  lines: { configCode: string; productSlug?: string; quantity: number }[]
+  lines: { configCode: string | null; productSlug?: string; quantity: number }[]
 ): string {
   return lines
     .filter(

@@ -216,6 +216,7 @@
     "total": "Totalpris",
     "design": "Design",
     "button": "{count, plural, =0 {Handlekurv, tom} one {Handlekurv, # vare} other {Handlekurv, # varer}}",
+    "buttonUnpainted": "{count, plural, =0 {Handlekurv, tom} one {Handlekurv, # vare} other {Handlekurv, # varer}}, {unpainted, plural, one {# umalt} other {# umalte}}",
     "description": "Se over varene og send bestillingen.",
     "viewBasket": "Vis handlekurv",
     "backToCart": "Tilbake til handlekurven",
@@ -253,7 +254,33 @@
       "collapse": "Skjul detaljer",
       "edit": "Rediger design",
       "ceramic": "Keramikk",
-      "customText": "Tekst"
+      "customText": "Tekst",
+      "config": "Konfigurasjon",
+      "price": "Pris",
+      "code": "Kode",
+      "pieces": "{count, plural, one {# del} other {# deler}}"
+    },
+    "unpainted": {
+      "label": "Umalt",
+      "note": "{count, plural, one {# del er fortsatt umalt} other {# deler er fortsatt umalte}} — velg fargene på raden, og trykk Mal.",
+      "removeAll": "Fjern alle",
+      "paint": "Mal",
+      "cta": "Mal {count} stk først",
+      "paintCount": "Hvor mange å male"
+    },
+    "unpaint": {
+      "action": "Gjør umalt…"
+    },
+    "unpaintDialog": {
+      "eyebrow": "Gjør umalt",
+      "title": "Ta bort fargene — behold keramikken.",
+      "body": "{unit} går tilbake til <b>umalt</b> i handlekurven, samme pris og rabatt. Du kan male dem igjen senere.",
+      "unitPiece": "{count, plural, one {del} other {deler}}",
+      "unitSet": "{count, plural, one {sett} other {sett}}",
+      "howMany": "Hvor mange?",
+      "all": "Alle {n}",
+      "confirm": "Gjør {n} {unit} umalt",
+      "keepPainted": "Behold dem malt"
     },
     "colourBadge": {
       "custom": "Egendefinerte farger",
@@ -287,6 +314,7 @@
     "title": "Bestill",
     "sending": "Sender…",
     "error": "Noe gikk galt. Prøv igjen.",
+    "unpaintedError": "Noen deler i handlekurven er fortsatt umalte — mal dem før du bestiller.",
     "success": "Bestilling sendt!",
     "confirmTitle": "Takk for bestillingen!",
     "confirmLead": "Vi har mottatt bestillingen din. Du får straks en e-post med kvittering og betalingsdetaljer.",
