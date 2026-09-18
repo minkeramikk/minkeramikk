@@ -209,6 +209,7 @@
       "continue": "Fortsett å handle"
     },
     "cartTitle": "Handlekurv",
+    "paintedWith": "ny keramikk males med <b>{name}</b>",
     "empty": "Handlekurven er tom",
     "emptyCta": "Tilbake til konfiguratoren",
     "remove": "Fjern",

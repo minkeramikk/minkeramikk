@@ -10,7 +10,8 @@ import { DesignRound } from "@/components/ui-domain/design-round";
 import { OrderForm } from "@/components/ui-domain/order-form";
 import { PaletteBar } from "@/components/ui-domain/palette-bar";
 import { PaletteChip } from "@/components/ui-domain/palette-chip";
-import { paletteFor } from "@/lib/palettes/palettes";
+import { paletteFor, sortCurrentDesignFirst } from "@/lib/palettes/palettes";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { assetUrl } from "@/lib/storage";
 import { PRODUCT_CARD_WIDTH, PRODUCT_THUMB_WIDTH } from "@/lib/asset-variants";
@@ -363,6 +364,13 @@ export function CeramicsStep({
     // (the shared-set banner), silently losing the customer's own words and
     // the shared basket on every chip tap.
     const params = new URLSearchParams(searchParams.toString());
+    // Fix wave B finding 5 (minor) — `code=` already wins over stale `opt_*`
+    // (page.tsx gives it priority, nothing breaks), but there's no reason to
+    // carry both: a chip tap is a full colour pick, same as `selectDesign` in
+    // configurator-client.tsx dropping `opt_*` on a design change.
+    for (const key of [...params.keys()]) {
+      if (key.startsWith("opt_")) params.delete(key);
+    }
     params.set("code", code);
     params.set("step", "3");
     router.push(`${pathname}?${params.toString()}`);
@@ -372,8 +380,10 @@ export function CeramicsStep({
    * The lane's chips: every saved palette, dim (and inert — card §6, switching
    * design from here is a later card) when it belongs to a different design,
    * else selectable and — if it's the one painting — carrying the brush badge.
+   * Card §4-bis (added mid-PR): the CURRENT design's own palettes lead, the
+   * rest follow dimmed — a stable sort, not a filter, so nothing drops out.
    */
-  const paletteChips = palettes.map((p) => {
+  const paletteChips = sortCurrentDesignFirst(palettes, design.slug).map((p) => {
     const dim = p.designSlug !== design.slug;
     if (dim) {
       return (
@@ -1084,7 +1094,26 @@ export function CeramicsStep({
   // ── Docked cart panel (shared by desktop right column + mobile inline section) ──
   const cartPanel = (
     <div className="flex flex-col gap-0" data-testid="docked-cart">
-      <h2 className="mb-3 text-base font-semibold">{t("cartTitle")}</h2>
+      <div className="mb-1 flex items-baseline justify-between gap-2">
+        <h2 className="text-base font-semibold">{t("cartTitle")}</h2>
+        {/* Fix wave B finding 3 — mockup `#s3a`'s header line, the
+            replacement for the removed "Ditt valg" box (task 9): says what a
+            NEW ceramic added right now gets painted with. Falls back to the
+            on-screen config's own name — the exact default `rowThumb` above
+            already uses for an untouched row — so this never prints nothing,
+            or "undefined", with no palette saved yet (the state every
+            customer starts in). Hidden with the box's own rule (AC4) when
+            there's no config at all yet (a bare `?set=` landing).
+            TODO:nb-review — cart.paintedWith NO copy is new, unreviewed. */}
+        {hasConfig && (
+          <span className="text-xs text-muted-foreground">
+            {t.rich("paintedWith", {
+              name: activePalette?.name ?? designName,
+              b: (chunks) => <b className="font-semibold text-foreground">{chunks}</b>,
+            })}
+          </span>
+        )}
+      </div>
 
       {/* R5-UNPAINTED task 9: explicit, no button inside — Paint lives on the
           row itself (task 10). Pieces, not lines, like the header marker.
@@ -1484,9 +1513,16 @@ export function CeramicsStep({
   return (
     <div
       data-testid="ceramics-step"
-      // The bar is `fixed`, so it sits ON the page: without this the last rows
-      // of the order block stay under it and the CTA is unreachable.
-      className={showStickyBar ? "pb-24 md:pb-0" : undefined}
+      className={cn(
+        // The bar is `fixed`, so it sits ON the page: without this the last rows
+        // of the order block stay under it and the CTA is unreachable.
+        showStickyBar && "pb-24 md:pb-0",
+        // Fix wave B finding 5 (minor) — same gap as step 2's own
+        // `data-testid="configurator"`: no `scroll-margin-top` anywhere, so a
+        // keyboard-focused control lands under this step's own sticky
+        // `PaletteBar` (69px, desktop only).
+        "md:[&_*:focus-visible]:scroll-mt-[69px]"
+      )}
     >
       {/* R5-PALETTES task 9: the paint-mode bar, desktop only — mobile gets its
           own «Palettes» tab in a later card, same split step 2 made (task 8).

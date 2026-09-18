@@ -210,6 +210,7 @@
       "continue": "Keep shopping"
     },
     "cartTitle": "Basket",
+    "paintedWith": "new ceramics come painted with <b>{name}</b>",
     "empty": "Your basket is empty",
     "emptyCta": "Back to the configurator",
     "remove": "Remove",
