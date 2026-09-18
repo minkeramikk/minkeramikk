@@ -146,11 +146,16 @@ export function CartLineRow({
                   {line.layers && line.layers.length > 0 && (
                     <DesignRound layers={line.layers} className="size-4 rounded-sm" />
                   )}
-                  {/* `min-w-0 truncate`: a long single-token design name
-                      (no spaces to wrap on) could otherwise push this
-                      metadata line past the 290px body column at 390 —
-                      matches its `· {formatSelections(...)}` sibling below. */}
-                  <span className="min-w-0 truncate font-medium text-foreground">
+                  {/* Fix round 3 (coordinator) — the name is the row's
+                      IDENTITY, the colour list below is its detail: give the
+                      name priority instead of splitting the shrink evenly
+                      (that read as "Amalf…" next to a fully-spelled colour
+                      list, backwards). `shrink-0` + a `max-w` cap: it never
+                      gives up space to its `flex-1` sibling below, but an
+                      absurd single-token name still can't eat the whole
+                      line — `truncate` is the last resort, not the everyday
+                      path. */}
+                  <span className="max-w-[14ch] shrink-0 truncate font-medium text-foreground">
                     {designLabel(line.configSnapshot, locale) ?? "—"}
                   </span>
                   {line.configSnapshot && line.configSnapshot.selections.some((s) => s.hex) && (
@@ -168,14 +173,15 @@ export function CartLineRow({
                     </span>
                   )}
                   {line.configSnapshot && (
-                    // `min-w-0`: same bug class as the chip's — `truncate`
-                    // alone doesn't shrink a nowrap flex item below its own
-                    // content width, so a design with many categories
-                    // (`formatSelections` can run long — see the chip's own
-                    // comment above) would otherwise push this whole info
-                    // line wider than the body column, same as the chip did
-                    // before it had one.
-                    <span className="min-w-0 truncate">
+                    // Fix round 3 (coordinator) — this is the row's DETAIL,
+                    // not its identity (see the name span above): `flex-1`
+                    // so it's the one that absorbs/gives up space, `min-w-0`
+                    // so it can actually shrink below its own content width
+                    // (same bug class as the chip's), `truncate` as the
+                    // visible result when a design with many categories
+                    // (`formatSelections` can run long) doesn't fit next to
+                    // the now-protected name.
+                    <span className="min-w-0 flex-1 truncate">
                       · {formatSelections(line.configSnapshot.selections, locale)}
                     </span>
                   )}
