@@ -373,6 +373,10 @@
       "paintHintSaved": "Trykk på en chip for å bytte",
       "save": "Lagre som palett",
       "new": "Ny palett"
+    },
+    "sheet": {
+      "trigger": "Paletter",
+      "newHint": "åpner steg 2"
     }
   }
 }

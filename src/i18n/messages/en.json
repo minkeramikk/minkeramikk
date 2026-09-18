@@ -374,6 +374,10 @@
       "paintHintSaved": "Tap a chip to switch",
       "save": "Save as palette",
       "new": "New palette"
+    },
+    "sheet": {
+      "trigger": "Palettes",
+      "newHint": "opens step 2"
     }
   }
 }

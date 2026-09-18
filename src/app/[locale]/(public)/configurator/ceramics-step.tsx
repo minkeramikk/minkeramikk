@@ -10,6 +10,7 @@ import { DesignRound } from "@/components/ui-domain/design-round";
 import { OrderForm } from "@/components/ui-domain/order-form";
 import { PaletteBar } from "@/components/ui-domain/palette-bar";
 import { PaletteChip } from "@/components/ui-domain/palette-chip";
+import { PaletteSheet } from "@/components/ui-domain/palette-sheet";
 import { nameFor, paletteFor, sortCurrentDesignFirst } from "@/lib/palettes/palettes";
 import type { PaletteWords } from "@/lib/palettes/name-lists";
 import { cn } from "@/lib/utils";
@@ -49,7 +50,6 @@ import {
   type TypedAttribute,
 } from "@/lib/catalog/product-attributes";
 import { groupBySeries } from "@/lib/configurator/product-series";
-import { formatSelections } from "@/lib/configurator/readable-selections";
 import { Truck, Plus, ArrowUpRight, Brush } from "lucide-react";
 import type { ResolvedSharedSet } from "./resolve-shared-set";
 import { ProductSheet } from "@/components/ui-domain/product-sheet";
@@ -266,6 +266,7 @@ export function CeramicsStep({
   const to = useTranslations("order");
   const ta = useTranslations("actions");
   const tPaletteBar = useTranslations("palettes.bar");
+  const tSheet = useTranslations("palettes.sheet");
   const locale = useLocale() as "no" | "en";
   const router = useRouter();
   const pathname = usePathname();
@@ -349,6 +350,9 @@ export function CeramicsStep({
   const [renamingPaletteCode, setRenamingPaletteCode] = useState<string | null>(
     null
   );
+  /** R5-PALETTES task 13 — the mobile strip's own "Palettes ▾" sheet, the
+   *  `md:hidden` stand-in for the desktop bar's always-visible chip lane. */
+  const [paletteSheetOpen, setPaletteSheetOpen] = useState(false);
   useEffect(() => {
     if (!palettesHydrated) return;
     if (activePalette) {
@@ -395,6 +399,14 @@ export function CeramicsStep({
     params.set("code", code);
     params.set("step", "3");
     router.push(`${pathname}?${params.toString()}`);
+  }
+
+  /** The sheet's own tile pick: same effect as a chip tap (`paintWith`), plus
+   *  closing the sheet — same rule the row picker already follows ("Mockup
+   *  `selPal`: choosing one closes the picker", a few hundred lines below). */
+  function paintWithFromSheet(code: string) {
+    paintWith(code);
+    setPaletteSheetOpen(false);
   }
 
   /**
@@ -1450,31 +1462,55 @@ export function CeramicsStep({
 
   // R5-PALETTES task 9: the desktop "Ditt valg" box is GONE — the PaletteBar
   // above the step now says which palette is painting (mockup `#s3a`'s option
-  // A carries no such card in the basket column; the bar replaces it). The
-  // mobile strip below is untouched — it becomes "Painting with" in a later
-  // PR, not this one.
-
-  // F37 ①: mobile strip — compact, IN-FLOW (never fixed), an entry-point anchor
-  // under the title. Options abbreviated (no labels). Scrolls away with content.
-  const yourSelectionStrip = hasConfig && (
+  // A carries no such card in the basket column; the bar replaces it).
+  //
+  // R5-PALETTES task 13: the mobile strip below WAS that box's phone twin
+  // (design + selected options, an "Edit" shortcut) — it becomes the
+  // mockup's `MobStrip` instead: the bar's own job (name what's painting),
+  // not the design's. `sticky top-14`, unlike the desktop bar's `sticky
+  // top-0` (task 8's own fix): the mobile header IS sticky
+  // (site-header.tsx, `max-md:sticky max-md:top-0`, h-14), so `top-14` here
+  // is the mockup's own value, unmodified — it only needed adjusting for
+  // the desktop bar, whose header never sticks at all.
+  const paintingStrip = hasConfig && (
     <div
       data-testid="step3-your-selection-strip"
-      className="mb-3.5 flex items-center gap-2.5 rounded-sm border border-border border-l-[3px] border-l-primary bg-card px-3 py-1.5 md:hidden"
+      // `-mx-5 px-4`: cancel `main`'s own `px-5` (public-shell.tsx) and
+      // re-pad with the mockup's own value — same full-bleed trick as the
+      // desktop bar's `-mx-5`, needed here too: the mockup's strip runs
+      // edge-to-edge, not boxed like the card this replaces.
+      className="sticky top-14 z-30 -mx-5 mb-3.5 flex items-center gap-2.5 border-b border-border bg-[var(--mk-canvas)] px-4 py-2 md:hidden"
     >
       <DesignRound layers={designLayers} className="size-9" />
-      <div className="min-w-0">
-        <p className="truncate text-xs font-semibold">{designName}</p>
-        <p className="truncate text-[10.5px] text-muted-foreground">
-          {formatSelections(snapshot.selections, locale)}
+      {/* `paintingLabel`, not a second computation — the one name for
+          "what's painting" this file already settled on (TL follow-up,
+          same variable the bar's own chip and the basket header read). */}
+      <div className="min-w-0 leading-tight">
+        <p className="text-[10px] uppercase tracking-[0.06em] text-muted-foreground">
+          {tPaletteBar("eyebrowPaint")}
+        </p>
+        <p className="truncate text-[13.5px] font-semibold">
+          {paintingLabel}{" "}
+          <span className="font-normal text-muted-foreground">· {designName}</span>
         </p>
       </div>
       <button
         type="button"
-        data-testid="your-selection-edit-mobile"
-        onClick={() => goToStep(2)}
-        className="ml-auto flex min-h-11 shrink-0 items-center text-[11.5px] font-semibold text-primary hover:underline"
+        data-testid="palette-sheet-trigger"
+        onClick={() => setPaletteSheetOpen(true)}
+        aria-expanded={paletteSheetOpen}
+        // `min-h-11 sm:min-h-9`: same touch-target rescue as `PaletteChip`'s
+        // select button (task 13's carried-in fix) — the mockup's own `h-9`
+        // (36px) is a mouse-era size, kept only from `sm` up.
+        className={cn(
+          "ml-auto flex min-h-11 shrink-0 items-center gap-1 rounded-full border bg-card px-3 text-[12.5px] font-medium sm:min-h-9",
+          paletteSheetOpen ? "border-primary shadow-[0_0_0_1px_var(--ring)]" : "border-border"
+        )}
       >
-        {tc("yourSelection.editShort")} ›
+        {tSheet("trigger")}
+        <span aria-hidden className="text-muted-foreground">
+          {paletteSheetOpen ? "▴" : "▾"}
+        </span>
       </button>
     </div>
   );
@@ -1764,7 +1800,7 @@ export function CeramicsStep({
           </p>
           <h2 className="mb-4 mt-1 text-xl font-semibold">{t("title")}</h2>
 
-          {yourSelectionStrip}
+          {paintingStrip}
 
           {/* §3.18: one section per series, 22px apart; 2 cols / gap-2.5 under
               960px, 3 cols / gap-3 from 960px. */}
@@ -1860,6 +1896,29 @@ export function CeramicsStep({
           locale={locale}
         />
       )}
+
+      {/* R5-PALETTES task 13 — the mobile strip's own "Palettes ▾" sheet.
+          Same pattern as `ProductSheet` above: mounted for good, driven by
+          `paletteSheetOpen`, so it can play its own exit animation instead
+          of unmounting mid-transition. */}
+      <PaletteSheet
+        open={paletteSheetOpen}
+        onOpenChange={setPaletteSheetOpen}
+        palettes={palettes}
+        currentDesignSlug={design.slug}
+        activeCode={activePalette?.code ?? null}
+        draft={!activePalette}
+        locale={locale}
+        onPick={paintWithFromSheet}
+        onNewPalette={() => {
+          setPaletteSheetOpen(false);
+          goToStep(2);
+        }}
+        onSaveDraft={() => {
+          saveDraftAsPalette();
+          setPaletteSheetOpen(false);
+        }}
+      />
 
       {/* R5-UNPAINTED task 11: the inverse of Paint. Rendered once, at the end
           of the step, driven by `unpaintId` — same pattern as `ProductSheet`
