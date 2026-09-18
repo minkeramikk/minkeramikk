@@ -23,12 +23,26 @@ type PaletteBarProps = (
   chips: ReactNode;
   /** Right-hand slot, outside the scrolling lane — e.g. "Save as palette". */
   extra?: ReactNode;
-  /** Sticks the bar under the site header (`top-14`, matches its `h-14`). Off for
-   *  static/side-by-side previews (mirrors the mockup's own `sticky=false` default). */
+  /** Sticks the bar at the very top of the viewport. Off for static/side-by-side
+   *  previews (mirrors the mockup's own `sticky=false` default). */
   sticky?: boolean;
+  /** Extra classes on the root — e.g. task 8's `md:-mx-5 md:-mt-7` full-bleed
+   *  trick against `main`'s padding. MUST land on this root, not a wrapper:
+   *  `position: sticky` only has room to hold while scrolling as long as its
+   *  OWN parent is taller than it is — a wrapper sized to just this bar (its
+   *  only child) gives it zero such room, so it would unstick the instant it
+   *  arrives at `top`, instead of staying pinned for the rest of the scroll. */
+  className?: string;
 };
 
-export function PaletteBar({ mode, count, chips, extra, sticky = false }: PaletteBarProps) {
+export function PaletteBar({
+  mode,
+  count,
+  chips,
+  extra,
+  sticky = false,
+  className,
+}: PaletteBarProps) {
   // TODO:nb-review — palettes.bar.* NO copy is new, unreviewed (no live-site source: R5-PALETTES).
   const t = useTranslations("palettes.bar");
   const eyebrow = mode === "manage" ? t("eyebrowManage") : t("eyebrowPaint");
@@ -39,8 +53,18 @@ export function PaletteBar({ mode, count, chips, extra, sticky = false }: Palett
     <div
       data-testid="palette-bar"
       className={cn(
-        sticky && "sticky top-14 z-30",
-        "border-b border-border bg-[var(--mk-canvas)] shadow-[0_1px_0_var(--border)]"
+        // R5-PALETTES task 8: `top-0`, NOT `top-14` — the mockup's `top-14`
+        // assumes a sticky site header, which this site only has on mobile
+        // (site-header.tsx:15, `max-md:sticky` — R2-6 C, desktop chrome
+        // unchanged). On desktop the header scrolls away with the page, so
+        // pinning this bar at the true viewport top is what keeps it "under
+        // the header" once scrolled — before any scroll it already sits
+        // there in normal flow (the caller places it right after the
+        // header). See progress.md's PR-2 ruling for the caller-side offset
+        // this implies (configurator-client.tsx's preview column).
+        sticky && "sticky top-0 z-30",
+        "border-b border-border bg-[var(--mk-canvas)] shadow-[0_1px_0_var(--border)]",
+        className
       )}
     >
       <div className="mx-auto flex h-[68px] max-w-[1060px] items-center gap-3 px-5">

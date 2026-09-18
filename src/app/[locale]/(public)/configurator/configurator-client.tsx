@@ -48,6 +48,11 @@ import { MAX_CUSTOM_TEXT } from "@/lib/orders/schema";
 import { cn } from "@/lib/utils";
 import type { DesignDetail } from "@/lib/catalog/design-options";
 import type { PreviewLayer } from "@/lib/configurator/preview";
+import { useCartContext } from "@/lib/cart/cart-context";
+import { buildConfigLinePayload } from "@/lib/configurator/line-payload";
+import { nameFor, paletteFor } from "@/lib/palettes/palettes";
+import { PaletteBar } from "@/components/ui-domain/palette-bar";
+import { PaletteChip } from "@/components/ui-domain/palette-chip";
 
 /** Pagina di ispirazione del cliente (fuori sito, apre in nuova scheda). */
 const INSPIRATION_URL = "https://www.minkeramikk.no/inspirasjon";
@@ -516,6 +521,54 @@ export function ConfiguratorClient({
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
   }, [searchParams, codecDesigns, pathname, router]);
 
+  // ── R5-PALETTES task 8: the manage bar (step 2, desktop) ──
+  // One `usePalettes()` instance for the whole tab, shared via CartProvider
+  // (cart-context.tsx) with the header/step 3 — this screen never touches
+  // localStorage directly.
+  const tPaletteBar = useTranslations("palettes.bar");
+  const { palettes, setActiveCode, save: savePalette, rename: renamePalette } =
+    useCartContext();
+  // The DRAFT is exactly what step 3 would turn into a cart line: same
+  // builder, same inputs (card §3). No note/text carried in — a palette is a
+  // set of COLOURS, and neither one ever enters the config code either
+  // (F38/R2-2b), so they can't change which saved palette this matches.
+  const draftPayload = useMemo(
+    () => buildConfigLinePayload(detail, selections),
+    [detail, selections]
+  );
+  const draftCode = draftPayload.configCode;
+  // The chip that represents "what's on screen right now" — either the
+  // unsaved draft (no match) or an already-saved palette (match). Never
+  // both: showing the same colours twice in the lane would be noise, not
+  // information (card §3/§4-bis).
+  const matchedPalette = paletteFor(palettes, draftCode);
+  const [renamingPaletteCode, setRenamingPaletteCode] = useState<string | null>(
+    null
+  );
+
+  function saveDraftAsPalette() {
+    const now = Date.now();
+    savePalette({
+      code: draftCode,
+      name: nameFor(draftCode, draftPayload.snapshot),
+      designSlug: selected.slug,
+      snapshot: draftPayload.snapshot,
+      layers: draftPayload.designLayers,
+      createdAt: now,
+      usedAt: now,
+    });
+    setActiveCode(draftCode);
+  }
+
+  // Card §C3: a saved chip of THIS design loads by NAVIGATING — step 2's
+  // selections live in the URL (`resolveSelections`), and the `?code=` decode
+  // effect above is the one and only place that turns a code into `opt_*`
+  // params. Setting local state here would be a second, competing source of
+  // truth for the same thing.
+  function loadPalette(code: string) {
+    router.push(`/configurator?code=${code}&step=2`);
+  }
+
   function selectDesign(d: DesignChoice) {
     if (d.slug === selected.slug) return;
     const params = new URLSearchParams(searchParams.toString());
@@ -653,11 +706,112 @@ export function ConfiguratorClient({
     setNoteMode(order[next]);
   }
 
+  // R5-PALETTES task 8: the lane's chips, leading with "what's on screen"
+  // (draft or, if it matches a save, that save shown active/renamable),
+  // then every OTHER saved palette — dim when it belongs to a different
+  // design (card §6: switching design from a dim chip is a later card, so
+  // it stays inert here, no onSelect).
+  const otherPaletteChips = palettes
+    .filter((p) => p.code !== matchedPalette?.code)
+    .map((p) => {
+      const dim = p.designSlug !== selected.slug;
+      if (dim) {
+        const dimDesign = designs.find((d) => d.slug === p.designSlug);
+        return (
+          <PaletteChip
+            key={p.code}
+            code={p.code}
+            name={p.name}
+            layers={p.layers}
+            dim
+            dimDesignName={dimDesign ? designName(dimDesign) : p.designSlug}
+          />
+        );
+      }
+      return (
+        <PaletteChip
+          key={p.code}
+          code={p.code}
+          name={p.name}
+          layers={p.layers}
+          onSelect={() => loadPalette(p.code)}
+        />
+      );
+    });
+  const leadPaletteChip = matchedPalette ? (
+    <PaletteChip
+      key={matchedPalette.code}
+      code={matchedPalette.code}
+      name={matchedPalette.name}
+      layers={matchedPalette.layers}
+      active
+      renaming={renamingPaletteCode === matchedPalette.code}
+      onRenameStart={() => setRenamingPaletteCode(matchedPalette.code)}
+      onRenameConfirm={(next) => {
+        renamePalette(matchedPalette.code, next);
+        setRenamingPaletteCode(null);
+      }}
+      onRenameCancel={() => setRenamingPaletteCode(null)}
+    />
+  ) : (
+    <PaletteChip
+      key="draft"
+      code={draftCode}
+      name={nameFor(draftCode, draftPayload.snapshot)}
+      layers={draftPayload.designLayers}
+      draft
+    />
+  );
+
   return (
     // R4-RESTYLE: no `data-editor` hook and no height chain — the globals.css
     // block that locked the viewport is gone. Under md step 2 is an ordinary
     // page scroller whose canvas is `position: sticky`.
     <div data-testid="configurator">
+      {/* R5-PALETTES task 8: desktop only (mobile gets its own «Palettes» tab
+          in a later card — mockup `#sM`). `main` (public-shell.tsx) wraps
+          every page in `px-5 py-7`; `-mx-5 -mt-7` cancels exactly that so the
+          bar sits flush under the header before any scroll, full width of
+          the page's own max-w column — the closest this file can get to the
+          mockup's bar (which sits OUTSIDE `<main>` entirely) without
+          touching the shared shell for one screen. `sticky top-0` (not
+          `top-14`, see palette-bar.tsx) is what then pins it once scrolled:
+          the desktop site header is NOT sticky (site-header.tsx:15,
+          `max-md:sticky` — R2-6 C, desktop chrome unchanged), so `top-14`
+          would park the bar 56px below the viewport top with page content
+          showing above it.
+          The classes go on `PaletteBar` itself via `className`, NOT a
+          wrapper div around it: a sticky element only stays pinned for as
+          long as its OWN parent is taller than it is, and this component's
+          parent here is `data-testid="configurator"` — the whole step's
+          height — not a div sized to just the bar. Wrapping it would give it
+          zero scroll room and unstick it the instant it reached `top-0`. */}
+      {step === 2 && (
+        <PaletteBar
+          mode="manage"
+          count={palettes.length}
+          sticky
+          className="hidden md:-mx-5 md:-mt-7 md:mb-6 md:block"
+          chips={
+            <>
+              {leadPaletteChip}
+              {otherPaletteChips}
+            </>
+          }
+          extra={
+            !matchedPalette && (
+              <button
+                type="button"
+                onClick={saveDraftAsPalette}
+                className="ml-auto flex h-12 shrink-0 items-center gap-2 rounded-full border-2 border-primary bg-primary/10 px-5 text-[13.5px] font-semibold hover:bg-primary/20"
+              >
+                {tPaletteBar("save")}
+              </button>
+            )
+          }
+        />
+      )}
+
       {/* CA-2: the top cluster holds ONLY the stepper (orientation + step
           jumps, F18). The advance/back CTAs live in-flow at the END of the
           options column — no climb back to the top on desktop. Decision closed
@@ -792,14 +946,15 @@ export function ConfiguratorClient({
         <div
           data-preview-column
           className={cn(
-            // R5-PALETTES tasks 6/7: `top-4` assumed only the `h-14` ink header
-            // above it. Once a PaletteBar (§3.28, 68px, itself `sticky top-14`)
-            // sits between the header and this column, `top-4` would park the
-            // canvas BEHIND the bar instead of under it — so the offset is the
-            // header height + the bar height + the original 1rem gap. The bar
-            // itself isn't wired into this screen yet (later task); this is
-            // only the offset the desktop preview column needs once it is.
-            "z-30 flex min-w-0 flex-col gap-3 md:sticky md:top-[calc(3.5rem+68px+1rem)] md:self-start",
+            // R5-PALETTES task 8: the PaletteBar above (68px) is now wired in
+            // and, on desktop, sticks at `top-0` — NOT `top-14` — because the
+            // desktop site header isn't sticky at all (site-header.tsx:15,
+            // `max-md:sticky` only — R2-6 C). So there is no header height to
+            // add here: the offset is just the bar's own height plus the
+            // original 1rem gap. (Tasks 6/7 shipped `calc(3.5rem+68px+1rem)`,
+            // assuming a sticky header like the mockup patches in — wrong on
+            // this site; see progress.md's PR-2 ruling.)
+            "z-30 flex min-w-0 flex-col gap-3 md:sticky md:top-[calc(68px+1rem)] md:self-start",
             // CA-7 (variant B): design-first on mobile step 1 — the hero is
             // hidden entirely (the design cards double as the preview). It stays
             // MOUNTED (display:none only) so the same PreviewCanvas instance

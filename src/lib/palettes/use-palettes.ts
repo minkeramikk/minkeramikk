@@ -71,9 +71,26 @@ export function usePalettes() {
     setActiveCodeState(code);
   }, []);
 
-  const save = useCallback((p: Palette) => {
-    setPalettes((list) => savePalette(list, p));
-  }, []);
+  const save = useCallback(
+    (p: Palette) => {
+      // Computed OUTSIDE the setState updater (unlike `rename`/`touch` below)
+      // and written to `window` right here — not inside the updater — because
+      // React 18 Strict Mode double-invokes an updater function in dev to
+      // surface side effects, and a localStorage write is exactly the side
+      // effect it's looking for. Same shape as `use-cart.ts`'s `clear()`.
+      const next = savePalette(palettes, p);
+      setPalettes(next);
+      // Persist SYNCHRONOUSLY: the effect above writes on the NEXT render,
+      // but step 2's "Save as palette" can be followed by a `router.push`
+      // (Next, or a chip tap) before that render happens — the navigation
+      // would unmount this hook first, dropping the save. Carried from PR
+      // 1's review (task 8 step 2).
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem(LIST_KEY, JSON.stringify(next));
+      }
+    },
+    [palettes]
+  );
   const rename = useCallback((code: string, name: string) => {
     setPalettes((list) => renamePalette(list, code, name));
   }, []);

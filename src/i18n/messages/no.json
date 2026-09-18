@@ -360,7 +360,8 @@
       "eyebrowManage": "Dine paletter",
       "eyebrowPaint": "Maler med",
       "manageCount": "{count} av {max} lagret",
-      "paintHint": "Trykk på en rad · eller legg til"
+      "paintHint": "Trykk på en rad · eller legg til",
+      "save": "Lagre som palett"
     }
   }
 }

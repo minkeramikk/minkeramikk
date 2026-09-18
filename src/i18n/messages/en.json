@@ -361,7 +361,8 @@
       "eyebrowManage": "Your palettes",
       "eyebrowPaint": "Painting with",
       "manageCount": "{count} of {max} saved",
-      "paintHint": "Tap a row · or add"
+      "paintHint": "Tap a row · or add",
+      "save": "Save as palette"
     }
   }
 }
