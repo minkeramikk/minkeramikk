@@ -578,7 +578,18 @@ export function ConfiguratorClient({
   // params. Setting local state here would be a second, competing source of
   // truth for the same thing.
   function loadPalette(code: string) {
-    router.push(`/configurator?code=${code}&step=2`);
+    // Fix wave A finding 1: same bug as step 3's `paintWith` — a from-scratch
+    // URL was dropping every other param, `design=` included. The `?code=`
+    // decode effect above sets `design` from the code, but only AFTER a
+    // render with the OLD `design` param (or none) has already run, and that
+    // render falls back to `designs[0]` — resetting `noteText`/`customText`/
+    // `activeTab` through the effects keyed on the design, losing note=/text=
+    // for good on any design that isn't first by sort order. Building from
+    // the current params (like `goToStep` does) keeps `design=` in place.
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("code", code);
+    params.set("step", "2");
+    router.push(`${pathname}?${params.toString()}`);
   }
 
   function selectDesign(d: DesignChoice) {
