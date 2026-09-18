@@ -1,7 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { renamePalette, savePalette, touchPalette, type Palette } from "./palettes";
+import {
+  deletePalette,
+  renamePalette,
+  savePalette,
+  touchPalette,
+  type Palette,
+} from "./palettes";
 
 const LIST_KEY = "mk-palettes-v1";
 const ACTIVE_KEY = "mk-palette-active-v1";
@@ -103,6 +109,14 @@ export function usePalettes() {
   const touch = useCallback((code: string, at: number) => {
     setPalettes((list) => touchPalette(list, code, at));
   }, []);
+  // No confirmation here either — `deletePalette` itself carries the WHY
+  // (a palette is a deterministic function of its colours, nothing is lost).
+  // `activeCode` needs no special-casing on delete: the consumers that read
+  // it (ceramics-step.tsx) already resolve it through `paletteFor` on every
+  // render and fall back the moment it stops matching a live palette.
+  const remove = useCallback((code: string) => {
+    setPalettes((list) => deletePalette(list, code));
+  }, []);
 
-  return { palettes, palettesHydrated, activeCode, setActiveCode, save, rename, touch };
+  return { palettes, palettesHydrated, activeCode, setActiveCode, save, rename, touch, remove };
 }

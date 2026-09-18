@@ -3,6 +3,7 @@ import {
   savePalette,
   renamePalette,
   touchPalette,
+  deletePalette,
   paletteFor,
   paletteFamily,
   nameFor,
@@ -60,6 +61,30 @@ describe("palette store", () => {
     savePalette(list, make("B"));
     renamePalette(list, "A", "X");
     touchPalette(list, "A", 5);
+    expect(list).toEqual(copy);
+  });
+});
+
+describe("deletePalette", () => {
+  it("removes by code", () => {
+    const list = savePalette([], make("A"));
+    expect(deletePalette(list, "A")).toEqual([]);
+  });
+
+  it("leaves the rest in order", () => {
+    const list = [make("A"), make("B"), make("C")];
+    expect(deletePalette(list, "B").map((p) => p.code)).toEqual(["A", "C"]);
+  });
+
+  it("is a no-op for a code that is not there", () => {
+    const list = [make("A")];
+    expect(deletePalette(list, "NOPE")).toEqual(list);
+  });
+
+  it("never mutates its input", () => {
+    const list = [make("A"), make("B")];
+    const copy = structuredClone(list);
+    deletePalette(list, "A");
     expect(list).toEqual(copy);
   });
 });

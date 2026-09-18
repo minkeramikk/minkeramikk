@@ -63,6 +63,20 @@ export function paletteFor(list: Palette[], code: string): Palette | null {
 }
 
 /**
+ * Delete a palette by code. No confirmation dialog anywhere this is called
+ * from (TL ruling, R5-PALETTES follow-up): a palette is a deterministic
+ * function of its colours (`nameFor`/the code itself), so deleting one loses
+ * nothing that re-picking the same colours wouldn't reproduce with the same
+ * name — same reasoning `renamePalette` already leans on to skip a confirm
+ * step. A code not in the list is a no-op (e.g. a cross-tab delete already
+ * removed it) — returns the SAME reference, like `renamePalette` does for a
+ * blank name, so callers can cheaply tell nothing changed.
+ */
+export function deletePalette(list: Palette[], code: string): Palette[] {
+  return list.some((p) => p.code === code) ? list.filter((p) => p.code !== code) : list;
+}
+
+/**
  * Card §4-bis, "Aggiunto in corsa alla PR 2" (18/9): everywhere a list of
  * palettes renders — bar, tab, Sheet — the current design's own palettes
  * lead, every other design's follow (dimmed by the caller, not dropped
