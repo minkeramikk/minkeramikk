@@ -5,7 +5,7 @@ import { Brush, Eraser, Trash2 } from "lucide-react";
 import { CartLineThumb } from "@/components/ui-domain/cart-line-thumb";
 import { DesignRound } from "@/components/ui-domain/design-round";
 import { SetBadge } from "@/components/ui-domain/set-badge";
-import { formatMoney } from "@/lib/money/money";
+import { formatMoney, money } from "@/lib/money/money";
 import { designLabel, type CartLayer, type CartLine } from "@/lib/cart/cart";
 import { formatSelections } from "@/lib/configurator/readable-selections";
 import type { LineDiscount } from "@/lib/discounts/discount";
@@ -36,12 +36,10 @@ export function thumbHex(line: CartLine): string | undefined {
  * arrives here as `n`/`onN`, so this stays a pure render of whatever the
  * parent's cart state is right now.
  *
- * One gap is left on purpose for the next card:
- * - the details panel (task 12 — a new step-3 drilldown, NOT CartLineRecap,
- *   which stays legacy-only for the steps 1–2 drawer).
- * A painted line already gets a real quantity stepper and Remove here, and
- * an unpainted one now gets its n/N paint selector, so nothing is unusable
- * between commits.
+ * Task 12 fills the last gap: the details panel below, a step-3-only
+ * drilldown (composed preview + config + ceramic + price) — NOT
+ * `CartLineRecap`, which stays untouched and legacy-only for the steps 1–2
+ * drawer (mockup `Line(r)`'s `open` block, `docs/revision5/mockup-palettebar.html`).
  */
 export function CartLineRow({
   line,
@@ -277,7 +275,102 @@ export function CartLineRow({
             </button>
           </span>
         </div>
-        {/* details — task 12 (new step-3 drilldown; not CartLineRecap) */}
+        {/* Task 12 — step-3-only drilldown (mockup `open` block). `!unpainted`
+            is belt-and-braces: the toggle button above never renders for an
+            unpainted row, so `open` can't really be true here, but a line's
+            id changes shape on paint/unpaint (see class comment) and this
+            keeps the panel from ever reading a null `configSnapshot`.
+            TODO:nb-review — cart.line.config / cart.line.price NO copy is new,
+            unreviewed (same batch as unpainted.cta below). */}
+        {open && !unpainted && line.configSnapshot && (
+          <div
+            data-testid="cart-line-details"
+            className="col-span-3 mt-2 grid grid-cols-[112px_1fr] gap-4 rounded-sm border border-primary/30 bg-card/60 p-3"
+          >
+            {/* Composed preview, same compositing as CartLineThumb/CartLineRecap
+                (multiply-blend the recolour layers) at the mockup's size-28 —
+                this card's own preview, not a reuse of CartLineRecap's size-52. */}
+            <span
+              aria-hidden
+              className="relative block size-28 overflow-hidden rounded-md border border-border bg-[var(--mk-canvas)]"
+            >
+              {(line.layers ?? []).map((l, i) => (
+                // eslint-disable-next-line @next/next/no-img-element -- composited catalog art from storage
+                <img
+                  key={`${l.src}-${i}`}
+                  src={l.src}
+                  alt=""
+                  className="absolute inset-0 size-full object-contain"
+                  style={l.recolor ? { mixBlendMode: "multiply" } : undefined}
+                />
+              ))}
+            </span>
+
+            <dl className="grid grid-cols-[auto_1fr] content-start gap-x-3 gap-y-1.5 text-xs">
+              <dt className="text-muted-foreground">{t("line.config")}</dt>
+              <dd className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                <span className="font-semibold">
+                  {formatSelections(line.configSnapshot.selections, locale)}
+                </span>
+                {line.configSnapshot.selections
+                  .filter((s) => s.hex)
+                  .map((s) => (
+                    <span
+                      key={s.label}
+                      aria-hidden
+                      data-testid="cart-line-config-dot"
+                      className="size-3 rounded-full border border-black/10"
+                      style={{ background: s.hex ?? undefined }}
+                    />
+                  ))}
+              </dd>
+
+              {/* Text position is card 6's — this row prints the inscription
+                  alone, no position, until that card exists. */}
+              {line.configSnapshot.customText && (
+                <>
+                  <dt className="text-muted-foreground">{t("line.customText")}</dt>
+                  <dd className="min-w-0 font-medium">«{line.configSnapshot.customText}»</dd>
+                </>
+              )}
+
+              <dt className="text-muted-foreground">{t("line.ceramic")}</dt>
+              <dd className="flex flex-wrap items-center gap-1.5 font-medium">
+                {locale === "no" ? line.productNameNo : line.productNameEn}
+                <SetBadge count={line.pieces ?? 1} />
+                <span className="text-muted-foreground">
+                  · {t("unpainted.pieces", { count: (line.pieces ?? 1) * line.quantity })}
+                </span>
+              </dd>
+
+              <dt className="text-muted-foreground">{t("line.price")}</dt>
+              <dd className="flex flex-wrap items-center gap-2">
+                <span className="tabular-nums">
+                  {formatMoney(money(line.unitPriceCents, line.currency), locale)} × {line.quantity}
+                </span>
+                {/* Discount tag: same `--discount` recipe as `CartLinePrice`
+                    (cart-discount-row.tsx) — read for the colours, not
+                    reinvented, per the card's own instruction; that file is
+                    untouched. Only when the line is actually discounted. */}
+                {d.pct > 0 && (
+                  <span
+                    data-testid="cart-line-details-discount"
+                    className="inline-flex items-center rounded-full px-2 py-0.5 text-[10.5px] font-semibold whitespace-nowrap"
+                    style={{
+                      backgroundColor: "color-mix(in oklab, var(--discount) 16%, white)",
+                      color: "color-mix(in oklab, var(--discount), black 34%)",
+                      border: "1px solid color-mix(in oklab, var(--discount) 38%, white)",
+                    }}
+                  >
+                    {d.coveredQty < d.quantity
+                      ? t("discount.badgeCapped", { pct: d.pct, qty: d.coveredQty })
+                      : t("discount.badge", { pct: d.pct })}
+                  </span>
+                )}
+              </dd>
+            </dl>
+          </div>
+        )}
       </div>
     </div>
   );
