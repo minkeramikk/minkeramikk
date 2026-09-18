@@ -1,5 +1,6 @@
 "use client";
 
+import { useId } from "react";
 import { useTranslations } from "next-intl";
 import { Brush, Eraser, Trash2 } from "lucide-react";
 import { CartLineThumb } from "@/components/ui-domain/cart-line-thumb";
@@ -119,6 +120,10 @@ export function CartLineRow({
   // TODO:nb-review — cart.unpainted.* / cart.unpaint.action NO copy is new,
   // unreviewed (mirrors cart.buttonUnpainted's own "umalt/umalte" wording).
   const t = useTranslations("cart");
+  // Review fix — the picker toggle needs a stable id to point `aria-controls`
+  // at; `useId()` (not the line/cart id) so two rows never collide even if a
+  // line id somehow repeats within one render.
+  const pickerPanelId = useId();
   const unpainted = line.configCode === null;
   /** Does the thumb column hold two images (design over ceramic), or just one? */
   const hasPlate = Boolean(line.plateImage);
@@ -309,8 +314,8 @@ export function CartLineRow({
                   type="button"
                   data-testid="paint-chip"
                   data-code={currentThumb.code}
-                  aria-haspopup="true"
                   aria-expanded={pickerOpen}
+                  aria-controls={pickerPanelId}
                   onClick={onTogglePicker}
                   // `flex-1 min-w-0`: no fixed cap on the label (a magic
                   // number like 32px is a stub, not a label, once the
@@ -484,6 +489,7 @@ export function CartLineRow({
             above), the mockup's own `h-8` only from `lg` (1024px). */}
         {unpainted && pickerOpen && (
           <div
+            id={pickerPanelId}
             role="group"
             aria-label={t("unpainted.pickerLabel")}
             className="col-span-2 mt-1.5 flex flex-wrap items-center gap-1.5 md:col-span-3"
