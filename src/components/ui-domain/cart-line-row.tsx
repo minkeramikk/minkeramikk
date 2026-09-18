@@ -42,6 +42,27 @@ export function thumbHex(line: CartLine): string | undefined {
  * `CartLineRecap`, which stays untouched and legacy-only for the steps 1–2
  * drawer (mockup `Line(r)`'s `open` block, `docs/revision5/mockup-palettebar.html`).
  */
+/**
+ * The line's colours as dots. TL, 18/9: on the row the dots ARE the colours —
+ * spelling the names out next to them only bought a truncation («Amalfi Dyr NO
+ * ●●●● · Esel · Verde…»). The names live one tap away, in the details panel.
+ */
+function Dots({ hexes }: { hexes: string[] }) {
+  if (hexes.length === 0) return null;
+  return (
+    <span className="inline-flex shrink-0 items-center gap-0.5">
+      {hexes.map((hex, i) => (
+        <span
+          key={`${hex}-${i}`}
+          aria-hidden
+          className="size-2.5 rounded-full border border-border"
+          style={{ background: hex }}
+        />
+      ))}
+    </span>
+  );
+}
+
 export function CartLineRow({
   line,
   locale,
@@ -69,7 +90,11 @@ export function CartLineRow({
    *  parent (see class comment above), clamped there to [1, line.quantity]. */
   n: number;
   onN: (next: number) => void;
-  currentThumb: { layers: CartLayer[]; label: string };
+  /** The configuration on screen — what Paint would apply. `label` is the
+   *  DESIGN's name and `hexes` its colours as dots: on a 375px row the dots say
+   *  the colours better than their names do (TL, 18/9), and the names are one
+   *  tap away in the details panel. */
+  currentThumb: { layers: CartLayer[]; label: string; hexes: string[] };
 }) {
   // TODO:nb-review — cart.unpainted.* / cart.unpaint.action NO copy is new,
   // unreviewed (mirrors cart.buttonUnpainted's own "umalt/umalte" wording).
@@ -161,45 +186,17 @@ export function CartLineRow({
                   {line.layers && line.layers.length > 0 && (
                     <DesignRound layers={line.layers} className="size-4 rounded-sm" />
                   )}
-                  {/* Fix round 3 (coordinator) — the name is the row's
-                      IDENTITY, the colour list below is its detail: give the
-                      name priority instead of splitting the shrink evenly
-                      (that read as "Amalf…" next to a fully-spelled colour
-                      list, backwards). `shrink-0` + a `max-w` cap: it never
-                      gives up space to its `flex-1` sibling below, but an
-                      absurd single-token name still can't eat the whole
-                      line — `truncate` is the last resort, not the everyday
-                      path. */}
-                  <span className="max-w-[14ch] shrink-0 truncate font-medium text-foreground">
+                  {/* TL, 18/9: with the colour NAMES gone (see Dots), the name
+                      has the line to itself and only truncates when it is
+                      genuinely too long for the column. */}
+                  <span className="min-w-0 truncate font-medium text-foreground">
                     {designLabel(line.configSnapshot, locale) ?? "—"}
                   </span>
-                  {line.configSnapshot && line.configSnapshot.selections.some((s) => s.hex) && (
-                    <span className="inline-flex shrink-0 items-center gap-0.5">
-                      {line.configSnapshot.selections
-                        .filter((s) => s.hex)
-                        .map((s) => (
-                          <span
-                            key={s.label}
-                            aria-hidden
-                            className="size-2.5 rounded-full border border-border"
-                            style={{ background: s.hex ?? undefined }}
-                          />
-                        ))}
-                    </span>
-                  )}
-                  {line.configSnapshot && (
-                    // Fix round 3 (coordinator) — this is the row's DETAIL,
-                    // not its identity (see the name span above): `flex-1`
-                    // so it's the one that absorbs/gives up space, `min-w-0`
-                    // so it can actually shrink below its own content width
-                    // (same bug class as the chip's), `truncate` as the
-                    // visible result when a design with many categories
-                    // (`formatSelections` can run long) doesn't fit next to
-                    // the now-protected name.
-                    <span className="min-w-0 flex-1 truncate">
-                      · {formatSelections(line.configSnapshot.selections, locale)}
-                    </span>
-                  )}
+                  <Dots
+                    hexes={(line.configSnapshot?.selections ?? [])
+                      .map((sel) => sel.hex)
+                      .filter((hex): hex is string => Boolean(hex))}
+                  />
                 </>
               )}
             </div>
@@ -308,7 +305,17 @@ export function CartLineRow({
                   className="flex h-11 min-w-0 flex-1 items-center gap-1 rounded-sm border border-border bg-card pl-1 pr-1 text-xs font-medium sm:h-9 lg:flex-initial lg:gap-1.5 lg:pr-2"
                 >
                   <DesignRound layers={currentThumb.layers} className="size-6 shrink-0 rounded-sm" />
-                  <span className="min-w-0 truncate">{currentThumb.label}</span>
+                  {/* Dots first, name second: on a phone the chip has ~100px
+                      once the ceramic photo claims the thumb column, and a
+                      name truncated to a 5px sliver is worse than no name —
+                      the design is named in the «Ditt valg» strip at the top
+                      of the step anyway. So the colours (fixed width, always
+                      legible) always show, and the name joins them from `sm`,
+                      where there is room for it to mean something. */}
+                  <Dots hexes={currentThumb.hexes} />
+                  <span className="hidden min-w-0 truncate sm:inline">
+                    {currentThumb.label}
+                  </span>
                 </span>
                 <div
                   role="group"

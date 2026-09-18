@@ -900,7 +900,13 @@ export function CeramicsStep({
                   }
                   currentThumb={{
                     layers: designLayers,
-                    label: formatSelections(snapshot.selections, locale),
+                    // The DESIGN's name, not the colour list: on a phone the
+                    // list truncated to "Gris · V…", which says nothing. The
+                    // dots beside it carry the colours (TL, 18/9).
+                    label: designName,
+                    hexes: snapshot.selections
+                      .map((sel) => sel.hex)
+                      .filter((hex): hex is string => Boolean(hex)),
                   }}
                 />
               ))}
