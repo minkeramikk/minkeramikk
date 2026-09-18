@@ -356,6 +356,12 @@
       "unsaved": "Unsaved",
       "rename": "Rename",
       "renameLabel": "Palette name"
+    },
+    "bar": {
+      "eyebrowManage": "Your palettes",
+      "eyebrowPaint": "Painting with",
+      "manageCount": "{count} of {max} saved",
+      "paintHint": "Tap a row · or add"
     }
   }
 }

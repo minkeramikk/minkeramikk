@@ -792,7 +792,14 @@ export function ConfiguratorClient({
         <div
           data-preview-column
           className={cn(
-            "z-30 flex min-w-0 flex-col gap-3 md:sticky md:top-4 md:self-start",
+            // R5-PALETTES tasks 6/7: `top-4` assumed only the `h-14` ink header
+            // above it. Once a PaletteBar (§3.28, 68px, itself `sticky top-14`)
+            // sits between the header and this column, `top-4` would park the
+            // canvas BEHIND the bar instead of under it — so the offset is the
+            // header height + the bar height + the original 1rem gap. The bar
+            // itself isn't wired into this screen yet (later task); this is
+            // only the offset the desktop preview column needs once it is.
+            "z-30 flex min-w-0 flex-col gap-3 md:sticky md:top-[calc(3.5rem+68px+1rem)] md:self-start",
             // CA-7 (variant B): design-first on mobile step 1 — the hero is
             // hidden entirely (the design cards double as the preview). It stays
             // MOUNTED (display:none only) so the same PreviewCanvas instance

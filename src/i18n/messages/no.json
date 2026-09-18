@@ -355,6 +355,12 @@
       "unsaved": "Ulagret",
       "rename": "Endre navn",
       "renameLabel": "Palettnavn"
+    },
+    "bar": {
+      "eyebrowManage": "Dine paletter",
+      "eyebrowPaint": "Maler med",
+      "manageCount": "{count} av {max} lagret",
+      "paintHint": "Trykk på en rad · eller legg til"
     }
   }
 }
