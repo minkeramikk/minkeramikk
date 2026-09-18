@@ -71,7 +71,9 @@ export function paletteFor(list: Palette[], code: string): Palette | null {
  * green 70-189.
  */
 export function paletteFamily(hex: string): PaletteFamily {
-  const { s, l, h } = hexToHsl(hex);
+  const hsl = hexToHsl(hex);
+  if (!hsl) return "neutral"; // malformed input — never throw, never fake a hue
+  const { s, l, h } = hsl;
   if (s < 0.15 || l < 0.06 || l > 0.94) return "neutral";
   if (h >= 190 && h < 260) return "blue";
   if (h >= 260 && h < 320) return "purple";
@@ -80,7 +82,13 @@ export function paletteFamily(hex: string): PaletteFamily {
   return "red"; // 320-360 or 0-20
 }
 
-function hexToHsl(hex: string): { h: number; s: number; l: number } {
+// Only the 6-digit form: every hex this module ever sees comes off a design's
+// own colour options in the DB, which are always #rrggbb — the 3-digit short
+// form isn't part of that vocabulary, so it isn't worth the extra branch.
+const HEX_6 = /^#?[0-9a-f]{6}$/i;
+
+function hexToHsl(hex: string): { h: number; s: number; l: number } | null {
+  if (!HEX_6.test(hex)) return null;
   const n = hex.replace("#", "");
   const r = parseInt(n.slice(0, 2), 16) / 255;
   const g = parseInt(n.slice(2, 4), 16) / 255;
@@ -102,16 +110,20 @@ function hexToHsl(hex: string): { h: number; s: number; l: number } {
 
 /**
  * The design's main-colour category, matched by DISPLAY LABEL (the
- * snapshot doesn't carry the URL slug `opt_colors`) — the Norwegian
- * "Hovedfarge" or any label containing "colour"/"color", case-insensitively.
- * A design whose main category is named something else entirely (no
- * "hoved-"/"colo(u)r" in either label) won't match here and nameFor()
- * quietly falls back to the first hexed selection instead.
+ * snapshot doesn't carry the URL slug `opt_colors`) — EXACT match,
+ * case-insensitively and trimmed, against a small known vocabulary. A
+ * substring match ("colour" inside "Edge colour") would let an unrelated
+ * colour-ish category outrank the real one when it happens to sort first in
+ * `selections[]` — a confident wrong answer, not the graceful fallback
+ * below. Extend this set when a new supplier brings a new spelling; a
+ * design whose main category matches none of them falls back to the first
+ * hexed selection instead (nameFor()).
  */
+const MAIN_COLOUR_LABELS = new Set(["hovedfarge", "colour", "color"]);
+
 function isMainColourLabel(label: string | undefined): boolean {
   if (!label) return false;
-  const l = label.toLowerCase();
-  return l === "hovedfarge" || l.includes("colour") || l.includes("color");
+  return MAIN_COLOUR_LABELS.has(label.trim().toLowerCase());
 }
 
 // Small FNV-1a (32-bit) — deterministic code → index, no dependency.

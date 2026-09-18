@@ -101,4 +101,19 @@ describe("naming", () => {
   it("never returns an empty name, even with no colours at all", () => {
     expect(nameFor("MK-A-1", snap()).length).toBeGreaterThan(0);
   });
+
+  it("does not let an unrelated '...colour' category (e.g. 'Edge colour') outrank the real Hovedfarge one", () => {
+    const s = snap(
+      { label: "Edge colour", option: "Verde", hex: "#3f6525" },  // green, comes first
+      { label: "Hovedfarge", option: "Blu", hex: "#3877b9" },      // blue, the real main colour
+    );
+    expect(DEFAULT_WORDS.blue).toContain(nameFor("MK-A-1", s));
+    expect(DEFAULT_WORDS.green).not.toContain(nameFor("MK-A-1", s));
+  });
+});
+
+describe("paletteFamily on malformed hex (defensive: never throw, fall back to neutral)", () => {
+  it.each(["nope", "", "#abc", "#12345", "#gggggg"])("treats %j as neutral, not NaN-driven", (bad) => {
+    expect(paletteFamily(bad)).toBe("neutral");
+  });
 });
