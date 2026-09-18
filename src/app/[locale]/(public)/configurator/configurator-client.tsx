@@ -946,15 +946,24 @@ export function ConfiguratorClient({
         <div
           data-preview-column
           className={cn(
-            // R5-PALETTES task 8: the PaletteBar above (68px) is now wired in
-            // and, on desktop, sticks at `top-0` — NOT `top-14` — because the
-            // desktop site header isn't sticky at all (site-header.tsx:15,
-            // `max-md:sticky` only — R2-6 C). So there is no header height to
-            // add here: the offset is just the bar's own height plus the
-            // original 1rem gap. (Tasks 6/7 shipped `calc(3.5rem+68px+1rem)`,
-            // assuming a sticky header like the mockup patches in — wrong on
-            // this site; see progress.md's PR-2 ruling.)
-            "z-30 flex min-w-0 flex-col gap-3 md:sticky md:top-[calc(68px+1rem)] md:self-start",
+            // R5-PALETTES task 8: the PaletteBar above (68px + 1px bottom
+            // border = 69px) is now wired in and, on desktop, sticks at
+            // `top-0` — NOT `top-14` — because the desktop site header isn't
+            // sticky at all (site-header.tsx:15, `max-md:sticky` only —
+            // R2-6 C). So there is no header height to add here: the offset
+            // is just the bar's own rendered height plus the original 1rem
+            // gap. (Tasks 6/7 shipped `calc(3.5rem+68px+1rem)`, assuming a
+            // sticky header like the mockup patches in — wrong on this site;
+            // see progress.md's PR-2 ruling.)
+            //
+            // Fix-wave finding 2: the bar only mounts at step === 2 (below),
+            // but this offset used to apply unconditionally — step 1 shares
+            // this same column and got 68px of empty space above the canvas
+            // for no bar. Gate it: `top-4` (the pre-palette-bar 1rem gap,
+            // card §5.6 — step 1 stays untouched) everywhere the bar isn't
+            // actually above the canvas.
+            "z-30 flex min-w-0 flex-col gap-3 md:sticky md:self-start",
+            step === 2 ? "md:top-[calc(69px+1rem)]" : "md:top-4",
             // CA-7 (variant B): design-first on mobile step 1 — the hero is
             // hidden entirely (the design cards double as the preview). It stays
             // MOUNTED (display:none only) so the same PreviewCanvas instance

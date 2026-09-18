@@ -1552,14 +1552,14 @@ export function CeramicsStep({
             fixed-size text blocks, so one constant covers every breakpoint).
             Update this if that heading block changes.
             R5-PALETTES task 9: `top-4` (1rem) is now BELOW the sticky
-            PaletteBar's own pinned height (68px) — without the offset this
+            PaletteBar's own pinned height — without the offset this
             panel would slide up under the bar instead of stopping clear of
             it, the same "second sticky bug" task 8's report fixed for step
-            2's canvas. `calc(68px+1rem)` keeps the original 1rem breathing
-            room, just measured from the bar's bottom edge, not the viewport
-            top. */}
+            2's canvas. `calc(69px+1rem)` keeps the original 1rem breathing
+            room, just measured from the bar's bottom edge (68px content +
+            1px `border-b`, fix-wave finding 5), not the viewport top. */}
         <div
-          className="hidden min-w-0 rounded-sm border border-border bg-card p-5 md:mt-16 md:block md:sticky md:top-[calc(68px+1rem)] md:self-start"
+          className="hidden min-w-0 rounded-sm border border-border bg-card p-5 md:mt-16 md:block md:sticky md:top-[calc(69px+1rem)] md:self-start"
           data-testid="docked-cart-panel"
         >
           {cartPanel}

@@ -184,12 +184,19 @@ export function PaletteChip({
             </span>
           </button>
           {active && (
+            // Fix-wave finding 1: `hidden` (display:none) takes this OUT of the
+            // tab order entirely — a display:none element can never receive
+            // focus, so `focus-visible:grid` could never fire and only the
+            // mouse ever revealed it. `opacity-0 pointer-events-none` keeps it
+            // in the tree and tabbable; `group-focus-within` reveals it as soon
+            // as focus lands anywhere in the chip (the SELECT button first,
+            // since it's the earlier sibling), not only on the button itself.
             <button
               type="button"
               onClick={onRenameStart}
               aria-label={t("rename")}
               title={t("rename")}
-              className="ml-1 hidden size-6 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-secondary focus-visible:grid group-hover:grid"
+              className="ml-1 grid size-6 shrink-0 place-items-center rounded-full text-muted-foreground opacity-0 pointer-events-none transition-opacity hover:bg-secondary group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:pointer-events-auto"
             >
               ✎
             </button>
