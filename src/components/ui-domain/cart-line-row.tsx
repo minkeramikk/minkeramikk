@@ -9,6 +9,7 @@ import { formatMoney, money } from "@/lib/money/money";
 import { designLabel, type CartLayer, type CartLine } from "@/lib/cart/cart";
 import { formatSelections } from "@/lib/configurator/readable-selections";
 import type { LineDiscount } from "@/lib/discounts/discount";
+import { cn } from "@/lib/utils";
 
 /**
  * First selection colour of a line → colour-chip fallback for CartLineThumb.
@@ -74,6 +75,8 @@ export function CartLineRow({
   // unreviewed (mirrors cart.buttonUnpainted's own "umalt/umalte" wording).
   const t = useTranslations("cart");
   const unpainted = line.configCode === null;
+  /** Does the thumb column hold two images (design over ceramic), or just one? */
+  const hasPlate = Boolean(line.plateImage);
   const isSet = (line.pieces ?? 1) > 1;
   // Fix round 2 (blocker 1) — same colour-source rule as the retired
   // `CartLineRecap`: `customNote` is present (possibly "") only when the
@@ -106,7 +109,12 @@ export function CartLineRow({
           `flex-1` never engaged: the flex container it shrinks against was
           already oversized. Real cart, reported from the running app. */}
       <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 md:grid-cols-[auto_minmax(0,1fr)_auto]">
-        <div className="row-span-2">
+        {/* The thumb column holds TWO images stacked (design over ceramic) only
+            when the line carries a ceramic photo; without one it is a single
+            48px square and the space under it is dead. So it spans both rows
+            only when there is something in the second one — see the actions
+            row below, which claims that space when there is not. */}
+        <div className={cn(hasPlate && "row-span-2")}>
           <CartLineThumb
             unpainted={unpainted}
             layers={unpainted ? currentThumb.layers : line.layers}
@@ -220,7 +228,17 @@ export function CartLineRow({
             it no col-* class at all — the thumb's own `row-span-2` already
             keeps col 1 out of reach); from `md` it explicitly spans the two
             right-hand columns, same as the pre-mobile layout. */}
-        <div className="flex min-w-0 items-end md:col-start-2 md:col-span-2">
+        <div
+          className={cn(
+            "flex min-w-0 items-end",
+            hasPlate
+              ? "md:col-start-2 md:col-span-2"
+              : // No ceramic photo → nothing sits under the thumb, so the row
+                // starts at the left edge and takes the whole width. On a
+                // narrow phone that is 60px the chip did not have before.
+                "col-start-1 col-span-2 md:col-span-3"
+          )}
+        >
           {/* Fit at 375 AND 390, in BOTH locales — not just 390/no, which
               happened to have 4px of slack while 390/en (295px needed) and
               375/either (275px available) genuinely wrapped. The fix is
@@ -360,7 +378,10 @@ export function CartLineRow({
                       always 1 of 1, nothing to choose) still shows none. This
                       is a deliberate divergence from the mockup, which only
                       badges the partial case. */}
-                  {line.quantity > 1 && (
+                  {/* Always, not only on a partial selection: the badge is the
+                      count Paint is about to act on, and «1» is as much an
+                      answer as «2». TL, from the running app. */}
+                  {(
                     <span className="absolute -right-1.5 -top-1.5 grid size-5 place-items-center rounded-full bg-ink text-[10px] font-bold text-ink-foreground shadow">
                       {n}
                     </span>
