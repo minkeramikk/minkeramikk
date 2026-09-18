@@ -874,6 +874,16 @@ export function CeramicsStep({
                   // quantity even if the cart changes while it's open.
                   onPaint={(n) => paint(line.id, n, configCode, snapshot, designLayers)}
                   onUnpaint={() => setUnpaintId(line.id)}
+                  // Fix round 2 (blocker 1) — the details panel's «Edit
+                  // design» link, same destination the step used pre-branch
+                  // (a plain button + router.push, not a Link: the docked
+                  // panel isn't inside a Sheet to close).
+                  onEditDesign={() =>
+                    line.configCode &&
+                    router.push(
+                      `/configurator?code=${encodeURIComponent(line.configCode)}&step=2`
+                    )
+                  }
                   n={paintNFor(line)}
                   onN={(next) =>
                     setPaintN((m) => ({

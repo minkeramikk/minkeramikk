@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Brush, Eraser, Trash2 } from "lucide-react";
 import { CartLineThumb } from "@/components/ui-domain/cart-line-thumb";
@@ -51,6 +52,7 @@ export function CartLineRow({
   onRemove,
   onPaint,
   onUnpaint,
+  onEditDesign,
   n,
   onN,
   currentThumb,
@@ -64,6 +66,10 @@ export function CartLineRow({
   onRemove: () => void;
   onPaint: (n: number) => void;
   onUnpaint: () => void;
+  /** The details panel's «Edit design» action (fix round 2, blocker 1) —
+   *  same `router.push` the step used pre-branch, owned by the parent since
+   *  this row has no router of its own. */
+  onEditDesign: () => void;
   /** How many of `line.quantity` the Paint button will move — owned by the
    *  parent (see class comment above), clamped there to [1, line.quantity]. */
   n: number;
@@ -73,7 +79,26 @@ export function CartLineRow({
   // TODO:nb-review — cart.unpainted.* / cart.unpaint.action NO copy is new,
   // unreviewed (mirrors cart.buttonUnpainted's own "umalt/umalte" wording).
   const t = useTranslations("cart");
+  const ta = useTranslations("actions");
   const unpainted = line.configCode === null;
+  const isSet = (line.pieces ?? 1) > 1;
+  // Fix round 2 (blocker 1) — same colour-source rule as the retired
+  // `CartLineRecap`: `customNote` is present (possibly "") only when the
+  // design takes notes; non-empty ⇒ custom colours, "" ⇒ studio's, absent ⇒
+  // no badge.
+  const note = line.configSnapshot?.customNote;
+  const colourVariant = note === undefined ? null : note.trim() ? "custom" : "studio";
+  const [copied, setCopied] = useState(false);
+  async function copyCode() {
+    if (!line.configCode) return;
+    try {
+      await navigator.clipboard.writeText(line.configCode);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      /* clipboard blocked — no-op */
+    }
+  }
 
   return (
     <div
@@ -101,9 +126,16 @@ export function CartLineRow({
           <div className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
             {unpainted ? (
               <>
-                <span className="text-warn">○ {t("unpainted.label")}</span>
+                <span className="text-warn-on-light">○ {t("unpainted.label")}</span>
                 {" · "}
-                {t("unpainted.pieces", { count: (line.pieces ?? 1) * line.quantity })}
+                {/* Fix round 2 (finding 7): the mockup prints the LINE's own
+                    quantity, not physical pieces — a set-of-3 ×2 line is "2
+                    sets", not "6 pieces". Same unit vocabulary as the unpaint
+                    dialog, not a third one. */}
+                {line.quantity}{" "}
+                {t(isSet ? "unpaintDialog.unitSet" : "unpaintDialog.unitPiece", {
+                  count: line.quantity,
+                })}
               </>
             ) : (
               <>
@@ -128,7 +160,7 @@ export function CartLineRow({
                         <span
                           key={s.label}
                           aria-hidden
-                          className="size-2.5 rounded-full border border-black/10"
+                          className="size-2.5 rounded-full border border-border"
                           style={{ background: s.hex ?? undefined }}
                         />
                       ))}
@@ -173,26 +205,30 @@ export function CartLineRow({
                   <DesignRound layers={currentThumb.layers} className="size-6 rounded-sm" />
                   <span className="max-w-[120px] truncate">{currentThumb.label}</span>
                 </span>
-                <div className="flex h-9 items-center rounded-sm border border-border bg-card">
+                <div
+                  role="group"
+                  aria-label={t("unpainted.paintCount")}
+                  className="flex h-11 items-center rounded-sm border border-border bg-card sm:h-9"
+                >
                   <button
                     type="button"
-                    aria-label="-"
+                    aria-label={t("decreaseQty")}
                     data-testid="paint-n-dec"
                     onClick={() => onN(Math.max(1, n - 1))}
-                    className="flex size-9 items-center justify-center"
+                    className="flex size-11 items-center justify-center sm:size-9"
                   >
                     −
                   </button>
-                  <span className="w-8 text-center text-sm tabular-nums">
+                  <span className="w-8 text-center text-sm tabular-nums" aria-live="polite">
                     {n}
                     <span className="text-muted-foreground">/{line.quantity}</span>
                   </span>
                   <button
                     type="button"
-                    aria-label="+"
+                    aria-label={t("increaseQty")}
                     data-testid="paint-n-inc"
                     onClick={() => onN(Math.min(line.quantity, n + 1))}
-                    className="flex size-9 items-center justify-center"
+                    className="flex size-11 items-center justify-center sm:size-9"
                   >
                     +
                   </button>
@@ -221,23 +257,29 @@ export function CartLineRow({
                 </button>
               </>
             ) : (
-              <div className="flex h-9 items-center rounded-sm border border-border bg-card">
+              <div
+                role="group"
+                aria-label={t("quantity")}
+                className="flex h-11 items-center rounded-sm border border-border bg-card sm:h-9"
+              >
                 <button
                   type="button"
-                  aria-label="-"
+                  aria-label={t("decreaseQty")}
                   data-testid="docked-qty-dec"
                   onClick={() => onQty(line.quantity - 1)}
-                  className="flex size-9 items-center justify-center"
+                  className="flex size-11 items-center justify-center sm:size-9"
                 >
                   −
                 </button>
-                <span className="w-8 text-center text-sm tabular-nums">{line.quantity}</span>
+                <span className="w-8 text-center text-sm tabular-nums" aria-live="polite">
+                  {line.quantity}
+                </span>
                 <button
                   type="button"
-                  aria-label="+"
+                  aria-label={t("increaseQty")}
                   data-testid="docked-qty-inc"
                   onClick={() => onQty(line.quantity + 1)}
-                  className="flex size-9 items-center justify-center"
+                  className="flex size-11 items-center justify-center sm:size-9"
                 >
                   +
                 </button>
@@ -247,9 +289,10 @@ export function CartLineRow({
         </div>
 
         <div className="col-span-3 mt-1.5 flex items-center justify-between text-[11px]">
-          {unpainted ? (
-            <span />
-          ) : (
+          {/* Fix round 2 (finding 9): a painted LEGACY line has no
+              `configSnapshot` — the details panel below never renders one,
+              so the toggle must not promise it either. */}
+          {!unpainted && line.configSnapshot ? (
             <button
               type="button"
               data-testid="cart-expand"
@@ -259,6 +302,8 @@ export function CartLineRow({
             >
               {open ? `${t("line.collapse")} ▴` : `${t("line.expand")} ▾`}
             </button>
+          ) : (
+            <span />
           )}
           <span className="flex items-center gap-3">
             {!unpainted && (
@@ -288,11 +333,18 @@ export function CartLineRow({
             unpainted row, so `open` can't really be true here, but a line's
             id changes shape on paint/unpaint (see class comment) and this
             keeps the panel from ever reading a null `configSnapshot`.
-            TODO:nb-review — cart.line.config / cart.line.price NO copy is new,
-            unreviewed (same batch as unpainted.cta below). */}
+            TODO:nb-review — cart.line.config / cart.line.price / cart.line.code
+            NO copy is new, unreviewed (same batch as unpainted.cta below).
+            Fix round 2 (blocker 1) — `cart-line-detail` (singular) is the
+            SAME testid the retired `CartLineRecap` used: three e2e specs
+            (config-code, share-set, r4-canvas-white-evidence) read a `<code>`
+            and `cart-edit-design` out of whatever panel is here. This card
+            replaces the COMPONENT, not the affordances it carried — code,
+            copy, edit and the colour badge come back below, in the mockup's
+            own `dl` idiom rather than a `CartLineRecap` re-import. */}
         {open && !unpainted && line.configSnapshot && (
           <div
-            data-testid="cart-line-details"
+            data-testid="cart-line-detail"
             className="col-span-3 mt-2 grid grid-cols-[112px_1fr] gap-4 rounded-sm border border-primary/30 bg-card/60 p-3"
           >
             {/* Composed preview, same compositing as CartLineThumb/CartLineRecap
@@ -314,69 +366,118 @@ export function CartLineRow({
               ))}
             </span>
 
-            <dl className="grid grid-cols-[auto_1fr] content-start gap-x-3 gap-y-1.5 text-xs">
-              <dt className="text-muted-foreground">{t("line.config")}</dt>
-              <dd className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                <span className="font-semibold">
-                  {formatSelections(line.configSnapshot.selections, locale)}
+            <div className="flex min-w-0 flex-col gap-2">
+              {colourVariant && (
+                <span
+                  data-testid="colour-badge"
+                  data-variant={colourVariant}
+                  className="self-start rounded-full border border-border bg-muted/40 px-2 py-0.5 text-[10px] font-medium text-muted-foreground"
+                >
+                  {colourVariant === "custom" ? t("colourBadge.custom") : t("colourBadge.studio")}
                 </span>
-                {line.configSnapshot.selections
-                  .filter((s) => s.hex)
-                  .map((s) => (
-                    <span
-                      key={s.label}
-                      aria-hidden
-                      data-testid="cart-line-config-dot"
-                      className="size-3 rounded-full border border-black/10"
-                      style={{ background: s.hex ?? undefined }}
-                    />
-                  ))}
-              </dd>
-
-              {/* Text position is card 6's — this row prints the inscription
-                  alone, no position, until that card exists. */}
-              {line.configSnapshot.customText && (
-                <>
-                  <dt className="text-muted-foreground">{t("line.customText")}</dt>
-                  <dd className="min-w-0 font-medium">«{line.configSnapshot.customText}»</dd>
-                </>
               )}
 
-              <dt className="text-muted-foreground">{t("line.ceramic")}</dt>
-              <dd className="flex flex-wrap items-center gap-1.5 font-medium">
-                {locale === "no" ? line.productNameNo : line.productNameEn}
-                <SetBadge count={line.pieces ?? 1} />
-                <span className="text-muted-foreground">
-                  · {t("unpainted.pieces", { count: (line.pieces ?? 1) * line.quantity })}
-                </span>
-              </dd>
-
-              <dt className="text-muted-foreground">{t("line.price")}</dt>
-              <dd className="flex flex-wrap items-center gap-2">
-                <span className="tabular-nums">
-                  {formatMoney(money(line.unitPriceCents, line.currency), locale)} × {line.quantity}
-                </span>
-                {/* Discount tag: same `--discount` recipe as `CartLinePrice`
-                    (cart-discount-row.tsx) — read for the colours, not
-                    reinvented, per the card's own instruction; that file is
-                    untouched. Only when the line is actually discounted. */}
-                {d.pct > 0 && (
-                  <span
-                    data-testid="cart-line-details-discount"
-                    className="inline-flex items-center rounded-full px-2 py-0.5 text-[10.5px] font-semibold whitespace-nowrap"
-                    style={{
-                      backgroundColor: "color-mix(in oklab, var(--discount) 16%, white)",
-                      color: "color-mix(in oklab, var(--discount), black 34%)",
-                      border: "1px solid color-mix(in oklab, var(--discount) 38%, white)",
-                    }}
-                  >
-                    {d.coveredQty < d.quantity
-                      ? t("discount.badgeCapped", { pct: d.pct, qty: d.coveredQty })
-                      : t("discount.badge", { pct: d.pct })}
+              <dl className="grid grid-cols-[auto_1fr] content-start gap-x-3 gap-y-1.5 text-xs">
+                <dt className="text-muted-foreground">{t("line.config")}</dt>
+                <dd className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <span className="font-semibold">
+                    {formatSelections(line.configSnapshot.selections, locale)}
                   </span>
+                  {line.configSnapshot.selections
+                    .filter((s) => s.hex)
+                    .map((s) => (
+                      <span
+                        key={s.label}
+                        aria-hidden
+                        data-testid="cart-line-config-dot"
+                        className="size-3 rounded-full border border-border"
+                        style={{ background: s.hex ?? undefined }}
+                      />
+                    ))}
+                </dd>
+
+                {/* Text position is card 6's — this row prints the inscription
+                    alone, no position, until that card exists. */}
+                {line.configSnapshot.customText && (
+                  <>
+                    <dt className="text-muted-foreground">{t("line.customText")}</dt>
+                    <dd className="min-w-0 font-medium">«{line.configSnapshot.customText}»</dd>
+                  </>
                 )}
-              </dd>
-            </dl>
+
+                <dt className="text-muted-foreground">{t("line.ceramic")}</dt>
+                <dd className="flex flex-wrap items-center gap-1.5 font-medium">
+                  {locale === "no" ? line.productNameNo : line.productNameEn}
+                  <SetBadge count={line.pieces ?? 1} />
+                  <span className="text-muted-foreground">
+                    · {t("line.pieces", { count: (line.pieces ?? 1) * line.quantity })}
+                  </span>
+                </dd>
+
+                <dt className="text-muted-foreground">{t("line.price")}</dt>
+                <dd className="flex flex-wrap items-center gap-2">
+                  <span className="tabular-nums">
+                    {formatMoney(money(line.unitPriceCents, line.currency), locale)} × {line.quantity}
+                  </span>
+                  {/* Discount tag: same `--discount` recipe as `CartLinePrice`
+                      (cart-discount-row.tsx) — read for the colours, not
+                      reinvented, per the card's own instruction; that file is
+                      untouched. Only when the line is actually discounted. */}
+                  {d.pct > 0 && (
+                    <span
+                      data-testid="cart-line-details-discount"
+                      className="inline-flex items-center rounded-full px-2 py-0.5 text-[10.5px] font-semibold whitespace-nowrap"
+                      style={{
+                        backgroundColor: "color-mix(in oklab, var(--discount) 16%, white)",
+                        color: "color-mix(in oklab, var(--discount), black 34%)",
+                        border: "1px solid color-mix(in oklab, var(--discount) 38%, white)",
+                      }}
+                    >
+                      {d.coveredQty < d.quantity
+                        ? t("discount.badgeCapped", { pct: d.pct, qty: d.coveredQty })
+                        : t("discount.badge", { pct: d.pct })}
+                    </span>
+                  )}
+                </dd>
+
+                {/* Fix round 2 (blocker 1) — the config code + copy button,
+                    restored from the retired `CartLineRecap` (same clipboard
+                    handler, same `actions.copyCode`/`actions.copied` i18n
+                    keys) in the mockup's own dt/dd idiom. Always present
+                    here: this block only ever renders for a painted line,
+                    which by construction has a non-null `configCode` — the
+                    guard is for TypeScript, not a real empty case. */}
+                {line.configCode && (
+                  <>
+                    <dt className="text-muted-foreground">{t("line.code")}</dt>
+                    <dd className="flex min-w-0 items-center gap-2">
+                      <code className="min-w-0 truncate font-mono text-[10px] text-muted-foreground">
+                        {line.configCode}
+                      </code>
+                      <button
+                        type="button"
+                        data-testid="cart-copy-code"
+                        onClick={copyCode}
+                        className="shrink-0 text-[10px] text-muted-foreground underline underline-offset-2 hover:text-foreground"
+                      >
+                        {copied ? ta("copied") : ta("copyCode")}
+                      </button>
+                    </dd>
+                  </>
+                )}
+              </dl>
+
+              {line.configCode && (
+                <button
+                  type="button"
+                  data-testid="cart-edit-design"
+                  onClick={onEditDesign}
+                  className="self-start text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+                >
+                  ✎ {t("line.edit")}
+                </button>
+              )}
+            </div>
           </div>
         )}
       </div>
