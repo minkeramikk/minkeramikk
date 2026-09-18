@@ -55,6 +55,11 @@ export interface PaintingStripProps {
   onDelete: (code: string) => void;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Extra classes merged onto the root, e.g. configurator-client.tsx's own
+   *  "release my sticky while the customer types" override (that concept
+   *  doesn't exist at step 3, so ceramics-step.tsx simply never passes
+   *  this — its render stays byte-for-byte the base classes below). */
+  className?: string;
 }
 
 export function PaintingStrip({
@@ -77,6 +82,7 @@ export function PaintingStrip({
   onDelete,
   open,
   onOpenChange,
+  className,
 }: PaintingStripProps) {
   const tPaletteBar = useTranslations("palettes.bar");
   const tSheet = useTranslations("palettes.sheet");
@@ -95,7 +101,10 @@ export function PaintingStrip({
       // caller stacks something else under it (step 2's canvas/tab lane
       // shift their own `top` by this strip's rendered height, not by
       // anything this file does).
-      className="sticky top-14 z-30 -mx-5 -mt-7 mb-3.5 flex items-center gap-2.5 border-b border-border bg-[var(--mk-canvas)] px-4 py-2 md:hidden"
+      className={cn(
+        "sticky top-14 z-30 -mx-5 -mt-7 mb-3.5 flex items-center gap-2.5 border-b border-border bg-[var(--mk-canvas)] px-4 py-2 md:hidden",
+        className
+      )}
     >
       <DesignRound layers={designLayers} className="size-9" />
       {/* `paintingLabel`, not a second computation — the caller's own one

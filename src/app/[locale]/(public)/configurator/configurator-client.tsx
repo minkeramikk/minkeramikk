@@ -403,12 +403,12 @@ export function ConfiguratorClient({
         onBlur={() => setTyping(false)}
         aria-label={t("customText.title")}
         aria-describedby="custom-text-helper"
-        // ponytail: `scroll-mt-14` only clears the header (3.5rem) — since
-        // `<PaintingStrip>` landed as a second, non-typing-aware sticky
-        // layer above the canvas (TL "menu sopra come step3"), a keyboard
-        // focus could land this field `--mk-strip-h` short. Out of this
-        // task's brief (no typing-scenario check in it); revisit if a
-        // report says the field lands under the strip.
+        // `scroll-mt-14` = header only. TL round 3 made `<PaintingStrip>`
+        // release its own `sticky` at the same moment the canvas does
+        // (`group-data-[typing=1]/step2:static`, wired where the strip
+        // renders) specifically so this stays true instead of growing a
+        // second constant: while typing, the top of the page is STILL just
+        // the header, exactly as it was before the strip existed.
         className="w-full rounded-sm border border-input bg-card p-2 text-base focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring md:text-sm max-md:scroll-mt-14"
       />
       <div className="mt-1 flex items-start justify-between gap-3">
@@ -869,7 +869,23 @@ export function ConfiguratorClient({
       // (step 2 only — the bar only mounts then). `*:focus-visible`, not a
       // fixed id list: any control in the step-2 column can be the one Tab
       // lands on next.
-      className={step === 2 ? "md:[&_*:focus-visible]:scroll-mt-[69px]" : undefined}
+      //
+      // TL round 3 follow-up: `<PaintingStrip>` (below) is a SIBLING of the
+      // grid further down, not its descendant, so the grid's own
+      // `group/step2` + `data-typing` (R4-POLISH voce 8, where the canvas
+      // and tab lane release their `sticky` while the customer types) can't
+      // reach it. Same attribute, same `typing` boolean, duplicated onto
+      // THIS ancestor instead of invented twice: the grid keeps its own
+      // copy (its `[&>[data-preview-column]]`/`[&_[data-tabs-bar]]`
+      // selectors are self-referencing and still need it there), and the
+      // strip binds to this outer `group/step2` the same way the nav row
+      // already binds to the grid's inner one — nearest named-group
+      // ancestor wins, no conflict between the two.
+      className={cn(
+        step === 2 && "md:[&_*:focus-visible]:scroll-mt-[69px]",
+        step === 2 && "group/step2"
+      )}
+      data-typing={step === 2 && typing ? "1" : undefined}
     >
       {/* R5-PALETTES task 8: desktop only (mobile gets its own top palette
           control — PR3 round 2, replacing the removed «Palettes» tab).
@@ -925,10 +941,22 @@ export function ConfiguratorClient({
           (ceramics-step.tsx). Desktop is unaffected: the component itself is
           `md:hidden`, same as the bar above. `activePaletteName`/
           `activeDesignName` are this step's own "what's painting" values —
-          reused here, not recomputed a second time for the strip. */}
+          reused here, not recomputed a second time for the strip.
+
+          TL round 3 fix: the canvas/tab lane already release their `sticky`
+          while the customer types (R4-POLISH voce 8, `data-typing`) so the
+          keyboard has somewhere to put the field — this strip is now a
+          THIRD sticky layer and has to join them at the exact same moment,
+          or a field scrolled "clear" under the old rule lands under the
+          strip instead. `group-data-[typing=1]/step2:static` binds to the
+          `group/step2` this file now also carries on the root
+          `data-testid="configurator"` div (this strip's nearest ancestor
+          with that name — see the comment there): same `typing` boolean,
+          same attribute, no second detection mechanism. */}
       {step === 2 && (
         <PaintingStrip
           testId="step2-painting-strip"
+          className="max-md:group-data-[typing=1]/step2:static"
           designLayers={activePaletteLayers}
           paintingLabel={activePaletteName}
           designName={activeDesignName}
@@ -1164,12 +1192,11 @@ export function ConfiguratorClient({
             // usa: il suo `max-md:scroll-mt-14` (sotto) è l'altezza del solo
             // header ink, apposta senza il canvas — quando il campo ha il
             // focus il canvas ha già mollato lo sticky (`data-typing`), quindi
-            // in alto non resta altro che l'header — `<PaintingStrip>` NON
-            // molla (nessun `data-typing` selector la tocca, sta fuori dalla
-            // griglia che lo porta): resta un secondo strato fisso di
-            // `--mk-strip-h` sopra l'header anche a tastiera aperta. Non
-            // corretto qui (il brief di questo task non tocca lo scenario
-            // tastiera) — vedi il TODO più sotto vicino a `scroll-mt-14`.
+            // in alto non resta altro che l'header — TL round 3: anche
+            // `<PaintingStrip>` molla allo stesso momento
+            // (`group-data-[typing=1]/step2:static`, cablato dove la striscia
+            // renderizza), quindi questo resta vero esattamente come prima
+            // che la striscia esistesse, nessuna nuova costante da inseguire.
             step === 2 &&
               "max-md:sticky max-md:top-[calc(3.5rem+var(--mk-strip-h))] max-md:-mx-5 max-md:h-[var(--mk-canvas-h)] max-md:flex-none max-md:items-center max-md:justify-center max-md:gap-1 max-md:px-5 max-md:pt-2 max-md:border-b max-md:border-border max-md:bg-[var(--mk-canvas)]"
           )}
