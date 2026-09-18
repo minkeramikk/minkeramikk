@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Brush, Eraser, Trash2 } from "lucide-react";
 import { CartLineThumb } from "@/components/ui-domain/cart-line-thumb";
@@ -52,7 +51,6 @@ export function CartLineRow({
   onRemove,
   onPaint,
   onUnpaint,
-  onEditDesign,
   n,
   onN,
   currentThumb,
@@ -66,10 +64,6 @@ export function CartLineRow({
   onRemove: () => void;
   onPaint: (n: number) => void;
   onUnpaint: () => void;
-  /** The details panel's «Edit design» action (fix round 2, blocker 1) —
-   *  same `router.push` the step used pre-branch, owned by the parent since
-   *  this row has no router of its own. */
-  onEditDesign: () => void;
   /** How many of `line.quantity` the Paint button will move — owned by the
    *  parent (see class comment above), clamped there to [1, line.quantity]. */
   n: number;
@@ -79,7 +73,6 @@ export function CartLineRow({
   // TODO:nb-review — cart.unpainted.* / cart.unpaint.action NO copy is new,
   // unreviewed (mirrors cart.buttonUnpainted's own "umalt/umalte" wording).
   const t = useTranslations("cart");
-  const ta = useTranslations("actions");
   const unpainted = line.configCode === null;
   const isSet = (line.pieces ?? 1) > 1;
   // Fix round 2 (blocker 1) — same colour-source rule as the retired
@@ -88,17 +81,6 @@ export function CartLineRow({
   // no badge.
   const note = line.configSnapshot?.customNote;
   const colourVariant = note === undefined ? null : note.trim() ? "custom" : "studio";
-  const [copied, setCopied] = useState(false);
-  async function copyCode() {
-    if (!line.configCode) return;
-    try {
-      await navigator.clipboard.writeText(line.configCode);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    } catch {
-      /* clipboard blocked — no-op */
-    }
-  }
 
   return (
     <div
@@ -457,15 +439,17 @@ export function CartLineRow({
             unpainted row, so `open` can't really be true here, but a line's
             id changes shape on paint/unpaint (see class comment) and this
             keeps the panel from ever reading a null `configSnapshot`.
-            TODO:nb-review — cart.line.config / cart.line.price / cart.line.code
-            NO copy is new, unreviewed (same batch as unpainted.cta below).
+            TODO:nb-review — cart.line.config / cart.line.price NO copy is
+            new, unreviewed (same batch as unpainted.cta below).
             Fix round 2 (blocker 1) — `cart-line-detail` (singular) is the
-            SAME testid the retired `CartLineRecap` used: three e2e specs
-            (config-code, share-set, r4-canvas-white-evidence) read a `<code>`
-            and `cart-edit-design` out of whatever panel is here. This card
-            replaces the COMPONENT, not the affordances it carried — code,
-            copy, edit and the colour badge come back below, in the mockup's
-            own `dl` idiom rather than a `CartLineRecap` re-import. */}
+            SAME testid the retired `CartLineRecap` used, in the mockup's own
+            `dl` idiom rather than a `CartLineRecap` re-import.
+            Task 18 (TL) — the code and «Edit design» that fix round 2 put
+            here were the wrong home: this panel is a step-3-only drilldown
+            (Config/Ceramic/Price), the code + edit affordance is the CART
+            DRAWER's job and already lives there via `CartLineRecap`
+            (cart-menu.tsx) — the three e2e specs that used to read them off
+            this panel now read them off the drawer instead. */}
         {open && !unpainted && line.configSnapshot && (
           <div
             data-testid="cart-line-detail"
@@ -563,44 +547,7 @@ export function CartLineRow({
                     </span>
                   )}
                 </dd>
-
-                {/* Fix round 2 (blocker 1) — the config code + copy button,
-                    restored from the retired `CartLineRecap` (same clipboard
-                    handler, same `actions.copyCode`/`actions.copied` i18n
-                    keys) in the mockup's own dt/dd idiom. Always present
-                    here: this block only ever renders for a painted line,
-                    which by construction has a non-null `configCode` — the
-                    guard is for TypeScript, not a real empty case. */}
-                {line.configCode && (
-                  <>
-                    <dt className="text-muted-foreground">{t("line.code")}</dt>
-                    <dd className="flex min-w-0 items-center gap-2">
-                      <code className="min-w-0 truncate font-mono text-[10px] text-muted-foreground">
-                        {line.configCode}
-                      </code>
-                      <button
-                        type="button"
-                        data-testid="cart-copy-code"
-                        onClick={copyCode}
-                        className="shrink-0 text-[10px] text-muted-foreground underline underline-offset-2 hover:text-foreground"
-                      >
-                        {copied ? ta("copied") : ta("copyCode")}
-                      </button>
-                    </dd>
-                  </>
-                )}
               </dl>
-
-              {line.configCode && (
-                <button
-                  type="button"
-                  data-testid="cart-edit-design"
-                  onClick={onEditDesign}
-                  className="self-start text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
-                >
-                  ✎ {t("line.edit")}
-                </button>
-              )}
             </div>
           </div>
         )}
