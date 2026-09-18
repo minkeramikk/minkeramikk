@@ -390,13 +390,19 @@ export function CartLineRow({
                   )}
                 >
                   <DesignRound layers={currentThumb.layers} className="size-6 shrink-0 rounded-sm" />
-                  {/* Dots first, then the name — same order as the painted
-                      row's info line, at every width (TL, 18/9: the name is
-                      information worth having on a phone too, even truncated).
-                      The dots keep their fixed width and the name takes what
-                      is left, so the chip still shrinks instead of pushing
-                      Paint out. */}
-                  <Dots hexes={currentThumb.hexes} />
+                  {/* TL (mobile fix, 18/9): this chip used to carry Dots before
+                      the name, same order as the painted row's info line below —
+                      that was right in the PREVIOUS card, when a row had no
+                      palette and no name and the dots were the only thing
+                      saying anything about the colours. Named palettes changed
+                      that: the name is the row's identity now, and at 390 the
+                      dots ate the width the name needed, truncating
+                      "Turchino" down to "T." Drop the dots here, let the name
+                      have the room — the thumb above still carries the
+                      composited design, which is what the dots were standing
+                      in for. Do NOT restore them on this chip; the painted
+                      row's info line (below) has a full-width line to spend
+                      and keeps dots + name + size together on purpose. */}
                   <span className="min-w-0 truncate">{currentThumb.label}</span>
                   {/* Task 10 — the mockup's `▾`/`▴` (`picker?'▴':'▾'`); `shrink-0`
                       so a long palette name truncates before this ever gives
