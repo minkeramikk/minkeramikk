@@ -256,17 +256,19 @@
       "ceramic": "Keramikk",
       "customText": "Tekst",
       "config": "Konfigurasjon",
+      "palette": "Palett",
       "price": "Pris",
       "code": "Kode",
       "pieces": "{count, plural, one {# del} other {# deler}}"
     },
     "unpainted": {
       "label": "Umalt",
-      "note": "{count, plural, one {# del er fortsatt umalt} other {# deler er fortsatt umalte}} — velg fargene på raden, og trykk Mal.",
+      "note": "{count, plural, one {# del er fortsatt umalt} other {# deler er fortsatt umalte}} — velg en palett på raden, og trykk Mal.",
       "removeAll": "Fjern alle",
       "paint": "Mal",
       "cta": "Mal {count} stk først",
-      "paintCount": "Hvor mange å male"
+      "paintCount": "Hvor mange å male",
+      "pickerLabel": "Velg en palett"
     },
     "unpaint": {
       "action": "Gjør umalt…"

@@ -8,6 +8,7 @@ import { SetBadge } from "@/components/ui-domain/set-badge";
 import { formatMoney, money } from "@/lib/money/money";
 import { designLabel, type CartLayer, type CartLine } from "@/lib/cart/cart";
 import { formatSelections } from "@/lib/configurator/readable-selections";
+import { paletteFor, type Palette } from "@/lib/palettes/palettes";
 import type { LineDiscount } from "@/lib/discounts/discount";
 import { cn } from "@/lib/utils";
 
@@ -76,6 +77,11 @@ export function CartLineRow({
   n,
   onN,
   currentThumb,
+  palettes,
+  currentDesignSlug,
+  pickerOpen,
+  onTogglePicker,
+  onPickPalette,
 }: {
   line: CartLine;
   locale: "no" | "en";
@@ -90,11 +96,25 @@ export function CartLineRow({
    *  parent (see class comment above), clamped there to [1, line.quantity]. */
   n: number;
   onN: (next: number) => void;
-  /** The configuration on screen — what Paint would apply. `label` is the
-   *  DESIGN's name and `hexes` its colours as dots: on a 375px row the dots say
-   *  the colours better than their names do (TL, 18/9), and the names are one
-   *  tap away in the details panel. */
-  currentThumb: { layers: CartLayer[]; label: string; hexes: string[] };
+  /** The row's OWN palette pick (task 10) — the parent already resolved the
+   *  "untouched" default (the active on-screen config) vs. a saved palette
+   *  the customer chose from this row's picker, so `code` here is always
+   *  what Paint would apply. `label`/`hexes` follow the same resolution:
+   *  a saved palette's name/colours, or the design's when it isn't one yet. */
+  currentThumb: { layers: CartLayer[]; label: string; hexes: string[]; code: string };
+  /** Every saved palette (R5-PALETTES store) — this row does its own pure
+   *  lookups against it: a painted line's own `configCode` → its name (info
+   *  line + details), and the picker's pill list. No palette STATE lives
+   *  here, only this read (card's own rule: the row owns none). */
+  palettes: Palette[];
+  /** The design on screen — dims/disables a picker pill from another design,
+   *  same rule the palette bar's own chips already follow (card §6). */
+  currentDesignSlug: string;
+  /** Task 10 — this row's own picker, open/closed. Only meaningful while
+   *  `unpainted` (the picker only exists on an unpainted row's chip). */
+  pickerOpen: boolean;
+  onTogglePicker: () => void;
+  onPickPalette: (code: string) => void;
 }) {
   // TODO:nb-review — cart.unpainted.* / cart.unpaint.action NO copy is new,
   // unreviewed (mirrors cart.buttonUnpainted's own "umalt/umalte" wording).
@@ -112,6 +132,15 @@ export function CartLineRow({
   // no badge.
   const note = line.configSnapshot?.customNote;
   const colourVariant = note === undefined ? null : note.trim() ? "custom" : "studio";
+  // R5-PALETTES task 10 — a painted row is named by the palette it was
+  // painted WITH (read from the store by the line's own frozen `configCode`),
+  // not the design: two rows of the same design can carry different
+  // palettes, and the design name no longer disambiguates them. Falls back
+  // to the design name when the code isn't (or is no longer, LRU eviction)
+  // a saved palette — e.g. every line painted before R5-PALETTES existed.
+  const paletteName = !unpainted && line.configCode
+    ? (paletteFor(palettes, line.configCode)?.name ?? designLabel(line.configSnapshot, locale) ?? null)
+    : null;
 
   return (
     <div
@@ -188,9 +217,10 @@ export function CartLineRow({
                   )}
                   {/* TL, 18/9: with the colour NAMES gone (see Dots), the name
                       has the line to itself and only truncates when it is
-                      genuinely too long for the column. */}
+                      genuinely too long for the column. Task 10: the PALETTE's
+                      name now, not the design's — see `paletteName` above. */}
                   <span className="min-w-0 truncate font-medium text-foreground">
-                    {designLabel(line.configSnapshot, locale) ?? "—"}
+                    {paletteName ?? "—"}
                   </span>
                   <Dots
                     hexes={(line.configSnapshot?.selections ?? [])
@@ -222,10 +252,9 @@ export function CartLineRow({
           </div>
         </div>
 
-        {/* actions row — the unpainted case is the n/N paint selector (task
-            10); the palette PICKER the mockup opens from this same chip is
-            task 12's card, not this one: here the chip is a static read of
-            `currentThumb`, no menu, no ▾ affordance promising one. Under
+        {/* actions row — the unpainted case is the n/N paint selector plus
+            the palette picker chip (task 10, mockup `Line(r)`'s `onclick=
+            "tog('pick',…)"` button). Under
             `md` it auto-places into the body column (mockup `MobLine` gives
             it no col-* class at all — the thumb's own `row-span-2` already
             keeps col 1 out of reach); from `md` it explicitly spans the two
@@ -276,8 +305,13 @@ export function CartLineRow({
           <div className="flex w-full flex-wrap items-center gap-1 pt-2 lg:flex-nowrap lg:gap-1.5">
             {unpainted ? (
               <>
-                <span
+                <button
+                  type="button"
                   data-testid="paint-chip"
+                  data-code={currentThumb.code}
+                  aria-haspopup="true"
+                  aria-expanded={pickerOpen}
+                  onClick={onTogglePicker}
                   // `flex-1 min-w-0`: no fixed cap on the label (a magic
                   // number like 32px is a stub, not a label, once the
                   // thumb+icon already carry the colour meaning) — instead
@@ -315,11 +349,16 @@ export function CartLineRow({
                       information worth having on a phone too, even truncated).
                       The dots keep their fixed width and the name takes what
                       is left, so the chip still shrinks instead of pushing
-                      Paint out. This chip becomes the palette picker in the
-                      next card; the name is what it will carry then. */}
+                      Paint out. */}
                   <Dots hexes={currentThumb.hexes} />
                   <span className="min-w-0 truncate">{currentThumb.label}</span>
-                </span>
+                  {/* Task 10 — the mockup's `▾`/`▴` (`picker?'▴':'▾'`); `shrink-0`
+                      so a long palette name truncates before this ever gives
+                      ground, same rule as the dots beside it. */}
+                  <span aria-hidden className="shrink-0 text-muted-foreground">
+                    {pickerOpen ? "▴" : "▾"}
+                  </span>
+                </button>
                 <div
                   role="group"
                   aria-label={t("unpainted.paintCount")}
@@ -430,6 +469,55 @@ export function CartLineRow({
           </div>
         </div>
 
+        {/* Task 10 — the row picker (mockup `Line(r)`'s `picker?` block):
+            every saved palette as a wrapping row of pills, dim+disabled for
+            another design's (card §6). Same explicit `col-span-2 md:col-span-3`
+            as the full-bleed row below, not the actions row's hasPlate-
+            conditional placement above — this panel isn't chasing the chip's
+            own column, it's a full-width drop-down under it, and reusing the
+            proven-safe full-bleed geometry (already verified not to overflow
+            at 375/390/768/1280) sidesteps the auto-placement risk a THIRD
+            sibling with no explicit column would otherwise hit once the
+            thumb's `row-span-2` no longer reaches this far down. `h-11
+            lg:h-8`: a 44px touch target through the 768 rail the row's other
+            controls already treat as mobile-narrow (see the row comment
+            above), the mockup's own `h-8` only from `lg` (1024px). */}
+        {unpainted && pickerOpen && (
+          <div
+            role="group"
+            aria-label={t("unpainted.pickerLabel")}
+            className="col-span-2 mt-1.5 flex flex-wrap items-center gap-1.5 md:col-span-3"
+          >
+            {palettes.map((p) => {
+              const dim = p.designSlug !== currentDesignSlug;
+              const active = p.code === currentThumb.code;
+              return (
+                <button
+                  key={p.code}
+                  type="button"
+                  data-testid="palette-pill"
+                  data-code={p.code}
+                  data-active={active || undefined}
+                  disabled={dim}
+                  aria-pressed={active}
+                  onClick={() => onPickPalette(p.code)}
+                  className={cn(
+                    "flex h-11 min-w-0 shrink-0 items-center gap-1.5 rounded-full pl-1 pr-2.5 text-xs lg:h-8",
+                    dim
+                      ? "bg-muted text-muted-foreground opacity-45"
+                      : active
+                        ? "bg-card font-semibold shadow-[0_0_0_1.5px_var(--ring)]"
+                        : "bg-muted hover:bg-secondary"
+                  )}
+                >
+                  <DesignRound layers={p.layers} className="size-6 shrink-0 rounded-sm" />
+                  <span className="max-w-[108px] truncate">{p.name}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
         {/* full-bleed row, under the thumb too — matches mockup MobLine's
             `col-span-2` (mobile) / Line's `col-span-3` (desktop), same
             treatment as the actions row above but reaching col 1 as well. */}
@@ -530,6 +618,29 @@ export function CartLineRow({
               )}
 
               <dl className="grid grid-cols-[auto_1fr] content-start gap-x-3 gap-y-1.5 text-xs">
+                {/* Task 10 — the mockup's `Palette` dt (name + a swatch per
+                    colour, `cname()` there ↔ `s.option` here, the design's own
+                    readable colour name — no separate name lookup needed).
+                    Distinct from `line.config` below: this is the PALETTE
+                    (human name + colours), that is the technical selection
+                    breakdown (category: option). */}
+                <dt className="text-muted-foreground">{t("line.palette")}</dt>
+                <dd className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <span className="font-semibold">{paletteName ?? "—"}</span>
+                  {line.configSnapshot.selections
+                    .filter((s) => s.hex)
+                    .map((s) => (
+                      <span key={`pal-${s.label}`} className="flex items-center gap-1">
+                        <span
+                          aria-hidden
+                          className="size-3 rounded-full border border-border"
+                          style={{ background: s.hex ?? undefined }}
+                        />
+                        {s.option}
+                      </span>
+                    ))}
+                </dd>
+
                 <dt className="text-muted-foreground">{t("line.config")}</dt>
                 <dd className="flex flex-wrap items-center gap-x-2 gap-y-1">
                   <span className="font-semibold">
@@ -564,6 +675,10 @@ export function CartLineRow({
                   <span className="text-muted-foreground">
                     · {t("line.pieces", { count: (line.pieces ?? 1) * line.quantity })}
                   </span>
+                  {/* Fix round 2 (task 10 review) — AC 5 names the info line
+                      AND the details for `sizeLabel`; the row (line ~204)
+                      already had it, this panel didn't. */}
+                  {sizeLabel && <span className="text-muted-foreground">· {sizeLabel}</span>}
                 </dd>
 
                 <dt className="text-muted-foreground">{t("line.price")}</dt>

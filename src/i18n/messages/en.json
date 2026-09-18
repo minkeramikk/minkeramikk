@@ -257,17 +257,19 @@
       "ceramic": "Ceramic",
       "customText": "Inscription",
       "config": "Config",
+      "palette": "Palette",
       "price": "Price",
       "code": "Code",
       "pieces": "{count, plural, one {# piece} other {# pieces}}"
     },
     "unpainted": {
       "label": "Unpainted",
-      "note": "{count, plural, one {# piece is} other {# pieces are}} still unpainted — choose the colours on the row, then Paint.",
+      "note": "{count, plural, one {# piece is} other {# pieces are}} still unpainted — choose a palette on the row, then Paint.",
       "removeAll": "Remove all",
       "paint": "Paint",
       "cta": "Paint {count, plural, one {# piece} other {# pieces}} first",
-      "paintCount": "How many to paint"
+      "paintCount": "How many to paint",
+      "pickerLabel": "Choose a palette"
     },
     "unpaint": {
       "action": "Unpaint…"

@@ -187,6 +187,25 @@ export function focusFirstUnpaintedRow() {
 }
 
 /**
+ * R5-UNPAINTED/R5-PALETTES — every per-row map on this step (`paintN`, and
+ * task 10's `rowPaletteCode`/`pickerOpenId`) is keyed by cart line id, and a
+ * line id RECURS (`cart.ts`'s `${productId}::${code}`, and `::unpainted`):
+ * paint a row in full and its id can be reborn as a brand-new, untouched
+ * lot of the same product. Left alone, a stale entry would hand that new
+ * lot someone else's leftover choice. One shared pruner, called from the
+ * ONE effect below that owns every such map — not a second cleanup per map.
+ */
+function pruneToLive<T>(m: Record<string, T>, liveIds: Set<string>): Record<string, T> {
+  let changed = false;
+  const next: Record<string, T> = {};
+  for (const [id, v] of Object.entries(m)) {
+    if (liveIds.has(id)) next[id] = v;
+    else changed = true;
+  }
+  return changed ? next : m;
+}
+
+/**
  * Step 3 — two-panel layout (F21).
  *
  * Desktop (≥768): left = ceramic selector; right = docked inline cart always
@@ -286,6 +305,11 @@ export function CeramicsStep({
    * palette" state to drift out of sync with what a ceramic will be painted
    * with when added.
    */
+  // Moved up from further below (task 10): `rowThumb`'s default fallback
+  // (nothing chosen yet on a row) needs it, and that's declared well before
+  // its own original spot — it only ever needed `snapshot`/`locale`, both
+  // already in scope this early.
+  const designName = designLabel(snapshot, locale) ?? "";
   const activePalette = paletteFor(palettes, configCode);
 
   /**
@@ -444,6 +468,51 @@ export function CeramicsStep({
   const [unpaintId, setUnpaintId] = useState<string | null>(null);
   const unpaintLine = cart.find((l) => l.id === unpaintId) ?? null;
   /**
+   * R5-PALETTES task 10 — an unpainted row's OWN palette pick, distinct from
+   * the active/on-screen one (card §4-bis: a row can paint with a DIFFERENT
+   * palette). Untouched (no entry) → defaults to whatever's on screen, same
+   * as every row painted before this task; `rowThumb` below resolves it.
+   * Same recurring-id trap as `paintN`/`unpaintId`/`expandedId` — pruned by
+   * the same effect, not a second one (see `pruneToLive`).
+   */
+  const [rowPaletteCode, setRowPaletteCode] = useState<Record<string, string>>({});
+  /** Which row's picker panel is open — mirrors the mockup's `S3.pick[id]`
+   *  (a map, so more than one COULD be open; in practice only the row the
+   *  customer is touching ever is). Same prune as the map above. */
+  const [pickerOpenId, setPickerOpenId] = useState<Record<string, boolean>>({});
+  /**
+   * The palette a given unpainted row will Paint with right now: the
+   * customer's own pick from that row's picker, else whatever's on screen —
+   * the exact `configCode`/`snapshot`/`designLayers` `paint()` already used
+   * before this task, so an untouched row's behaviour doesn't change.
+   * `code` doubles as which picker pill gets the ring (`currentThumb.code`
+   * in `CartLineRow`), so this is the ONE place that resolves it.
+   */
+  const rowThumb = useCallback(
+    (line: { id: string }) => {
+      const code = rowPaletteCode[line.id] ?? configCode;
+      const pal = paletteFor(palettes, code);
+      return pal
+        ? {
+            code: pal.code,
+            layers: pal.layers,
+            label: pal.name,
+            hexes: pal.snapshot.selections
+              .map((s) => s.hex)
+              .filter((h): h is string => Boolean(h)),
+            snapshot: pal.snapshot,
+          }
+        : {
+            code: configCode,
+            layers: designLayers,
+            label: designName,
+            hexes: snapshot.selections.map((s) => s.hex).filter((h): h is string => Boolean(h)),
+            snapshot,
+          };
+    },
+    [rowPaletteCode, palettes, configCode, designLayers, designName, snapshot]
+  );
+  /**
    * Bug fix (task 11 review): a cart line id RECURS — `cart.ts` gives every
    * unpainted lot of a product (and every painted lot of one config) the SAME
    * id, because there is only ever one such line at a time. `paintNFor` above
@@ -459,20 +528,19 @@ export function CeramicsStep({
    * Fix round 2 (finding 2): `expandedId` (declared above) is a THIRD state
    * keyed the same recurring way — pruned here too, so a removed-then-
    * recreated line never mounts already expanded.
+   *
+   * Task 10: `rowPaletteCode`/`pickerOpenId` join the same one effect —
+   * `pruneToLive` (module scope, above) is the shared pruning logic every
+   * one of these five maps/pointers needs, computed against the SAME
+   * `liveIds` set rather than each map recomputing its own.
    */
   useEffect(() => {
-    setPaintN((m) => {
-      const liveIds = new Set(cart.map((l) => l.id));
-      const next: Record<string, number> = {};
-      let changed = false;
-      for (const [id, v] of Object.entries(m)) {
-        if (liveIds.has(id)) next[id] = v;
-        else changed = true;
-      }
-      return changed ? next : m;
-    });
-    setUnpaintId((id) => (id && !cart.some((l) => l.id === id) ? null : id));
-    setExpandedId((id) => (id && !cart.some((l) => l.id === id) ? null : id));
+    const liveIds = new Set(cart.map((l) => l.id));
+    setPaintN((m) => pruneToLive(m, liveIds));
+    setRowPaletteCode((m) => pruneToLive(m, liveIds));
+    setPickerOpenId((m) => pruneToLive(m, liveIds));
+    setUnpaintId((id) => (id && !liveIds.has(id) ? null : id));
+    setExpandedId((id) => (id && !liveIds.has(id) ? null : id));
   }, [cart]);
   /** CA-3 C: share feedback under the panel header (aria-live). */
   const [shareState, setShareState] = useState<
@@ -637,7 +705,6 @@ export function CeramicsStep({
   // choice — no explicit design ⇒ no box, not an empty one. The grid below
   // still works off the fallback design, which is fine as a catalog view.
   const hasConfig = hasExplicitDesign && designLayers.length > 0;
-  const designName = designLabel(snapshot, locale) ?? "";
 
   const count = hydrated ? itemCount(cart) : 0;
   /** R4-CTA-STICKY: the bar counts PIECES, not lines — a set is N deler. */
@@ -981,6 +1048,8 @@ export function CeramicsStep({
 
       {/* R5-UNPAINTED task 9: explicit, no button inside — Paint lives on the
           row itself (task 10). Pieces, not lines, like the header marker.
+          Task 10: copy reworded "choose a palette" (was "choose the
+          colours") now that the row actually has a picker to open.
           TODO:nb-review — cart.unpainted.note NO copy is new, unreviewed. */}
       {unpaintedInBasket > 0 && (
         <p
@@ -1001,43 +1070,54 @@ export function CeramicsStep({
                 as the mockup sorts them (renderS3: (a.code?1:0)-(b.code?1:0)). */}
             {[...cart]
               .sort((a, b) => Number(a.configCode !== null) - Number(b.configCode !== null))
-              .map((line) => (
-                <CartLineRow
-                  key={line.id}
-                  line={line}
-                  locale={locale}
-                  d={discount.perLine[line.id]}
-                  open={expandedId === line.id}
-                  onToggleDetails={() =>
-                    setExpandedId((id) => (id === line.id ? null : line.id))
-                  }
-                  onQty={(q) => setQuantity(line.id, q)}
-                  onRemove={() => remove(line.id)}
-                  // Task 10: paint n pieces onto the config currently on
-                  // screen. Task 11: open the dialog, keyed by line id — it
-                  // reads the live line itself, so it always shows current
-                  // quantity even if the cart changes while it's open.
-                  onPaint={(n) => paint(line.id, n, configCode, snapshot, designLayers)}
-                  onUnpaint={() => setUnpaintId(line.id)}
-                  n={paintNFor(line)}
-                  onN={(next) =>
-                    setPaintN((m) => ({
-                      ...m,
-                      [line.id]: Math.min(Math.max(1, next), line.quantity),
-                    }))
-                  }
-                  currentThumb={{
-                    layers: designLayers,
-                    // The DESIGN's name, not the colour list: on a phone the
-                    // list truncated to "Gris · V…", which says nothing. The
-                    // dots beside it carry the colours (TL, 18/9).
-                    label: designName,
-                    hexes: snapshot.selections
-                      .map((sel) => sel.hex)
-                      .filter((hex): hex is string => Boolean(hex)),
-                  }}
-                />
-              ))}
+              .map((line) => {
+                // Task 10: resolved ONCE per row — `currentThumb` (what the
+                // chip/picker shows) and `onPaint` (what Paint applies) must
+                // agree on the exact same palette, or the button could paint
+                // something other than what the row just showed.
+                const thumb = rowThumb(line);
+                return (
+                  <CartLineRow
+                    key={line.id}
+                    line={line}
+                    locale={locale}
+                    d={discount.perLine[line.id]}
+                    open={expandedId === line.id}
+                    onToggleDetails={() =>
+                      setExpandedId((id) => (id === line.id ? null : line.id))
+                    }
+                    onQty={(q) => setQuantity(line.id, q)}
+                    onRemove={() => remove(line.id)}
+                    // Task 10: paint n pieces with the ROW's own chosen
+                    // palette (`thumb`, above) — NOT the URL/active config,
+                    // so this never navigates and `activeCode` never moves
+                    // (AC 2). Task 11: open the dialog, keyed by line id — it
+                    // reads the live line itself, so it always shows current
+                    // quantity even if the cart changes while it's open.
+                    onPaint={(n) => paint(line.id, n, thumb.code, thumb.snapshot, thumb.layers)}
+                    onUnpaint={() => setUnpaintId(line.id)}
+                    n={paintNFor(line)}
+                    onN={(next) =>
+                      setPaintN((m) => ({
+                        ...m,
+                        [line.id]: Math.min(Math.max(1, next), line.quantity),
+                      }))
+                    }
+                    currentThumb={thumb}
+                    palettes={palettes}
+                    currentDesignSlug={design.slug}
+                    pickerOpen={!!pickerOpenId[line.id]}
+                    onTogglePicker={() =>
+                      setPickerOpenId((m) => ({ ...m, [line.id]: !m[line.id] }))
+                    }
+                    onPickPalette={(code) => {
+                      setRowPaletteCode((m) => ({ ...m, [line.id]: code }));
+                      // Mockup `selPal`: choosing one closes the picker.
+                      setPickerOpenId((m) => ({ ...m, [line.id]: false }));
+                    }}
+                  />
+                );
+              })}
           </div>
 
           <CartSuggestion />
