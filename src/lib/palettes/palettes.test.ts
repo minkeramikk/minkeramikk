@@ -173,6 +173,61 @@ describe("naming", () => {
   });
 });
 
+// Round 4 (TL-reported duplicate «Zaffera»): the optional 4th `taken`
+// argument, so two different codes in the same family can't be saved under
+// the same word.
+describe("naming — no duplicates (round 4)", () => {
+  const blue = () => snap({ label: "Hovedfarge", option: "Blu", hex: "#3877b9" });
+
+  it("with an empty taken-list, every existing name stays EXACTLY what it is today", () => {
+    // Pins the no-collision path: passing `[]` explicitly (or omitting the
+    // argument, its default) must produce the identical word — the new
+    // parameter must never shift an uncontested palette's name.
+    const s = blue();
+    expect(nameFor("MK-ALICI-A1", s, DEFAULT_WORDS, [])).toBe(nameFor("MK-ALICI-A1", s));
+    expect(nameFor("MK-A-1", s, DEFAULT_WORDS, [])).toBe(nameFor("MK-A-1", s));
+  });
+
+  it("is deterministic for a given taken-list: same colours, same taken-list, same name, always", () => {
+    const s = blue();
+    const taken = ["Cobalto"];
+    expect(nameFor("MK-ALICI-A1", s, DEFAULT_WORDS, taken)).toBe(
+      nameFor("MK-ALICI-A1", s, DEFAULT_WORDS, taken)
+    );
+  });
+
+  it("walks forward to the first FREE word, wrapping around the family's list", () => {
+    const s = blue();
+    const free = DEFAULT_WORDS.blue[2];
+    const taken = DEFAULT_WORDS.blue.filter((w) => w !== free);
+    expect(nameFor("MK-ALICI-A1", s, DEFAULT_WORDS, taken)).toBe(free);
+  });
+
+  it("compares taken names trimmed and case-insensitively — a customer's own rename still blocks", () => {
+    const s = blue();
+    const base = nameFor("MK-ALICI-A1", s, DEFAULT_WORDS, []);
+    const renamedByCustomer = ` ${base.toLowerCase()} `;
+    expect(nameFor("MK-ALICI-A1", s, DEFAULT_WORDS, [renamedByCustomer])).not.toBe(base);
+  });
+
+  it("falls back to the word plus the main colour's own name once the whole family is taken", () => {
+    const s = blue();
+    const name = nameFor("MK-ALICI-A1", s, DEFAULT_WORDS, DEFAULT_WORDS.blue);
+    expect(name).toMatch(/ Blu$/); // "<word> Blu", e.g. "Zaffera Blu" — never a number
+    expect(name).not.toMatch(/\d/);
+  });
+
+  it("keeps qualifying with the next coloured selection when the main-colour qualified name is ALSO taken", () => {
+    const s = snap(
+      { label: "Hovedfarge", option: "Blu", hex: "#3877b9" },
+      { label: "Kant", option: "Verde", hex: "#3f6525" },
+    );
+    const base = nameFor("MK-ALICI-A1", s, DEFAULT_WORDS, []);
+    const taken = [...DEFAULT_WORDS.blue, `${base} Blu`];
+    expect(nameFor("MK-ALICI-A1", s, DEFAULT_WORDS, taken)).toBe(`${base} Verde`);
+  });
+});
+
 describe("paletteFamily on malformed hex (defensive: never throw, fall back to neutral)", () => {
   it.each(["nope", "", "#abc", "#12345", "#gggggg"])("treats %j as neutral, not NaN-driven", (bad) => {
     expect(paletteFamily(bad)).toBe("neutral");

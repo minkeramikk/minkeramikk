@@ -172,11 +172,20 @@ function fnv1a(str: string): number {
  * category's hex if the design has one, else the first selection with a
  * hex, else `neutral`; then a deterministic word from that family — never
  * the colour's own name in front of it (card §4-bis).
+ *
+ * `taken` (round 4, TL-reported duplicate «Zaffera») is every name already
+ * in use — pass the caller's current saved-palette names so two different
+ * codes in the same family can't collide on the same word. With no `taken`
+ * (or none of it in the way) this returns EXACTLY what it always did: the
+ * hashed index is still `i=0` of the walk below, so an uncontested palette
+ * is byte-for-byte unchanged. Compared trimmed + lower-cased, so a
+ * customer's own rename ("zaffera") blocks the word it collides with too.
  */
 export function nameFor(
   code: string,
   snapshot: ConfigSnapshot,
-  words: PaletteWords = paletteWords()
+  words: PaletteWords = paletteWords(),
+  taken: string[] = []
 ): string {
   const main = snapshot.selections.find(
     (sel) => isMainColourLabel(sel.label) || isMainColourLabel(sel.labelEn)
@@ -184,5 +193,36 @@ export function nameFor(
   const chosen = main?.hex ? main : snapshot.selections.find((sel) => sel.hex);
   const family: PaletteFamily = chosen?.hex ? paletteFamily(chosen.hex) : "neutral";
   const list = words[family];
-  return list[fnv1a(code) % list.length];
+  const start = fnv1a(code) % list.length;
+  const baseWord = list[start];
+
+  const takenSet = new Set(taken.map((n) => n.trim().toLowerCase()));
+  const isFree = (name: string) => !takenSet.has(name.trim().toLowerCase());
+
+  // Walk the family's word list forward from the hashed index, wrapping.
+  // i=0 is `baseWord` — the exact word today's callers already get — so an
+  // uncontested palette never moves; a collision just steps to the next
+  // word instead of repeating it.
+  for (let i = 0; i < list.length; i++) {
+    const word = list[(start + i) % list.length];
+    if (isFree(word)) return word;
+  }
+
+  // Every word in the family is taken — needs MAX_PALETTES (10) saves to
+  // exhaust a 5-word family, so this is rare. Card §2 forbids a number, so
+  // qualify the hashed word with a REAL colour name off the snapshot
+  // instead: the main colour first ("Zaffera Blu"), then any other
+  // coloured selection, in snapshot order, until one is free.
+  const others = snapshot.selections.filter((sel) => sel.hex && sel !== chosen);
+  const qualifiers = chosen?.hex ? [chosen, ...others] : others;
+  let qualified = baseWord;
+  for (const sel of qualifiers) {
+    qualified = `${baseWord} ${sel.option}`;
+    if (isFree(qualified)) return qualified;
+  }
+  // ponytail: last-resort duplicate — every qualified variant ALSO taken
+  // (or there was no colour to qualify with at all). Still name-shaped, no
+  // number, which is all card §2 requires; reaching here needs a
+  // pathological all-taken family plus an all-taken qualifier walk too.
+  return qualified;
 }

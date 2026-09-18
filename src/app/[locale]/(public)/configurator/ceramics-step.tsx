@@ -331,7 +331,19 @@ export function CeramicsStep({
    * the true last resort, for when there's no configuration to name at all.
    * Computed ONCE here so the two call sites can never drift apart again.
    */
-  const paintingLabel = activePalette?.name ?? nameFor(configCode, snapshot, paletteWords) ?? designName;
+  // Round 4 (TL-reported duplicate «Zaffera»): pass every already-saved
+  // name so `nameFor()` picks a FREE word instead of repeating one — same
+  // `palettes` list this step already reads, so this label (chip, basket
+  // header, `saveDraftAsPalette` below) can't disagree with what gets saved.
+  const paintingLabel =
+    activePalette?.name ??
+    nameFor(
+      configCode,
+      snapshot,
+      paletteWords,
+      palettes.map((p) => p.name)
+    ) ??
+    designName;
 
   /**
    * `activeCode` (persisted, cross-tab) is a DIFFERENT thing: a "last chosen"

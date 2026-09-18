@@ -591,8 +591,19 @@ export function ConfiguratorClient({
    * `saveDraftAsPalette` used to (two separate `nameFor()` calls below,
    * now one).
    */
+  // Round 4 (TL-reported duplicate «Zaffera»): `nameFor()` needs every
+  // name already saved so it can pick a FREE word instead of repeating one
+  // — the same `palettes` list this bar already reads, so the chip below
+  // and `saveDraftAsPalette` (which reuses `activePaletteName`, never
+  // calls `nameFor()` again) can't disagree with what actually gets saved.
   const activePaletteName =
-    matchedPalette?.name ?? nameFor(draftCode, draftPayload.snapshot, paletteWords);
+    matchedPalette?.name ??
+    nameFor(
+      draftCode,
+      draftPayload.snapshot,
+      paletteWords,
+      palettes.map((p) => p.name)
+    );
   const activePaletteLayers = matchedPalette?.layers ?? draftPayload.designLayers;
   /** The design pattern's own name, for `<PaintingStrip>`'s "· design"
    *  suffix — same source ceramics-step.tsx's own `designName` reads
