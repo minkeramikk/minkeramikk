@@ -255,14 +255,17 @@
       "collapse": "Hide details",
       "edit": "Edit design",
       "ceramic": "Ceramic",
-      "customText": "Inscription"
+      "customText": "Inscription",
+      "config": "Config",
+      "price": "Price"
     },
     "unpainted": {
       "label": "Unpainted",
       "pieces": "{count, plural, one {# piece} other {# pieces}}",
       "note": "{count, plural, one {# piece is} other {# pieces are}} still unpainted — choose a palette on the row, then paint.",
       "removeAll": "Remove all",
-      "paint": "Paint"
+      "paint": "Paint",
+      "cta": "Paint {count, plural, one {# piece} other {# pieces}} first"
     },
     "unpaint": {
       "action": "Unpaint…"

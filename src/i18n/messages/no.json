@@ -254,14 +254,17 @@
       "collapse": "Skjul detaljer",
       "edit": "Rediger design",
       "ceramic": "Keramikk",
-      "customText": "Tekst"
+      "customText": "Tekst",
+      "config": "Konfigurasjon",
+      "price": "Pris"
     },
     "unpainted": {
       "label": "Umalt",
       "pieces": "{count, plural, one {# del} other {# deler}}",
       "note": "{count, plural, one {# del er fortsatt umalt} other {# deler er fortsatt umalte}} — velg en palett på raden, og mal.",
       "removeAll": "Fjern alle",
-      "paint": "Mal"
+      "paint": "Mal",
+      "cta": "Mal {count, plural, one {# stk} other {# stk}} først"
     },
     "unpaint": {
       "action": "Gjør umalt…"

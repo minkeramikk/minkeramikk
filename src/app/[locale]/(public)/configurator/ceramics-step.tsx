@@ -45,7 +45,7 @@ import {
 } from "@/lib/catalog/product-attributes";
 import { groupBySeries } from "@/lib/configurator/product-series";
 import { formatSelections } from "@/lib/configurator/readable-selections";
-import { Truck, Plus, ArrowUpRight } from "lucide-react";
+import { Truck, Plus, ArrowUpRight, Brush } from "lucide-react";
 import type { ResolvedSharedSet } from "./resolve-shared-set";
 import { ProductSheet } from "@/components/ui-domain/product-sheet";
 import { AddedSheet } from "@/components/ui-domain/added-sheet";
@@ -152,6 +152,35 @@ function CeramicCard({
       </span>
     </button>
   );
+}
+
+/**
+ * Task 13 — the docked order pill's "go paint it" action, and the mobile
+ * bar's own paint-first pill in the next PR (R5-UNPAINTED PR 3): same target,
+ * same behaviour, so it is written ONCE here rather than twice. Pure DOM
+ * query, no React state: `CartLineRow` already stamps `data-unpainted` on the
+ * first unpainted row and a `data-testid="paint-line"` on its Paint button
+ * (mockup's CTA scrolls to the row then "focuses the chip" — the chip is a
+ * static `<span>` in this card, so the Paint button is the actionable focus
+ * target instead, per the card's own note).
+ *
+ * NOT a bare `document.querySelector` (the card's own snippet, and the
+ * mockup's single-page demo, both get away with one): `cartPanel` above is
+ * rendered TWICE, mobile section + desktop rail (`md:hidden`/`hidden
+ * md:block`), so BOTH copies of every row are always in the DOM and an
+ * unscoped query can resolve to the `display:none` half — exactly the
+ * failure mode the sticky bar's own click handler already scopes around a
+ * few hundred lines down. `offsetParent !== null` is the cheap "not
+ * display:none" check; it skips straight to whichever copy is actually on
+ * screen at the current breakpoint.
+ */
+export function focusFirstUnpaintedRow() {
+  const rows = document.querySelectorAll<HTMLElement>(
+    '[data-testid="cart-line"][data-unpainted]'
+  );
+  const row = Array.from(rows).find((r) => r.offsetParent !== null);
+  row?.scrollIntoView({ behavior: "smooth", block: "center" });
+  row?.querySelector<HTMLElement>('[data-testid="paint-line"]')?.focus({ preventScroll: true });
 }
 
 /**
@@ -487,6 +516,8 @@ export function CeramicsStep({
   /** R5-UNPAINTED task 9: the basket's own explanation box, mirroring the
    *  header marker (cart-menu.tsx) — pieces, not lines. */
   const unpaintedInBasket = hydrated ? unpaintedPieces(cart) : 0;
+  /** Task 13: the order CTA and the checkout form both gate on this. */
+  const hasUnpainted = unpaintedInBasket > 0;
   /** The mobile order block — the sticky bar's CTA queries the form inside it. */
   const orderBlockRef = useRef<HTMLDivElement>(null);
   /**
@@ -868,7 +899,12 @@ export function CeramicsStep({
           <div className="mt-3 flex flex-col gap-3 border-t border-border pt-3">
             <CartTotals totalTestId="docked-total" />
 
-            {checkoutOpen ? (
+            {/* Task 13: `!hasUnpainted` gates the form shut even if it was
+                already open when the basket picked up a new unpainted line
+                (e.g. adding a ceramic mid-checkout) — the order can never
+                leave with colourless pieces, so the form can never be on
+                screen with one either (Task 4's client half). */}
+            {!hasUnpainted && checkoutOpen ? (
               // scroll-mt: the mobile header is sticky and 56px tall, so a
               // bare scrollIntoView would park the form's first rows under it.
               <div data-testid="docked-checkout-form" className="scroll-mt-[4.5rem]">
@@ -898,19 +934,45 @@ export function CeramicsStep({
                     cui si ricomincia, e tiene il carrello (F03/F16). */}
                 {/* Camioncino, non freccia: l'ordine parte: non c'è uno step
                     successivo nel wizard (nota-step3-cart.md). */}
-                <NextStepPill
-                  data-testid="docked-checkout"
-                  className="w-full"
-                  caption={t("checkoutKicker")}
-                  label={to("title")}
-                  arrow
-                  icon={
-                    <PillIcon>
-                      <Truck className="size-5 text-primary" />
-                    </PillIcon>
-                  }
-                  onClick={() => setCheckoutOpen(true)}
-                />
+                {/* Task 13 (mockup: bottom of `renderS3`) — while anything is
+                    unpainted, the pill that would open checkout is replaced,
+                    not merely disabled: it becomes a tertiary "go paint it"
+                    CTA that scrolls to and focuses the first unpainted row's
+                    Paint button (`focusFirstUnpaintedRow`, shared with the
+                    mobile bar in the next PR). No `arrow`: unlike "Bestill"
+                    this click doesn't advance the funnel, matching the other
+                    non-advancing pills in this stack (`new-design-cta`,
+                    `share-set`) that also render arrow-less.
+                    TODO:nb-review — cart.unpainted.cta NO copy is new,
+                    unreviewed. */}
+                {hasUnpainted ? (
+                  <NextStepPill
+                    variant="tertiary"
+                    data-testid="docked-paint-first"
+                    className="w-full"
+                    label={t("unpainted.cta", { count: unpaintedInBasket })}
+                    icon={
+                      <PillIcon variant="tertiary">
+                        <Brush className="size-5 text-muted-foreground" />
+                      </PillIcon>
+                    }
+                    onClick={focusFirstUnpaintedRow}
+                  />
+                ) : (
+                  <NextStepPill
+                    data-testid="docked-checkout"
+                    className="w-full"
+                    caption={t("checkoutKicker")}
+                    label={to("title")}
+                    arrow
+                    icon={
+                      <PillIcon>
+                        <Truck className="size-5 text-primary" />
+                      </PillIcon>
+                    }
+                    onClick={() => setCheckoutOpen(true)}
+                  />
+                )}
                 {/* R4-BTN-SCALE AC4: le due azioni basse sono un GRUPPO, non
                     due pari del primario. Wrapper `gap-2` dentro il `gap-3`
                     dello stack → ritmo a due livelli: 12px staccano «Bestill»,
