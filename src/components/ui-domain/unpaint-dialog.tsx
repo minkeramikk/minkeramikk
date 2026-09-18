@@ -39,6 +39,7 @@ export function UnpaintDialog({
   locale,
   onOpenChange,
   onConfirm,
+  onConfirmed,
 }: {
   /** The painted line being unpainted, or null when the dialog is closed.
    *  Always a painted line: the row only renders "Unpaint…" on those. */
@@ -47,6 +48,15 @@ export function UnpaintDialog({
   onOpenChange: (open: boolean) => void;
   /** The caller owns the actual move (`unpaint(lineId, n)`) and closes. */
   onConfirm: (n: number) => void;
+  /**
+   * Fix round 2 (finding 4) — where to send focus after a CONFIRMED close,
+   * instead of the trigger. Confirming "All N" removes the line that opened
+   * this dialog (the row's own "Unpaint…" button goes with it), so returning
+   * focus there is a silent no-op and it falls to `<body>`. Esc, the
+   * backdrop and "Keep them painted" are unaffected — nothing disappears on
+   * those paths, so they keep restoring the trigger as before.
+   */
+  onConfirmed?: () => void;
 }) {
   const t = useTranslations("cart.unpaintDialog");
   const open = line !== null;
@@ -58,6 +68,10 @@ export function UnpaintDialog({
   useEffect(() => {
     if (open) trigger.current = document.activeElement as HTMLElement | null;
   }, [open]);
+  // Set the instant CONFIRM is clicked, read once by `onCloseAutoFocus` and
+  // reset there — distinguishes "closed because I moved the pieces" from
+  // every other way this dialog closes.
+  const confirmedRef = useRef(false);
 
   // How many of `line.quantity` to unpaint — starts at 1 (mockup: `unpaint(id)`
   // sets `S3.dlg={id,n:1}`), never at N: unpainting is opt-in per piece.
@@ -95,8 +109,24 @@ export function UnpaintDialog({
         showCloseButton={false}
         aria-describedby={undefined}
         data-testid="unpaint-dialog"
+        // Fix round 2 (task 9 misc) — Radix autofocuses the first tabbable
+        // element, which is the «−» stepper button; the confirm pill is the
+        // intended default action, not a decrement nobody asked for.
+        onOpenAutoFocus={(e) => {
+          e.preventDefault();
+          document
+            .querySelector<HTMLButtonElement>(
+              '[data-testid="unpaint-dialog"] [data-testid="unpaint-confirm"]'
+            )
+            ?.focus();
+        }}
         onCloseAutoFocus={(e) => {
           e.preventDefault();
+          if (confirmedRef.current) {
+            confirmedRef.current = false;
+            onConfirmed?.();
+            return;
+          }
           trigger.current?.focus();
         }}
       >
@@ -145,7 +175,7 @@ export function UnpaintDialog({
                       <span
                         key={s.label}
                         aria-hidden
-                        className="size-2.5 rounded-full border border-black/10"
+                        className="size-2.5 rounded-full border border-border"
                         style={{ background: s.hex ?? undefined }}
                       />
                     ))}
@@ -186,6 +216,7 @@ export function UnpaintDialog({
           <button
             type="button"
             data-testid="unpaint-n-all"
+            aria-pressed={n === shown.quantity}
             onClick={() => setNRaw(shown.quantity)}
             className={cn(
               "h-10 rounded-sm border border-border bg-card px-3 text-xs font-medium",
@@ -205,7 +236,10 @@ export function UnpaintDialog({
             </PillIcon>
           }
           label={t("confirm", { n, unit: unitForN })}
-          onClick={() => onConfirm(n)}
+          onClick={() => {
+            confirmedRef.current = true;
+            onConfirm(n);
+          }}
         />
 
         <button

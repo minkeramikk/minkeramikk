@@ -333,6 +333,10 @@ export function CeramicsStep({
    * one place that owns both `paintN` and `unpaintId`, not in each caller that
    * can make a line disappear: whenever the cart no longer has a line for some
    * id, that id's entry — and a dialog pinned to it — is stale by definition.
+   *
+   * Fix round 2 (finding 2): `expandedId` (declared above) is a THIRD state
+   * keyed the same recurring way — pruned here too, so a removed-then-
+   * recreated line never mounts already expanded.
    */
   useEffect(() => {
     setPaintN((m) => {
@@ -346,6 +350,7 @@ export function CeramicsStep({
       return changed ? next : m;
     });
     setUnpaintId((id) => (id && !cart.some((l) => l.id === id) ? null : id));
+    setExpandedId((id) => (id && !cart.some((l) => l.id === id) ? null : id));
   }, [cart]);
   /** CA-3 C: share feedback under the panel header (aria-live). */
   const [shareState, setShareState] = useState<
@@ -520,6 +525,18 @@ export function CeramicsStep({
   const unpaintedInBasket = hydrated ? unpaintedPieces(cart) : 0;
   /** Task 13: the order CTA and the checkout form both gate on this. */
   const hasUnpainted = unpaintedInBasket > 0;
+  /**
+   * Fix round 2 (finding 3) — task 13's render gate (`!hasUnpainted &&
+   * checkoutOpen` below) only stops the form from being SHOWN; it never
+   * flips `checkoutOpen` back to false, and both `setCheckoutOpen(false)`
+   * call sites live inside the branch this state can no longer reach once a
+   * line goes unpainted mid-checkout. Left alone, the mobile sticky bar
+   * (gated on `!checkoutOpen`) hides itself with nothing to show for it, and
+   * the form pops back open unprompted the moment the last piece is painted.
+   */
+  useEffect(() => {
+    if (hasUnpainted) setCheckoutOpen(false);
+  }, [hasUnpainted]);
   /** The mobile order block — the sticky bar's CTA queries the form inside it. */
   const orderBlockRef = useRef<HTMLDivElement>(null);
   /**
@@ -1464,6 +1481,11 @@ export function CeramicsStep({
           if (unpaintLine) unpaint(unpaintLine.id, n);
           setUnpaintId(null);
         }}
+        // Fix round 2 (finding 4): confirming removes the row that opened
+        // this dialog (the painted line becomes/joins the unpainted one), so
+        // the dialog's own default focus-return (the row's «Unpaint…»
+        // button) is a silent no-op. Hand focus to the survivor instead.
+        onConfirmed={focusFirstUnpaintedRow}
       />
 
       {/* §3.20: visible confirmation, replacing the old sr-only announcement.
