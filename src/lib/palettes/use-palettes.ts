@@ -20,7 +20,11 @@ function loadPalettes(): Palette[] {
 
 function loadActiveCode(): string | null {
   if (typeof window === "undefined") return null;
-  return window.localStorage.getItem(ACTIVE_KEY);
+  try {
+    return window.localStorage.getItem(ACTIVE_KEY);
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -34,12 +38,16 @@ function loadActiveCode(): string | null {
 export function usePalettes() {
   const [palettes, setPalettes] = useState<Palette[]>([]);
   const [activeCode, setActiveCodeState] = useState<string | null>(null);
-  const [hydrated, setHydrated] = useState(false);
+  // Named `palettesHydrated`, not `hydrated`: this hook's return is spread into
+  // the same CartApi object as `useCart`'s (cart-context.tsx), which returns
+  // its OWN `hydrated` — a same-named field here would silently shadow it, and
+  // that flag is load-bearing (it keeps the cart badge/counts quiet pre-hydration).
+  const [palettesHydrated, setPalettesHydrated] = useState(false);
 
   useEffect(() => {
     setPalettes(loadPalettes());
     setActiveCodeState(loadActiveCode());
-    setHydrated(true);
+    setPalettesHydrated(true);
     const onStorage = (e: StorageEvent) => {
       if (e.key === LIST_KEY) setPalettes(loadPalettes());
       if (e.key === ACTIVE_KEY) setActiveCodeState(loadActiveCode());
@@ -49,15 +57,15 @@ export function usePalettes() {
   }, []);
 
   useEffect(() => {
-    if (!hydrated) return;
+    if (!palettesHydrated) return;
     window.localStorage.setItem(LIST_KEY, JSON.stringify(palettes));
-  }, [palettes, hydrated]);
+  }, [palettes, palettesHydrated]);
 
   useEffect(() => {
-    if (!hydrated) return;
+    if (!palettesHydrated) return;
     if (activeCode === null) window.localStorage.removeItem(ACTIVE_KEY);
     else window.localStorage.setItem(ACTIVE_KEY, activeCode);
-  }, [activeCode, hydrated]);
+  }, [activeCode, palettesHydrated]);
 
   const setActiveCode = useCallback((code: string | null) => {
     setActiveCodeState(code);
@@ -73,5 +81,5 @@ export function usePalettes() {
     setPalettes((list) => touchPalette(list, code, at));
   }, []);
 
-  return { palettes, hydrated, activeCode, setActiveCode, save, rename, touch };
+  return { palettes, palettesHydrated, activeCode, setActiveCode, save, rename, touch };
 }
