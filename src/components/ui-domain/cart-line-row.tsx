@@ -211,21 +211,26 @@ export function CartLineRow({
             keeps col 1 out of reach); from `md` it explicitly spans the two
             right-hand columns, same as the pre-mobile layout. */}
         <div className="flex items-end md:col-start-2 md:col-span-2">
-          {/* `flex-wrap`: at 390 with 44px touch targets (the stepper alone
-              is ~120px), chip + stepper + Paint button no longer fit on one
-              line — the mockup's own row assumes 36px buttons throughout.
-              Wrapping (Paint drops to its own line, `ml-auto` still pulls it
-              right) keeps every target at its real size instead of shrinking
-              them back below 44px to force a single row. */}
-          <div className="flex w-full flex-wrap items-center gap-1.5 pt-2">
+          {/* At 390 with 44px touch targets, chip + stepper + Paint only
+              share one line the way mockup `MobLine` does it — the label
+              capped at 64px (below) plus every non-target gap/padding on
+              this row trimmed by a few px. `flex-wrap` stays as the safety
+              net for a genuinely long name, not the everyday path: none of
+              these trims touch a tap target's own size. */}
+          <div className="flex w-full flex-wrap items-center gap-1 pt-2">
             {unpainted ? (
               <>
                 <span
                   data-testid="paint-chip"
-                  className="flex h-9 items-center gap-1.5 rounded-sm border border-border bg-card pl-1 pr-2 text-xs font-medium"
+                  className="flex h-9 items-center gap-1 rounded-sm border border-border bg-card pl-1 pr-1 text-xs font-medium"
                 >
                   <DesignRound layers={currentThumb.layers} className="size-6 rounded-sm" />
-                  <span className="max-w-[120px] truncate">{currentThumb.label}</span>
+                  {/* Mockup MobLine caps this at 64px (Line, desktop, at
+                      120px) — this is the main squeeze that gets the row
+                      onto one line at 390. */}
+                  <span className="max-w-[64px] truncate md:max-w-[120px]">
+                    {currentThumb.label}
+                  </span>
                 </span>
                 <div
                   role="group"
@@ -259,7 +264,7 @@ export function CartLineRow({
                   type="button"
                   data-testid="paint-line"
                   onClick={() => onPaint(n)}
-                  className="relative ml-auto flex h-11 items-center gap-1.5 rounded-sm bg-primary px-3.5 text-xs font-semibold text-primary-foreground sm:h-9"
+                  className="relative ml-auto flex h-11 items-center gap-1 rounded-sm bg-primary px-2 text-xs font-semibold text-primary-foreground sm:h-9"
                 >
                   <Brush className="size-3.5" aria-hidden />
                   {t("unpainted.paint")}
