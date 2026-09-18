@@ -321,6 +321,18 @@ export function CeramicsStep({
   // already in scope this early.
   const designName = designLabel(snapshot, locale) ?? "";
   const activePalette = paletteFor(palettes, configCode);
+  /**
+   * TL follow-up (post-task-12): the ONE name for "what's painting right
+   * now" — the draft chip below and the basket header both used to compute
+   * this themselves, and the header's own fallback (`designName`) was wrong
+   * for the unsaved-draft case: a saved palette names it, an unsaved draft
+   * IS still a real configuration and gets the same deterministic label
+   * `nameFor()`/the draft chip already give it (`nameFor` never returns
+   * empty, even with zero colours — see its own test), and `designName` is
+   * the true last resort, for when there's no configuration to name at all.
+   * Computed ONCE here so the two call sites can never drift apart again.
+   */
+  const paintingLabel = activePalette?.name ?? nameFor(configCode, snapshot, paletteWords) ?? designName;
 
   /**
    * `activeCode` (persisted, cross-tab) is a DIFFERENT thing: a "last chosen"
@@ -450,7 +462,7 @@ export function CeramicsStep({
     <PaletteChip
       key="draft"
       code={configCode}
-      name={nameFor(configCode, snapshot, paletteWords)}
+      name={paintingLabel}
       layers={designLayers}
       draft
       brush
@@ -468,7 +480,10 @@ export function CeramicsStep({
     const now = Date.now();
     savePalette({
       code: configCode,
-      name: nameFor(configCode, snapshot, paletteWords),
+      // `paintingLabel` at this call site IS `nameFor(...)` — this button
+      // only renders when `!activePalette` (the same condition the draft
+      // chip renders on), so the two never disagree.
+      name: paintingLabel,
       designSlug: design.slug,
       snapshot,
       layers: designLayers,
@@ -615,12 +630,16 @@ export function CeramicsStep({
       return {
         code: activePalette?.code ?? configCode,
         layers: designLayers,
-        label: activePalette?.name ?? designName,
+        // TL follow-up (post-task-12): same `paintingLabel` the bar's chip
+        // and the basket header now share — this fell back straight to
+        // `designName` before, the same "vaguer of two names for the same
+        // thing on screen" bug the header had.
+        label: paintingLabel,
         hexes: snapshot.selections.map((s) => s.hex).filter((h): h is string => Boolean(h)),
         snapshot,
       };
     },
-    [rowPaletteCode, palettes, activePalette, configCode, designLayers, designName, snapshot]
+    [rowPaletteCode, palettes, activePalette, configCode, designLayers, paintingLabel, snapshot]
   );
   /**
    * Bug fix (task 11 review): a cart line id RECURS — `cart.ts` gives every
@@ -1158,17 +1177,22 @@ export function CeramicsStep({
         <h2 className="text-base font-semibold">{t("cartTitle")}</h2>
         {/* Fix wave B finding 3 — mockup `#s3a`'s header line, the
             replacement for the removed "Ditt valg" box (task 9): says what a
-            NEW ceramic added right now gets painted with. Falls back to the
-            on-screen config's own name — the exact default `rowThumb` above
-            already uses for an untouched row — so this never prints nothing,
-            or "undefined", with no palette saved yet (the state every
-            customer starts in). Hidden with the box's own rule (AC4) when
+            NEW ceramic added right now gets painted with. TL follow-up
+            (post-task-12): this used to fall back straight to `designName`
+            for an unsaved draft, while the bar's OWN chip (a few hundred
+            lines up) named the exact same configuration with its
+            deterministic colour label — two names for one thing on one
+            screen, and the vaguer one is the one this header showed. Both
+            now read `paintingLabel`, computed ONCE above, so they can't
+            drift apart again; `designName` only survives inside that
+            variable's own fallback chain, for when there's no configuration
+            to name at all. Hidden with the box's own rule (AC4) when
             there's no config at all yet (a bare `?set=` landing).
             TODO:nb-review — cart.paintedWith NO copy is new, unreviewed. */}
         {hasConfig && (
           <span className="text-xs text-muted-foreground">
             {t.rich("paintedWith", {
-              name: activePalette?.name ?? designName,
+              name: paintingLabel,
               b: (chunks) => <b className="font-semibold text-foreground">{chunks}</b>,
             })}
           </span>
