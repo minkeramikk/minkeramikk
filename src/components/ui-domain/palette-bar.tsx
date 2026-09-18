@@ -38,10 +38,16 @@ type PaletteBarProps = (
   /** Sticks the bar at the very top of the viewport. Off for static/side-by-side
    *  previews (mirrors the mockup's own `sticky=false` default). */
   sticky?: boolean;
-  /** Extra classes on the root — e.g. task 8's `md:-mx-5 md:-mt-7` full-bleed
-   *  trick against `main`'s padding. MUST land on this root, not a wrapper:
-   *  `position: sticky` only has room to hold while scrolling as long as its
-   *  OWN parent is taller than it is — a wrapper sized to just this bar (its
+  /** Extra classes on the root — e.g. task 8's `md:-mt-7` (still needed: it
+   *  cancels `main`'s own top padding so the bar sits flush under the header
+   *  before any scroll). The HORIZONTAL full-bleed is owned by this
+   *  component itself now (see the root's own `md:w-screen` below) — a
+   *  caller-side `-mx-5` would only have cancelled `main`'s padding, capping
+   *  the bar at the page's own max-w column (PR3 fix: the TL's "the bar
+   *  sfora on desktop", really the opposite — it stopped short of the
+   *  viewport edges). MUST land on this root, not a wrapper: `position:
+   *  sticky` only has room to hold while scrolling as long as its OWN
+   *  parent is taller than it is — a wrapper sized to just this bar (its
    *  only child) gives it zero such room, so it would unstick the instant it
    *  arrives at `top`, instead of staying pinned for the rest of the scroll. */
   className?: string;
@@ -86,6 +92,27 @@ export function PaletteBar({
         // this implies (configurator-client.tsx's preview column).
         sticky && "sticky top-0 z-30",
         "border-b border-border bg-[var(--mk-canvas)] shadow-[0_1px_0_var(--border)]",
+        // PR3 fix ("la palette sfora su desktop" — the bar's surface stopped
+        // short of the viewport edges by ~110px at 1280 because it only ever
+        // cancelled `main`'s padding, never its `max-w-[1060px]` cap): break
+        // the SURFACE out to the true viewport edges with `margin-left`, not
+        // `left`/`right` insets — insets on a `position: sticky` element set
+        // its sticking THRESHOLD, not a static offset, so they'd silently
+        // change when/whether it sticks instead of just shifting it. `main`
+        // (public-shell.tsx) centres its column with `mx-auto`, and every
+        // wrapper between it and this root is a plain 100%-width, no-padding
+        // div, so this root's own containing block is ALSO centred on the
+        // viewport — the classic `calc(50% - 50vw)` breakout is exact here,
+        // no matter `main`'s `px-5`: both the `50%` and the `50vw` resolve
+        // against boxes centred on the same axis, and the padding term
+        // cancels out of the algebra. Safe from the usual "100vw overflows
+        // past a scrollbar" trap because `globals.css` sets `scrollbar-gutter:
+        // stable` on `html` — the gutter is always reserved, so `100vw`
+        // already excludes it. The CONTENT row right below keeps its own
+        // `max-w-[1060px] mx-auto px-5` unchanged — same column, same 1060,
+        // so chips/eyebrow/extra land exactly where they always have; only
+        // the surface (bg/border/shadow) reaches the edges.
+        "md:w-screen md:ml-[calc(50%-50vw)]",
         className
       )}
     >
