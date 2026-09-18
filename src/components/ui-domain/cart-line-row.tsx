@@ -305,17 +305,15 @@ export function CartLineRow({
                   className="flex h-11 min-w-0 flex-1 items-center gap-1 rounded-sm border border-border bg-card pl-1 pr-1 text-xs font-medium sm:h-9 lg:flex-initial lg:gap-1.5 lg:pr-2"
                 >
                   <DesignRound layers={currentThumb.layers} className="size-6 shrink-0 rounded-sm" />
-                  {/* Dots first, name second: on a phone the chip has ~100px
-                      once the ceramic photo claims the thumb column, and a
-                      name truncated to a 5px sliver is worse than no name —
-                      the design is named in the «Ditt valg» strip at the top
-                      of the step anyway. So the colours (fixed width, always
-                      legible) always show, and the name joins them from `sm`,
-                      where there is room for it to mean something. */}
+                  {/* Dots first, then the name — same order as the painted
+                      row's info line, at every width (TL, 18/9: the name is
+                      information worth having on a phone too, even truncated).
+                      The dots keep their fixed width and the name takes what
+                      is left, so the chip still shrinks instead of pushing
+                      Paint out. This chip becomes the palette picker in the
+                      next card; the name is what it will carry then. */}
                   <Dots hexes={currentThumb.hexes} />
-                  <span className="hidden min-w-0 truncate sm:inline">
-                    {currentThumb.label}
-                  </span>
+                  <span className="min-w-0 truncate">{currentThumb.label}</span>
                 </span>
                 <div
                   role="group"
