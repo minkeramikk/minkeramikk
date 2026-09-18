@@ -98,7 +98,14 @@ export function CartLineRow({
           grid items and fall into the desktop grid's auto-placed 2nd/3rd
           columns. A second, duplicated price node would be read twice by a
           screen reader — this is the one-node alternative. */}
-      <div className="grid grid-cols-[auto_1fr] gap-x-3 md:grid-cols-[auto_1fr_auto]">
+      {/* `minmax(0,1fr)`, not `1fr`: a bare `1fr` is `minmax(auto,1fr)`, so the
+          track refuses to go below its content's min-content width — and the
+          actions row's content (chip + stepper + Paint) is wider than the rail
+          on a design whose `formatSelections` runs long. The column then grew
+          PAST the panel and pushed Paint off screen, while the chip's own
+          `flex-1` never engaged: the flex container it shrinks against was
+          already oversized. Real cart, reported from the running app. */}
+      <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 md:grid-cols-[auto_minmax(0,1fr)_auto]">
         <div className="row-span-2">
           <CartLineThumb
             unpainted={unpainted}
@@ -213,7 +220,7 @@ export function CartLineRow({
             it no col-* class at all — the thumb's own `row-span-2` already
             keeps col 1 out of reach); from `md` it explicitly spans the two
             right-hand columns, same as the pre-mobile layout. */}
-        <div className="flex items-end md:col-start-2 md:col-span-2">
+        <div className="flex min-w-0 items-end md:col-start-2 md:col-span-2">
           {/* Fit at 375 AND 390, in BOTH locales — not just 390/no, which
               happened to have 4px of slack while 390/en (295px needed) and
               375/either (275px available) genuinely wrapped. The fix is
