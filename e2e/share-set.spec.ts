@@ -88,8 +88,13 @@ test("AC1/AC2/AC5: share 2 rows → clean context lands at step 3 → expand →
   await expect(page).toHaveURL(/[?&]design=/);
   await expect(page).toHaveURL(/[?&]origin=set/);
   await expect(ceramics(page)).toHaveCount(ceramicCount);
-  // Bug 3: current design ≠ explicit colour choice — no "Your selection" box.
-  await expect(page.getByTestId("step3-your-selection")).toHaveCount(0);
+  // Bug 3 assertion retired (fix wave A finding 3): `step3-your-selection`
+  // (the desktop "Your selection" box) went out with R5-PALETTES task 9,
+  // replaced by the PaletteBar, which is always on screen regardless of an
+  // explicit colour choice — a testid that can no longer exist anywhere
+  // reads as count 0 forever, so this line was passing whether or not bug 3
+  // actually held. No real replacement assertion: the PaletteBar isn't
+  // gated on the thing bug 3 was about.
 
   // AC5: expand the first row → big composition (still on the docked panel —
   // task 18 only moved the code + edit link out, not the preview).

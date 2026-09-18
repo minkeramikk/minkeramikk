@@ -474,8 +474,16 @@ test.describe("R2-3+R2-4 expandable card", () => {
       // the add-to-cart assertions above. The edit button only exists inside
       // the recap, so it's guarded by the same hasRecap check.
       if (hasRecap) {
-        const editTestId = isMobile ? "your-selection-edit-mobile" : "your-selection-edit";
-        await page.getByTestId(editTestId).click();
+        // R5-PALETTES task 9 took the desktop "Endre farger" link out with
+        // the desktop "Ditt valg" box — same fix as the recap assert above,
+        // the mobile branch is untouched. `back-step` (nav cluster, desktop
+        // only — see ceramics-step.tsx) is the real control that still
+        // returns to step 2 with the design in the URL.
+        if (isMobile) {
+          await page.getByTestId("your-selection-edit-mobile").click();
+        } else {
+          await page.getByTestId("back-step").click();
+        }
         await expect(page).toHaveURL(/step=2/);
       }
     } finally {
