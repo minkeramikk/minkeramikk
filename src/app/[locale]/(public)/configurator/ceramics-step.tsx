@@ -323,19 +323,28 @@ export function CeramicsStep({
    * `paletteFor`, and reconcile in both directions — follow the URL forward
    * when it names a save, clear the pointer when it names nothing.
    */
-  useEffect(() => {
-    if (!palettesHydrated) return;
-    if (activePalette) {
-      if (activeCode !== activePalette.code) setActiveCode(activePalette.code);
-      return;
-    }
-    if (activeCode && !paletteFor(palettes, activeCode)) setActiveCode(null);
-  }, [palettesHydrated, activePalette, activeCode, palettes, setActiveCode]);
-
   /** The one chip currently in rename mode (only one at a time — task 8's own rule). */
   const [renamingPaletteCode, setRenamingPaletteCode] = useState<string | null>(
     null
   );
+  useEffect(() => {
+    if (!palettesHydrated) return;
+    if (activePalette) {
+      if (activeCode !== activePalette.code) setActiveCode(activePalette.code);
+    } else if (activeCode && !paletteFor(palettes, activeCode)) {
+      setActiveCode(null);
+    }
+    // Fix wave A finding 4: a palette's code is a deterministic function of
+    // its colours, so it RECURS — evict it via the LRU (or another tab
+    // rewrites the list, the `storage` listener makes that routine), then
+    // re-create the same colours, and the chip would mount already in
+    // rename mode with `autoFocus` stealing focus. Same reconciliation this
+    // effect already does for `activeCode`, same reason: never trust a
+    // stale code-keyed pointer without checking it still resolves.
+    if (renamingPaletteCode && !paletteFor(palettes, renamingPaletteCode)) {
+      setRenamingPaletteCode(null);
+    }
+  }, [palettesHydrated, activePalette, activeCode, palettes, setActiveCode, renamingPaletteCode]);
 
   /**
    * Picking a chip: it becomes the active palette by becoming the URL (§4-bis)
@@ -348,7 +357,15 @@ export function CeramicsStep({
   function paintWith(code: string) {
     touchPalette(code, Date.now());
     setActiveCode(code);
-    router.push(`/configurator?code=${code}&step=3`);
+    // Fix wave A finding 1: build from the CURRENT params, the way `goToStep`
+    // below already does — a from-scratch URL was dropping note=/text=
+    // (R2-2b/F38, the ONLY carrier for both at step 3) and set=/origin=set
+    // (the shared-set banner), silently losing the customer's own words and
+    // the shared basket on every chip tap.
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("code", code);
+    params.set("step", "3");
+    router.push(`${pathname}?${params.toString()}`);
   }
 
   /**
@@ -487,30 +504,53 @@ export function CeramicsStep({
    * before this task, so an untouched row's behaviour doesn't change.
    * `code` doubles as which picker pill gets the ring (`currentThumb.code`
    * in `CartLineRow`), so this is the ONE place that resolves it.
+   *
+   * Fix wave A finding 2: an untouched row (no entry in `rowPaletteCode`)
+   * used to resolve `configCode` through `paletteFor` too, which — right
+   * after "Save as palette", when the on-screen config IS a saved palette —
+   * swapped in that palette's own STORED snapshot instead of the props one.
+   * That stored snapshot has no `customNote`/`customText` (a palette is
+   * colours only, F38/R2-2b never travel in the code), so painting an
+   * untouched row silently dropped the customer's words while "Legg i
+   * handlekurv" a few hundred lines below kept them — same design, same
+   * colours, two different inscriptions in the same basket. `activePalette`
+   * is now only ever borrowed for its code/name (display), never its
+   * snapshot/layers, on the untouched path.
+   *
+   * An EXPLICIT pick (TL ruling) takes the palette's COLOURS but keeps the
+   * customer's own words: `customNote`/`customText` are carried from the
+   * current on-screen `snapshot` into the palette snapshot this row paints
+   * with — the palette is a set of colours, not a replacement for what the
+   * customer wrote.
    */
   const rowThumb = useCallback(
     (line: { id: string }) => {
-      const code = rowPaletteCode[line.id] ?? configCode;
-      const pal = paletteFor(palettes, code);
-      return pal
-        ? {
-            code: pal.code,
-            layers: pal.layers,
-            label: pal.name,
-            hexes: pal.snapshot.selections
-              .map((s) => s.hex)
-              .filter((h): h is string => Boolean(h)),
-            snapshot: pal.snapshot,
-          }
-        : {
-            code: configCode,
-            layers: designLayers,
-            label: designName,
-            hexes: snapshot.selections.map((s) => s.hex).filter((h): h is string => Boolean(h)),
-            snapshot,
-          };
+      const explicitCode = rowPaletteCode[line.id];
+      const explicitPalette = explicitCode ? paletteFor(palettes, explicitCode) : null;
+      if (explicitPalette) {
+        return {
+          code: explicitPalette.code,
+          layers: explicitPalette.layers,
+          label: explicitPalette.name,
+          hexes: explicitPalette.snapshot.selections
+            .map((s) => s.hex)
+            .filter((h): h is string => Boolean(h)),
+          snapshot: {
+            ...explicitPalette.snapshot,
+            customNote: snapshot.customNote,
+            customText: snapshot.customText,
+          },
+        };
+      }
+      return {
+        code: activePalette?.code ?? configCode,
+        layers: designLayers,
+        label: activePalette?.name ?? designName,
+        hexes: snapshot.selections.map((s) => s.hex).filter((h): h is string => Boolean(h)),
+        snapshot,
+      };
     },
-    [rowPaletteCode, palettes, configCode, designLayers, designName, snapshot]
+    [rowPaletteCode, palettes, activePalette, configCode, designLayers, designName, snapshot]
   );
   /**
    * Bug fix (task 11 review): a cart line id RECURS — `cart.ts` gives every
@@ -1114,6 +1154,12 @@ export function CeramicsStep({
                       setRowPaletteCode((m) => ({ ...m, [line.id]: code }));
                       // Mockup `selPal`: choosing one closes the picker.
                       setPickerOpenId((m) => ({ ...m, [line.id]: false }));
+                      // Fix wave A finding 5: ADR 0028 is LEAST-RECENTLY-
+                      // USED — a palette picked here IS a use, same as
+                      // `paintWith` touching it. Without this a palette
+                      // used on rows all afternoon keeps its old `usedAt`
+                      // and is first out of the LRU.
+                      touchPalette(code, Date.now());
                     }}
                   />
                 );
