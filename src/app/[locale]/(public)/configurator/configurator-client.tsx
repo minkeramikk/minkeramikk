@@ -50,7 +50,7 @@ import type { DesignDetail } from "@/lib/catalog/design-options";
 import type { PreviewLayer } from "@/lib/configurator/preview";
 import { useCartContext } from "@/lib/cart/cart-context";
 import { buildConfigLinePayload } from "@/lib/configurator/line-payload";
-import { nameFor, paletteFor } from "@/lib/palettes/palettes";
+import { nameFor, paletteFor, sortCurrentDesignFirst } from "@/lib/palettes/palettes";
 import type { PaletteWords } from "@/lib/palettes/name-lists";
 import { PaletteBar } from "@/components/ui-domain/palette-bar";
 import { PaletteChip } from "@/components/ui-domain/palette-chip";
@@ -733,9 +733,13 @@ export function ConfiguratorClient({
   // (draft or, if it matches a save, that save shown active/renamable),
   // then every OTHER saved palette — dim when it belongs to a different
   // design (card §6: switching design from a dim chip is a later card, so
-  // it stays inert here, no onSelect).
-  const otherPaletteChips = palettes
-    .filter((p) => p.code !== matchedPalette?.code)
+  // it stays inert here, no onSelect). Card §4-bis (added mid-PR): among
+  // those "other" palettes, the current design's own still lead, the rest
+  // trail dimmed — a stable sort, not a filter.
+  const otherPaletteChips = sortCurrentDesignFirst(
+    palettes.filter((p) => p.code !== matchedPalette?.code),
+    selected.slug
+  )
     .map((p) => {
       const dim = p.designSlug !== selected.slug;
       if (dim) {
@@ -790,7 +794,16 @@ export function ConfiguratorClient({
     // R4-RESTYLE: no `data-editor` hook and no height chain — the globals.css
     // block that locked the viewport is gone. Under md step 2 is an ordinary
     // page scroller whose canvas is `position: sticky`.
-    <div data-testid="configurator">
+    <div
+      data-testid="configurator"
+      // Fix wave B finding 5 (minor) — nothing on this page carried
+      // `scroll-margin-top`, so a keyboard-focused control that scrolls
+      // itself into view lands right under the 69px sticky `PaletteBar`
+      // (step 2 only — the bar only mounts then). `*:focus-visible`, not a
+      // fixed id list: any control in the step-2 column can be the one Tab
+      // lands on next.
+      className={step === 2 ? "md:[&_*:focus-visible]:scroll-mt-[69px]" : undefined}
+    >
       {/* R5-PALETTES task 8: desktop only (mobile gets its own «Palettes» tab
           in a later card — mockup `#sM`). `main` (public-shell.tsx) wraps
           every page in `px-5 py-7`; `-mx-5 -mt-7` cancels exactly that so the

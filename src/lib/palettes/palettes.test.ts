@@ -6,6 +6,7 @@ import {
   paletteFor,
   paletteFamily,
   nameFor,
+  sortCurrentDesignFirst,
   MAX_PALETTES,
   type Palette,
 } from "./palettes";
@@ -59,6 +60,41 @@ describe("palette store", () => {
     savePalette(list, make("B"));
     renamePalette(list, "A", "X");
     touchPalette(list, "A", 5);
+    expect(list).toEqual(copy);
+  });
+});
+
+describe("sortCurrentDesignFirst (card §4-bis, added mid-PR)", () => {
+  const of = (code: string, designSlug: string) => ({ ...make(code), designSlug });
+
+  it("puts every current-design palette before every other design's", () => {
+    const list = [of("A", "limoni"), of("B", "alici"), of("C", "limoni"), of("D", "alici")];
+    expect(sortCurrentDesignFirst(list, "alici").map((p) => p.code)).toEqual([
+      "B",
+      "D",
+      "A",
+      "C",
+    ]);
+  });
+
+  it("preserves relative order within each group — a stable sort, not a filter", () => {
+    const list = [of("A", "limoni"), of("B", "limoni"), of("C", "alici"), of("D", "alici")];
+    const sorted = sortCurrentDesignFirst(list, "alici");
+    // current design ("alici") first, in the order it already had
+    expect(sorted.slice(0, 2).map((p) => p.code)).toEqual(["C", "D"]);
+    // then the rest, ALSO in the order it already had — nothing dropped
+    expect(sorted.slice(2).map((p) => p.code)).toEqual(["A", "B"]);
+  });
+
+  it("leaves a list with none of the current design unchanged", () => {
+    const list = [of("A", "limoni"), of("B", "limoni")];
+    expect(sortCurrentDesignFirst(list, "alici").map((p) => p.code)).toEqual(["A", "B"]);
+  });
+
+  it("does not mutate its input", () => {
+    const list = [of("A", "limoni"), of("B", "alici")];
+    const copy = structuredClone(list);
+    sortCurrentDesignFirst(list, "alici");
     expect(list).toEqual(copy);
   });
 });

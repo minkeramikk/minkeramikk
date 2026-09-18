@@ -63,6 +63,23 @@ export function paletteFor(list: Palette[], code: string): Palette | null {
 }
 
 /**
+ * Card §4-bis, "Aggiunto in corsa alla PR 2" (18/9): everywhere a list of
+ * palettes renders — bar, tab, Sheet — the current design's own palettes
+ * lead, every other design's follow (dimmed by the caller, not dropped
+ * here). A STABLE sort, not a filter: `Array.prototype.sort` is stable in
+ * every engine this project targets, so it only reorders the two buckets
+ * against each other — relative order within each bucket is whatever the
+ * caller already had (LRU/creation order, untouched). Copies before
+ * sorting: every other function in this file returns a new array too, and
+ * `.sort()` mutates in place.
+ */
+export function sortCurrentDesignFirst(list: Palette[], currentSlug: string): Palette[] {
+  return [...list].sort(
+    (a, b) => Number(a.designSlug !== currentSlug) - Number(b.designSlug !== currentSlug)
+  );
+}
+
+/**
  * Bucket a hex colour into a pigment family by hue, with a `neutral`
  * catch-all for anything with too little saturation to have a real hue
  * (greys, near-black, near-white — the "no saturation ⇒ no hue" case).
