@@ -44,7 +44,7 @@ import {
 import { pickDefaultOption } from "@/lib/configurator/default-option";
 import { fullRowInsertIndex } from "@/lib/configurator/grid-rows";
 import { keyboardSafeScrollDelta } from "@/lib/configurator/keyboard-safe-scroll";
-import { MAX_CUSTOM_TEXT } from "@/lib/orders/schema";
+import { MAX_CUSTOM_NOTE, MAX_CUSTOM_TEXT } from "@/lib/orders/schema";
 import { cn } from "@/lib/utils";
 import type { DesignDetail } from "@/lib/catalog/design-options";
 import type { PreviewLayer } from "@/lib/configurator/preview";
@@ -1933,7 +1933,7 @@ export function ConfiguratorClient({
                         ref={noteTextareaRef}
                         data-testid="custom-notes-text"
                         value={noteText}
-                        maxLength={250}
+                        maxLength={MAX_CUSTOM_NOTE}
                         rows={3}
                         onChange={(e) => setNoteText(e.target.value)}
                         placeholder={t("customNotes.placeholder")}
@@ -1949,7 +1949,7 @@ export function ConfiguratorClient({
                           {t("customNotes.helper")}
                         </p>
                         <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
-                          {t("customNotes.counter", { count: noteText.length })}
+                          {t("customNotes.counter", { count: noteText.length, max: MAX_CUSTOM_NOTE })}
                         </span>
                       </div>
                     </div>

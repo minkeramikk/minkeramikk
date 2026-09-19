@@ -5,8 +5,17 @@
 import { z } from "zod";
 import { CURRENCIES } from "@/lib/money/money";
 
-/** R2-2b AC7: hard cap on the customer's free-text colour note. */
-export const MAX_CUSTOM_NOTE = 250;
+/** R2-2b AC7: hard cap on the customer's free-text colour note.
+ *  R5-TEXT-IDENTITY final-review round 2 (finding 5b, TL ruling recorded
+ *  but not shipped until now): 250 → 50. The wish only ever enters the
+ *  config code as a 4-char hash now (`hashNote`, text-segment.ts) — the
+ *  code itself never needed a length cap for that — but the field is still
+ *  a free-text input reaching the order payload and the lab PDF, and an
+ *  uncapped (or wrongly-capped) field just meant an 80-character wish met a
+ *  400 at checkout with no earlier warning. 50 matches the field's own
+ *  `maxLength` (configurator-client.tsx) — same constant, not two numbers
+ *  that can drift apart again. */
+export const MAX_CUSTOM_NOTE = 50;
 
 /** F38: hard cap on the customer's inscription on the ceramic.
  *  R4-FIX Ⓑ: 100 → 25 chars, spaces included (client request, 2/9). Existing

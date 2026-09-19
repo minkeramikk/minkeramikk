@@ -55,6 +55,17 @@ describe("orderPayloadSchema — customNote sanitisation (AC7)", () => {
     expect(result.success).toBe(false);
   });
 
+  // Final-review round 2, finding 5b (TL ruling recorded, not shipped until
+  // now): 250 → 50. The wish only ever enters the config code as a hash
+  // (never its length), but the field itself still reaches the order
+  // payload uncapped-in-practice before this — pin the new boundary so it
+  // can't silently drift back.
+  it("the cap is 50, and exactly 50 is still accepted", () => {
+    expect(MAX_CUSTOM_NOTE).toBe(50);
+    expect(orderPayloadSchema.safeParse(payload("x".repeat(50))).success).toBe(true);
+    expect(orderPayloadSchema.safeParse(payload("x".repeat(51))).success).toBe(false);
+  });
+
   it("accepts a snapshot without a customNote (back-compatible)", () => {
     const result = orderPayloadSchema.safeParse({
       ...payload(undefined),
