@@ -260,6 +260,63 @@ describe("config-code — inscription identity (R5-TEXT-IDENTITY task 2, AC 1)",
   });
 });
 
+/**
+ * ADR 0011 amendment (final-review round 2, finding 2 — BLOCKER). A design
+ * that LOSES a category shifts an old code's real last colour segment into
+ * the inscription slot (`parts[cats.length]`, now one shorter). Before the
+ * checksum, an ordinary option code landed on "plausible content" there
+ * roughly 1 time in 4 (measured: 232/961 two-character option codes, and
+ * 7672/29791 three-character ones — reproduced here, not just quoted).
+ * `decodeTextSegment`'s 2-char checksum (text-segment.ts) is what turns
+ * "plausible" into "confirmed"; this suite re-proves the property AT THE
+ * config-code.ts / decodeConfigCode level, which is what a customer's link
+ * actually goes through.
+ */
+describe("config-code — ADR 0011 amendment: a lost category never fabricates an inscription", () => {
+  // A single-category design so the "old" 2-segment code's SECOND segment
+  // is unambiguously the one that would fall into the inscription slot
+  // once the design shrinks to 1 category.
+  const SHRUNK: CodecDesign = {
+    code: "S",
+    slug: "shrink-test",
+    categories: [{ slug: "only", optionCodeToId: { A: "only-opt" }, defaultOptionId: "only-opt" }],
+  };
+  const findShrunk = (c: string) => (c.toUpperCase() === "S" ? SHRUNK : null);
+
+  it("exhaustive: no 2-character option code decodes as a phantom inscription", () => {
+    let phantom = 0;
+    for (const a of CODE_ALPHABET) {
+      for (const b of CODE_ALPHABET) {
+        const decoded = decodeConfigCode(`MK-S-A-${a}${b}`, findShrunk);
+        if (decoded.customText !== undefined) phantom++;
+      }
+    }
+    // Measured before the checksum: 232/961. This is the number the
+    // coordinator asked to see measured again, not argued.
+    expect(phantom).toBe(0);
+  });
+
+  it("exhaustive: no 3-character option code decodes as a phantom inscription", () => {
+    let phantom = 0;
+    for (const a of CODE_ALPHABET) {
+      for (const b of CODE_ALPHABET) {
+        for (const c of CODE_ALPHABET) {
+          const decoded = decodeConfigCode(`MK-S-A-${a}${b}${c}`, findShrunk);
+          if (decoded.customText !== undefined) phantom++;
+        }
+      }
+    }
+    // Measured before the checksum: 7672/29791.
+    expect(phantom).toBe(0);
+  });
+
+  it("a genuine inscription (with its real checksum) still decodes fine on the SAME design shape", () => {
+    const sel = { only: "only-opt" };
+    const code = encodeConfigCode(SHRUNK, sel, { customText: "Til Anna" });
+    expect(decodeConfigCode(code, findShrunk).customText).toBe("Til Anna");
+  });
+});
+
 describe("toCodecDesign defaultOptionId", () => {
   function detail(opts: { id: string; code: string; isDefault?: boolean }[]) {
     return {

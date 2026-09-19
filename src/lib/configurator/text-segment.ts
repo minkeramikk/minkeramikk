@@ -1,9 +1,10 @@
 /**
- * Text-identity segment codec (R5-TEXT-IDENTITY, task 1). Pure, no DB, no
- * React — wiring this into the `MK-...` code grammar is task 2
- * (config-code.ts is not touched here).
+ * Text-identity segment codec (R5-TEXT-IDENTITY, task 1; checksum added in
+ * final-review round 2 — see ADR 0011 amendment). Pure, no DB, no React —
+ * wiring this into the `MK-...` code grammar is task 2 (config-code.ts is
+ * not touched here).
  *
- *   <flags><noteHash?><textPayload?>
+ *   <flags><checksum><noteHash?><textPayload?>
  *
  * - `flags` — ONE base-31 char (CODE_ALPHABET index, 0-30). Bit 0 (1) = an
  *   inscription follows; bit 1 (2) = a 4-char colour-wish hash follows; bits
@@ -17,6 +18,19 @@
  *   tolerant of any bit it doesn't recognise, so a bit this task's decoder
  *   doesn't interpret is still round-tripped in `flags` without blocking the
  *   inscription/hash decode (forward-compatible for card 6).
+ * - `checksum` — exactly 2 base-31 chars, `fnv1a(flagsChar + rest) %
+ *   31^2` (`rest` = the noteHash/textPayload that follow). ADR 0011 amendment
+ *   round 2: `config-code.ts` reads `parts[cats.length]` as A CANDIDATE
+ *   inscription slot, but a design that has ever LOST a category shifts an
+ *   old code's real colour segment into that exact slot, and plenty of real
+ *   option codes happen to decode as plausible "content" by pure
+ *   flags-byte coincidence (measured ~25% of 2-char and 3-char option
+ *   codes, before this fix). The checksum is what turns "plausible" into
+ *   "confirmed": decode only accepts the slot as an inscription when the
+ *   checksum matches (~1/961 chance for a genuine colour segment to pass by
+ *   accident, not ~1/4) — otherwise it's an extra segment, ADR 0011's
+ *   original rule, ignored exactly as it always said. Reuses `fnv1a`
+ *   (below), not a second hash function.
  * - `noteHash` — exactly 4 base-31 chars when bit 1 is set. Identity only,
  *   never read back as text: a fingerprint so two lines with the same
  *   colours but different customer wishes don't silently merge on the
@@ -57,6 +71,13 @@ const NOTE_HASH_LEN = 4;
 // customer wishes apart within one order line; a same-bucket collision just
 // means two DIFFERENT wishes get treated as one duplicate, never the reverse.
 const NOTE_HASH_SPACE = CODE_ALPHABET.length ** NOTE_HASH_LEN;
+
+// ADR 0011 amendment round 2: 2 base-31 chars, 31^2 = 961 buckets — enough
+// to take a stray colour segment's chance of passing as "content" from
+// ~1/4 (the old bare flags-bit coincidence) down to ~1/961. See the format
+// doc comment above for the false-positive numbers this closes.
+const CHECKSUM_LEN = 2;
+const CHECKSUM_SPACE = CODE_ALPHABET.length ** CHECKSUM_LEN;
 
 export interface DecodedTextSegment {
   text: string;
@@ -113,24 +134,46 @@ export function base31ToBigInt(s: string): bigint | null {
   return value;
 }
 
-/**
- * 4 base-31 chars, deterministic across builds/processes: reuses the FNV-1a
- * `palettes.ts` already has rather than a second hash function. Fixed
- * width, so (unlike textPayload) there is no leading-zero-digit problem —
- * it's zero-padded on the left explicitly.
- */
-export function hashNote(note: string): string {
-  let v = fnv1a(note) % NOTE_HASH_SPACE;
+/** `value`, written out as exactly `len` base-31 digits, left-padded with
+ *  `CODE_ALPHABET[0]` — a fixed-width encode, so unlike `textPayload` there
+ *  is no leading-zero-digit ambiguity: the width is always known in
+ *  advance. Shared by `hashNote` and the segment checksum — one fixed-width
+ *  digit writer, not two. */
+function fixedWidthDigits(value: number, len: number): string {
+  let v = value;
   const digits: string[] = [];
-  for (let i = 0; i < NOTE_HASH_LEN; i++) {
+  for (let i = 0; i < len; i++) {
     digits.unshift(CODE_ALPHABET[v % CODE_ALPHABET.length]);
     v = Math.floor(v / CODE_ALPHABET.length);
   }
   return digits.join("");
 }
 
+/**
+ * 4 base-31 chars, deterministic across builds/processes: reuses the FNV-1a
+ * `palettes.ts` already has rather than a second hash function.
+ */
+export function hashNote(note: string): string {
+  return fixedWidthDigits(fnv1a(note) % NOTE_HASH_SPACE, NOTE_HASH_LEN);
+}
+
 function isValidNoteHash(s: string): boolean {
   return s.length === NOTE_HASH_LEN && base31ToBigInt(s) !== null;
+}
+
+/**
+ * ADR 0011 amendment round 2 — the 2-char checksum that turns "this slot
+ * decodes as plausible content" into "this slot IS an inscription segment".
+ * `flagsChar` + `rest` (the noteHash/textPayload that follow the checksum
+ * in the actual segment string) is exactly what the segment would be
+ * WITHOUT its checksum — computed the same way on encode (before the
+ * checksum exists yet) and on decode (read back apart from the checksum),
+ * so the two sides can never drift. Exported for the test that hand-builds
+ * a segment byte-for-byte (the leading-zero-byte suite) — it has to use the
+ * real checksum too, now that decode requires one.
+ */
+export function checksumFor(flagsChar: string, rest: string): string {
+  return fixedWidthDigits(fnv1a(flagsChar + rest) % CHECKSUM_SPACE, CHECKSUM_LEN);
 }
 
 /**
@@ -172,22 +215,40 @@ export function encodeTextSegment(input: {
 
   const flags = extraFlags | (hasText ? FLAG_TEXT : 0) | (hasHash ? FLAG_NOTE_HASH : 0);
 
-  let seg = CODE_ALPHABET[flags];
-  if (hasHash) seg += input.noteHash;
-  if (hasText) seg += bigIntToBase31(bytesToBigInt(new TextEncoder().encode(cleanedText)));
-  return seg;
+  const flagsChar = CODE_ALPHABET[flags];
+  let rest = "";
+  if (hasHash) rest += input.noteHash;
+  if (hasText) rest += bigIntToBase31(bytesToBigInt(new TextEncoder().encode(cleanedText)));
+  return flagsChar + checksumFor(flagsChar, rest) + rest;
 }
 
-/** `null` = unreadable (garbage in); never throws. */
+/**
+ * `null` = unreadable OR simply not an inscription segment (garbage/an
+ * ordinary option code that landed in this slot, ADR 0011 amendment round
+ * 2) — never throws, and the caller can't tell the two apart, by design:
+ * both mean "nothing to read here", never a crash.
+ */
 export function decodeTextSegment(seg: string): DecodedTextSegment | null {
   if (seg === "") return { text: "", noteHash: null, flags: 0 };
 
-  const flags = CODE_ALPHABET.indexOf(seg[0]);
+  const flagsChar = seg[0];
+  const flags = CODE_ALPHABET.indexOf(flagsChar);
   if (flags < 0) return null; // corrupt flags digit
 
-  let rest = seg.slice(1);
-  let noteHash: string | null = null;
+  const checksum = seg.slice(1, 1 + CHECKSUM_LEN);
+  let rest = seg.slice(1 + CHECKSUM_LEN);
+  // Too short for a checksum at all, or the checksum doesn't match what
+  // flagsChar+rest actually hash to: this is NOT confidently an inscription
+  // segment — an ordinary colour option code that ended up in this slot
+  // (a design that lost a category) reads as "content" by pure flags-byte
+  // coincidence roughly 1 time in 4 without this check; the checksum takes
+  // that down to roughly 1 in 961. Treated exactly like any other garbage:
+  // null, no throw, decodeConfigCode degrades to "no inscription".
+  if (checksum.length !== CHECKSUM_LEN || checksum !== checksumFor(flagsChar, rest)) {
+    return null;
+  }
 
+  let noteHash: string | null = null;
   if (flags & FLAG_NOTE_HASH) {
     const candidate = rest.slice(0, NOTE_HASH_LEN);
     if (!isValidNoteHash(candidate)) return null; // truncated or corrupt

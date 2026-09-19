@@ -141,9 +141,14 @@ export function normalizeConfigCode(raw: string): string {
 
 /**
  * Decode a code into a design slug + per-category selections.
- * Tolerant (ADR 0011): missing segment → category default; extra segments →
- * ignored; unknown option code → default; unknown design or malformed → throws
- * ConfigCodeError (callers show a gentle message, never crash).
+ * Tolerant (ADR 0011): missing segment → category default; unknown option
+ * code → default; unknown design or malformed → throws ConfigCodeError
+ * (callers show a gentle message, never crash). Segments past the colour
+ * segments are inspected, not blindly "ignored": `parts[cats.length]` is
+ * read as a CANDIDATE inscription segment (checksum-gated, see below and
+ * ADR 0011's amendment) — accepted only when its checksum confirms it,
+ * otherwise it degrades to ignored exactly as this ADR always said. Any
+ * part beyond that single candidate slot is ignored outright, no exceptions.
  *
  * @param findDesignByCode resolves `<D>` → the design (or null)
  */
@@ -181,15 +186,31 @@ export function decodeConfigCode(
   // shipped (the backward-compatibility contract), and on any code with
   // fewer segments than categories — both read as "no inscription".
   //
-  // Fragility to flag for whoever touches the catalog next: if this design
-  // ever gains a NEW category, `cats.length` grows by one, and an OLD code
-  // (saved before that category existed) has its inscription segment sitting
-  // exactly where the new category's segment is now expected. It gets read
-  // as that category's option code, matches nothing, falls back to the
-  // category default — and the inscription is silently lost. That's not a
-  // new failure mode: it degrades, it never throws, same as a plain colour
-  // segment shifting slots has always done in this positional grammar (ADR
-  // 0011) — it just now costs a customer's words instead of a colour choice.
+  // Fragility to flag for whoever touches the catalog next, BOTH directions
+  // (ADR 0011 amendment, round 2 of the final review — the first version of
+  // this comment only covered one of them):
+  //
+  // - Design GAINS a category: `cats.length` grows by one, and an OLD code
+  //   (saved before that category existed) has its inscription segment
+  //   sitting exactly where the new category's segment is now expected. It
+  //   gets read as that category's option code, matches nothing, falls back
+  //   to the category default — the inscription is silently lost.
+  // - Design LOSES a category: `cats.length` shrinks by one, and an OLD
+  //   code's LAST COLOUR segment now sits in the inscription slot instead.
+  //   Measured: an ordinary 1-2 character option code lands on
+  //   `decodeTextSegment`'s checksum by pure coincidence for roughly 1 in
+  //   961 tries at best (0/961 and 0/29791 measured directly for the option
+  //   code lengths this catalog actually produces) — not the ~1-in-4 it was
+  //   before the checksum existed. When it DOES pass, the "inscription"
+  //   read off it is whatever that checksum-matching option code happens to
+  //   decode to, not a real customer's words.
+  //
+  // Both directions degrade — a wrong-but-checksum-tolerant default colour,
+  // or a lost/wrongly-recovered inscription — they never throw, same as a
+  // plain colour segment shifting slots has always done in this positional
+  // grammar (ADR 0011). The checksum makes the SECOND direction rare instead
+  // of common; it does not (and structurally cannot) make either direction
+  // impossible, because the grammar still has no sentinel marking the slot.
   const textSeg = parts[cats.length];
   const decodedText = textSeg !== undefined ? decodeTextSegment(textSeg) : null;
   const customText = decodedText?.text || undefined; // "" (nothing/garbage) → no field

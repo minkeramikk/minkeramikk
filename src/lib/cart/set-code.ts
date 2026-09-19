@@ -106,6 +106,18 @@ export function selectionCountOf(snapshot: unknown): number | undefined {
  * a real colour segment by mistake silently repaints someone's kit wrong,
  * which is worse.
  *
+ * `decodeTextSegment` itself later grew a 2-char checksum (ADR 0011
+ * amendment, final-review round 2) specifically because this exact
+ * ambiguity showed up again, independently, in `config-code.ts`'s own
+ * decode (a design LOSING a category, not gaining one) — measured at the
+ * time as a ~25% false-positive rate for real 2-3 character option codes,
+ * not the "coin flip" figure above (that number was for the ORIGINAL,
+ * pre-checksum codec this file was rejecting a heuristic against). The
+ * checksum lowers the residual risk here too, but this file's own
+ * `selectionCount`-based approach stays the primary defence: a stale count
+ * is still exactly the scenario where relying on chance ALONE — even much
+ * better chance — is the wrong instinct.
+ *
  * Exported: the card §3 "Save as palette" guard (`configurator-client.tsx`)
  * reuses this SAME function to compare a draft's colours against saved
  * palettes, ignoring any inscription — one strip implementation, not two
