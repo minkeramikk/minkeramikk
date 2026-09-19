@@ -228,6 +228,11 @@ export function PaletteChip({
                 </span>
               )}
               <span className="max-w-[108px] truncate">{name}</span>
+              {/* One second line, and `dim` spends it on the OTHER design's
+                  name: a palette you cannot paint with right now needs to say
+                  WHY before it says what it was dedicated to. Callers still
+                  pass `dedication` for dim chips — it is simply outranked
+                  here, not forgotten. */}
               {dim && dimDesignName ? (
                 <span className="max-w-[108px] truncate text-[10px] text-muted-foreground">
                   {dimDesignName}

@@ -397,6 +397,8 @@ function PaletteTile({
             {/* R5-TEXT-IDENTITY (TL ruling) — the caller already resolved
                 whose words this is (this palette's own, or the canvas's
                 while active); nothing decoded from `palette.code` here. */}
+            {/* `!dim` for the same reason the chip trades it away: a tile for
+                another design gives its second line to that design's name. */}
             {!dim && <PaletteDedicationLine text={dedication} className="max-w-none" />}
             <span className="block truncate text-[10px] text-muted-foreground">
               {/* Fix wave PR3 finding 6: was its own near-copy of `cart-line-row.tsx`'s
