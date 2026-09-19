@@ -17,7 +17,18 @@
  * Decode is defensive and never throws: malformed rows are dropped (counted),
  * qty is clamped to 1–99, rows beyond the cap are dropped. A dropped row
  * degrades to a warning at the landing; the rest of the set survives.
+ *
+ * R5-TEXT-IDENTITY (task 3, card §2 AC 3): a shared kit carries the COLOURS
+ * of a line, never the customer's inscription/colour-wish (that segment is
+ * identity for THIS customer's cart, not something to hand to whoever opens
+ * the link). `encodeSetParam` strips it via `stripCustomSegment` below.
  */
+
+import {
+  decodeConfigCode,
+  encodeConfigCode,
+  type CodecDesign,
+} from "@/lib/configurator/config-code";
 
 export interface SetEntry {
   configCode: string;
@@ -50,14 +61,51 @@ export function clampQty(qty: number): number {
 }
 
 /**
+ * The colours-only version of `code`: same design + selections, with any
+ * inscription/colour-wish segment removed. Goes through the REAL codec —
+ * decode, then re-encode without `extras` — never string surgery on the
+ * segments: `decodeConfigCode` already has to resolve the design to know
+ * how many colour segments it owns before it can even find the inscription
+ * slot (`parts[cats.length]`, task 2), and slicing on an assumption here
+ * would just be a second, competing definition of that same slot — one
+ * that silently goes wrong the day a design's category count changes.
+ *
+ * `findDesignByCode` is optional (today's callers don't have a catalog
+ * resolver handy): with none given, or when `code` doesn't resolve (unknown
+ * design, malformed shape), the code is returned unchanged — the same
+ * "degrade, never fail" tolerance `decodeConfigCode` itself already has.
+ * NOTE: this means the "never leak an inscription" guarantee only holds
+ * where a caller passes a resolver; see the task-3 report for which real
+ * call sites still need that wiring.
+ */
+function stripCustomSegment(
+  code: string,
+  findDesignByCode?: (code: string) => CodecDesign | null
+): string {
+  if (!findDesignByCode) return code;
+  let resolved: CodecDesign | null = null;
+  try {
+    const { selections } = decodeConfigCode(code, (c) => (resolved = findDesignByCode(c)));
+    return resolved ? encodeConfigCode(resolved, selections) : code;
+  } catch {
+    return code; // ConfigCodeError (empty/unknown/malformed) — leave as-is
+  }
+}
+
+/**
  * Encode cart lines into the `set=` param value. Lines without a usable
  * configCode or productSlug are skipped (legacy localStorage rows — the share
  * UI surfaces a "not shareable" notice with the skipped count) — the same
  * `.filter()` below also drops an unpainted line (R5-UNPAINTED: configCode is
  * `null`, falsy), since a link with no design to reopen isn't shareable either.
+ *
+ * `findDesignByCode` (R5-TEXT-IDENTITY task 3) lets the caller strip each
+ * line's inscription/colour-wish segment before it enters the link — see
+ * `stripCustomSegment` above for why decode+re-encode, not string surgery.
  */
 export function encodeSetParam(
-  lines: { configCode: string | null; productSlug?: string; quantity: number }[]
+  lines: { configCode: string | null; productSlug?: string; quantity: number }[],
+  findDesignByCode?: (code: string) => CodecDesign | null
 ): string {
   return lines
     .filter(
@@ -67,12 +115,13 @@ export function encodeSetParam(
         l.productSlug &&
         SLUG_RE.test(l.productSlug)
     )
-    .map(
-      (l) =>
-        `${l.configCode}${SET_FIELD_SEP}${l.productSlug}${SET_FIELD_SEP}${clampQty(
-          l.quantity
-        )}`
-    )
+    .map((l) => {
+      // non-null: the filter above already required a truthy configCode
+      const code = stripCustomSegment(l.configCode as string, findDesignByCode);
+      return `${code}${SET_FIELD_SEP}${l.productSlug}${SET_FIELD_SEP}${clampQty(
+        l.quantity
+      )}`;
+    })
     .join(SET_ROW_SEP);
 }
 

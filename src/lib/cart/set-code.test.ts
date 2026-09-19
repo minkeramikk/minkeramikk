@@ -7,13 +7,29 @@ import {
   SET_MAX_LINES,
   SET_ROW_SEP,
 } from "./set-code";
-import { CODE_ALPHABET } from "@/lib/configurator/config-code";
+import {
+  CODE_ALPHABET,
+  encodeConfigCode,
+  type CodecDesign,
+} from "@/lib/configurator/config-code";
 
 const line = (configCode: string, productSlug: string, quantity: number) => ({
   configCode,
   productSlug,
   qty: quantity,
 });
+
+// ── fixture design for the inscription-stripping tests (AC 3) ─────────────
+const TEXT_DESIGN: CodecDesign = {
+  code: "T",
+  slug: "text-design",
+  categories: [
+    { slug: "colors", optionCodeToId: { B: "colors-opt-b" }, defaultOptionId: "colors-opt-b" },
+  ],
+};
+const findTextDesign = (code: string): CodecDesign | null =>
+  code.toUpperCase() === TEXT_DESIGN.code ? TEXT_DESIGN : null;
+const SEL = { colors: "colors-opt-b" };
 
 describe("separator guard (CA-3 decision 3)", () => {
   it("the F04 code alphabet never contains the set separators", () => {
@@ -81,6 +97,62 @@ describe("encodeSetParam", () => {
       { configCode: "MK-ALICI-A1", productSlug: "vietri-side", quantity: 1 },
     ]);
     expect(encoded).toBe("MK-ALICI-A1.vietri-side.1");
+  });
+});
+
+describe("encodeSetParam — strips the inscription segment (R5-TEXT-IDENTITY task 3, AC 3)", () => {
+  const colourOnlyCode = encodeConfigCode(TEXT_DESIGN, SEL);
+  const codeWithInscription = encodeConfigCode(TEXT_DESIGN, SEL, {
+    customText: "Til Anna",
+  });
+
+  it("a line whose configCode carries an inscription encodes into set= without it", () => {
+    // sanity: the fixture code really does carry more than just the colours
+    expect(codeWithInscription).not.toBe(colourOnlyCode);
+
+    const param = encodeSetParam(
+      [{ configCode: codeWithInscription, productSlug: "mug", quantity: 1 }],
+      findTextDesign
+    );
+    expect(param).toBe(`${colourOnlyCode}.mug.1`);
+
+    const { entries, dropped } = decodeSetParam(param);
+    expect(dropped).toBe(0);
+    expect(entries[0].configCode).toBe(colourOnlyCode);
+  });
+
+  it("the stripped code still matches CODE_RE (share grammar: uppercase alnum + dashes)", () => {
+    const param = encodeSetParam(
+      [{ configCode: codeWithInscription, productSlug: "mug", quantity: 1 }],
+      findTextDesign
+    );
+    const code = param.split(SET_FIELD_SEP)[0];
+    expect(/^[A-Z0-9-]+$/.test(code)).toBe(true);
+  });
+
+  it("a code with no inscription is unaffected by stripping", () => {
+    const param = encodeSetParam(
+      [{ configCode: colourOnlyCode, productSlug: "mug", quantity: 1 }],
+      findTextDesign
+    );
+    expect(param).toBe(`${colourOnlyCode}.mug.1`);
+  });
+
+  it("without a design resolver, today's callers see today's behaviour unchanged", () => {
+    // no findDesignByCode passed — degrade to "leave the code as given",
+    // exactly like every call site before this task.
+    const param = encodeSetParam([
+      { configCode: codeWithInscription, productSlug: "mug", quantity: 1 },
+    ]);
+    expect(param).toBe(`${codeWithInscription}.mug.1`);
+  });
+
+  it("an unresolvable design (unknown code) leaves the line's code unchanged, never throws", () => {
+    const param = encodeSetParam(
+      [{ configCode: "MK-ZZZ-Q", productSlug: "mug", quantity: 1 }],
+      findTextDesign // only knows "T"
+    );
+    expect(param).toBe("MK-ZZZ-Q.mug.1");
   });
 });
 
