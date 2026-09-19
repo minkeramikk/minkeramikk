@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { basketOpen } from "./basket-open";
+import { basketOpen, keyboardUp } from "./basket-open";
 
 /**
  * R5-BASKET-HOST task 8 — the keyboard guard, card §3. The four cases are the
@@ -37,5 +37,25 @@ describe("basketOpen", () => {
 
   it("can always be closed, keyboard or not", () => {
     expect(basketOpen({ current: true, request: false, typing: true })).toBe(false);
+  });
+});
+
+describe("keyboardUp", () => {
+  it("is up while the step-2 Text field has focus", () => {
+    expect(keyboardUp({ step: 2, typing: true })).toBe(true);
+  });
+
+  it("is down at step 2 with nothing focused", () => {
+    expect(keyboardUp({ step: 2, typing: false })).toBe(false);
+  });
+
+  it("is down at step 1 even when `typing` latched true", () => {
+    // The «Tilbake» gesture: the button prevents the blur on purpose, then the
+    // step-1 render unmounts the focused input — so `typing` never comes back
+    // down. Publishing it as-is would leave step 1 with a permanently shut
+    // basket, and on step 1 the drawer is the only basket there is.
+    expect(keyboardUp({ step: 1, typing: true })).toBe(false);
+    // …which is exactly what stops `basketOpen` from answering «never»:
+    expect(basketOpen({ current: false, request: true, typing: keyboardUp({ step: 1, typing: true }) })).toBe(true);
   });
 });

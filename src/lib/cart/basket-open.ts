@@ -41,3 +41,25 @@ export function basketOpen({
   if (typing) return false;
   return request ?? current;
 }
+
+/**
+ * What step 2 may publish as «the on-screen keyboard is up». The Text field
+ * only exists at step 2, so the step is half the answer — and it has to be,
+ * because `typing` can LATCH:
+ *
+ * «Tilbake» at step 2 carries `onMouseDown={keepFocusWhileTyping}`, whose
+ * whole job is `preventDefault()` so the field KEEPS focus while the tap
+ * lands (R4-STEP2-KEYBOARD ③). No blur fires; the step-1 render then unmounts
+ * the focused input, which fires no blur either. So `typing` stays `true`
+ * with no keyboard anywhere — and a `true` that never comes back down turns
+ * `basketOpen` into «never»: on step 1 the drawer is the ONLY basket, so the
+ * header cart icon would go dead, silently, for the rest of the session.
+ *
+ * Hence: never publish a step-1 truth. This is the same expression
+ * `configurator-client.tsx` already writes twice for its own `data-typing`
+ * attributes — the keyboard guard was simply reading one scope too high.
+ * Do not "simplify" it back to a bare `typing`.
+ */
+export function keyboardUp({ step, typing }: { step: number; typing: boolean }): boolean {
+  return step === 2 && typing;
+}

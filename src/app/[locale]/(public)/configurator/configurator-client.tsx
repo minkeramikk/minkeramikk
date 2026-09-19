@@ -49,6 +49,7 @@ import { cn } from "@/lib/utils";
 import type { DesignDetail } from "@/lib/catalog/design-options";
 import type { PreviewLayer } from "@/lib/configurator/preview";
 import { useCartContext } from "@/lib/cart/cart-context";
+import { keyboardUp } from "@/lib/cart/basket-open";
 import { designLabel } from "@/lib/cart/cart";
 import { buildConfigLinePayload, withCustomFields } from "@/lib/configurator/line-payload";
 import { nameFor, paletteFor, sortCurrentDesignFirst } from "@/lib/palettes/palettes";
@@ -568,19 +569,32 @@ export function ConfiguratorClient({
    * let go of its sticky also has to keep the basket shut: with the keyboard
    * up the visual viewport is ~300px and the drawer would be a trap. The
    * basket lives in the persistent header, not in this tree, so the flag is
-   * published to the cart context, which owns the guard
-   * (`basketOpen`, unit-tested) — no second copy of the rule at the two
-   * surfaces that ask to open.
+   * published to the cart context, which owns the guard (`basketOpen`,
+   * unit-tested) — no second copy of the rule at the two surfaces that ask to
+   * open.
    *
-   * The cleanup is not decoration: the context outlives this screen (it sits
-   * in `public-shell.tsx`), and an input that is removed while focused fires
-   * no blur — a `true` left behind would lock the basket shut for the rest of
-   * the session.
+   * `keyboardUp` and not a bare `typing`: this component renders step 1 AND
+   * step 2 (`page.tsx`, no `key`), so leaving step 2 does not unmount it, and
+   * `typing` can stay `true` with no keyboard anywhere — «Tilbake» prevents
+   * the blur ON PURPOSE (`keepFocusWhileTyping`, R4-STEP2-KEYBOARD ③) and the
+   * unmounting input fires none either. Published raw, that latch turns the
+   * header cart icon into a dead button for the rest of the session, on the
+   * step where the drawer is the only basket there is. Same expression as the
+   * two `data-typing` attributes below, same reason; the helper carries the
+   * story so nobody simplifies it back.
+   *
+   * Leaving step 2 also clears the local flag at its source (the field only
+   * exists there), so coming BACK to step 2 does not re-publish a latched
+   * `true`. And the cleanup still matters: the context outlives this screen
+   * (`public-shell.tsx`), so an unmount must not leave the basket shut.
    */
   useEffect(() => {
-    publishTyping(typing);
+    if (step !== 2 && typing) setTyping(false);
+  }, [step, typing]);
+  useEffect(() => {
+    publishTyping(keyboardUp({ step, typing }));
     return () => publishTyping(false);
-  }, [typing, publishTyping]);
+  }, [step, typing, publishTyping]);
   // The DRAFT is exactly what step 3 would turn into a cart line: same
   // builder, same inputs (card §3). No note/text carried in — a palette is a
   // set of COLOURS, and neither one ever enters the config code either
