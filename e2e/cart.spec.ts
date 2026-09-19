@@ -133,7 +133,7 @@ test("AC5: cart button on every step opens the drawer; checkout reachable", asyn
   await expect(page.getByTestId("order-form")).toBeVisible();
 });
 
-test("AC5: step 3 shows the cart inline in the docked panel (≥768px)", async ({
+test("AC5: step 3 shows the cart inline in the docked panel (≥1024px)", async ({
   page,
 }, testInfo) => {
   test.skip(testInfo.project.name === "mobile", "docked panel is desktop layout");
@@ -217,39 +217,6 @@ test.describe("R4-SCONTI — quantity discounts", () => {
         line.getByTestId("cart-line-detail").getByTestId("cart-line-details-discount")
       ).toContainText("12");
       await expect(drawer(page).getByTestId("cart-discount-total")).toBeVisible();
-    } finally {
-      await seeded.restore();
-    }
-  });
-
-  test("AC-SC2: the nudge points at the next step", async ({ page }) => {
-    // qty 2 with these thresholds needs 7 more to the next tier — prod's own
-    // scale would answer "2" here (its first step sits at min_qty 4), so a
-    // stale/unseeded read is caught, not coincidentally matched.
-    const seeded = await seedDiscountTiers([
-      { min_qty: 2, pct: 6 },
-      { min_qty: 9, pct: 13 },
-    ]);
-    try {
-      await page.goto(step3);
-      await addFirstCeramic(page);
-      await openCart(page);
-      await drawer(page).getByTestId("docked-qty-inc").first().click(); // qty 2 → 6%, next step at 9
-      // FAILING ON PURPOSE (R5-BASKET-HOST final review, finding 3).
-      // `cart-discount-nudge` («add 7 more → 13%») was deleted by this card:
-      // §3-bis (b) says no nudge and no per-row badge, the discount lives in
-      // the recap only, and `cart-discount-row.tsx` has no caller left. The
-      // basket no longer states ANYWHERE how many pieces reach the next tier,
-      // so there is nothing honest to re-point this to — the closest
-      // surviving surface is the product sheet's `discount-ladder`, which is
-      // a different screen and already covered by AC-SC11.
-      // Left failing rather than deleted or skipped (lesson F07): the TL
-      // decides whether the nudge comes back or this AC goes.
-      await expect(async () => {
-        await page.reload();
-        await openCart(page);
-        await expect(drawer(page).getByTestId("cart-discount-nudge")).toContainText("7");
-      }).toPass({ timeout: 15_000 });
     } finally {
       await seeded.restore();
     }
@@ -375,12 +342,9 @@ test.describe("R4-SCONTI — quantity discounts", () => {
     // (the empty scale is refused by `.min(1)` in saveDiscountTiers). This is
     // that real state.
     //
-    // TWO steps on purpose, and the fixture only works this way: with a single
-    // step at min_qty 2 and a cart of 2, `nextTier(2, …)` finds no threshold
-    // above 2 and CartDiscountNudge returns null on its own — the test would go
-    // green without proving anything. With a second step at 9 there IS a next
-    // tier, so the nudge renders whenever it is asked to, which is what makes
-    // the off-state assertable at all.
+    // TWO steps on purpose: the scale has to be distinctive enough that a
+    // stale or unseeded read cannot be mistaken for the seeded one (prod's own
+    // first step sits at min_qty 4).
     const seeded = await seedDiscountTiers([
       { min_qty: 2, pct: 12 },
       { min_qty: 9, pct: 20 },
@@ -393,7 +357,7 @@ test.describe("R4-SCONTI — quantity discounts", () => {
       const line = drawer(page).getByTestId("cart-line").first();
       await drawer(page).getByTestId("docked-qty-inc").first().click(); // qty 2 → 12%, next step at 9
 
-      // the seed really took: discount applied AND the nudge pointing at 9
+      // the seed really took: the discount is applied
       await expect(async () => {
         await page.reload();
         await openCart(page);
@@ -416,14 +380,6 @@ test.describe("R4-SCONTI — quantity discounts", () => {
         await openCart(page);
         await expect(drawer(page).getByTestId("cart-line-full")).toHaveCount(0);
       }).toPass({ timeout: 15_000 });
-      // …and nothing may still advertise a discount that is switched off.
-      // VACUOUS SINCE R5-BASKET-HOST (final review, finding 3): the nudge is
-      // deleted, so this count is 0 whatever the flag says — it proves
-      // nothing. Deliberately NOT re-pointed here: the honest mirror of the
-      // "on" assertion above is `cart-discount-total` → toHaveCount(0), but
-      // the TL asked to be told rather than have it guessed. Flagged, not
-      // silently dropped (lesson F07).
-      await expect(drawer(page).getByTestId("cart-discount-nudge")).toHaveCount(0);
     } finally {
       // restore() rewrites the flag to what it found, but be explicit: this
       // test flipped it outside the seeder, so it puts it back itself first.
@@ -509,7 +465,12 @@ test.describe("R4-SCONTI — quantity discounts", () => {
 
 test("R4-BTN-SCALE AC1: lo stack azioni step 3 ha ritmo verticale", async ({
   page,
-}) => {
+}, testInfo) => {
+  // R5-BASKET-HOST PR 2: lo stack vive nella colonna dello step 3, che si
+  // renderizza solo da `lg` — a 390 non esiste più nulla da misurare (stessa
+  // ragione, e stesso idioma, dello skip di «AC5: step 3 shows the cart
+  // inline in the docked panel» qui sopra).
+  test.skip(testInfo.project.name === "mobile", "the action stack is desktop layout");
   // La regressione che questo test esiste per fermare: `gap-3` sparito dal
   // contenitore dello stack (R4-SCONTI, in produzione dal 31/8) → i tre bordi
   // si toccano e le pillole leggono come un blocco unico. Si misura il VUOTO

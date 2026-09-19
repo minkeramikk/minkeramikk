@@ -110,9 +110,9 @@
       "close": "Close"
     },
     "stickyBar": {
-      "title": "Your order",
       "pieces": "{count, plural, one {# piece} other {# pieces}}",
-      "saved": "saved {amount}"
+      "saved": "saved {amount}",
+      "unpainted": "{count} unpainted"
     },
     "steps": {
       "design": "1. Design",

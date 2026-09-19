@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import { useCart } from "./use-cart";
+import { basketOpen } from "./basket-open";
 import { usePalettes } from "@/lib/palettes/use-palettes";
 import {
   computeCartDiscount,
@@ -94,9 +95,30 @@ void _noHookKeyCollision;
 type CartApi = ReturnType<typeof useCart> &
   ReturnType<typeof usePalettes> & {
     open: boolean;
+    /**
+     * The ONE door to the basket's open state — the header's `SheetTrigger`
+     * reaches it through `onOpenChange`, step 3's sticky bar through
+     * `openCart()`. It is guarded (`basketOpen`), so neither call site
+     * carries the rule: a request to open while `keyboardOpen` is dropped,
+     * not queued.
+     */
     setOpen: (open: boolean) => void;
     openCart: () => void;
     closeCart: () => void;
+    /**
+     * R5-BASKET-HOST task 8, card §3: an on-screen keyboard is up — today
+     * that means step 2's Text field has focus ON A DEVICE THAT HAS one (the
+     * publisher asks `hoverCapable()`; PR 2 review finding 6). Published here
+     * rather than kept inside step 2 because the basket it has to keep shut
+     * lives in the persistent header, not in the step
+     * (`configurator-client.tsx` sets it on focus/blur, clears it on the way
+     * out of step 2, and clears it when it unmounts).
+     *
+     * Named for what it carries, not for the gesture behind it: on a desktop
+     * the customer types with no keyboard in the way, and this stays `false`.
+     */
+    keyboardOpen: boolean;
+    setKeyboardOpen: (open: boolean) => void;
     /** R4-SCONTI: the discount config as read on the server this render. */
     discountConfig: DiscountConfig;
     /** R4-SCONTI: computed ONCE here — every surface reads the same object. */
@@ -178,7 +200,30 @@ export function CartProvider({
 }) {
   const cart = useCart();
   const palettes = usePalettes();
-  const [open, setOpen] = useState(false);
+  const [open, setOpenState] = useState(false);
+  /** See `keyboardOpen` on `CartApi`: owned here because the drawer it guards
+   *  is mounted in the header, above whatever step is on screen. */
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
+  /** Every request to open or close the basket goes through `basketOpen`,
+   *  which is where the keyboard rule lives (and is unit-tested).
+   *  Consequence worth naming: this identity changes when the flag flips, so
+   *  a consumer holding `setOpen` in a dep array re-runs then. There is one
+   *  (`cart-menu.tsx` closes the drawer on route change) and its extra run is
+   *  a `setOpen(false)` on an already-closed drawer — React bails out. */
+  const setOpen = useCallback(
+    (request: boolean) =>
+      setOpenState((current) =>
+        basketOpen({ current, request, keyboardIsUp: keyboardOpen })
+      ),
+    [keyboardOpen]
+  );
+  /** The other half of the same rule: the keyboard coming up closes a basket
+   *  that is already open. Passing no `request` means «re-decide what is true
+   *  now», so the way back down (no keyboard) is an identity — nothing
+   *  reopens on blur, because the dropped request was never remembered. */
+  useEffect(() => {
+    setOpenState((current) => basketOpen({ current, keyboardIsUp: keyboardOpen }));
+  }, [keyboardOpen]);
   const [suggestionsDismissed, setSuggestionsDismissed] = useState(false);
   const [currentConfig, setCurrentConfig] = useState<CurrentConfig | null>(null);
   const [checkoutHost, setCheckoutHost] = useState<BasketHost | null>(null);
@@ -379,6 +424,8 @@ export function CartProvider({
       setOpen,
       openCart: () => setOpen(true),
       closeCart: () => setOpen(false),
+      keyboardOpen,
+      setKeyboardOpen,
       discountConfig: config,
       discount,
       suggestions,
@@ -399,6 +446,8 @@ export function CartProvider({
       cart,
       palettes,
       open,
+      setOpen,
+      keyboardOpen,
       config,
       discount,
       suggestions,

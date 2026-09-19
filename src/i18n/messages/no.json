@@ -109,9 +109,9 @@
       "close": "Lukk"
     },
     "stickyBar": {
-      "title": "Din bestilling",
       "pieces": "{count, plural, one {# del} other {# deler}}",
-      "saved": "spart {amount}"
+      "saved": "spart {amount}",
+      "unpainted": "{count, plural, one {# umalt} other {# umalte}}"
     },
     "steps": {
       "design": "1. Design",

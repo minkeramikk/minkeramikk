@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Truck, Brush } from "lucide-react";
 import { useCartContext, type CurrentConfig } from "@/lib/cart/cart-context";
@@ -142,18 +142,6 @@ function LineCodeSlot({
 }
 
 /**
- * The handle `ceramics-step.tsx` keeps on each basket it mounted — only for
- * what is genuinely per-instance. Opening the checkout form is NOT: that is a
- * mode of the basket and lives in `cart-context.tsx`, so the step just calls
- * `setCheckoutHost("column")` itself.
- */
-export type BasketHandle = {
-  /** `focusFirstUnpaintedRow` scoped to THIS basket; false when it has no
-   *  visible unpainted row, so the caller can try its other copy. */
-  focusFirstUnpainted: () => boolean;
-};
-
-/**
  * R5-BASKET-HOST task 4 — «there are not two baskets». The step-3 right
  * column and the header's side drawer render THIS component; `host` is the
  * only thing that differs between them.
@@ -184,7 +172,6 @@ export function Basket({
   onAddCeramics,
   onPaintFirst,
   footerSlot,
-  ref,
 }: {
   host: BasketHost;
   /**
@@ -208,14 +195,21 @@ export function Basket({
   /** Drawer only: «+ Add ceramics» at the end of the scroll — it closes the
    *  drawer and sends the customer back to the catalog. */
   onAddCeramics?: () => void;
-  /** What «Paint N pieces first ›» does in this host. Default (the column):
-   *  focus the first unpainted row of THIS basket. The drawer closes itself,
-   *  goes to step 3 and focuses it there. */
+  /**
+   * What «Paint N pieces first ›» does in this host. Default (the column):
+   * focus the first unpainted row of THIS basket.
+   *
+   * The drawer's handler (`cart-menu.tsx`) is scope-aware since PR 2, and a
+   * caller needs to know which: with the step-3 column on screen (from `lg`)
+   * it closes, goes to step 3 and focuses the row there; with no column —
+   * below `lg`, where the drawer is the only basket — it STAYS OPEN and
+   * focuses the row inside itself, because closing would take away the rows
+   * this CTA points at.
+   */
   onPaintFirst?: () => void;
   /** Column only: the new-design + share pills and the share feedback — they
    *  belong to the step (they navigate it, and the share state lives there). */
   footerSlot?: React.ReactNode;
-  ref?: React.Ref<BasketHandle>;
 }) {
   const drawer = host === "drawer";
   const t = useTranslations("cart");
@@ -250,8 +244,8 @@ export function Basket({
     () => focusFirstUnpaintedRow(rootRef.current ?? document),
     []
   );
-  /** `() => void` for the callback props that want it — the boolean is for
-   *  the handle's caller, which uses it to try its other copy. */
+  /** `() => void` for the callback props that want it; the boolean belongs to
+   *  `focusFirstUnpaintedRow` itself, which every caller reads directly. */
   const focusFirstUnpaintedVoid = useCallback(() => {
     focusFirstUnpainted();
   }, [focusFirstUnpainted]);
@@ -388,7 +382,6 @@ export function Basket({
      (fix round 1) — one rule for every surface, and not two effects racing
      over one state. `formOpen` below stays a render gate, which is also what
      covers the frame before the cart has hydrated. */
-  useImperativeHandle(ref, () => ({ focusFirstUnpainted }), [focusFirstUnpainted]);
   /** The foot's own two numbers (drawer only) — taken from the engine, never
    *  re-added here, so the foot can never disagree with `CartTotals` above. */
   const saved = cartSaved(discount);
@@ -582,8 +575,10 @@ export function Basket({
   /**
    * `checkoutHost === host`: the checkout is ONE decision for the whole
    * basket, taken in the host that asked for it. The drawer's CTA draws the
-   * form in the drawer, the column's in the column - never in all three
-   * mounted baskets at once (see `cart-context.tsx`).
+   * form in the drawer, the column's in the column - never in every mounted
+   * basket at once (see `cart-context.tsx`; the count was three until PR 2
+   * deleted the mobile in-flow copy, and the rule is what matters, not the
+   * count).
    *
    * Task 13: `!hasUnpainted` gates the form shut even if it was already open
    * when the basket picked up a new unpainted line (e.g. adding a ceramic
@@ -601,11 +596,17 @@ export function Basket({
       data-testid={drawer ? "cart-checkout-form" : "docked-checkout-form"}
       className="scroll-mt-[7.5rem] md:scroll-mt-[4.5rem]"
     >
+      {/* PR 2 review: this is the ONLY way out of the checkout form, and below
+          `lg` the drawer is the only basket there is — a 16px-tall underline
+          is not a way out on a phone. Same idiom the other two text controls
+          in this file already carry (§4-quater's reasoning: grow the box, not
+          the type, and neutralise it from `md` so the text still sits where
+          it sat). */}
       <button
         type="button"
         data-testid={drawer ? "cart-back" : "docked-back-to-cart"}
         onClick={() => setCheckoutHost(null)}
-        className="mb-3 self-start text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+        className="mb-3 flex min-h-11 -my-2 items-center self-start py-2 text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground md:my-0 md:min-h-0 md:py-0"
       >
         ← {t("backToCart")}
       </button>

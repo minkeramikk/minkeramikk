@@ -31,7 +31,8 @@ import { useEffect, useRef, useState } from "react";
  * right column renders: rows, suggestion, totals, the fixed one-line foot
  * (total + saved + CTA), the empty state and the checkout form all live
  * there now. This file is down to what is genuinely the HEADER's: the
- * trigger with its two badges, the sheet shell, and the count announcement.
+ * trigger with its badge and its warning dot, the sheet shell, and the count
+ * announcement.
  */
 export function CartMenu() {
   const t = useTranslations("cart");
@@ -46,8 +47,8 @@ export function CartMenu() {
   const count = itemCount(cart);
   // gate count on hydration to avoid SSR/client mismatch (cart starts empty)
   const liveCount = hydrated ? count : 0;
-  // R5-UNPAINTED: pieces, not lines (unpaintedPieces), matching the header
-  // marker's `○k` unit and the aria-label below.
+  // R5-UNPAINTED: pieces, not lines (unpaintedPieces) — the unit the
+  // aria-label below announces, and what the warning dot stands for.
   const unpainted = hydrated ? unpaintedPieces(cart) : 0;
 
   // R2-6 C: pop the badge when the count GROWS (an item was added) — a mobile
@@ -83,29 +84,49 @@ export function CartMenu() {
   }, [pathname, setOpen]);
 
   /**
-   * «Paint N pieces first ›» from the drawer (the column just focuses its own
-   * first unpainted row — `Basket`'s default). Here: close, go to step 3 of
-   * whatever design is on screen, then hand focus to the row.
+   * «Paint N pieces first ›» from the drawer. It has to land the customer on a
+   * row they can press Paint on, and since PR 2 there are two answers to
+   * «which rows», decided by whether the step-3 column is on screen:
    *
-   * The focus can't happen in the click: Radix restores focus to the trigger
-   * when the sheet finishes closing, which would undo it, and while the exit
-   * animation runs the drawer's OWN copy of the rows is still on screen — an
-   * unscoped `focusFirstUnpaintedRow` would focus a dying node. So it rides
-   * on `onCloseAutoFocus` (fires once the content is gone, right after the
-   * trigger got focus back) and one frame later, without preventing Radix's
-   * restore: if no row is found, focus stays on the cart button instead of
-   * falling to `<body>`.
+   * - column on screen (from `lg`): close, go to step 3 of whatever design is
+   *   on screen, hand focus to the row there — unchanged behaviour.
+   * - no column (below `lg`): the drawer's own rows are the ONLY rows, because
+   *   task 6 deleted the in-flow copy. So the drawer STAYS OPEN and the focus
+   *   lands on the Paint button already under the customer's thumb. Closing
+   *   would take away the very thing this CTA points at, which is what it did
+   *   between task 6 and this fix.
    *
-   * ponytail: no pending-focus channel through the router. When the drawer is
-   * already over step 3 — where this CTA matters — the column's rows are
-   * mounted and this lands. Coming from step 1/2 the push is a real soft
-   * navigation and step 3 may not have rendered within that frame, in which
-   * case nothing is focused (the customer still arrives at step 3, scrolled
-   * to the top). Making that case reliable needs a mechanism this task
-   * deliberately did not invent — see the report.
+   * The question is asked of the LAYOUT, not of a second copy of its rule: the
+   * column is `hidden lg:block`, so below `lg` it sits in the DOM with no
+   * `offsetParent` — the same "is it on screen" test `focusFirstUnpaintedRow`
+   * applies to the rows themselves. No `matchMedia("64rem")` here to drift out
+   * of step with the class list over there.
+   *
+   * No column element at all means we are not on step 3, and then the push is
+   * the only way to reach a column: that keeps today's behaviour at every
+   * width (below `lg` it arrives at step 3 with nothing focused, the gap
+   * recorded in R5-GARANZIA.md §1 — not this card's to close).
+   *
+   * In the closing branch the focus can't happen in the click: Radix restores
+   * focus to the trigger when the sheet finishes closing, which would undo it,
+   * and while the exit animation runs the drawer's OWN copy of the rows is
+   * still on screen — an unscoped `focusFirstUnpaintedRow` would focus a dying
+   * node. So it rides on `onCloseAutoFocus` (fires once the content is gone,
+   * right after the trigger got focus back) and one frame later, without
+   * preventing Radix's restore: if no row is found, focus stays on the cart
+   * button instead of falling to `<body>`.
    */
   const paintFirstRef = useRef(false);
   function handlePaintFirst() {
+    const column = document.querySelector<HTMLElement>(
+      '[data-testid="docked-cart-panel"]'
+    );
+    if (column && !column.offsetParent) {
+      focusFirstUnpaintedRow(
+        document.querySelector('[data-testid="cart-drawer"]') ?? document
+      );
+      return;
+    }
     paintFirstRef.current = true;
     setOpen(false);
     // Final-review finding 4a: the target is the URL we are ALREADY on with
@@ -128,7 +149,8 @@ export function CartMenu() {
             data-testid="cart-button"
             // R5-UNPAINTED: the header keeps its icon+badge, no text pill (TL
             // decision) — the unpainted count rides in the aria-label instead,
-            // via a dedicated key so the sighted marker below can stay a glyph.
+            // via a dedicated key — and it stays there now that the sighted
+            // marker below is a dot with no number in it at all (task 7).
             // TODO:nb-review — cart.buttonUnpainted NO copy is new, unreviewed.
             aria-label={
               unpainted > 0
@@ -150,14 +172,26 @@ export function CartMenu() {
                 {count}
               </span>
             )}
+            {/* Task 7 (card §4-quinquies, QA 19/9 — option B): a DOT, not a
+                second number. Two unlabelled numbers fought over the same
+                20px bag and neither read at true size; «how many» is not
+                actionable from the header anyway — to act you open the
+                basket, where the count is already in the info box and in
+                «Paint N pieces first». So the badge says one thing: there
+                is something left to finish. The ring is the header's own
+                `--ink`, which is what lifts the dot off the bag's stroke.
+                `--warn` full strength as the ruling asks: it is a graphic,
+                not text (3.6:1 on the header clears the 3:1 that 1.4.11
+                asks of non-text), so the `warn-on-dark` variant the glyph
+                needed for 4.5:1 is not needed here.
+                The count itself is NOT lost: it rides in the button's
+                `aria-label` above, same key as before. */}
             {hydrated && unpainted > 0 && (
               <span
                 data-testid="cart-badge-unpainted"
                 aria-hidden
-                className="absolute -bottom-0.5 right-1 text-[10px] leading-none font-semibold text-warn-on-dark"
-              >
-                ○{unpainted}
-              </span>
+                className="absolute bottom-1 right-1.5 size-2 rounded-full bg-warn ring-2 ring-ink"
+              />
             )}
           </button>
         </SheetTrigger>
@@ -169,7 +203,11 @@ export function CartMenu() {
           // is what sets the floor now. Full width below `sm` was already
           // here; the base `Sheet`'s own `w-3/4` is shared with every other
           // sheet and is not touched.
-          className="w-full! gap-0 p-0 sm:max-w-[420px]!"
+          // PR 2 review: AC 4 names ✕ as a required way to close the drawer,
+          // and the shared `Sheet` draws it `size-icon-sm` = 28px. Widened
+          // from the drawer's OWN className (card §2: never touch the shared
+          // component), so every other sheet keeps its 28px.
+          className="w-full! gap-0 p-0 sm:max-w-[420px]! [&>[data-slot=sheet-close]]:size-11"
           onCloseAutoFocus={() => {
             if (!paintFirstRef.current) return;
             paintFirstRef.current = false;
