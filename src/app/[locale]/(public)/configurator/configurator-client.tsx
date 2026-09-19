@@ -561,7 +561,26 @@ export function ConfiguratorClient({
     rename: renamePalette,
     removePalette: deletePalette,
     setCurrentConfig,
+    setTyping: publishTyping,
   } = useCartContext();
+  /**
+   * R5-BASKET-HOST task 8 (card §3) — the same `typing` that makes the canvas
+   * let go of its sticky also has to keep the basket shut: with the keyboard
+   * up the visual viewport is ~300px and the drawer would be a trap. The
+   * basket lives in the persistent header, not in this tree, so the flag is
+   * published to the cart context, which owns the guard
+   * (`basketOpen`, unit-tested) — no second copy of the rule at the two
+   * surfaces that ask to open.
+   *
+   * The cleanup is not decoration: the context outlives this screen (it sits
+   * in `public-shell.tsx`), and an input that is removed while focused fires
+   * no blur — a `true` left behind would lock the basket shut for the rest of
+   * the session.
+   */
+  useEffect(() => {
+    publishTyping(typing);
+    return () => publishTyping(false);
+  }, [typing, publishTyping]);
   // The DRAFT is exactly what step 3 would turn into a cart line: same
   // builder, same inputs (card §3). No note/text carried in — a palette is a
   // set of COLOURS, and neither one ever enters the config code either
