@@ -16,35 +16,39 @@
  *   stored state stays `false`, so a tap on the cart icon mid-typing does
  *   nothing at all and nothing pops open when the field is blurred;
  * - a basket that is somehow already open when the keyboard comes up closes.
- *   That is why `request` is optional: `basketOpen({ current, typing })` with
+ *   That is why `request` is optional: `basketOpen({ current, keyboardIsUp })` with
  *   no request means «re-decide what is already true», which is exactly what
- *   the provider's effect needs when `typing` flips. Because the answer is
+ *   the provider's effect needs when the keyboard flips. Because the answer is
  *   computed from the CURRENT state and never from a remembered request,
- *   re-deciding on the way back down (`typing: false`) returns `current`
+ *   re-deciding on the way back down (`keyboardIsUp: false`) returns `current`
  *   unchanged: the keyboard closing can never open a basket by itself.
  */
 export function basketOpen({
   current,
   request = null,
-  typing,
+  keyboardIsUp,
 }: {
   /** What the basket's open state is right now. */
   current: boolean;
   /** What a surface asked for, or `null` when nothing was asked. */
   request?: boolean | null;
   /**
-   * An on-screen keyboard is up. Composed by the publisher, not here:
+   * An on-screen keyboard is up — the COMPOSED truth, not the gesture. Named
+   * for what it means rather than for what raises it (PR 2 re-review): a
+   * caller reading `typing: boolean` could plausibly hand this the raw step-2
+   * focus flag and silently bring back the guard firing on a mouse device.
+   * Composed by the publisher, not here:
    * `keyboardUp({ step, typing })` for the gesture, `hoverCapable()` for
    * whether this device even HAS such a keyboard (PR 2 review finding 6).
    * Both of those questions are about the world; this function only decides
    * what the basket does about the answer, which is what keeps it pure.
    */
-  typing: boolean;
+  keyboardIsUp: boolean;
 }): boolean {
   // The keyboard wins over every request, including one made in the same
   // tick: with it up the visual viewport is ~300px and a modal sheet over it
   // is a trap, not a basket.
-  if (typing) return false;
+  if (keyboardIsUp) return false;
   return request ?? current;
 }
 

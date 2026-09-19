@@ -213,7 +213,7 @@ export function CartProvider({
   const setOpen = useCallback(
     (request: boolean) =>
       setOpenState((current) =>
-        basketOpen({ current, request, typing: keyboardOpen })
+        basketOpen({ current, request, keyboardIsUp: keyboardOpen })
       ),
     [keyboardOpen]
   );
@@ -222,7 +222,7 @@ export function CartProvider({
    *  now», so the way back down (no keyboard) is an identity — nothing
    *  reopens on blur, because the dropped request was never remembered. */
   useEffect(() => {
-    setOpenState((current) => basketOpen({ current, typing: keyboardOpen }));
+    setOpenState((current) => basketOpen({ current, keyboardIsUp: keyboardOpen }));
   }, [keyboardOpen]);
   const [suggestionsDismissed, setSuggestionsDismissed] = useState(false);
   const [currentConfig, setCurrentConfig] = useState<CurrentConfig | null>(null);
