@@ -23,7 +23,7 @@ import { CartLinePrice, CartDiscountNudge } from "@/components/ui-domain/cart-di
 import { CartSuggestion } from "@/components/ui-domain/cart-suggestion";
 import { CartTotals } from "@/components/ui-domain/cart-totals";
 import { useCartContext } from "@/lib/cart/cart-context";
-import { designLabel, itemCount, type CartLine } from "@/lib/cart/cart";
+import { designLabel, itemCount, unpaintedPieces, type CartLine } from "@/lib/cart/cart";
 import { cn } from "@/lib/utils";
 import { useEffect, useRef, useState } from "react";
 
@@ -53,6 +53,9 @@ export function CartMenu() {
   const count = itemCount(cart);
   // gate count on hydration to avoid SSR/client mismatch (cart starts empty)
   const liveCount = hydrated ? count : 0;
+  // R5-UNPAINTED: pieces, not lines (unpaintedPieces), matching the header
+  // marker's `○k` unit and the aria-label below.
+  const unpainted = hydrated ? unpaintedPieces(cart) : 0;
 
   // R2-6 C: pop the badge when the count GROWS (an item was added) — a mobile
   // cue pointing at the cart. Decorative only; the count is already announced
@@ -85,7 +88,15 @@ export function CartMenu() {
           <button
             type="button"
             data-testid="cart-button"
-            aria-label={t("button", { count: liveCount })}
+            // R5-UNPAINTED: the header keeps its icon+badge, no text pill (TL
+            // decision) — the unpainted count rides in the aria-label instead,
+            // via a dedicated key so the sighted marker below can stay a glyph.
+            // TODO:nb-review — cart.buttonUnpainted NO copy is new, unreviewed.
+            aria-label={
+              unpainted > 0
+                ? t("buttonUnpainted", { count: liveCount, unpainted })
+                : t("button", { count: liveCount })
+            }
             aria-haspopup="dialog"
             className="relative -mr-1.5 flex size-11 items-center justify-center rounded-lg text-ink-muted transition-colors hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
           >
@@ -99,6 +110,15 @@ export function CartMenu() {
                 )}
               >
                 {count}
+              </span>
+            )}
+            {hydrated && unpainted > 0 && (
+              <span
+                data-testid="cart-badge-unpainted"
+                aria-hidden
+                className="absolute -bottom-0.5 right-1 text-[10px] leading-none font-semibold text-warn-on-dark"
+              >
+                ○{unpainted}
               </span>
             )}
           </button>
@@ -231,15 +251,19 @@ export function CartMenu() {
                           line={line}
                           locale={locale}
                           editSlot={
-                            <SheetClose asChild>
-                              <Link
-                                href={`/configurator?code=${encodeURIComponent(line.configCode)}&step=2`}
-                                data-testid="cart-edit-design"
-                                className="shrink-0 text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
-                              >
-                                ✎ {t("line.edit")}
-                              </Link>
-                            </SheetClose>
+                            // R5-UNPAINTED: an unpainted row has no design to
+                            // reopen at step 2 — no link, not a link to nothing.
+                            line.configCode && (
+                              <SheetClose asChild>
+                                <Link
+                                  href={`/configurator?code=${encodeURIComponent(line.configCode)}&step=2`}
+                                  data-testid="cart-edit-design"
+                                  className="shrink-0 text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+                                >
+                                  ✎ {t("line.edit")}
+                                </Link>
+                              </SheetClose>
+                            )
                           }
                         />
                       )}

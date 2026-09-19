@@ -5,8 +5,10 @@ import { designWithCode, ceramicCards } from "./helpers";
  * Journey 8 — Share your set (CA-3). ACCEPTANCE.md §8 · ADR 0016.
  * Desktop-only by policy (i due flussi di dominio; parser/cap/clamp sono unit).
  * Resilient: design con codice (righe condivisibili) + prodotti scoperti a runtime.
- * NB: il codice di riga vive nel dettaglio ESPANSO (`cart-line-detail`), non nella
- * riga collassata — si legge solo dopo `cart-expand`.
+ * NB: il codice di riga + «Edit design» vivono nel drawer (`cart-menu.tsx` →
+ * `CartLineRecap`), non nel pannello docked di step 3 — task 18 li ha tolti dal
+ * pannello docked (TL: appartengono al drawer, dove già esistevano). Il pannello
+ * docked tiene composizione/config/ceramica/prezzo, si legge dopo `cart-expand`.
  */
 
 let step3 = "";
@@ -86,10 +88,16 @@ test("AC1/AC2/AC5: share 2 rows → clean context lands at step 3 → expand →
   await expect(page).toHaveURL(/[?&]design=/);
   await expect(page).toHaveURL(/[?&]origin=set/);
   await expect(ceramics(page)).toHaveCount(ceramicCount);
-  // Bug 3: current design ≠ explicit colour choice — no "Your selection" box.
-  await expect(page.getByTestId("step3-your-selection")).toHaveCount(0);
+  // Bug 3 assertion retired (fix wave A finding 3): `step3-your-selection`
+  // (the desktop "Your selection" box) went out with R5-PALETTES task 9,
+  // replaced by the PaletteBar, which is always on screen regardless of an
+  // explicit colour choice — a testid that can no longer exist anywhere
+  // reads as count 0 forever, so this line was passing whether or not bug 3
+  // actually held. No real replacement assertion: the PaletteBar isn't
+  // gated on the thing bug 3 was about.
 
-  // AC5: expand the first row → big composition + the row's config code + edit
+  // AC5: expand the first row → big composition (still on the docked panel —
+  // task 18 only moved the code + edit link out, not the preview).
   await panel.getByTestId("cart-expand").first().click();
   const detail = panel.getByTestId("cart-line-detail");
   await expect(detail).toBeVisible();
@@ -99,7 +107,12 @@ test("AC1/AC2/AC5: share 2 rows → clean context lands at step 3 → expand →
   );
   expect(await detail.locator("img").count()).toBeGreaterThan(0);
 
-  await detail.getByTestId("cart-edit-design").click();
+  // Task 18 — «Edit design» now lives on the drawer's recap only; reopen the
+  // design from there instead (same idiom as cart.spec.ts's "R2-D" test).
+  await page.getByTestId("cart-button").click();
+  const drawer = page.getByTestId("cart-drawer");
+  await drawer.getByTestId("cart-expand").first().click();
+  await drawer.getByTestId("cart-line-detail").getByTestId("cart-edit-design").click();
   await page.getByTestId("details-step").waitFor();
   // R3-D: the code bar is gone — the round-trip is verified via the URL the
   // ?code= decode rebuilds (design slug + opt_ params), not a rendered code.
