@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { flushSync } from "react-dom";
 import { useLocale, useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
 import { usePathname, useRouter } from "@/i18n/navigation";
@@ -45,11 +44,11 @@ import {
   type TypedAttribute,
 } from "@/lib/catalog/product-attributes";
 import { groupBySeries } from "@/lib/configurator/product-series";
-import { Truck, Plus, ArrowUpRight, Brush } from "lucide-react";
+import { ShoppingBag, Truck, Plus, ArrowUpRight, Brush } from "lucide-react";
 import type { ResolvedSharedSet } from "./resolve-shared-set";
 import { ProductSheet } from "@/components/ui-domain/product-sheet";
 import { AddedSheet } from "@/components/ui-domain/added-sheet";
-import { Basket, type BasketHandle } from "@/components/ui-domain/basket";
+import { Basket } from "@/components/ui-domain/basket";
 import { NextStepPill, PillIcon } from "@/components/ui-domain/next-step-pill";
 
 export interface CeramicProduct {
@@ -209,7 +208,7 @@ export function CeramicsStep({
   paletteWords: PaletteWords;
 }) {
   const t = useTranslations("cart");
-  // TODO:nb-review NO copy: step3.seriesCount · stickyBar.title · stickyBar.pieces
+  // TODO:nb-review NO copy: step3.seriesCount · stickyBar.pieces · stickyBar.unpainted
   const tc = useTranslations("configurator");
   const to = useTranslations("order");
   const ta = useTranslations("actions");
@@ -231,13 +230,12 @@ export function CeramicsStep({
     allowedProduct: cartAllowedProduct,
     palettes,
     palettesHydrated,
-    /** Fix round 1 — the checkout view is a mode of THE basket, held in the
-     *  cart context now, and it names the host that opened it. Read here only
-     *  to hide the sticky bar while the COLUMN's form is up, and written by
-     *  the bar's own CTA below — which opens the column's checkout, never the
-     *  drawer's. */
-    checkoutHost,
+    /** Task 7 — the checkout view is a mode of THE basket and it names the
+     *  host that opened it (`cart-context.tsx`). Below `lg` the bar's
+     *  «Bestill» names the drawer, because the drawer is the only basket
+     *  there is; `openCart` is the same opener the header button uses. */
     setCheckoutHost,
+    openCart,
     activeCode,
     setActiveCode,
     save: savePalette,
@@ -515,12 +513,6 @@ export function CeramicsStep({
   const [added, setAdded] = useState<{ qty: number; name: string } | null>(null);
   const [addedOpen, setAddedOpen] = useState(false);
   const [qty, setQty] = useState(1);
-  /** The step's ONE column basket (task 6: desktop only, from `lg`). The
-   *  sticky bar below `lg` has no column to focus — it opens the drawer. */
-  const columnBasketRef = useRef<BasketHandle>(null);
-  const focusFirstUnpainted = useCallback(() => {
-    columnBasketRef.current?.focusFirstUnpainted();
-  }, []);
   /** CA-3 C: share feedback under the panel header (aria-live). */
   const [shareState, setShareState] = useState<
     | null
@@ -1108,7 +1100,6 @@ export function CeramicsStep({
   // at once, which is why it names its host now.
   const cartPanel = (
     <Basket
-      ref={columnBasketRef}
       host="column"
       currentConfig={currentConfig}
       footerSlot={cartFooter}
@@ -1179,47 +1170,71 @@ export function CeramicsStep({
     />
   );
 
-  // ── R4-CTA-STICKY: mobile order bar ──────────────────────────────────────
-  // Self-gates on THREE things, all required by the card: mobile only
-  // (`md:hidden`), a non-empty basket, and no product sheet open — two fixed
-  // layers at the bottom edge would stack. `count` already folds in `hydrated`,
-  // so the bar never flashes in before the cart is read from localStorage.
-  // Giro garanzia adds two more reasons to stand down, both the same rule —
-  // never a second order CTA on screen: the form is open (the bar's own
-  // destination, and a fixed bar sitting on the fields while the keyboard is up
-  // is worse than useless), or the panel's CTA has scrolled into view.
+  // ── R4-CTA-STICKY: the order bar ─────────────────────────────────────────
+  // R5-BASKET-HOST task 7: below `lg` this bar IS the basket — the only way
+  // to reach the rows, since task 6 took the column away. So it says what
+  // the basket holds («Basket · N pieces · k unpainted · NOK …») and its
+  // whole left side is the button that opens the drawer. No handle and no
+  // «▴»: nothing is dragged any more.
   //
-  // Fix wave PR3 finding 10: `!paletteSheetOpen` joins `!sheetOpen` for the
-  // exact same reason stated above (the file's own rule) — the palette
-  // sheet is a second fixed bottom layer just like the product sheet, and
-  // was the one case this line forgot to name.
+  // Self-gates on THREE things, all required by the card: below `lg`
+  // (`lg:hidden`), a non-empty basket, and no product/palette sheet open —
+  // two fixed layers at the bottom edge would stack. `count` already folds
+  // in `hydrated`, so the bar never flashes in before the cart is read from
+  // localStorage.
+  //
+  // What it no longer gates on: `checkoutHost !== "column"` and the order
+  // block's IntersectionObserver. Both said «never two «Bestill» at once»,
+  // and both watched the in-flow copy that task 6 deleted. The column gate
+  // actively hurt afterwards — the flag is one per CART, so a checkout
+  // opened in the column at 1280 and then narrowed to a phone left the
+  // customer with no column AND no bar. The drawer, which is where the bar
+  // sends everyone now, covers the bar while it is open, so the rule still
+  // holds by geometry.
   const showStickyBar = count > 0 && !sheetOpen && !paletteSheetOpen;
-  const stickyBar = showStickyBar && checkoutHost !== "column" && (
+  const stickyBar = showStickyBar && (
     <div
       data-testid="step3-sticky-bar"
       // z-40: under Radix's overlay/content (z-50), so the sheet and the
       // lightbox always win. bg + border from tokens (ADR 0008), and the
       // bottom padding clears the home indicator on iOS.
-      className="fixed inset-x-0 bottom-0 z-40 flex items-center gap-3 border-t border-border bg-card px-4 pt-2.5 pb-[calc(0.625rem+env(safe-area-inset-bottom))] md:hidden"
+      className="fixed inset-x-0 bottom-0 z-40 flex items-center gap-3 border-t border-border bg-card px-4 pt-2.5 pb-[calc(0.625rem+env(safe-area-inset-bottom))] lg:hidden"
     >
-      <div className="min-w-0 flex-1">
+      {/* The whole left side is the button: a 44px-tall target that opens the
+          drawer, not a decorative summary beside one. `min-w-0` twice so the
+          truncation below actually has a box to truncate in. */}
+      <button
+        type="button"
+        data-testid="sticky-bar-basket"
+        onClick={openCart}
+        aria-haspopup="dialog"
+        className="flex min-h-11 min-w-0 flex-1 items-center gap-2.5 rounded-sm text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+      >
+        <ShoppingBag className="size-5 shrink-0 text-muted-foreground" aria-hidden />
+        <span className="min-w-0 flex-1">
         {/* At 360px a long basket ("100 deler") overflows this line. The COUNT
             is the half worth keeping, so it never shrinks and the title
             truncates instead — the reverse loses exactly the information the
-            bar exists to show. */}
-        <p className="flex items-baseline gap-1 text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
-          <span className="truncate">{tc("stickyBar.title")}</span>
+            bar exists to show. Same for the unpainted count: it is the one
+            thing that still needs doing. */}
+        <span className="flex items-baseline gap-1 text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
+          <span className="truncate">{t("cartTitle")}</span>
           <span className="shrink-0 whitespace-nowrap">
             · {tc("stickyBar.pieces", { count: pieces })}
           </span>
-        </p>
-        <p
+          {hasUnpainted && (
+            <span className="shrink-0 whitespace-nowrap text-warn-on-light">
+              · {tc("stickyBar.unpainted", { count: unpaintedInBasket })}
+            </span>
+          )}
+        </span>
+        <span
           data-testid="sticky-bar-total"
-          className="truncate text-base font-semibold tabular-nums"
+          className="block truncate text-base font-semibold tabular-nums"
         >
           {formatMoney(discount.total, locale)}
           {stickyTotalSuffix}
-        </p>
+        </span>
         {/* R4-SCONTI: the total above is already NET, so without this line the
             bar quietly shows less than the rows add up to and the customer only
             finds out by opening the drawer — after deciding. A discount found
@@ -1230,29 +1245,26 @@ export function CeramicsStep({
             («+ frakt») already lives up there, and at 360 in English the two
             would collide. */}
         {barSaved.amountCents > 0 && (
-          <p
+          <span
             data-testid="sticky-bar-saved"
-            className="truncate text-[11px] font-medium tabular-nums"
+            className="block truncate text-[11px] font-medium tabular-nums"
             style={{ color: "color-mix(in oklab, var(--discount), black 34%)" }}
           >
             {tc("stickyBar.saved", { amount: formatMoney(barSaved, locale) })}
-          </p>
+          </span>
         )}
-      </div>
+        </span>
+      </button>
       {/* Same pill as the cart panel's CTA (§3.16) and the same label key, so
           R-PAY reskins both from one place. It carries the arrow because it
           DOES advance the funnel — see the e2e note in r-extra-pill.
           Fix round 1: `hasUnpainted` reskins it exactly like the panel's own
           primary pill (tertiary, `unpainted.cta`, no arrow — this tap does
-          NOT send the order) and its `onClick` stops touching the checkout
-          flag entirely. Before this fix, tapping it while unpainted did
-          `flushSync(() => setCheckoutHost("column"))`, which the panel's own
-          `!hasUnpainted && checkoutHost === host` gate stops from ever
-          mounting the form — but `stickyBar` above is gated on that same
-          flag, so the bar hid itself with nothing to show for it, AND the
-          flag stayed stuck on the column forever (both call sites that clear
-          it live inside the branch this state can never reach), so the form
-          popped open unprompted the moment the last piece got painted. */}
+          NOT send the order).
+          Task 7: both faces now open the DRAWER, because below `lg` that is
+          the only basket there is. Painting happens on the rows, which are
+          in there; the order form is a mode of the basket, which is in
+          there too. */}
       <NextStepPill
         data-testid="sticky-bar-checkout"
         className="shrink-0"
@@ -1260,28 +1272,21 @@ export function CeramicsStep({
         label={hasUnpainted ? t("unpainted.cta", { count: unpaintedInBasket }) : to("title")}
         arrow={!hasUnpainted}
         onClick={() => {
-          if (hasUnpainted) {
-            focusFirstUnpainted();
-            return;
-          }
-          // Giro garanzia: one tap must land the customer IN the form with the
-          // keyboard already up — scrolling to a collapsed cart and making them
-          // hunt for a second CTA was the complaint. `flushSync` renders the
-          // form INSIDE this click's own user gesture: a focus() one React tick
-          // later is no longer a gesture and iOS keeps the keyboard shut.
-          // No modal: a Cloudflare Turnstile inside a Dialog is risk for
-          // nothing, and mobile checkout gets rethought in R-PAY.
-          flushSync(() => setCheckoutHost("column"));
-          // Task 6 deleted the mobile block this query was scoped to; task 7
-          // re-aims the whole CTA at the drawer, which is the only basket
-          // below `lg` now.
-          const form = document.querySelector<HTMLElement>(
-            '[data-testid="docked-checkout-form"]'
-          );
-          form?.scrollIntoView({ behavior: "smooth", block: "start" });
-          form
-            ?.querySelector<HTMLInputElement>('[data-testid="order-name"]')
-            ?.focus({ preventScroll: true });
+          // «Paint N first»: open the drawer and let ITS paint-first
+          // behaviour take over (`Basket`'s own CTA + the rows' Paint
+          // buttons). The old `focusFirstUnpainted()` hunted for a row in
+          // the column, which does not render below `lg` any more.
+          //
+          // «Bestill»: same gesture, with checkout already showing —
+          // `checkoutHost` names the basket that asked (cart-context.tsx),
+          // and here that is the drawer. The old `flushSync` + scrollIntoView
+          // + focus('order-name') dance is gone with the in-flow block it
+          // aimed at: what it bought — the keyboard up inside the tap's own
+          // user gesture — is not buyable through a modal that takes focus
+          // to its own content when it mounts. One tap still lands ON the
+          // form with nothing to hunt for; the field costs one more.
+          if (!hasUnpainted) setCheckoutHost("drawer");
+          openCart();
         }}
         icon={
           hasUnpainted ? (
@@ -1302,9 +1307,9 @@ export function CeramicsStep({
     <div
       data-testid="ceramics-step"
       className={cn(
-        // The bar is `fixed`, so it sits ON the page: without this the last rows
-        // of the order block stay under it and the CTA is unreachable.
-        showStickyBar && "pb-24 md:pb-0",
+        // The bar is `fixed`, so it sits ON the page: without this the last
+        // rows of the catalog stay under it. Same breakpoint as the bar.
+        showStickyBar && "pb-24 lg:pb-0",
         // Fix wave B finding 5 (minor) — same gap as step 2's own
         // `data-testid="configurator"`: no `scroll-margin-top` anywhere, so a
         // keyboard-focused control lands under this step's own sticky
