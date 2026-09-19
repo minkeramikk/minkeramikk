@@ -110,6 +110,13 @@ describe("cleanCustomText (untrusted read path — TL mandate 1+2)", () => {
   it("keeps æøå/accents intact", () => {
     expect(cleanCustomText("  Gratulerer Åse  ")).toBe("Gratulerer Åse");
   });
+  it("truncates by code point, not UTF-16 code unit: an emoji at the cap boundary is never split into a dangling surrogate", () => {
+    const input = "A".repeat(24) + "😀"; // 24 BMP chars + 1 surrogate-pair emoji = 25 code points
+    const out = cleanCustomText(input);
+    expect(out).toBe("A".repeat(24) + "😀"); // whole emoji kept, not a lone surrogate
+    expect([...out]).toHaveLength(MAX_CUSTOM_TEXT); // 25 code points
+    expect(out.codePointAt(out.length - 2)).toBeGreaterThan(0xffff); // the emoji is intact, not split
+  });
 });
 
 function payloadWithText(customText: unknown) {

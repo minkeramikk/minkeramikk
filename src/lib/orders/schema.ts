@@ -17,9 +17,17 @@ export const MAX_CUSTOM_TEXT = 25;
 /** F38 — sanitise for the UNTRUSTED read path (URL → snapshot): same cleaner as
  *  the note (trim + strip control chars), then TRUNCATE to the cap. A URL can't
  *  be rejected gracefully, so we truncate rather than 400. Whitespace-only → ""
- *  (the cleaner trims first), which every present-check then treats as absent. */
+ *  (the cleaner trims first), which every present-check then treats as absent.
+ *
+ *  Truncate by CODE POINT, not by UTF-16 code unit: `.slice(0, N)` can cut a
+ *  surrogate pair in half (e.g. an emoji sitting right at the boundary),
+ *  leaving a lone surrogate in the string. That dangling surrogate then
+ *  reaches the order payload, the mail and the lab PDF, and re-encodes as
+ *  U+FFFD wherever something (like TextEncoder, in text-segment.ts) turns it
+ *  into UTF-8 bytes — a value that no longer matches what this function
+ *  itself returns for the same input. `Array.from` iterates by code point. */
 export function cleanCustomText(input: string): string {
-  return cleanCustomNote(input).slice(0, MAX_CUSTOM_TEXT);
+  return Array.from(cleanCustomNote(input)).slice(0, MAX_CUSTOM_TEXT).join("");
 }
 
 /** Strip ASCII/Unicode control chars (except newline) and trim. The XSS escape

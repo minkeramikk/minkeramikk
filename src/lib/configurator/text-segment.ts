@@ -6,10 +6,17 @@
  *   <flags><noteHash?><textPayload?>
  *
  * - `flags` — ONE base-31 char (CODE_ALPHABET index, 0-30). Bit 0 (1) = an
- *   inscription follows; bit 1 (2) = a 4-char colour-wish hash follows.
- *   Remaining bits are reserved for card 6 (text position): an unknown bit
- *   is round-tripped in the returned `flags` number but never blocks
- *   decoding of the inscription/hash this task owns (forward-compatible).
+ *   inscription follows; bit 1 (2) = a 4-char colour-wish hash follows; bits
+ *   2-3 (4, 8) are reserved for card 6's text position (4 values: centre /
+ *   top / bottom / back). That is the format's HARD CEILING, not an
+ *   observation: 12 | 1 | 2 = 15, comfortably inside the 31 values one
+ *   base-31 digit holds. A 5th flag bit would need 32 values and does not
+ *   fit — widen the encoding (e.g. a second flags digit) before adding one,
+ *   never widen the reserved mask past bits 2-3. `encodeTextSegment` throws
+ *   if asked to set a bit outside bits 0-3; `decodeTextSegment` stays
+ *   tolerant of any bit it doesn't recognise, so a bit this task's decoder
+ *   doesn't interpret is still round-tripped in `flags` without blocking the
+ *   inscription/hash decode (forward-compatible for card 6).
  * - `noteHash` — exactly 4 base-31 chars when bit 1 is set. Identity only,
  *   never read back as text: a fingerprint so two lines with the same
  *   colours but different customer wishes don't silently merge on the
@@ -35,6 +42,11 @@ const BASE = BigInt(CODE_ALPHABET.length); // 31
 const FLAG_TEXT = 1;
 const FLAG_NOTE_HASH = 2;
 const KNOWN_FLAGS = FLAG_TEXT | FLAG_NOTE_HASH;
+// Card 6's text position: bits 2-3, 4 values (0, 4, 8, 12). Any bit outside
+// this mask is not a legal `flags` input — see the format contract above.
+const RESERVED_MASK = 0b1100;
+// The format's hard ceiling: 12 | 1 | 2 = 15, inside the 31 one digit holds.
+const MAX_FLAGS = RESERVED_MASK | KNOWN_FLAGS;
 
 const NOTE_HASH_LEN = 4;
 // 31^4 buckets for the wish fingerprint — plenty to tell two different
@@ -118,10 +130,19 @@ function isValidNoteHash(s: string): boolean {
 }
 
 /**
- * `""` when there is nothing to say (no text, no hash, no extra flag bits).
- * `input.flags` lets a future caller (card 6) OR in its own bits; this task's
- * own bits (text present / hash present) are always derived from the data,
- * never taken from the caller, so they can't be encoded out of sync with it.
+ * `""` when there is nothing to say — decided by CONTENT: no inscription and
+ * no wish hash, regardless of `input.flags`. (A reserved bit with no text or
+ * hash to attach it to has nothing for card 6 to position, so it doesn't
+ * force a segment into existence either.)
+ *
+ * `input.flags` lets a future caller (card 6) OR in bits 2-3 of its own; this
+ * task's own bits (text present / hash present) are always derived from the
+ * data, never taken from the caller, so they can't be encoded out of sync
+ * with it. A bit outside bits 0-3 is a programming error — this is the
+ * encode path, called only by our own code — so it throws rather than
+ * silently wrapping into a different, wrong flags value (round 1 finding:
+ * `flags: 28` used to fold to 0, which reads as "nothing to say" and
+ * silently discarded a real inscription + hash).
  */
 export function encodeTextSegment(input: {
   text?: string;
@@ -133,15 +154,19 @@ export function encodeTextSegment(input: {
 
   const hasHash = typeof input.noteHash === "string" && isValidNoteHash(input.noteHash);
 
-  // Mod 31: flags is one base-31 digit (0-30). Extra bits beyond what fits
-  // are a caller bug, not this codec's problem to throw over — wrap rather
-  // than produce an unencodable value.
-  const extraFlags = (input.flags ?? 0) & ~KNOWN_FLAGS;
-  const flags =
-    (extraFlags | (hasText ? FLAG_TEXT : 0) | (hasHash ? FLAG_NOTE_HASH : 0)) %
-    CODE_ALPHABET.length;
+  const rawFlags = input.flags ?? 0;
+  const extraFlags = rawFlags & ~KNOWN_FLAGS;
+  if (extraFlags !== (extraFlags & RESERVED_MASK)) {
+    throw new RangeError(
+      `encodeTextSegment: flags ${rawFlags} sets a bit outside the reserved ` +
+        `range (bits 2-3, mask 0x${RESERVED_MASK.toString(16)}); the format's ` +
+        `hard ceiling is ${MAX_FLAGS} (one base-31 digit).`
+    );
+  }
 
-  if (flags === 0) return "";
+  if (!hasText && !hasHash) return "";
+
+  const flags = extraFlags | (hasText ? FLAG_TEXT : 0) | (hasHash ? FLAG_NOTE_HASH : 0);
 
   let seg = CODE_ALPHABET[flags];
   if (hasHash) seg += input.noteHash;
