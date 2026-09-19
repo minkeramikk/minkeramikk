@@ -133,7 +133,7 @@ test("AC5: cart button on every step opens the drawer; checkout reachable", asyn
   await expect(page.getByTestId("order-form")).toBeVisible();
 });
 
-test("AC5: step 3 shows the cart inline in the docked panel (≥768px)", async ({
+test("AC5: step 3 shows the cart inline in the docked panel (≥1024px)", async ({
   page,
 }, testInfo) => {
   test.skip(testInfo.project.name === "mobile", "docked panel is desktop layout");

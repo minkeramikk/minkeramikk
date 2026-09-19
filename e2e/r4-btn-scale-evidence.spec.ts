@@ -255,15 +255,15 @@ for (const locale of LOCALES) {
         ).toBe(false);
       }
 
-      await page.goto(`/${locale}/configurator?design=${design}&step=3`);
-      await page.getByTestId("ceramics-step").waitFor();
-      await addFirstCeramic(page);
-      for (const id of ["docked-checkout", "new-design-cta", "share-set"]) {
-        expect(
-          await clipped(page, id),
-          `AC8: ${id} @${w} ${locale} è troncata`
-        ).toBe(false);
-      }
+      // R5-BASKET-HOST PR 2: `docked-checkout`, `new-design-cta` e `share-set`
+      // stanno nella colonna dello step 3, che si renderizza solo da `lg`.
+      // Tutte e tre le LABEL_WIDTHS sono sotto — `:visible` non troverebbe
+      // niente e i sei test si pianterebbero per 30s. Un `if (w >= 1024)` qui
+      // sarebbe una condizione sempre falsa, cioè uno skip silenzioso
+      // travestito (lezione F07): il blocco si cancella, e resta scritto qui
+      // che l'AC8 su quelle tre pillole non ha più una larghezza stretta in
+      // cui vivere. Se la si vuole sul desktop, è un caso nuovo a 1280 — non
+      // un ripristino di questo.
     });
   }
 }

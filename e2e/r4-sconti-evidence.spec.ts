@@ -128,7 +128,7 @@ test.describe("admin: Discounts & Upsell settings page", () => {
   });
 });
 
-test.describe("customer cart: tiers, strikethrough, nudge, docked panel", () => {
+test.describe("customer cart: tiers, strikethrough, drawer a 390, colonna a 1280", () => {
   test.skip(
     !CAN_SEED,
     "MK_E2E_SEED=1 richiesto: il test semina la scala sconti nel catalogo reale"
@@ -160,7 +160,12 @@ test.describe("customer cart: tiers, strikethrough, nudge, docked panel", () => 
       await page.goto(step3);
       await addFirstCeramic(page);
       await openCart(page);
-      await drawer(page).getByLabel("+").first().click(); // qty 2 → 12%
+      // `docked-qty-inc`, non `getByLabel("+")`: la riga unificata etichetta i
+      // suoi stepper con `cart.increaseQty` («Flere»/«More») e l'unico
+      // `aria-label="+"` rimasto in `src` sta nel dialog di unpaint, che è
+      // portalato fuori dal drawer. Il locator vecchio non corrispondeva a
+      // niente. Stesso testid che il resto del file usa già quattro volte.
+      await drawer(page).getByTestId("docked-qty-inc").first().click(); // qty 2 → 12%
       // Il reload-and-retry resta: `config.server.ts` tiene in cache la
       // configurazione sconti fino a `revalidate: 10` e senza questo giro lo
       // scatto rischia di cadere su una lettura ancora stantia.
@@ -183,7 +188,9 @@ test.describe("customer cart: tiers, strikethrough, nudge, docked panel", () => 
       await page.goto(step3);
       await addFirstCeramic(page);
       const dockedDesktop = page.getByTestId("docked-cart-panel");
-      await dockedDesktop.getByLabel("+").first().click(); // qty 2 → 12%
+      // Stesso difetto del blocco a 390 (qui da PR 1): `getByLabel("+")` non
+      // corrisponde a nessuno stepper della riga.
+      await dockedDesktop.getByTestId("docked-qty-inc").first().click(); // qty 2 → 12%
       await expect(async () => {
         await page.reload();
         await expect(dockedDesktop.getByTestId("cart-line-full")).toBeVisible();
