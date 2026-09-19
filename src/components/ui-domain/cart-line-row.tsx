@@ -16,20 +16,27 @@ import { cn } from "@/lib/utils";
 /**
  * First selection colour of a line → colour-chip fallback for the row's own
  * thumb (and CartLineThumb's, elsewhere).
- * Moved here from ceramics-step.tsx (task 8): this row is now its only
- * caller — cart-menu.tsx (steps 1–2 drawer) keeps its own identical copy.
- * Exported (task 11): `UnpaintDialog`'s line card needs the exact same
- * fallback for the line it is unpainting — a second copy would drift.
+ * Moved here from ceramics-step.tsx (task 8). Two callers: this row and
+ * `unpaint-dialog.tsx`'s line card — which is why it is exported rather than
+ * local (task 11): the dialog needs the exact same fallback for the line it
+ * is unpainting, and a second copy would drift. `cart-menu.tsx` used to keep
+ * an identical copy for the steps 1–2 drawer; that drawer is `<Basket>` now
+ * (task 5) and the copy is gone.
  */
 export function thumbHex(line: CartLine): string | undefined {
   return line.configSnapshot?.selections.find((s) => s.hex)?.hex ?? undefined;
 }
 
 /**
- * R5-BASKET-HOST task 2 — the step-3 basket row (DESIGN-SYSTEM §3.14),
- * redesigned as a plain vertical stack (no CSS grid) at every breakpoint:
- * a `flex` thumb+info block, then a full-width actions row below it, then
- * the picker/expand/details blocks in turn. Binding source: `BRow` in
+ * R5-BASKET-HOST task 2 — the basket row (DESIGN-SYSTEM §3.14), rendered by
+ * BOTH hosts: step 3's column and the header drawer mount the same
+ * `<Basket>`, and it mounts this. A two-column grid
+ * (`[auto_minmax(0,1fr)]`) carries the thumb and the info; from `sm` the
+ * actions row sits in column 2, `self-end`, and below `sm` it spans both,
+ * full width. (Task 2 shipped this as a plain vertical stack with no grid;
+ * `c614fda` brought the grid back for AC 8 — no empty band beside the
+ * photo.) Then the picker/expand/details blocks in turn. Binding source:
+ * `BRow` in
  * `.superpowers/sdd/2026-09-19-r5-basket-host/mockup-brow.md` — the icons on
  * the Unpaint/Remove actions still follow that mockup's `Ico.unpaint`/
  * `Ico.trash` glyphs (lucide `Eraser`/`Trash2` here).
@@ -40,9 +47,11 @@ export function thumbHex(line: CartLine): string | undefined {
  * arrives here as `n`/`onN`, so this stays a pure render of whatever the
  * parent's cart state is right now.
  *
- * The details panel below is a step-3-only drilldown (composed preview +
- * config + ceramic + price) — NOT `CartLineRecap`, which stays untouched
- * and legacy-only for the steps 1–2 drawer.
+ * The details panel below is the drilldown (composed preview + config +
+ * ceramic + price) — NOT `CartLineRecap`. That component is untouched by this
+ * card and now has NO caller in `src/`: the steps 1–2 drawer it was written
+ * for renders `<Basket>` (task 5). The card allows it to stay; it is dead
+ * code, not legacy-in-use.
  */
 /**
  * The line's colours as dots. TL, 18/9: on the row the dots ARE the colours —
@@ -124,14 +133,16 @@ export function CartLineRow({
   pickerOpen: boolean;
   onTogglePicker: () => void;
   onPickPalette: (code: string) => void;
-  /** R5-BASKET-HOST task 2 — fires on the whole 64×132 thumb button (a
-   *  later task opens a photo viewer with it). Absent here: this call site
-   *  (step 3) doesn't wire it up yet, so the thumb stays inert markup —
-   *  no button, no `⤢` affordance — exactly as before this task. */
+  /** R5-BASKET-HOST task 2 — fires on the whole 64×132 thumb button; task 3
+   *  wired it to `LineLightbox` and `basket.tsx` passes it. Still optional,
+   *  and `undefined` is meaningful: `Basket` withholds it for a line with
+   *  neither `plateImage` nor `layers` (a pre-F19 line — both optional, no
+   *  migration), and the thumb then stays inert markup — no button, no `⤢`
+   *  affordance — because there is nothing to open. */
   onOpenPhoto?: () => void;
-  /** R5-BASKET-HOST task 2 — `"palette"` is today's step-3 behaviour (picker
+  /** R5-BASKET-HOST task 2 — `"palette"` is step 3's behaviour (picker
    *  + n/N + Paint, unchanged). `"none"` is the header drawer's step-1 case
-   *  (a later task): there is no configuration on screen to paint with, so
+   *  (wired in task 5): there is no configuration on screen to paint with, so
    *  the chip goes dead (disabled, muted) and a link sends the customer to
    *  step 2 instead — Paint, the n/N stepper and the picker panel all hide. */
   paintTarget: { kind: "palette" } | { kind: "none"; href: string };
@@ -268,11 +279,11 @@ export function CartLineRow({
           shrink below its content's min-content width. */}
       <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3.5">
         {/* Task 2 — the 64+64 stacked thumb (mockup `BigThumb`, `mode="stack"`).
-            A real `<button>` only once a later task wires `onOpenPhoto` up —
-            until then this stays exactly the inert markup it always was, no
-            `⤢` disc either (that affordance promises a click that isn't
-            there yet). Do NOT reach for `CartLineThumb` here: its sizes and
-            its `compact` flex-switch belong to the offers list, not this row. */}
+            A real `<button>` when `onOpenPhoto` is passed (task 3 wires it to
+            `LineLightbox`), inert markup with no `⤢` disc when it is not —
+            the affordance must never promise a click that isn't there. Do NOT
+            reach for `CartLineThumb` here: its sizes and its `compact`
+            flex-switch belong to the offers list, not this row. */}
         {onOpenPhoto ? (
           <button
             type="button"
@@ -636,8 +647,10 @@ export function CartLineRow({
       {/* Mockup `BRow`'s unpainted branch: its own line, not part of the
           actions row above (a painted line's expand/unpaint/remove live
           there instead — see that row's comment). Decision B7: this testid
-          was `docked-remove`; renamed to `cart-remove` to match the one
-          other place it's used (`e2e/cart.spec.ts`, `cart-menu.tsx`). */}
+          was `docked-remove`; renamed to `cart-remove`, which is what the
+          drawer's own remove button was called and what `e2e/cart.spec.ts`
+          reads. It is this file's alone now — `cart-menu.tsx` is down to the
+          trigger and the sheet shell (task 5). */}
       {unpainted && (
         <div className="mt-2">
           <button
@@ -659,13 +672,14 @@ export function CartLineRow({
           TODO:nb-review — cart.line.config / cart.line.price NO copy is
           new, unreviewed (same batch as unpainted.cta below).
           Task 18 (TL) — the code and «Edit design» that fix round 2 put
-          here were the wrong home: this panel is a step-3-only drilldown
+          here were the wrong home: this panel is the drilldown
           (Config/Ceramic/Price), the code + edit affordance is the CART
-          DRAWER's job and already lives there via `CartLineRecap`
-          (cart-menu.tsx) — the three e2e specs that used to read them off
-          this panel now read them off the drawer instead.
-          No longer `col-span-2 md:col-span-3` (task 2 dropped the grid):
-          this panel is now just the next block in the stack. */}
+          DRAWER's job. It used to live there in `CartLineRecap`; since task 5
+          the drawer is `<Basket>` too, so `basket.tsx` passes them back in as
+          `detailSlot` — drawer only — and that is what the three e2e specs
+          read. `CartLineRecap` itself has no caller left.
+          Outside the grid above on purpose: this panel is the next block in
+          the stack, full width, not a third column. */}
       {open && !unpainted && line.configSnapshot && (
         <div
           data-testid="cart-line-detail"

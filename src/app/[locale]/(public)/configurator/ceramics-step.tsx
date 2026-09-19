@@ -1139,9 +1139,18 @@ export function CeramicsStep({
 
   // ── Docked cart panel (shared by desktop right column + mobile inline
   // section). R5-BASKET-HOST task 4: the panel itself is `<Basket>` now
-  // (components/ui-domain/basket.tsx) — the header drawer mounts the very
-  // same component in task 5. Two copies live in this tree, `md:hidden` and
-  // `hidden md:block`, each with its own state; only one is ever visible.
+  // (components/ui-domain/basket.tsx), and task 5 mounts the very same
+  // component in the header drawer.
+  //
+  // TWO copies live in this tree, `md:hidden` and `hidden md:block`; only one
+  // is ever visible — and with the drawer that is THREE `<Basket>` instances
+  // mounted at once. Most of their state is per-instance (`expandedId`,
+  // `pickerOpenId`, `unpaintId`, `openPhotoId`), but four things are NOT:
+  // `checkoutHost`, `rowPaletteCode`, `paintN` and `currentConfig` live in
+  // `cart-context.tsx`, one per CART. Keep that count in mind before adding
+  // anything shared: a plain `checkoutOpen` boolean there rendered an
+  // `<OrderForm>` — and a `<Turnstile>` — in all three at once, which is
+  // why it names its host now.
   const cartPanel = (host: "mobile" | "desktop") => (
     <Basket
       ref={host === "mobile" ? mobileBasketRef : desktopBasketRef}

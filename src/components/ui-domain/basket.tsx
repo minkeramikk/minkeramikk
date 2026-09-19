@@ -776,10 +776,13 @@ export function Basket({
       {/* R5-BASKET-HOST task 3: the row thumb's photo viewer. One per
           `Basket`, same as the dialog above and for the same reason, driven
           by that basket's own `openPhotoId` (a `CartLine | null` + a ref that
-          keeps rendering the last one through Radix's exit animation). No
-          manual focus handling: the thumb button that opened it stays
-          mounted, so Radix's own default `onCloseAutoFocus` returns focus
-          there. */}
+          keeps rendering the last one through Radix's exit animation).
+          Focus-restore is MANUAL, in `line-lightbox.tsx`: the thumb is a
+          plain `<button>`, not a `Dialog.Trigger`, and without a `Trigger`
+          Radix has nothing to return to — the lightbox captures a `trigger`
+          ref on open and restores it in `onCloseAutoFocus`, guarded on
+          `isConnected` (the row can be gone by then). `UnpaintDialog` and
+          `AddedSheet` learned the same thing before it. */}
       <LineLightbox
         line={openPhotoLine}
         locale={locale}
