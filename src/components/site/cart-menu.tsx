@@ -102,9 +102,14 @@ export function CartMenu() {
   function handlePaintFirst() {
     paintFirstRef.current = true;
     setOpen(false);
+    // `?code=` and not `?design=&step=3`: the code decodes to design AND
+    // options (config-code.ts, e2e-covered), so paint-first from step 2 lands
+    // on step 3 still painting with what was on screen. `?design=` alone drops
+    // every `opt_*` and arrives with the design's defaults — a different
+    // palette than the one the customer was just looking at.
     router.push(
-      currentConfig?.designSlug
-        ? `/configurator?design=${encodeURIComponent(currentConfig.designSlug)}&step=3`
+      currentConfig
+        ? `/configurator?code=${encodeURIComponent(currentConfig.code)}&step=3`
         : "/configurator"
     );
   }
