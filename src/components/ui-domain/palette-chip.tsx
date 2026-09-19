@@ -28,12 +28,18 @@ export interface PaletteChipProps {
   /** The palette's name — `nameFor()` or the customer's rename. Data, never translated. */
   name: string;
   /**
-   * R5-TEXT-IDENTITY (TL ruling, "the name is noise"): the customer's own
-   * words, shown as a second line in quotes — `ConfigSnapshot.customText`
-   * off whatever's already at hand (a saved palette's own snapshot, or the
-   * draft's live field value), never decoded from `code`. Optional: most
-   * palettes carry no dedication, and `dim` chips show `dimDesignName` in
-   * this same slot instead (that takes priority — see the render below).
+   * The customer's own words, shown as a second line in quotes —
+   * `ConfigSnapshot.customText`, never decoded from `code`. This component
+   * only renders it; it does NOT decide whose words they are. The CALLER
+   * answers that, per chip: a chip flagged `active`/`draft` (this IS the
+   * canvas right now) must pass the CURRENT field value, even when its
+   * `name`/`layers`/`code` came from a colour-matched save — a dedication
+   * is exactly the one thing NOT shared with that save. A plain list chip
+   * (neither `active` nor `draft`) passes that palette's own stored value.
+   * Getting the two swapped shows a customer someone else's words on what
+   * looks like their own canvas (R5-TEXT-IDENTITY, TL ruling). Optional:
+   * most palettes carry no dedication, and `dim` chips show `dimDesignName`
+   * in this same slot instead (that takes priority — see the render below).
    */
   dedication?: string;
   /** Design pattern layers for the 36px composited thumb (same technique as the cart row). */

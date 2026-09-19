@@ -34,11 +34,17 @@ export interface PaintingStripProps {
    *  extraction removes. Also doubles as the sheet's `draftName`/
    *  `draftLayers` (below) — same reuse rule, one value in, not two. */
   paintingLabel: string;
-  /** R5-TEXT-IDENTITY (TL ruling) — the dedication of whatever's painting,
-   *  in quotes, on its own line under the name. Same "one value, not
-   *  recomputed" rule as `paintingLabel` — the caller's own
-   *  `ConfigSnapshot.customText`, never decoded here. Also forwarded to the
-   *  sheet's draft tile (below), same reuse as `paintingLabel`/`draftName`. */
+  /**
+   * TL correction (round after "the name is noise") — the CURRENT field
+   * value, always: this strip describes the canvas, so this is never a
+   * saved match's own stored words, even when `paintingLabel` above came
+   * from one (the name is about colours, this is about words — the one
+   * thing NOT shared with a colour-match). The caller's own
+   * `ConfigSnapshot.customText`, never decoded here. Forwarded to the
+   * sheet as `currentDedication` (below) — same reuse as `paintingLabel`/
+   * `draftName`, renamed there because the sheet also uses it to override
+   * its OWN active tile, not only the draft one.
+   */
   dedication?: string;
   /** The design pattern's own name, shown as the "· design" suffix. */
   designName: string;
@@ -173,7 +179,7 @@ export function PaintingStrip({
         draft={draft}
         canSaveDraft={canSaveDraft}
         draftName={paintingLabel}
-        draftDedication={dedication}
+        currentDedication={dedication}
         draftLayers={designLayers}
         locale={locale}
         onPick={onPick}

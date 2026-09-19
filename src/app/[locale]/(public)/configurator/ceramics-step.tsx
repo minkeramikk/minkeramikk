@@ -306,12 +306,21 @@ export function CeramicsStep({
       palettes.map((p) => p.name)
     ) ??
     designName;
-  /** The dedication of whatever's painting right now — a saved palette's
-   *  own stored words, or the draft's live field value. Read off data
-   *  already at hand (`ConfigSnapshot.customText`), never decoded from a
-   *  code: the chip/strip/sheet/pill all render this the same way
-   *  (`PaletteChip`'s own `dedication` prop). */
-  const paintingDedication = activePalette?.snapshot.customText ?? snapshot.customText;
+  /**
+   * TL correction (round after "the name is noise") — NOT `activePalette?.
+   * snapshot.customText ?? snapshot.customText` the way `paintingLabel`
+   * reads `activePalette?.name ?? nameFor(...)`. The name asks "which
+   * colours", and colours are what matched, so inheriting the saved
+   * palette's name is right; the dedication asks "what did the customer
+   * write", which is the one thing NOT shared with the saved palette —
+   * two dedications of the same colours is the whole reason this second
+   * line exists. `snapshot` (this step's own prop) already IS what's on
+   * screen right now, always — this tile shows exactly that, never a
+   * saved match's own stored words. (A saved palette's OWN chip, in the
+   * lane below, still reads its own stored `p.snapshot.customText` — that
+   * tile describes THAT palette, not the canvas.)
+   */
+  const currentDedication = snapshot.customText;
 
   /**
    * Card §3 guard (TL ruling), same rule as step 2's own `canSaveDraft`
@@ -449,7 +458,13 @@ export function CeramicsStep({
         key={p.code}
         code={p.code}
         name={p.name}
-        dedication={p.snapshot.customText}
+        // TL correction: the ACTIVE one of these IS the canvas right now
+        // (same colours, `brush` badge) — it shows what's in the field
+        // (`currentDedication`), not this palette's own stored words,
+        // which may be a different dedication of these same colours than
+        // the one on screen. Every other (non-active) chip here is purely
+        // "a saved palette in a list" and keeps its own.
+        dedication={isActive ? currentDedication : p.snapshot.customText}
         layers={p.layers}
         active={isActive}
         brush={isActive}
@@ -488,7 +503,7 @@ export function CeramicsStep({
       key="draft"
       code={configCode}
       name={paintingLabel}
-      dedication={paintingDedication}
+      dedication={currentDedication}
       layers={designLayers}
       draft
       brush
@@ -1207,7 +1222,7 @@ export function CeramicsStep({
       testId="step3-your-selection-strip"
       designLayers={designLayers}
       paintingLabel={paintingLabel}
-      dedication={paintingDedication}
+      dedication={currentDedication}
       designName={designName}
       palettes={palettes}
       currentDesignSlug={design.slug}

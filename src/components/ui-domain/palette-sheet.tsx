@@ -55,7 +55,7 @@ export function PaletteSheet({
   draft,
   canSaveDraft,
   draftName,
-  draftDedication,
+  currentDedication,
   draftLayers,
   locale,
   onPick,
@@ -99,10 +99,18 @@ export function PaletteSheet({
    *  lead chip SHOWED the draft, not just a save button, and this sheet
    *  didn't; now it does, at both steps. */
   draftName: string;
-  /** R5-TEXT-IDENTITY (TL ruling) — the draft tile's own dedication, in
-   *  quotes, same as every other tile (`PaletteDedicationLine`). The
-   *  caller's live field value, never decoded from a code. */
-  draftDedication?: string;
+  /**
+   * TL correction (round after "the name is noise") — the field's live
+   * value, ALWAYS, never a saved match's own stored words: this is what's
+   * on screen right now, so it's what the draft tile shows below, AND
+   * what the ACTIVE saved tile in the grid shows when its colours happen
+   * to match (that tile is also, at that moment, the canvas — same
+   * reasoning `PaletteChip`'s own lead chip follows). Every OTHER
+   * (non-active) tile in the grid keeps reading its own stored
+   * `palette.snapshot.customText` — those describe a different saved
+   * configuration, not the canvas.
+   */
+  currentDedication?: string;
   draftLayers: CartLayer[];
   locale: "no" | "en";
   /** Picking a tile has the same effect as picking a chip on the desktop bar
@@ -190,7 +198,7 @@ export function PaletteSheet({
                   {tChip("unsaved")}
                 </span>
                 <span className="block truncate text-xs font-medium">{draftName}</span>
-                <PaletteDedicationLine text={draftDedication} className="max-w-none" />
+                <PaletteDedicationLine text={currentDedication} className="max-w-none" />
               </span>
               {canSaveDraft && (
                 <button
@@ -213,6 +221,11 @@ export function PaletteSheet({
                 <PaletteTile
                   key={p.code}
                   palette={p}
+                  // TL correction: the ACTIVE tile IS the canvas right now
+                  // when its colours match — it shows what's in the field
+                  // (`currentDedication`), not this palette's own stored
+                  // words. Every other tile keeps its own (below).
+                  dedication={active ? currentDedication : p.snapshot.customText}
                   active={active}
                   dim={dim}
                   dimDesignName={dim ? (designLabel(p.snapshot, locale) ?? p.designSlug) : undefined}
@@ -258,6 +271,7 @@ export function PaletteSheet({
  */
 function PaletteTile({
   palette,
+  dedication,
   active,
   dim,
   dimDesignName,
@@ -269,6 +283,10 @@ function PaletteTile({
   onDelete,
 }: {
   palette: Palette;
+  /** The caller already resolved WHOSE words this is — this palette's own
+   *  stored `snapshot.customText`, or (only while `active`) the canvas's
+   *  live one. This component just renders it; it does not decide. */
+  dedication?: string;
   active: boolean;
   dim: boolean;
   /** The OTHER design's name — only meaningful (and only passed) when `dim`. */
@@ -376,10 +394,10 @@ function PaletteTile({
           <DesignRound layers={palette.layers} className={cn("size-8", dim && "grayscale-[.3]")} />
           <span className="min-w-0 leading-tight">
             <span className="block truncate font-medium">{palette.name}</span>
-            {/* R5-TEXT-IDENTITY (TL ruling) — the dedication, when there is
-                one; read straight off the palette's own stored snapshot,
-                nothing decoded from `palette.code`. */}
-            {!dim && <PaletteDedicationLine text={palette.snapshot.customText} className="max-w-none" />}
+            {/* R5-TEXT-IDENTITY (TL ruling) — the caller already resolved
+                whose words this is (this palette's own, or the canvas's
+                while active); nothing decoded from `palette.code` here. */}
+            {!dim && <PaletteDedicationLine text={dedication} className="max-w-none" />}
             <span className="block truncate text-[10px] text-muted-foreground">
               {/* Fix wave PR3 finding 6: was its own near-copy of `cart-line-row.tsx`'s
                   `Dots` (the mockup's `Dots(code)`) that had drifted off ADR 0008's

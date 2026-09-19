@@ -722,7 +722,7 @@ export function ConfiguratorClient({
    * learns it's noise, not identity. Same colours ⇒ same name, whatever is
    * typed — a debounce would only have hidden that symptom, not the cause
    * (the code, not the name, is where two dedications of the same colours
-   * tell apart — see `activeDedication` and `PaletteChip`'s own second
+   * tell apart — see `currentDedication` and `PaletteChip`'s own second
    * line, just below). Card §1's "different dedications ⇒ different
    * palettes" still holds at the level that matters: the CODE (and so the
    * saved entry) differs; only the deterministic WORD stopped being one of
@@ -748,11 +748,24 @@ export function ConfiguratorClient({
       palettes.map((p) => p.name)
     );
   const activePaletteLayers = matchedPalette?.layers ?? draftPayload.designLayers;
-  /** The dedication of whatever's painting right now — read off data
-   *  already at hand (`ConfigSnapshot.customText`), never decoded from
-   *  `draftCode`. Same "one value, not recomputed" rule `activePaletteName`
-   *  already follows. */
-  const activeDedication = matchedPalette?.snapshot.customText ?? draftPayload.snapshot.customText;
+  /**
+   * TL correction (round after "the name is noise") — NOT `matchedPalette?.
+   * snapshot.customText ?? draftPayload...` the way `activePaletteName`
+   * reads `matchedPalette?.name ?? nameFor(...)`. The name and the
+   * dedication are NOT the same kind of question: the name asks "which
+   * colours is this", and colours are exactly what matched, so inheriting
+   * the saved palette's name is right. The dedication asks "what did the
+   * customer write", and that is the one thing NOT shared with the saved
+   * palette — matching colours with a different inscription is the whole
+   * reason this second line exists. A tile that shows what's painting
+   * RIGHT NOW must show the field the customer is looking at while they
+   * type, always `draftPayload.snapshot.customText`, whether or not the
+   * colours happen to match something already saved. (A saved palette's
+   * OWN chip, elsewhere in this file, still reads its own stored
+   * `p.snapshot.customText` — that tile describes THAT palette, not the
+   * canvas.)
+   */
+  const currentDedication = draftPayload.snapshot.customText;
   /** The design pattern's own name, for `<PaintingStrip>`'s "· design"
    *  suffix — same source ceramics-step.tsx's own `designName` reads
    *  (`designLabel()` on the snapshot), just this step's own snapshot. */
@@ -1047,7 +1060,12 @@ export function ConfiguratorClient({
       key={matchedPalette.code}
       code={matchedPalette.code}
       name={matchedPalette.name}
-      dedication={matchedPalette.snapshot.customText}
+      // TL correction: this chip is the LEAD one — it IS the canvas right
+      // now, just happening to share its colours with a save. It shows
+      // what's in the field (`currentDedication`), not `matchedPalette`'s
+      // own stored words, which may belong to a different dedication of
+      // these same colours than the one on screen right now.
+      dedication={currentDedication}
       layers={matchedPalette.layers}
       active
       renaming={renamingPaletteCode === matchedPalette.code}
@@ -1064,7 +1082,7 @@ export function ConfiguratorClient({
       key="draft"
       code={draftCode}
       name={activePaletteName}
-      dedication={activeDedication}
+      dedication={currentDedication}
       layers={draftPayload.designLayers}
       draft
     />
@@ -1171,7 +1189,7 @@ export function ConfiguratorClient({
           className="max-md:group-data-[typing=1]/step2:static"
           designLayers={activePaletteLayers}
           paintingLabel={activePaletteName}
-          dedication={activeDedication}
+          dedication={currentDedication}
           designName={activeDesignName}
           palettes={palettes}
           currentDesignSlug={selected.slug}
