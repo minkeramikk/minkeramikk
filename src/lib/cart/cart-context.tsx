@@ -33,6 +33,24 @@ export type CurrentConfig = {
   snapshot: ConfigSnapshot;
   layers: CartLayer[];
   designSlug: string;
+  /**
+   * Task 4 — the NAME of what is painting ("painted with <b>Antimonio</b>",
+   * and the fallback label on an untouched row's chip). Published, never
+   * recomputed by the consumer: `nameFor()` needs `MK_PALETTE_WORDS`, a
+   * server read the `Basket` cannot do, and step 2 and step 3 already
+   * compute this exact string for their own palette bar. One source, so the
+   * bar and the basket can never name the same configuration two ways.
+   */
+  label: string;
+  /**
+   * Task 4 — did the customer actually CHOOSE this configuration, or is it
+   * the page's positional fallback (a bare `?set=` landing)? AC4: the
+   * basket's «painted with» line stays away for a fallback, exactly as
+   * `hasConfig` gated it in `ceramics-step.tsx`. The rest of the basket does
+   * not care: there IS a configuration on screen either way, so rows stay
+   * paintable — which is why this is a flag and not a null `CurrentConfig`.
+   */
+  explicit: boolean;
 };
 
 /**

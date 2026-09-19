@@ -626,9 +626,13 @@ export function ConfiguratorClient({
       snapshot: draftPayload.snapshot,
       layers: activePaletteLayers,
       designSlug: detail.slug,
+      label: activePaletteName,
+      // Step 2 IS the customer configuring a design they chose — there is no
+      // positional-fallback case here (that only exists on step 3's catalog).
+      explicit: true,
     });
     return () => setCurrentConfig(null);
-  }, [step, draftPayload, activePaletteLayers, detail.slug, setCurrentConfig]);
+  }, [step, draftPayload, activePaletteLayers, detail.slug, activePaletteName, setCurrentConfig]);
 
   function saveDraftAsPalette() {
     const now = Date.now();

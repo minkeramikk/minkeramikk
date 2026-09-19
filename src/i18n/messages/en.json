@@ -213,6 +213,8 @@
     "paintedWith": "new ceramics come painted with <b>{name}</b>",
     "empty": "Your basket is empty",
     "emptyCta": "Back to the configurator",
+    "addCeramics": "+ Add ceramics",
+    "saved": "−{amount} saved",
     "remove": "Remove",
     "subtotal": "Subtotal",
     "total": "Total price",

@@ -1,15 +1,18 @@
 "use client";
 
-import { useCallback, useEffect, useImperativeHandle, useState } from "react";
+import { useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Truck, Brush } from "lucide-react";
-import { useCartContext } from "@/lib/cart/cart-context";
+import { useCartContext, type CurrentConfig } from "@/lib/cart/cart-context";
 import {
-  itemCount,
-  unpaintedPieces,
-  type CartLayer,
-  type ConfigSnapshot,
-} from "@/lib/cart/cart";
+  basketCta,
+  paintTargetFor,
+  type BasketHost,
+} from "@/components/ui-domain/basket-host";
+import { itemCount, unpaintedPieces } from "@/lib/cart/cart";
+import { formatMoney } from "@/lib/money/money";
+import { cartSaved } from "@/lib/discounts/discount";
+import { useShippingTotalSuffix } from "@/components/ui-domain/cart-shipping-row";
 import { paletteFor } from "@/lib/palettes/palettes";
 import { CartLineRow } from "@/components/ui-domain/cart-line-row";
 import { CartSuggestion } from "@/components/ui-domain/cart-suggestion";
@@ -30,22 +33,29 @@ import { NextStepPill, PillIcon } from "@/components/ui-domain/next-step-pill";
  * target instead, per the card's own note).
  *
  * NOT a bare `document.querySelector` (the card's own snippet, and the
- * mockup's single-page demo, both get away with one): `cartPanel` above is
- * rendered TWICE, mobile section + desktop rail (`md:hidden`/`hidden
- * md:block`), so BOTH copies of every row are always in the DOM and an
- * unscoped query can resolve to the `display:none` half — exactly the
- * failure mode the sticky bar's own click handler already scopes around a
- * few hundred lines down. `offsetParent !== null` is the cheap "not
- * display:none" check; it skips straight to whichever copy is actually on
- * screen at the current breakpoint.
+ * mockup's single-page demo, both get away with one): the panel is rendered
+ * TWICE, mobile section + desktop rail (`md:hidden`/`hidden md:block`), so
+ * BOTH copies of every row are always in the DOM and an unscoped query can
+ * resolve to the `display:none` half. `offsetParent !== null` is the cheap
+ * "not display:none" check; it skips straight to whichever copy is actually
+ * on screen at the current breakpoint.
+ *
+ * Task 4 — and once the header drawer mounts a THIRD copy of the same rows
+ * (task 5), "visible" stops being enough: the drawer sits over step 3 with
+ * both on screen at once. So the query takes a root, which is the basket's
+ * own element; `document` stays the default, which is exactly the old
+ * behaviour whenever there is only one basket on screen. Returns whether it
+ * found a row, so a caller holding several roots can try the next one.
  */
-export function focusFirstUnpaintedRow() {
-  const rows = document.querySelectorAll<HTMLElement>(
+export function focusFirstUnpaintedRow(root: ParentNode = document): boolean {
+  const rows = root.querySelectorAll<HTMLElement>(
     '[data-testid="cart-line"][data-unpainted]'
   );
   const row = Array.from(rows).find((r) => r.offsetParent !== null);
-  row?.scrollIntoView({ behavior: "smooth", block: "center" });
-  row?.querySelector<HTMLElement>('[data-testid="paint-line"]')?.focus({ preventScroll: true });
+  if (!row) return false;
+  row.scrollIntoView({ behavior: "smooth", block: "center" });
+  row.querySelector<HTMLElement>('[data-testid="paint-line"]')?.focus({ preventScroll: true });
+  return true;
 }
 
 /**
@@ -67,9 +77,11 @@ function pruneToLive<T>(m: Record<string, T>, liveIds: Set<string>): Record<stri
   return changed ? next : m;
 }
 
-/** Where this basket is mounted. Task 5 adds the header drawer; step 3's
- *  right column (and its mobile in-flow twin) is `"column"`. */
-export type BasketHost = "column" | "drawer";
+export {
+  basketCta,
+  paintTargetFor,
+  type BasketHost,
+} from "@/components/ui-domain/basket-host";
 
 /**
  * The handle `ceramics-step.tsx` keeps on the basket it mounted. The step's
@@ -80,6 +92,9 @@ export type BasketHost = "column" | "drawer";
 export type BasketHandle = {
   /** Expand the order form in place (the step-3 `docked-checkout-form`). */
   openCheckout: () => void;
+  /** `focusFirstUnpaintedRow` scoped to THIS basket; false when it has no
+   *  visible unpainted row, so the caller can try its other copy. */
+  focusFirstUnpainted: () => boolean;
 };
 
 /**
@@ -87,34 +102,49 @@ export type BasketHandle = {
  * column and the header's side drawer render THIS component; `host` is the
  * only thing that differs between them.
  *
- * Moved here VERBATIM from `ceramics-step.tsx`'s own `cartPanel` block,
- * together with the state that block owns (`expandedId`, `paintN`,
- * `rowPaletteCode`, `pickerOpenId`, `unpaintId`, `checkoutOpen`,
- * `openPhotoId`), the ONE effect that prunes all of them against live line
- * ids, and the two dialogs those pointers drive. The step keeps everything
- * else: the catalog, the sheets, the palette bar, the sticky bar, the share.
+ * Moved here from `ceramics-step.tsx`'s own `cartPanel` block, together with
+ * the state that block owns (`expandedId`, `paintN`, `rowPaletteCode`,
+ * `pickerOpenId`, `unpaintId`, `checkoutOpen`, `openPhotoId`), the ONE effect
+ * that prunes all of them against live line ids, and the two dialogs those
+ * pointers drive. The step keeps everything else: the catalog, the sheets,
+ * the palette bar, the sticky bar, the share.
+ *
+ * What the host actually changes, and nothing more:
+ *
+ * - the COLUMN is sticky and shows whole, so it has no fixed foot: the
+ *   detail block (`CartSuggestion` + `CartTotals`) is followed by the CTA and
+ *   then `footerSlot`, exactly where they have always been;
+ * - the DRAWER scrolls, so it keeps ONE fixed line at the bottom at every
+ *   width (net total, what the basket saves, the CTA) and «+ Add ceramics»
+ *   at the end of the scroll, after the detail block. Reading order both
+ *   ways: rows → numbers → order. No accordion anywhere.
+ * - the testids, which twelve Playwright specs depend on: see `basketCta`
+ *   and the `drawer` ternaries below.
  */
 export function Basket({
-  configCode,
-  snapshot,
-  designLayers,
-  designSlug,
-  hasConfig,
-  paintingLabel,
+  host,
+  currentConfig,
+  onAddCeramics,
+  onPaintFirst,
   footerSlot,
   onCheckoutOpenChange,
   ref,
 }: {
   host: BasketHost;
-  /** What a ceramic added right now gets painted with — the step's own
-   *  server props, unchanged (task 5 replaces these with `currentConfig`). */
-  configCode: string;
-  snapshot: ConfigSnapshot;
-  designLayers: CartLayer[];
-  designSlug: string;
-  /** AC4: is there a configuration the customer actually CHOSE on screen? */
-  hasConfig: boolean;
-  paintingLabel: string;
+  /**
+   * What is painting right now, published by whichever step is on screen
+   * (`cart-context.tsx`). `null` means there is NO configuration on screen —
+   * the drawer opened at step 1: the «painted with» line stays away, rows get
+   * `paintTarget: { kind: "none" }` and no picker can open.
+   */
+  currentConfig: CurrentConfig | null;
+  /** Drawer only: «+ Add ceramics» at the end of the scroll — it closes the
+   *  drawer and sends the customer back to the catalog. */
+  onAddCeramics?: () => void;
+  /** What «Paint N pieces first ›» does in this host. Default (the column):
+   *  focus the first unpainted row of THIS basket. The drawer closes itself,
+   *  goes to step 3 and focuses it there. */
+  onPaintFirst?: () => void;
   /** Column only: the new-design + share pills and the share feedback — they
    *  belong to the step (they navigate it, and the share state lives there). */
   footerSlot?: React.ReactNode;
@@ -123,6 +153,7 @@ export function Basket({
   onCheckoutOpenChange?: (open: boolean) => void;
   ref?: React.Ref<BasketHandle>;
 }) {
+  const drawer = host === "drawer";
   const t = useTranslations("cart");
   const to = useTranslations("order");
   const locale = useLocale() as "no" | "en";
@@ -140,7 +171,13 @@ export function Basket({
   } = useCartContext();
   /** R5-PALETTES task 9 — which saved palette (if any) IS the config on
    *  screen. Same read `ceramics-step.tsx` does: the URL is the truth. */
-  const activePalette = paletteFor(palettes, configCode);
+  const activePalette = currentConfig ? paletteFor(palettes, currentConfig.code) : null;
+  /** The basket's own element: the root `focusFirstUnpaintedRow` is scoped to. */
+  const rootRef = useRef<HTMLDivElement>(null);
+  const focusFirstUnpainted = useCallback(
+    () => focusFirstUnpaintedRow(rootRef.current ?? document),
+    []
+  );
 
   /** Desktop + mobile inline: expands the order form in the cart panel. */
   const [checkoutOpen, setCheckoutOpen] = useState(false);
@@ -224,24 +261,27 @@ export function Basket({
             .filter((h): h is string => Boolean(h)),
           snapshot: {
             ...explicitPalette.snapshot,
-            customNote: snapshot.customNote,
-            customText: snapshot.customText,
+            customNote: currentConfig?.snapshot.customNote,
+            customText: currentConfig?.snapshot.customText,
           },
         };
       }
       return {
-        code: activePalette?.code ?? configCode,
-        layers: designLayers,
+        code: activePalette?.code ?? currentConfig?.code ?? "",
+        layers: currentConfig?.layers ?? [],
         // TL follow-up (post-task-12): same `paintingLabel` the bar's chip
         // and the basket header now share — this fell back straight to
         // `designName` before, the same "vaguer of two names for the same
         // thing on screen" bug the header had.
-        label: paintingLabel,
-        hexes: snapshot.selections.map((s) => s.hex).filter((h): h is string => Boolean(h)),
-        snapshot,
+        label: currentConfig?.label ?? "",
+        hexes:
+          currentConfig?.snapshot.selections
+            .map((s) => s.hex)
+            .filter((h): h is string => Boolean(h)) ?? [],
+        snapshot: currentConfig?.snapshot ?? null,
       };
     },
-    [rowPaletteCode, palettes, activePalette, configCode, designLayers, paintingLabel, snapshot]
+    [rowPaletteCode, palettes, activePalette, currentConfig]
   );
   /**
    * Bug fix (task 11 review): a cart line id RECURS — `cart.ts` gives every
@@ -299,13 +339,24 @@ export function Basket({
   useEffect(() => {
     onCheckoutOpenChange?.(checkoutOpen);
   }, [checkoutOpen, onCheckoutOpenChange]);
-  useImperativeHandle(ref, () => ({ openCheckout: () => setCheckoutOpen(true) }), []);
+  useImperativeHandle(
+    ref,
+    () => ({ openCheckout: () => setCheckoutOpen(true), focusFirstUnpainted }),
+    [focusFirstUnpainted]
+  );
+  /** The foot's own two numbers (drawer only) — taken from the engine, never
+   *  re-added here, so the foot can never disagree with `CartTotals` above. */
+  const saved = cartSaved(discount);
+  const totalSuffix = useShippingTotalSuffix(discount.total);
 
   // ── Docked cart panel (shared by desktop right column + mobile inline section) ──
-  const cartPanel = (
-    <div className="flex flex-col gap-0" data-testid="docked-cart">
+  const header = (
+    <>
       <div className="mb-1 flex items-baseline justify-between gap-2">
-        <h2 className="text-base font-semibold">{t("cartTitle")}</h2>
+        {/* The drawer is a Sheet and its `SheetTitle` already names it (and
+            has to, for a11y) — a second «Handlekurv» under it would read as
+            a second basket, which is the one thing this card is about. */}
+        {!drawer && <h2 className="text-base font-semibold">{t("cartTitle")}</h2>}
         {/* Fix wave B finding 3 — mockup `#s3a`'s header line, the
             replacement for the removed "Ditt valg" box (task 9): says what a
             NEW ceramic added right now gets painted with. TL follow-up
@@ -320,10 +371,10 @@ export function Basket({
             to name at all. Hidden with the box's own rule (AC4) when
             there's no config at all yet (a bare `?set=` landing).
             TODO:nb-review — cart.paintedWith NO copy is new, unreviewed. */}
-        {hasConfig && (
+        {currentConfig?.explicit && (
           <span className="text-xs text-muted-foreground">
             {t.rich("paintedWith", {
-              name: paintingLabel,
+              name: currentConfig.label,
               b: (chunks) => <b className="font-semibold text-foreground">{chunks}</b>,
             })}
           </span>
@@ -344,12 +395,11 @@ export function Basket({
           {t("unpainted.note", { count: unpaintedInBasket })}
         </p>
       )}
+    </>
+  );
 
-      {count === 0 ? (
-        <p className="py-6 text-sm text-muted-foreground">{t("empty")}</p>
-      ) : (
-        <>
-          <div data-testid="cart-list" className="flex flex-col">
+  const list = (
+    <div data-testid="cart-list" className="flex flex-col">
             {/* R5-UNPAINTED task 8: unpainted lines float to the top, exactly
                 as the mockup sorts them (renderS3: (a.code?1:0)-(b.code?1:0)). */}
             {[...cart]
@@ -389,7 +439,7 @@ export function Basket({
                     }
                     currentThumb={thumb}
                     palettes={palettes}
-                    currentDesignSlug={designSlug}
+                    currentDesignSlug={currentConfig?.designSlug ?? ""}
                     pickerOpen={!!pickerOpenId[line.id]}
                     onTogglePicker={() =>
                       setPickerOpenId((m) => ({ ...m, [line.id]: !m[line.id] }))
@@ -405,11 +455,15 @@ export function Basket({
                       // and is first out of the LRU.
                       touchPalette(code, Date.now());
                     }}
-                    // R5-BASKET-HOST task 2: step 3 always has a config on
-                    // screen (the active design) — the drawer's step-1 "no
-                    // config yet" case (`{ kind: "none" }`) doesn't apply
-                    // here, so this stays step 3's own behaviour unchanged.
-                    paintTarget={{ kind: "palette" }}
+                    // R5-BASKET-HOST task 4: `{ kind: "palette" }` whenever
+                    // there IS a configuration on screen (step 3 always has
+                    // one, so its behaviour is unchanged); the drawer opened
+                    // at step 1 has none, and the chip becomes the link to
+                    // step 2 instead — one pure decision, `paintTargetFor`.
+                    paintTarget={paintTargetFor(
+                      currentConfig,
+                      line.configSnapshot?.designSlug
+                    )}
                     // R5-BASKET-HOST task 3: the thumb now opens something —
                     // keyed by id, pruned in the shared effect above. Fix
                     // round 1 — only when there's actually something to show:
@@ -425,7 +479,172 @@ export function Basket({
                   />
                 );
               })}
+    </div>
+  );
+
+  /**
+   * Task 13 (mockup: bottom of `renderS3`) — while anything is unpainted, the
+   * pill that would open checkout is REPLACED, not merely disabled: it
+   * becomes a tertiary "go paint it" CTA. No `arrow`: unlike «Bestill» this
+   * click doesn't advance the funnel, matching the other non-advancing pills
+   * in the column's stack (`new-design-cta`, `share-set`).
+   *
+   * Task 4 — one decision, rendered twice. `basketCta` (pure, tested) owns
+   * both the face and the testid; the host only chooses the pill's size and
+   * where it sits. Default `onPaintFirst` is this basket's own scoped focus,
+   * which is what the column has always done; the drawer passes its own
+   * (close, go to step 3, focus it there).
+   * TODO:nb-review — cart.unpainted.cta NO copy is new, unreviewed.
+   */
+  const cta = basketCta(host, unpaintedInBasket);
+  const ctaPill = (size: "lg" | "sm", className: string) =>
+    cta.face === "paint" ? (
+      <NextStepPill
+        variant="tertiary"
+        size={size}
+        data-testid={cta.testId}
+        className={className}
+        label={t("unpainted.cta", { count: unpaintedInBasket })}
+        icon={
+          <PillIcon variant="tertiary">
+            <Brush className="size-5 text-muted-foreground" />
+          </PillIcon>
+        }
+        onClick={onPaintFirst ?? focusFirstUnpainted}
+      />
+    ) : (
+      /* Camioncino, non freccia: l'ordine parte, non c'è uno step successivo
+         nel wizard (nota-step3-cart.md). */
+      <NextStepPill
+        size={size}
+        data-testid={cta.testId}
+        className={className}
+        caption={t("checkoutKicker")}
+        label={to("title")}
+        arrow
+        icon={
+          <PillIcon>
+            <Truck className="size-5 text-primary" />
+          </PillIcon>
+        }
+        onClick={() => setCheckoutOpen(true)}
+      />
+    );
+
+  /**
+   * Task 13: `!hasUnpainted` gates the form shut even if it was already open
+   * when the basket picked up a new unpainted line (e.g. adding a ceramic
+   * mid-checkout) — the order can never leave with colourless pieces, so the
+   * form can never be on screen with one either.
+   */
+  const formOpen = !hasUnpainted && checkoutOpen;
+  const checkoutForm = (
+    // scroll-mt: the mobile header is sticky and 56px tall, so a bare
+    // scrollIntoView would park the form's first rows under it. Fix wave PR3
+    // finding 2: `md:scroll-mt-[4.5rem]` is that desktop-header-only value,
+    // unchanged — but below `md` the header stacks with `paintingStrip`'s own
+    // `sticky top-14` (task 13), ~111-117px combined, not 72px.
+    <div
+      data-testid={drawer ? "cart-checkout-form" : "docked-checkout-form"}
+      className="scroll-mt-[7.5rem] md:scroll-mt-[4.5rem]"
+    >
+      <button
+        type="button"
+        data-testid={drawer ? "cart-back" : "docked-back-to-cart"}
+        onClick={() => setCheckoutOpen(false)}
+        className="mb-3 self-start text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+      >
+        ← {t("backToCart")}
+      </button>
+      <OrderForm
+        cart={cart}
+        onSuccess={() => {
+          clear();
+          setCheckoutOpen(false);
+        }}
+      />
+    </div>
+  );
+
+  /**
+   * Card §3-bis (a), as amended by the TL on 19/9 — the reading order is
+   * rows → numbers → order. `CartSuggestion` + `CartTotals` are the DETAIL
+   * BLOCK and they sit at the END of the scroll, in flow, after the rows. No
+   * accordion. In the drawer «+ Add ceramics» follows them, and below that
+   * nothing: the foot is one fixed line and the numbers that explain the
+   * total live up here.
+   *
+   * The column keeps its shape: it is sticky and shows whole, so it has no
+   * fixed foot at all and its CTA stack stays where it has always been,
+   * after the totals.
+   */
+  const cartPanel = drawer ? (
+    <div ref={rootRef} className="flex h-full min-h-0 flex-col">
+      <div className="shrink-0 px-4 pt-3">{header}</div>
+      {count === 0 ? (
+        <p data-testid="cart-empty" className="px-4 py-6 text-sm text-muted-foreground">
+          {t("empty")}
+        </p>
+      ) : (
+        <>
+          <div className="min-h-0 flex-1 overflow-y-auto px-4">
+            {formOpen ? (
+              checkoutForm
+            ) : (
+              <>
+                {list}
+                <div className="mt-3 flex flex-col gap-3 border-t border-border pt-3">
+                  <CartSuggestion />
+                  <CartTotals />
+                </div>
+                {/* TODO:nb-review — cart.addCeramics NO copy is new. */}
+                {onAddCeramics && (
+                  <button
+                    type="button"
+                    data-testid="cart-add-ceramics"
+                    onClick={onAddCeramics}
+                    className="mb-4 mt-3 flex h-11 w-full items-center justify-center rounded-sm border border-dashed border-primary/50 text-sm font-medium text-primary hover:bg-muted"
+                  >
+                    {t("addCeramics")}
+                  </button>
+                )}
+              </>
+            )}
           </div>
+          {/* The foot, EVERY width (card precisazione 19/9): one line, so
+              «Bestill» can never fall below the fold in a long basket. Net
+              total large, what the basket saves under it, the CTA to its
+              right. Nothing else — `+ frakt` rides on the total itself
+              because it IS the total's own qualifier (same `suffix` the
+              sticky bar and `CartTotals` print), not a second number.
+              TODO:nb-review — cart.saved NO copy is new, unreviewed. */}
+          {!formOpen && (
+            <div className="flex shrink-0 items-center gap-3 border-t border-border bg-card px-4 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
+              <span className="min-w-0 flex-1">
+                <span className="block text-[17px] font-semibold tabular-nums">
+                  {formatMoney(discount.total, locale)}
+                  {totalSuffix}
+                </span>
+                {saved.amountCents > 0 && (
+                  <span className="mt-0.5 block text-[12px] font-medium tabular-nums text-status-paid">
+                    {t("saved", { amount: formatMoney(saved, locale) })}
+                  </span>
+                )}
+              </span>
+              {ctaPill("sm", "max-w-[58%] shrink-0")}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  ) : (
+    <div className="flex flex-col gap-0" data-testid="docked-cart" ref={rootRef}>
+      {header}
+      {count === 0 ? (
+        <p className="py-6 text-sm text-muted-foreground">{t("empty")}</p>
+      ) : (
+        <>
+          {list}
 
           <CartSuggestion />
 
@@ -439,87 +658,18 @@ export function Basket({
           <div className="mt-3 flex flex-col gap-3 border-t border-border pt-3">
             <CartTotals totalTestId="docked-total" />
 
-            {/* Task 13: `!hasUnpainted` gates the form shut even if it was
-                already open when the basket picked up a new unpainted line
-                (e.g. adding a ceramic mid-checkout) — the order can never
-                leave with colourless pieces, so the form can never be on
-                screen with one either (Task 4's client half). */}
-            {!hasUnpainted && checkoutOpen ? (
-              // scroll-mt: the mobile header is sticky and 56px tall, so a
-              // bare scrollIntoView would park the form's first rows under it.
-              // Fix wave PR3 finding 2: `md:scroll-mt-[4.5rem]` is that
-              // desktop-header-only value, unchanged — but below `md` the
-              // header now stacks with `paintingStrip`'s own `sticky top-14`
-              // (task 13), ~111-117px combined, not 72px. Measured value below.
-              <div
-                data-testid="docked-checkout-form"
-                className="scroll-mt-[7.5rem] md:scroll-mt-[4.5rem]"
-              >
-                <button
-                  type="button"
-                  data-testid="docked-back-to-cart"
-                  onClick={() => setCheckoutOpen(false)}
-                  className="mb-3 self-start text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
-                >
-                  ← {t("backToCart")}
-                </button>
-                <OrderForm
-                  cart={cart}
-                  onSuccess={() => {
-                    clear();
-                    setCheckoutOpen(false);
-                  }}
-                />
-              </div>
+            {formOpen ? (
+              checkoutForm
             ) : (
               <>
                 {/* R-EXTRA: lo stack usa la stessa pillola degli step 1/2
                     (DESIGN-SYSTEM §3.16). Solo "Send bestilling" ha la
-                    freccetta e il riempimento: gli altri due non fanno avanzare
-                    il funnel (uno riavvia il flusso, l'altro è collaterale).
-                    R3-C (final): "Bygg et nytt design" resta l'UNICO punto da
-                    cui si ricomincia, e tiene il carrello (F03/F16). */}
-                {/* Camioncino, non freccia: l'ordine parte: non c'è uno step
-                    successivo nel wizard (nota-step3-cart.md). */}
-                {/* Task 13 (mockup: bottom of `renderS3`) — while anything is
-                    unpainted, the pill that would open checkout is replaced,
-                    not merely disabled: it becomes a tertiary "go paint it"
-                    CTA that scrolls to and focuses the first unpainted row's
-                    Paint button (`focusFirstUnpaintedRow`, shared with the
-                    mobile bar in the next PR). No `arrow`: unlike "Bestill"
-                    this click doesn't advance the funnel, matching the other
-                    non-advancing pills in this stack (`new-design-cta`,
-                    `share-set`) that also render arrow-less.
-                    TODO:nb-review — cart.unpainted.cta NO copy is new,
-                    unreviewed. */}
-                {hasUnpainted ? (
-                  <NextStepPill
-                    variant="tertiary"
-                    data-testid="docked-paint-first"
-                    className="w-full"
-                    label={t("unpainted.cta", { count: unpaintedInBasket })}
-                    icon={
-                      <PillIcon variant="tertiary">
-                        <Brush className="size-5 text-muted-foreground" />
-                      </PillIcon>
-                    }
-                    onClick={focusFirstUnpaintedRow}
-                  />
-                ) : (
-                  <NextStepPill
-                    data-testid="docked-checkout"
-                    className="w-full"
-                    caption={t("checkoutKicker")}
-                    label={to("title")}
-                    arrow
-                    icon={
-                      <PillIcon>
-                        <Truck className="size-5 text-primary" />
-                      </PillIcon>
-                    }
-                    onClick={() => setCheckoutOpen(true)}
-                  />
-                )}
+                    freccetta e il riempimento: gli altri due non fanno
+                    avanzare il funnel (uno riavvia il flusso, l'altro è
+                    collaterale). R3-C (final): "Bygg et nytt design" resta
+                    l'UNICO punto da cui si ricomincia, e tiene il carrello
+                    (F03/F16). */}
+                {ctaPill("lg", "w-full")}
                 {footerSlot}
               </>
             )}

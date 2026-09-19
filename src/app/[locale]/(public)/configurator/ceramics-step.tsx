@@ -17,7 +17,7 @@ import { assetUrl } from "@/lib/storage";
 import { PRODUCT_CARD_WIDTH, PRODUCT_THUMB_WIDTH } from "@/lib/asset-variants";
 import { formatMoney, money } from "@/lib/money/money";
 import type { Currency } from "@/lib/money/money";
-import { useCartContext } from "@/lib/cart/cart-context";
+import { useCartContext, type CurrentConfig } from "@/lib/cart/cart-context";
 import {
   cartPieces,
   designLabel,
@@ -49,7 +49,7 @@ import { Truck, Plus, ArrowUpRight, Brush } from "lucide-react";
 import type { ResolvedSharedSet } from "./resolve-shared-set";
 import { ProductSheet } from "@/components/ui-domain/product-sheet";
 import { AddedSheet } from "@/components/ui-domain/added-sheet";
-import { Basket, focusFirstUnpaintedRow, type BasketHandle } from "@/components/ui-domain/basket";
+import { Basket, type BasketHandle } from "@/components/ui-domain/basket";
 import { NextStepPill, PillIcon } from "@/components/ui-domain/next-step-pill";
 
 export interface CeramicProduct {
@@ -238,24 +238,6 @@ export function CeramicsStep({
     rename: renamePalette,
     remove: deletePalette,
   } = useCartContext();
-
-  /**
-   * Tell the cart which configuration is on screen, so an offer borrows the
-   * design the customer is actually looking at rather than the merely biggest
-   * trigger line (TL ruling 2026-08-31). Cleared on unmount: in the drawer at
-   * steps 1-2 there is no current configuration and the donor falls back to
-   * quantity, exactly as before.
-   *
-   * R5-BASKET-HOST task 1: widened from a bare code to the full `CurrentConfig`
-   * (code + snapshot + layers + designSlug) — the header drawer lives outside
-   * this subtree and cannot compute "what's painting" itself, so the object it
-   * needs to render its own preview chip has to travel through this same
-   * publish/clear channel the donor logic already used.
-   */
-  useEffect(() => {
-    setCurrentConfig({ code: configCode, snapshot, layers: designLayers, designSlug: snapshot.designSlug });
-    return () => setCurrentConfig(null);
-  }, [configCode, snapshot, designLayers, setCurrentConfig]);
 
   /**
    * R5-PALETTES task 9 — which palette is painting. Same rule as step 2's own
@@ -537,6 +519,18 @@ export function CeramicsStep({
    *  sticky bar opens the form in whichever one is on screen. */
   const mobileBasketRef = useRef<BasketHandle>(null);
   const desktopBasketRef = useRef<BasketHandle>(null);
+  /**
+   * Task 4 — `focusFirstUnpaintedRow` is scoped to a basket now (the drawer
+   * mounts a third copy of the same rows in task 5, and "the visible one" is
+   * no longer an answer once the drawer sits OVER step 3). The step's own
+   * bar still wants whichever of its two copies is on screen, so it asks
+   * them in order: each returns false when it has no visible unpainted row.
+   */
+  const focusFirstUnpainted = useCallback(() => {
+    for (const r of [mobileBasketRef, desktopBasketRef]) {
+      if (r.current?.focusFirstUnpainted()) return;
+    }
+  }, []);
   /** CA-3 C: share feedback under the panel header (aria-live). */
   const [shareState, setShareState] = useState<
     | null
@@ -700,6 +694,42 @@ export function CeramicsStep({
   // choice — no explicit design ⇒ no box, not an empty one. The grid below
   // still works off the fallback design, which is fine as a catalog view.
   const hasConfig = hasExplicitDesign && designLayers.length > 0;
+
+  /**
+   * Tell the cart which configuration is on screen, so an offer borrows the
+   * design the customer is actually looking at rather than the merely biggest
+   * trigger line (TL ruling 2026-08-31). Cleared on unmount: in the drawer at
+   * steps 1-2 there is no current configuration and the donor falls back to
+   * quantity, exactly as before.
+   *
+   * R5-BASKET-HOST task 1: widened from a bare code to the full `CurrentConfig`
+   * — the header drawer lives outside this subtree and cannot compute "what's
+   * painting" itself, so the object it needs to render its own preview chip
+   * has to travel through this same publish/clear channel the donor logic
+   * already used.
+   *
+   * R5-BASKET-HOST task 4 — the ONE `CurrentConfig` this step builds: it is
+   * both what the step PUBLISHES (for the header drawer, which lives outside
+   * this subtree) and what it hands its own `<Basket>`. Built here rather
+   * than read back out of the context on purpose — the context value only
+   * lands after the publish effect, and the column would spend its first
+   * frame rendering as if nothing were painting.
+   */
+  const currentConfig: CurrentConfig = useMemo(
+    () => ({
+      code: configCode,
+      snapshot,
+      layers: designLayers,
+      designSlug: snapshot.designSlug,
+      label: paintingLabel,
+      explicit: hasConfig,
+    }),
+    [configCode, snapshot, designLayers, paintingLabel, hasConfig]
+  );
+  useEffect(() => {
+    setCurrentConfig(currentConfig);
+    return () => setCurrentConfig(null);
+  }, [currentConfig, setCurrentConfig]);
 
   const count = hydrated ? itemCount(cart) : 0;
   /** R4-CTA-STICKY: the bar counts PIECES, not lines — a set is N deler. */
@@ -1116,12 +1146,7 @@ export function CeramicsStep({
     <Basket
       ref={host === "mobile" ? mobileBasketRef : desktopBasketRef}
       host="column"
-      configCode={configCode}
-      snapshot={snapshot}
-      designLayers={designLayers}
-      designSlug={design.slug}
-      hasConfig={hasConfig}
-      paintingLabel={paintingLabel}
+      currentConfig={currentConfig}
       footerSlot={cartFooter}
       onCheckoutOpenChange={setCheckoutOpen}
     />
@@ -1274,7 +1299,7 @@ export function CeramicsStep({
         arrow={!hasUnpainted}
         onClick={() => {
           if (hasUnpainted) {
-            focusFirstUnpaintedRow();
+            focusFirstUnpainted();
             return;
           }
           // Giro garanzia: one tap must land the customer IN the form with the

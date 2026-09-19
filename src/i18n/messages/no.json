@@ -212,6 +212,8 @@
     "paintedWith": "ny keramikk males med <b>{name}</b>",
     "empty": "Handlekurven er tom",
     "emptyCta": "Tilbake til konfiguratoren",
+    "addCeramics": "+ Legg til keramikk",
+    "saved": "−{amount} spart",
     "remove": "Fjern",
     "subtotal": "Delsum",
     "total": "Totalpris",
