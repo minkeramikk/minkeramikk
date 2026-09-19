@@ -27,7 +27,7 @@ import {
   type ConfigSnapshot,
   type NewCartLine,
 } from "@/lib/cart/cart";
-import { encodeSetParam, SET_LINK_BUDGET } from "@/lib/cart/set-code";
+import { encodeSetParam, selectionCountOf, SET_LINK_BUDGET } from "@/lib/cart/set-code";
 import {
   activeSuggestions,
   cartSaved,
@@ -881,7 +881,17 @@ export function CeramicsStep({
   //   navigator.share, but on desktop the expected gesture is copy-link
   //   (frame 1, ConfigCodeBar pattern), not a system share dialog.
   async function shareSet(preferNative: boolean) {
-    const param = encodeSetParam(cart);
+    // R5-TEXT-IDENTITY task 3: strip each line's inscription/colour-wish
+    // segment before it enters the link — selectionCountOf reads it off the
+    // line's OWN snapshot, no design/catalog lookup needed.
+    const param = encodeSetParam(
+      cart.map((l) => ({
+        configCode: l.configCode,
+        productSlug: l.productSlug,
+        quantity: l.quantity,
+        selectionCount: selectionCountOf(l.configSnapshot),
+      }))
+    );
     if (!param) {
       // only legacy rows (no productSlug) → nothing can travel in the link
       setShareState({ kind: "none" });

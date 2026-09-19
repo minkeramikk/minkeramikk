@@ -3,6 +3,7 @@ import {
   clampQty,
   decodeSetParam,
   encodeSetParam,
+  selectionCountOf,
   SET_FIELD_SEP,
   SET_MAX_LINES,
   SET_ROW_SEP,
@@ -20,6 +21,8 @@ const line = (configCode: string, productSlug: string, quantity: number) => ({
 });
 
 // ── fixture design for the inscription-stripping tests (AC 3) ─────────────
+// 1 category, so a real line's configSnapshot.selections has length 1 —
+// exactly `selectionCountOf`'s job, no catalog/design resolver involved.
 const TEXT_DESIGN: CodecDesign = {
   code: "T",
   slug: "text-design",
@@ -27,9 +30,8 @@ const TEXT_DESIGN: CodecDesign = {
     { slug: "colors", optionCodeToId: { B: "colors-opt-b" }, defaultOptionId: "colors-opt-b" },
   ],
 };
-const findTextDesign = (code: string): CodecDesign | null =>
-  code.toUpperCase() === TEXT_DESIGN.code ? TEXT_DESIGN : null;
 const SEL = { colors: "colors-opt-b" };
+const SNAPSHOT_1CAT = { selections: [{ label: "Colors", option: "Blue", hex: "#00f" }] };
 
 describe("separator guard (CA-3 decision 3)", () => {
   it("the F04 code alphabet never contains the set separators", () => {
@@ -110,10 +112,14 @@ describe("encodeSetParam — strips the inscription segment (R5-TEXT-IDENTITY ta
     // sanity: the fixture code really does carry more than just the colours
     expect(codeWithInscription).not.toBe(colourOnlyCode);
 
-    const param = encodeSetParam(
-      [{ configCode: codeWithInscription, productSlug: "mug", quantity: 1 }],
-      findTextDesign
-    );
+    const param = encodeSetParam([
+      {
+        configCode: codeWithInscription,
+        productSlug: "mug",
+        quantity: 1,
+        selectionCount: 1, // TEXT_DESIGN has 1 category
+      },
+    ]);
     expect(param).toBe(`${colourOnlyCode}.mug.1`);
 
     const { entries, dropped } = decodeSetParam(param);
@@ -121,38 +127,92 @@ describe("encodeSetParam — strips the inscription segment (R5-TEXT-IDENTITY ta
     expect(entries[0].configCode).toBe(colourOnlyCode);
   });
 
+  it("mirrors the real call: selectionCountOf(line.configSnapshot) is enough, no design lookup", () => {
+    // Exactly the shape ceramics-step.tsx/order-form.tsx now build: a cart
+    // line's own configSnapshot, run through selectionCountOf — never a
+    // catalog resolver.
+    const param = encodeSetParam([
+      {
+        configCode: codeWithInscription,
+        productSlug: "mug",
+        quantity: 1,
+        selectionCount: selectionCountOf(SNAPSHOT_1CAT),
+      },
+    ]);
+    expect(param).toBe(`${colourOnlyCode}.mug.1`);
+  });
+
   it("the stripped code still matches CODE_RE (share grammar: uppercase alnum + dashes)", () => {
-    const param = encodeSetParam(
-      [{ configCode: codeWithInscription, productSlug: "mug", quantity: 1 }],
-      findTextDesign
-    );
+    const param = encodeSetParam([
+      { configCode: codeWithInscription, productSlug: "mug", quantity: 1, selectionCount: 1 },
+    ]);
     const code = param.split(SET_FIELD_SEP)[0];
     expect(/^[A-Z0-9-]+$/.test(code)).toBe(true);
   });
 
   it("a code with no inscription is unaffected by stripping", () => {
-    const param = encodeSetParam(
-      [{ configCode: colourOnlyCode, productSlug: "mug", quantity: 1 }],
-      findTextDesign
-    );
+    const param = encodeSetParam([
+      { configCode: colourOnlyCode, productSlug: "mug", quantity: 1, selectionCount: 1 },
+    ]);
     expect(param).toBe(`${colourOnlyCode}.mug.1`);
   });
 
-  it("without a design resolver, today's callers see today's behaviour unchanged", () => {
-    // no findDesignByCode passed — degrade to "leave the code as given",
-    // exactly like every call site before this task.
+  it("without a selectionCount, today's callers see today's behaviour unchanged", () => {
+    // no selectionCount passed — degrade to "leave the code as given",
+    // exactly like every call site before this task (and like
+    // featured-input.ts, which genuinely has no snapshot to read).
     const param = encodeSetParam([
       { configCode: codeWithInscription, productSlug: "mug", quantity: 1 },
     ]);
     expect(param).toBe(`${codeWithInscription}.mug.1`);
   });
 
-  it("an unresolvable design (unknown code) leaves the line's code unchanged, never throws", () => {
-    const param = encodeSetParam(
-      [{ configCode: "MK-ZZZ-Q", productSlug: "mug", quantity: 1 }],
-      findTextDesign // only knows "T"
-    );
-    expect(param).toBe("MK-ZZZ-Q.mug.1");
+  it("rejected-heuristic regression: a 2-char colour code is never mistaken for an inscription", () => {
+    // This is exactly the case that broke the catalog-free "decode the last
+    // segment and see if it looks like text" heuristic: 'K' is index 9
+    // (bit 0 set), so "K2" alone decodes as a non-empty "inscription" by
+    // coincidence. Knowing the REAL selectionCount (2, matching this
+    // design's 2 colour segments) means the codec never even inspects "K2"
+    // as a candidate — there's nothing past the expected colour segments.
+    const param = encodeSetParam([
+      { configCode: "MK-A-K2", productSlug: "flat-plate", quantity: 3, selectionCount: 2 },
+    ]);
+    expect(param).toBe("MK-A-K2.flat-plate.3");
+  });
+
+  it("belt and braces: a stale (too-low) selectionCount never eats a real colour segment", () => {
+    // Simulates a line saved before its design gained a category: the
+    // snapshot's selectionCount (1) undercounts the code's real colour
+    // segments (2: "K2" and "M1"). Naively trusting the count would slice
+    // "M1" off as if it were the inscription slot. decodeTextSegment("M1")
+    // returns null (bit 1 set, but the 1-char remainder is far short of a
+    // valid 4-char wish hash) — not confidently an inscription, so nothing
+    // is stripped and the real colour segment survives.
+    const param = encodeSetParam([
+      { configCode: "MK-A-K2-M1", productSlug: "flat-plate", quantity: 1, selectionCount: 1 },
+    ]);
+    expect(param).toBe("MK-A-K2-M1.flat-plate.1");
+  });
+});
+
+describe("selectionCountOf", () => {
+  it("reads selections.length off a plain snapshot", () => {
+    expect(selectionCountOf({ selections: [1, 2, 3] })).toBe(3);
+  });
+
+  it("undefined for null/undefined/non-array/missing selections", () => {
+    expect(selectionCountOf(null)).toBeUndefined();
+    expect(selectionCountOf(undefined)).toBeUndefined();
+    expect(selectionCountOf({})).toBeUndefined();
+    expect(selectionCountOf({ selections: "not-an-array" })).toBeUndefined();
+  });
+
+  it("works on the zod-passthrough shape (selections typed as unknown)", () => {
+    // PaintedOrderItem.configSnapshot's static type only guarantees
+    // customNote/customText; `selections` survives via .passthrough() but
+    // is typed `unknown` — selectionCountOf must still read it safely.
+    const passthroughShaped: unknown = { customNote: "", selections: [{}, {}] };
+    expect(selectionCountOf(passthroughShaped)).toBe(2);
   });
 });
 
