@@ -3,6 +3,7 @@
 import { useTranslations } from "next-intl";
 import { ShoppingBag } from "lucide-react";
 import { usePathname, useRouter } from "@/i18n/navigation";
+import { useSearchParams } from "next/navigation";
 import {
   Sheet,
   SheetContent,
@@ -12,6 +13,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Basket, focusFirstUnpaintedRow } from "@/components/ui-domain/basket";
+import { paintFirstHref } from "@/components/ui-domain/basket-host";
 import { useCartContext } from "@/lib/cart/cart-context";
 import { itemCount, unpaintedPieces } from "@/lib/cart/cart";
 import { cn } from "@/lib/utils";
@@ -36,6 +38,10 @@ export function CartMenu() {
   const { cart, hydrated, open, setOpen, currentConfig } = useCartContext();
   const router = useRouter();
   const pathname = usePathname();
+  /** The working URL the drawer is open over: everything the paint-first
+   *  target has to preserve lives here except the two free-text fields, which
+   *  come off `currentConfig`. See `paintFirstHref`. */
+  const searchParams = useSearchParams();
 
   const count = itemCount(cart);
   // gate count on hydration to avoid SSR/client mismatch (cart starts empty)
@@ -91,27 +97,26 @@ export function CartMenu() {
    * falling to `<body>`.
    *
    * ponytail: no pending-focus channel through the router. When the drawer is
-   * already over step 3 — where this CTA matters and where the push is a
-   * no-op — the column's rows are mounted and this lands. Coming from step
-   * 1/2 the push is a real soft navigation and step 3 may not have rendered
-   * within that frame, in which case nothing is focused (the customer still
-   * arrives at step 3, scrolled to the top). Making that case reliable needs
-   * a mechanism this task deliberately did not invent — see the report.
+   * already over step 3 — where this CTA matters — the column's rows are
+   * mounted and this lands. Coming from step 1/2 the push is a real soft
+   * navigation and step 3 may not have rendered within that frame, in which
+   * case nothing is focused (the customer still arrives at step 3, scrolled
+   * to the top). Making that case reliable needs a mechanism this task
+   * deliberately did not invent — see the report.
    */
   const paintFirstRef = useRef(false);
   function handlePaintFirst() {
     paintFirstRef.current = true;
     setOpen(false);
-    // `?code=` and not `?design=&step=3`: the code decodes to design AND
-    // options (config-code.ts, e2e-covered), so paint-first from step 2 lands
-    // on step 3 still painting with what was on screen. `?design=` alone drops
-    // every `opt_*` and arrives with the design's defaults — a different
-    // palette than the one the customer was just looking at.
-    router.push(
-      currentConfig
-        ? `/configurator?code=${encodeURIComponent(currentConfig.code)}&step=3`
-        : "/configurator"
-    );
+    // Final-review finding 4a: the target is the URL we are ALREADY on with
+    // `code`/`step` set on top of it — not one rebuilt from the code alone.
+    // The code never encodes the note or the inscription (`line-payload.ts`);
+    // those travel as `note=`/`text=` and a from-scratch push dropped them,
+    // so the customer's own words never reached the order mail or the lab
+    // PDF. Even at step 3 the push is NOT a no-op: it rewrites the query (the
+    // comment that used to claim otherwise is what let this through).
+    // `paintFirstHref` — pure, unit-tested in basket.test.ts.
+    router.push(paintFirstHref(searchParams, currentConfig));
   }
 
   return (

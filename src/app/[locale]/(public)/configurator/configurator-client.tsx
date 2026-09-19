@@ -50,7 +50,7 @@ import type { DesignDetail } from "@/lib/catalog/design-options";
 import type { PreviewLayer } from "@/lib/configurator/preview";
 import { useCartContext } from "@/lib/cart/cart-context";
 import { designLabel } from "@/lib/cart/cart";
-import { buildConfigLinePayload } from "@/lib/configurator/line-payload";
+import { buildConfigLinePayload, withCustomFields } from "@/lib/configurator/line-payload";
 import { nameFor, paletteFor, sortCurrentDesignFirst } from "@/lib/palettes/palettes";
 import type { PaletteWords } from "@/lib/palettes/name-lists";
 import { PaletteBar } from "@/components/ui-domain/palette-bar";
@@ -610,6 +610,31 @@ export function ConfiguratorClient({
    *  suffix — same source ceramics-step.tsx's own `designName` reads
    *  (`designLabel()` on the snapshot), just this step's own snapshot. */
   const activeDesignName = designLabel(draftPayload.snapshot, locale as "no" | "en") ?? "";
+  /**
+   * Final-review finding 4b — what the DRAWER paints with at step 2.
+   * `draftPayload.snapshot` is the palette draft and carries no note/text on
+   * purpose (see its comment). The drawer's Paint hands the published
+   * snapshot straight to `paint()`, so publishing the bare draft dropped the
+   * customer's inscription: Paint from the drawer at step 2 made a line with
+   * no `customText`, while the same Paint at step 3 — or «Legg i
+   * handlekurv» — kept it. This is money-and-mail data: it reaches the
+   * order mail and the lab PDF.
+   *
+   * Merged with the SAME gates `goToStep` uses to put `note=`/`text=` on the
+   * URL, so what the drawer paints and what step 3 would build from that URL
+   * are one configuration. Neither field enters the config code, so
+   * `draftCode` and the palette match are untouched.
+   */
+  const paintingSnapshot = useMemo(
+    () =>
+      withCustomFields(
+        draftPayload.snapshot,
+        detail,
+        noteMode === "custom" ? noteText : "",
+        showCustomText ? customText : ""
+      ),
+    [draftPayload.snapshot, detail, noteMode, noteText, showCustomText, customText]
+  );
 
   /**
    * R5-BASKET-HOST task 1 — step 2 publishes the same `CurrentConfig` shape
@@ -623,7 +648,7 @@ export function ConfiguratorClient({
     if (step !== 2) return;
     setCurrentConfig({
       code: draftPayload.configCode,
-      snapshot: draftPayload.snapshot,
+      snapshot: paintingSnapshot,
       layers: activePaletteLayers,
       designSlug: detail.slug,
       label: activePaletteName,
@@ -632,7 +657,7 @@ export function ConfiguratorClient({
       explicit: true,
     });
     return () => setCurrentConfig(null);
-  }, [step, draftPayload, activePaletteLayers, detail.slug, activePaletteName, setCurrentConfig]);
+  }, [step, draftPayload, paintingSnapshot, activePaletteLayers, detail.slug, activePaletteName, setCurrentConfig]);
 
   function saveDraftAsPalette() {
     const now = Date.now();

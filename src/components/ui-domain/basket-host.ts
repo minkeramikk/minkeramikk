@@ -55,3 +55,52 @@ export function paintTargetFor(
       : "/configurator",
   };
 }
+
+/**
+ * Final-review finding 4a — «Paint N pieces first ›» from the DRAWER.
+ *
+ * The config code deliberately never encodes `customNote`/`customText`
+ * (`line-payload.ts`): those ride the working URL as `?note=` / `?text=` and
+ * the server rebuilds the snapshot from them (`configurator/page.tsx`). So a
+ * target built from the code alone — `/configurator?code=<code>&step=3` —
+ * arrives with the colours and WITHOUT the inscription, and the customer's
+ * own words are gone from the order mail and the lab PDF.
+ *
+ * Built from the URL the drawer is already on, with the two free-text fields
+ * taken from the CONFIGURATION ON SCREEN rather than from the query: at step
+ * 2 they live in component state and only reach the URL on `goToStep`, so
+ * someone who types an inscription and taps this CTA straight away has
+ * nothing in `searchParams` yet. `currentConfig.snapshot` has them (both
+ * steps publish it through `withCustomFields`), and the same gates
+ * `goToStep` applies decide whether each one is written or dropped — so
+ * this href and the one step 2's own «Continue» produces are the same URL.
+ *
+ * Everything else on the query is kept (`origin`, …); what the code
+ * supersedes is dropped so nothing is ambiguous about which wins — `design`
+ * and every `opt_*` (the client's own decode effect puts both back from the
+ * code).
+ *
+ * No configuration on screen (the drawer opened at step 1) → the bare
+ * configurator, unchanged.
+ */
+export function paintFirstHref(
+  params: URLSearchParams | null,
+  config: {
+    code: string;
+    snapshot: { customNote?: string; customText?: string };
+  } | null
+): string {
+  if (!config) return "/configurator";
+  const next = new URLSearchParams(params ?? undefined);
+  next.set("code", config.code);
+  next.set("step", "3");
+  next.delete("design");
+  for (const key of [...next.keys()]) if (key.startsWith("opt_")) next.delete(key);
+  const note = (config.snapshot.customNote ?? "").trim();
+  if (note) next.set("note", note);
+  else next.delete("note");
+  const text = (config.snapshot.customText ?? "").trim();
+  if (text) next.set("text", text);
+  else next.delete("text");
+  return `/configurator?${next.toString()}`;
+}

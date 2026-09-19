@@ -1,14 +1,18 @@
 /**
- * R5-BASKET-HOST task 4 — the two decisions in `<Basket>` that are pure, and
- * the only two worth a standalone test (no React test infra in this repo, see
- * AGENTS.md/vitest.config.ts: vitest picks up `src/**` + `*.test.ts` only).
+ * R5-BASKET-HOST — the decisions the basket hosts make that are pure
+ * functions of their inputs (`basket-host.ts`), which is all this repo can
+ * test directly: there is no React test infra here (AGENTS.md /
+ * vitest.config.ts — vitest picks up `src/**` + `*.test.ts` only).
  *
- * Both are testid contracts twelve Playwright specs depend on, and nobody may
- * run those here — which is exactly why the branch that picks the testid is
- * pulled out of the JSX and pinned down in a unit test instead.
+ * `basketCta` and `paintTargetFor` are testid/href contracts twelve
+ * Playwright specs depend on, and nobody may run those here — which is
+ * exactly why the branches are pulled out of the JSX and pinned down here.
+ * `paintFirstHref` joined them in the final review: it decides which
+ * configuration the customer keeps, and a wrong answer reaches the order
+ * mail.
  */
 import { describe, expect, it } from "vitest";
-import { basketCta, paintTargetFor } from "@/components/ui-domain/basket-host";
+import { basketCta, paintFirstHref, paintTargetFor } from "@/components/ui-domain/basket-host";
 
 describe("basketCta", () => {
   it("the column flips between its two testids", () => {
@@ -70,5 +74,82 @@ describe("paintTargetFor", () => {
       kind: "none",
       href: "/configurator?design=a%20b%26c&step=2",
     });
+  });
+});
+
+/**
+ * R5-BASKET-HOST final review, finding 4a — «Paint N pieces first ›» from the
+ * drawer. The bug was a target built from the config code alone; the rule is
+ * that the code carries the COLOURS and the configuration on screen carries
+ * the customer's own words.
+ */
+describe("paintFirstHref", () => {
+  const at = (qs: string) => new URLSearchParams(qs);
+  const cfg = (code: string, snapshot: { customNote?: string; customText?: string } = {}) => ({
+    code,
+    snapshot,
+  });
+
+  it("carries the inscription the config code cannot encode", () => {
+    // The real step-2 case: nothing in the query yet, the words are still in
+    // component state and only `currentConfig` knows them.
+    const q = new URL(
+      paintFirstHref(at("design=amalfi-dyr"), cfg("AB12", { customText: "Til Åse" })),
+      "https://x"
+    ).searchParams;
+    expect(q.get("text")).toBe("Til Åse");
+    expect(q.get("code")).toBe("AB12");
+    expect(q.get("step")).toBe("3");
+  });
+
+  it("writes the note only when there is one, exactly like goToStep", () => {
+    const withNote = new URL(
+      paintFirstHref(at(""), cfg("AB12", { customNote: " brun hund " })),
+      "https://x"
+    ).searchParams;
+    expect(withNote.get("note")).toBe("brun hund");
+    // Default mode publishes `customNote: ""` — that is "studio's choice",
+    // not a note, so it must not ride the URL.
+    const studio = new URL(
+      paintFirstHref(at("note=stale"), cfg("AB12", { customNote: "" })),
+      "https://x"
+    ).searchParams;
+    expect(studio.get("note")).toBeNull();
+  });
+
+  it("clears a stale text= the configuration no longer has", () => {
+    const q = new URL(paintFirstHref(at("text=old"), cfg("AB12")), "https://x").searchParams;
+    expect(q.get("text")).toBeNull();
+  });
+
+  it("keeps the rest of the query it was standing on", () => {
+    const q = new URL(
+      paintFirstHref(at("origin=set&utm_source=mail"), cfg("AB12")),
+      "https://x"
+    ).searchParams;
+    expect(q.get("origin")).toBe("set");
+    expect(q.get("utm_source")).toBe("mail");
+  });
+
+  it("drops what the code supersedes, so nothing is ambiguous about which wins", () => {
+    const q = new URL(
+      paintFirstHref(at("design=striper&opt_farge=o1&opt_kant=o9&step=2"), cfg("AB12")),
+      "https://x"
+    ).searchParams;
+    expect(q.get("design")).toBeNull();
+    expect([...q.keys()].filter((k) => k.startsWith("opt_"))).toEqual([]);
+  });
+
+  it("is NOT a no-op at step 3 — it rewrites the query", () => {
+    expect(paintFirstHref(at("design=striper&step=3"), cfg("AB12"))).not.toContain("design=");
+  });
+
+  it("no configuration on screen (the drawer at step 1) → the bare configurator", () => {
+    expect(paintFirstHref(at("design=striper&text=Hei"), null)).toBe("/configurator");
+    expect(paintFirstHref(null, null)).toBe("/configurator");
+  });
+
+  it("escapes a code that needs it", () => {
+    expect(paintFirstHref(at(""), cfg("A B&C"))).toBe("/configurator?code=A+B%26C&step=3");
   });
 });
