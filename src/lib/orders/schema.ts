@@ -47,7 +47,9 @@ export function cleanCustomNote(input: string): string {
 }
 
 /** A note value: cleaned, then capped. Over the cap → the payload is rejected
- *  (a gentle 400 at the route, never a crash). Client caps at 250 too (UX). */
+ *  (a gentle 400 at the route, never a crash). The field's own `maxLength`
+ *  reads `MAX_CUSTOM_NOTE` directly (configurator-client.tsx) — one
+ *  constant, not a second number here that can drift from it again. */
 const customNoteSchema = z
   .string()
   .transform(cleanCustomNote)

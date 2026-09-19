@@ -65,6 +65,13 @@ persa a favore della lettura come colore (il comportamento che questo ADR
 richiede al punto 4), mai il contrario, e mai un errore o un crash per il
 cliente che riapre un vecchio link.
 
+Lo stesso vale, per lo stesso motivo, per i codici con iscrizione già
+generati SU QUESTO BRANCH prima che il checksum esistesse: quel formato
+(senza checksum) non decodifica più come iscrizione con il codec attuale
+— degrada a "solo colori", mai a garbage — perché nulla di questa card è
+ancora andato in produzione, l'unico effetto è su un `localStorage` di
+sviluppo o su una preview, mai su un cliente reale.
+
 ## Alternative scartate
 
 - *base64url self-contained*: robusto ma illeggibile, inadatto a PDF/dettatura.
