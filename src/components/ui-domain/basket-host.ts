@@ -69,21 +69,29 @@ export function paintTargetFor(
 /**
  * Final-review finding 4a — «Paint N pieces first ›» from the DRAWER.
  *
- * The config code deliberately never encodes `customNote`/`customText`
- * (`line-payload.ts`): those ride the working URL as `?note=` / `?text=` and
- * the server rebuilds the snapshot from them (`configurator/page.tsx`). So a
- * target built from the code alone — `/configurator?code=<code>&step=3` —
- * arrives with the colours and WITHOUT the inscription, and the customer's
- * own words are gone from the order mail and the lab PDF.
+ * R5-TEXT-IDENTITY task 4 revision: `line-payload.ts` now folds the
+ * inscription into the config code itself (`encodeConfigCode`'s `extras`) —
+ * «la push si porta la dedica perché si porta il codice», the card's own
+ * point. So this href no longer WRITES `?text=` at all: the code carries it,
+ * and a stale `text=` left over from wherever this URL came from is always
+ * dropped, never kept — `configurator/page.tsx` treats an explicit `?text=`
+ * as the live edit and lets it OVERRIDE what the code says, so a leftover
+ * value here would silently win over the configuration on screen.
  *
- * Built from the URL the drawer is already on, with the two free-text fields
- * taken from the CONFIGURATION ON SCREEN rather than from the query: at step
- * 2 they live in component state and only reach the URL on `goToStep`, so
- * someone who types an inscription and taps this CTA straight away has
- * nothing in `searchParams` yet. `currentConfig.snapshot` has them (both
- * steps publish it through `withCustomFields`), and the same gates
- * `goToStep` applies decide whether each one is written or dropped — so
- * this href and the one step 2's own «Continue» produces are the same URL.
+ * `?note=` is a different story and still rides the URL: the colour WISH
+ * enters the code only as a 4-char hash (`hashNote`, never reversible), so
+ * the actual WORDS still need to travel some other way to reach the
+ * rebuilt snapshot — the order mail and the lab PDF read the snapshot, not
+ * the hash.
+ *
+ * Built from the URL the drawer is already on, with `customNote` taken from
+ * the CONFIGURATION ON SCREEN rather than from the query: at step 2 it lives
+ * in component state and only reaches the URL on `goToStep`, so someone who
+ * types a wish and taps this CTA straight away has nothing in
+ * `searchParams` yet. `currentConfig.snapshot` has it (both steps publish it
+ * through `withCustomFields`), and the same gate `goToStep` applies decides
+ * whether it's written or dropped — so this href and the one step 2's own
+ * «Continue» produces are the same URL.
  *
  * Everything else on the query is kept (`origin`, …); what the code
  * supersedes is dropped so nothing is ambiguous about which wins — `design`
@@ -97,7 +105,7 @@ export function paintFirstHref(
   params: URLSearchParams | null,
   config: {
     code: string;
-    snapshot: { customNote?: string; customText?: string };
+    snapshot: { customNote?: string };
   } | null
 ): string {
   if (!config) return "/configurator";
@@ -109,8 +117,8 @@ export function paintFirstHref(
   const note = (config.snapshot.customNote ?? "").trim();
   if (note) next.set("note", note);
   else next.delete("note");
-  const text = (config.snapshot.customText ?? "").trim();
-  if (text) next.set("text", text);
-  else next.delete("text");
+  // The code is the inscription's memory now (task 2) — never write it here,
+  // and never trust a stale one left over from an earlier URL either.
+  next.delete("text");
   return `/configurator?${next.toString()}`;
 }

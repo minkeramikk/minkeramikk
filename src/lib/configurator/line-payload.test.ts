@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { buildConfigLinePayload, withCustomFields } from "./line-payload";
+import { decodeConfigCode, toCodecDesign } from "./config-code";
 import { MAX_CUSTOM_TEXT } from "@/lib/orders/schema";
 import type { DesignDetail } from "@/lib/catalog/design-options";
 
@@ -77,6 +78,69 @@ describe("buildConfigLinePayload — customText (F38)", () => {
     const { snapshot } = buildConfigLinePayload(design(false, true), {}, "", forged);
     expect(snapshot.customText).toBe("x".repeat(MAX_CUSTOM_TEXT));
     expect(snapshot.customText!.length).toBe(MAX_CUSTOM_TEXT);
+  });
+});
+
+describe("buildConfigLinePayload — R5-TEXT-IDENTITY: the code carries the words", () => {
+  it("two different inscriptions, same design/selections → two different codes", () => {
+    const a = buildConfigLinePayload(design(false, true), { farge: "o1" }, "", "Til Anna");
+    const b = buildConfigLinePayload(design(false, true), { farge: "o1" }, "", "Til Kari");
+    expect(a.configCode).not.toBe(b.configCode);
+  });
+
+  it("the same inscription twice → the same code (determinism)", () => {
+    const a = buildConfigLinePayload(design(false, true), { farge: "o1" }, "", "Til Anna");
+    const b = buildConfigLinePayload(design(false, true), { farge: "o1" }, "", "Til Anna");
+    expect(a.configCode).toBe(b.configCode);
+  });
+
+  it("same colours and same inscription, two different colour WISHES → two different codes", () => {
+    // Closes R5-GARANZIA.md §5: the words never print on the piece, but the
+    // wish is still identity — hashNote is what tells these two apart.
+    const a = buildConfigLinePayload(
+      design(true, true),
+      { farge: "o1" },
+      "litt mer blått, takk",
+      "Til Anna"
+    );
+    const b = buildConfigLinePayload(
+      design(true, true),
+      { farge: "o1" },
+      "litt mer rosa, takk",
+      "Til Anna"
+    );
+    expect(a.configCode).not.toBe(b.configCode);
+  });
+
+  it("no inscription and no wish → the code is exactly what it was before this task", () => {
+    const { configCode } = buildConfigLinePayload(design(false, false), { farge: "o1" });
+    expect(configCode).toBe("MK-D-A");
+  });
+
+  it("a design that doesn't accept text never lets a passed customText into the code", () => {
+    const withForgedText = buildConfigLinePayload(
+      design(false, false),
+      { farge: "o1" },
+      "",
+      "Hei"
+    );
+    const withNothing = buildConfigLinePayload(design(false, false), { farge: "o1" });
+    expect(withForgedText.configCode).toBe(withNothing.configCode);
+  });
+
+  it("the code and the snapshot agree: decoding the code recovers the same inscription", () => {
+    const detail = design(false, true);
+    const { configCode, snapshot } = buildConfigLinePayload(
+      detail,
+      { farge: "o1" },
+      "",
+      "Til Anna"
+    );
+    const codec = toCodecDesign(detail)!;
+    const decoded = decodeConfigCode(configCode, (c) =>
+      c.toUpperCase() === codec.code ? codec : null
+    );
+    expect(decoded.customText).toBe(snapshot.customText);
   });
 });
 

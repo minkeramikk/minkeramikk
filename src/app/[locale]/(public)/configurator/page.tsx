@@ -102,8 +102,13 @@ export default async function ConfiguratorPage({
      * malformed/unknown code is simply ignored, never a crash).
      */
     const rawCode = typeof params.code === "string" ? params.code : "";
-    let decodedCode: { designSlug: string; selections: Record<string, string> } | null =
-      null;
+    let decodedCode: {
+      designSlug: string;
+      selections: Record<string, string>;
+      /** R5-TEXT-IDENTITY task 4: present when `?code=` itself carries an
+       *  inscription — seeds the field below when `?text=` is absent. */
+      customText?: string;
+    } | null = null;
     if (rawCode) {
       const allDetails = await Promise.all(designs.map((d) => getDesignDetail(d.slug)));
       const codecDesigns = allDetails
@@ -156,7 +161,14 @@ export default async function ConfiguratorPage({
       // nor the set= link). Honour it only when the design accepts notes.
       const rawNote = typeof params.note === "string" ? params.note : "";
       const customNote = detail.acceptsCustomNotes ? rawNote : "";
-      const rawText = typeof params.text === "string" ? params.text : "";
+      // R5-TEXT-IDENTITY task 4: `?code=` is now the memory of an
+      // inscription (task 2 folded it into the code itself). An explicit
+      // `?text=` is the LIVE edit and still wins outright — it's present
+      // even as "" (an explicit clear); only its ABSENCE falls back to
+      // what `?code=` decoded, so opening a saved/shared code seeds the
+      // field instead of showing it empty.
+      const rawText =
+        typeof params.text === "string" ? params.text : decodedCode?.customText ?? "";
       const customText = detail.acceptsCustomText ? rawText : "";
       const { snapshot, configCode, designLayers } = buildConfigLinePayload(
         detail,
