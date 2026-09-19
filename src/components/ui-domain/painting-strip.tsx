@@ -44,6 +44,16 @@ export interface PaintingStripProps {
    *  No separate copy needed here: this prop alone is what makes that read
    *  true at either step. */
   draft: boolean;
+  /** R5-TEXT-IDENTITY (card §3 guard) — whether the draft TILE's own "Save
+   *  as palette" button renders. Separate from `draft`: the tile itself
+   *  (thumb + "Unsaved" + name) still shows whenever `draft` is true — the
+   *  customer should always see what's actually on screen — but the SAVE
+   *  offer is withheld when the draft's colours already match a saved
+   *  palette of this design and only the inscription differs (the caller's
+   *  `draftMatchesSavedColours` check). Meaningless while `!draft` (there is
+   *  no tile to put a button on), so callers just always pass their own
+   *  `canSaveDraft`. */
+  canSaveDraft: boolean;
   locale: "no" | "en";
   onPick: (code: string) => void;
   onNewPalette: () => void;
@@ -71,6 +81,7 @@ export function PaintingStrip({
   currentDesignSlug,
   activeCode,
   draft,
+  canSaveDraft,
   locale,
   onPick,
   onNewPalette,
@@ -151,6 +162,7 @@ export function PaintingStrip({
         currentDesignSlug={currentDesignSlug}
         activeCode={activeCode}
         draft={draft}
+        canSaveDraft={canSaveDraft}
         draftName={paintingLabel}
         draftLayers={designLayers}
         locale={locale}

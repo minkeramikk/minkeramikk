@@ -9,6 +9,7 @@ import { PaletteBar } from "@/components/ui-domain/palette-bar";
 import { PaletteChip } from "@/components/ui-domain/palette-chip";
 import { PaintingStrip } from "@/components/ui-domain/painting-strip";
 import { nameFor, paletteFor, sortCurrentDesignFirst } from "@/lib/palettes/palettes";
+import { draftMatchesSavedColours } from "@/lib/configurator/save-gate";
 import type { PaletteWords } from "@/lib/palettes/name-lists";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -283,6 +284,28 @@ export function CeramicsStep({
       palettes.map((p) => p.name)
     ) ??
     designName;
+
+  /**
+   * Card §3 guard (TL ruling), same rule as step 2's own `canSaveDraft`
+   * (configurator-client.tsx) — this step's `configCode` has carried the
+   * inscription since the ORIGINAL R5-TEXT-IDENTITY task 4 landed (this
+   * step always called `buildConfigLinePayload` with the real
+   * `customNote`/`customText`), so it has had the exact same "six
+   * dedications, six near-duplicate palettes" exposure the whole time; the
+   * guard belongs here too, not only on step 2's draft flow. `snapshot.
+   * selections.length` stands in for `detail.categories.length` (step 2's
+   * source) — this step only receives a `DesignRef`, not the full
+   * `DesignDetail`, but `selections` is built ONE ENTRY PER CATEGORY
+   * (`buildConfigLinePayload`), so it's the same number.
+   */
+  const canSaveDraft =
+    !activePalette &&
+    !draftMatchesSavedColours(
+      palettes,
+      configCode,
+      design.slug,
+      snapshot.selections.length
+    );
 
   /**
    * `activeCode` (persisted, cross-tab) is a DIFFERENT thing: a "last chosen"
@@ -1152,6 +1175,7 @@ export function CeramicsStep({
       currentDesignSlug={design.slug}
       activeCode={activePalette?.code ?? null}
       draft={!activePalette}
+      canSaveDraft={canSaveDraft}
       locale={locale}
       onPick={paintWithFromSheet}
       onNewPalette={() => {
@@ -1357,10 +1381,12 @@ export function CeramicsStep({
           </>
         }
         extra={
-          // Same rule as step 2's own "Save as palette" (configurator-client.tsx):
-          // only when the draft matches no save — once it's saved, `activePalette`
-          // resolves and the draft chip (and this button) both go away together.
-          !activePalette && (
+          // Same rule as step 2's own "Save as palette" (configurator-client.tsx),
+          // now including the card §3 guard: withheld not only once the
+          // draft IS saved (`activePalette`), but also while its colours
+          // already match a saved palette of this design and only the
+          // inscription differs (`canSaveDraft`).
+          canSaveDraft && (
             <button
               type="button"
               onClick={saveDraftAsPalette}

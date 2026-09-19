@@ -52,6 +52,7 @@ export function PaletteSheet({
   currentDesignSlug,
   activeCode,
   draft,
+  canSaveDraft,
   draftName,
   draftLayers,
   locale,
@@ -83,6 +84,12 @@ export function PaletteSheet({
    *  on-screen config matches no save, so the sheet offers "Save as
    *  palette" the same way the bar's `extra` slot does. */
   draft: boolean;
+  /** R5-TEXT-IDENTITY (card §3 guard) — withholds JUST the "Save as palette"
+   *  button inside the draft tile below; the tile itself (thumb + "Unsaved"
+   *  + name) still shows whenever `draft` is true. True unless the draft's
+   *  colours already match a saved palette of this design and only the
+   *  inscription differs (caller's `draftMatchesSavedColours`). */
+  canSaveDraft: boolean;
   /** The on-screen colours' own name/thumb (`nameFor()` or a saved match's
    *  name — the caller's single "what's painting" label, e.g. `paintingLabel`
    *  in ceramics-step.tsx / `activePaletteName` in configurator-client.tsx).
@@ -160,7 +167,12 @@ export function PaletteSheet({
               its sheet equivalent. Same `draft` condition as the bar's
               `extra` slot (task 9's follow-up): only while the on-screen
               config matches no save — once it's saved, `draft` goes false
-              and this whole block goes with it. */}
+              and this whole block goes with it.
+
+              R5-TEXT-IDENTITY (card §3 guard): the SAVE BUTTON alone is
+              additionally gated on `canSaveDraft` — the tile (thumb +
+              "Unsaved" + name) stays even when the offer is withheld, so the
+              customer still sees exactly what's on screen. */}
           {draft && (
             <div
               data-testid="palette-sheet-draft"
@@ -173,14 +185,16 @@ export function PaletteSheet({
                 </span>
                 <span className="block truncate text-xs font-medium">{draftName}</span>
               </span>
-              <button
-                type="button"
-                data-testid="palette-sheet-save"
-                onClick={onSaveDraft}
-                className="flex h-11 shrink-0 items-center justify-center rounded-sm border-2 border-primary bg-primary/10 px-3 text-xs font-semibold hover:bg-primary/20"
-              >
-                {tBar("save")}
-              </button>
+              {canSaveDraft && (
+                <button
+                  type="button"
+                  data-testid="palette-sheet-save"
+                  onClick={onSaveDraft}
+                  className="flex h-11 shrink-0 items-center justify-center rounded-sm border-2 border-primary bg-primary/10 px-3 text-xs font-semibold hover:bg-primary/20"
+                >
+                  {tBar("save")}
+                </button>
+              )}
             </div>
           )}
 

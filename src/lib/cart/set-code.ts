@@ -105,8 +105,13 @@ export function selectionCountOf(snapshot: unknown): number | undefined {
  * keeping a stray inscription by mistake is a privacy annoyance; dropping
  * a real colour segment by mistake silently repaints someone's kit wrong,
  * which is worse.
+ *
+ * Exported: the card §3 "Save as palette" guard (`configurator-client.tsx`)
+ * reuses this SAME function to compare a draft's colours against saved
+ * palettes, ignoring any inscription — one strip implementation, not two
+ * competing ideas of where the colours end.
  */
-function stripCustomSegment(code: string, selectionCount?: number): string {
+export function stripCustomSegment(code: string, selectionCount?: number): string {
   if (selectionCount === undefined) return code;
   const parts = normalizeConfigCode(code).split("-");
   const prefixLen = parts[0] === CODE_PREFIX ? 1 : 0;
