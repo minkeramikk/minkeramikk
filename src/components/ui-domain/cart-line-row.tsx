@@ -255,7 +255,18 @@ export function CartLineRow({
       data-unpainted={unpainted || undefined}
       className="border-b border-border/60 py-3.5 last:border-0"
     >
-      <div className="flex gap-3.5">
+      {/* AC 8 (Precisazione 19/9 bis) — a grid, not two layouts: the thumb
+          spans both rows (`row-span-2`); the actions row lives in column 2
+          from `sm` up, `self-end` so it aligns with the CERAMIC PHOTO square
+          (task 2's `<div class="mt-3 flex">` full-width sibling left a ~64px
+          empty band beside that photo on every row — this is what restores
+          card 1 §3's own fix). Below `sm` the actions row still spans both
+          columns, full width, under the whole block — chip · n/N · Paint
+          don't fit beside the thumb there (verified by drawing, still
+          holds). `minmax(0,1fr)`, never a bare `1fr`: the trap this row has
+          paid for twice — a bare `1fr` is `minmax(auto,1fr)` and refuses to
+          shrink below its content's min-content width. */}
+      <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3.5">
         {/* Task 2 — the 64+64 stacked thumb (mockup `BigThumb`, `mode="stack"`).
             A real `<button>` only once a later task wires `onOpenPhoto` up —
             until then this stays exactly the inert markup it always was, no
@@ -267,20 +278,21 @@ export function CartLineRow({
             type="button"
             onClick={onOpenPhoto}
             aria-label={t("line.seePhotos")}
-            className="group relative flex shrink-0 flex-col gap-1"
+            className="group relative row-span-2 flex shrink-0 flex-col gap-1"
           >
             {bigThumb}
           </button>
         ) : (
-          <div className="relative flex shrink-0 flex-col gap-1">{bigThumb}</div>
+          <div className="relative row-span-2 flex shrink-0 flex-col gap-1">{bigThumb}</div>
         )}
 
         {/* Task 2 — info column: name, then palette-or-unpainted line, then
             (painted only, per the mockup) the size/set-of-N line. `min-w-0`
             here and on every truncating child: the trap this row has already
             paid for twice — a nowrap flex item can't shrink below its own
-            content width without it. */}
-        <div className="min-w-0 flex-1">
+            content width without it. Auto-placed into column 2, row 1 —
+            the actions row (below) is column 2's second grid item. */}
+        <div className="min-w-0">
           <div className="flex items-start justify-between gap-2">
             <span className="min-w-0">
               <span className="block truncate text-[15px] font-semibold leading-tight">
@@ -351,211 +363,222 @@ export function CartLineRow({
             </span>
           </div>
         </div>
-      </div>
 
-      {/* actions row — full width, below the thumb+info block, and (mockup
-          `BRow`'s `!unp` branch) the ONE row for the qty stepper, expand,
-          unpaint and remove on a painted line — not split across two rows. */}
-      <div
-        className={cn(
-          "mt-3 flex min-w-0 items-center gap-2",
-          // `flex-wrap`'s line-fit decision uses each item's hypothetical
-          // (un-shrunk) size, not how far it *can* shrink — so an item needs
-          // an actual cap (`max-width`, or a `0` flex-basis) to not be what
-          // forces a wrap; `min-width` alone doesn't do it. Every item here
-          // is capped: the chip's `0` flex-basis absorbs the slack, Paint's
-          // label is `max-w`-capped, `cart-expand`'s label truncates
-          // (`min-w-0`), and the stepper/unpaint/remove are fixed-width
-          // (`shrink-0`) — nothing is left free to force the wrap. Resets at
-          // `lg` (1024px) not `md`: at 768 the rail (`ceramics-step.tsx`'s
-          // `md:grid-cols-2`) is only ~350px, still too narrow for this
-          // row's full desktop sizing.
-          "flex-wrap lg:flex-nowrap lg:gap-1.5"
-        )}
-      >
-        {unpainted ? (
-          paintTarget.kind === "none" ? (
-            // Card §1: at step 1 there's no configuration on screen to paint
-            // with, so the chip IS the link to step 2 — not a disabled chip
-            // plus a separate text link. No `DesignRound` here either: with
-            // no config, `layers` is `[]` and it painted an empty circle.
-            <Link
-              href={paintTarget.href}
-              data-testid="paint-chip"
-              className="inline-flex min-h-11 -my-2 items-center py-2 text-[11px] text-muted-foreground underline underline-offset-2 hover:text-foreground md:my-0 md:min-h-0 md:py-0"
-            >
-              {t("chooseColours")}
-            </Link>
+        {/* actions row — column 2, `self-end` from `sm` (AC 8: aligns with
+            the ceramic photo, no more empty band beside it); full width
+            (both columns) below `sm`, where chip · n/N · Paint don't fit
+            beside the thumb. Mockup `BRow`'s `!unp` branch: the qty
+            stepper, expand, unpaint and remove on a painted line are ONE
+            row, not split across two. */}
+        <div
+          className={cn(
+            "col-span-2 mt-3 flex min-w-0 items-center gap-2",
+            "sm:col-span-1 sm:col-start-2 sm:row-start-2 sm:mt-0 sm:self-end",
+            // `flex-wrap`'s line-fit decision uses each item's hypothetical
+            // (un-shrunk) size, not how far it *can* shrink — so an item
+            // needs an actual cap (`max-width`, or a `0` flex-basis) to not
+            // be what forces a wrap; `min-width` alone doesn't do it. Every
+            // item here is capped: the chip's `0` flex-basis absorbs the
+            // slack, Paint's label is `max-w`-capped, `cart-expand`'s label
+            // truncates (`min-w-0`), and the stepper/unpaint/remove are
+            // fixed-width (`shrink-0`) — nothing is left free to force the
+            // wrap. `lg:` (1024px) widens the chip/Paint back to their
+            // natural sizing — safe when the row was still full-width at
+            // that breakpoint, but from `sm` up the row now lives in
+            // column 2 permanently (AC 8), never full width again: at the
+            // step-3 rail's ~350px this column is the tightest spot this
+            // row sees (narrower than the drawer's fixed ~420px column and
+            // the rail's own ~1280px-wide ~496px column), so the shrink
+            // caps below `lg` are what actually keep it from wrapping there
+            // — the `lg` reset only fires where the container is wide
+            // enough to afford it (verified in the task-2 report, not by
+            // breakpoint alone).
+            "flex-wrap lg:flex-nowrap lg:gap-1.5"
+          )}
+        >
+          {unpainted ? (
+            paintTarget.kind === "none" ? (
+              // Card §1: at step 1 there's no configuration on screen to paint
+              // with, so the chip IS the link to step 2 — not a disabled chip
+              // plus a separate text link. No `DesignRound` here either: with
+              // no config, `layers` is `[]` and it painted an empty circle.
+              <Link
+                href={paintTarget.href}
+                data-testid="paint-chip"
+                className="inline-flex min-h-11 -my-2 items-center py-2 text-[11px] text-muted-foreground underline underline-offset-2 hover:text-foreground md:my-0 md:min-h-0 md:py-0"
+              >
+                {t("chooseColours")}
+              </Link>
+            ) : (
+              <>
+                <button
+                  ref={pickerToggleRef}
+                  type="button"
+                  data-testid="paint-chip"
+                  data-code={currentThumb.code}
+                  disabled={!hasPalettes}
+                  aria-expanded={hasPalettes ? pickerOpen : undefined}
+                  // Only meaningful while the panel it names exists.
+                  aria-controls={hasPalettes && pickerOpen ? pickerPanelId : undefined}
+                  onClick={hasPalettes ? onTogglePicker : undefined}
+                  // `flex-1 min-w-0` + `flex-basis: 0`: the chip absorbs
+                  // whatever the stepper and Paint (fixed intrinsic widths)
+                  // leave behind, so it's never what forces a wrap.
+                  // `lg:flex-initial`, NOT `lg:flex-none`: `flex-none` has no
+                  // shrink, so a long `formatSelections` label can't truncate
+                  // and pushes Paint out of the panel — `flex-initial` keeps
+                  // the shrink permission the label's `truncate` needs.
+                  className={cn(
+                    "flex h-11 min-w-0 flex-1 items-center gap-1 rounded-sm border bg-card pl-1 pr-1 text-xs font-medium sm:h-9 lg:flex-initial lg:gap-1.5 lg:pr-2",
+                    pickerOpen
+                      ? "border-primary shadow-[0_0_0_1px_var(--ring)]"
+                      : "border-border",
+                    !hasPalettes && "disabled:cursor-not-allowed"
+                  )}
+                >
+                  <DesignRound layers={currentThumb.layers} className="size-6 shrink-0 rounded-sm" />
+                  {/* No dots here (unlike the painted row's info line below):
+                      the name is this chip's identity, and dots would eat the
+                      width it needs at 390. */}
+                  <span className="min-w-0 truncate">{currentThumb.label}</span>
+                  {hasPalettes && (
+                    <span aria-hidden className="shrink-0 text-muted-foreground">
+                      {pickerOpen ? "▴" : "▾"}
+                    </span>
+                  )}
+                </button>
+                <div
+                  role="group"
+                  aria-label={t("unpainted.paintCount")}
+                  className="flex h-11 items-center rounded-sm border border-border bg-card sm:h-9"
+                >
+                  <button
+                    type="button"
+                    aria-label={t("decreaseQty")}
+                    data-testid="paint-n-dec"
+                    onClick={() => onN(Math.max(1, n - 1))}
+                    className="flex size-11 items-center justify-center sm:size-9"
+                  >
+                    −
+                  </button>
+                  {/* `min-w-8 px-1` not a fixed `w-8`: a two-digit quantity
+                      ("10/12") is wider than 32px and would overflow into
+                      the −/+ buttons on either side otherwise. */}
+                  <span className="min-w-8 px-1 text-center text-sm tabular-nums" aria-live="polite">
+                    {n}
+                    <span className="text-muted-foreground">/{line.quantity}</span>
+                  </span>
+                  <button
+                    type="button"
+                    aria-label={t("increaseQty")}
+                    data-testid="paint-n-inc"
+                    onClick={() => onN(Math.min(line.quantity, n + 1))}
+                    className="flex size-11 items-center justify-center sm:size-9"
+                  >
+                    +
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  data-testid="paint-line"
+                  onClick={() => onPaint(n)}
+                  // `min-w-0` + the label's own `max-w`/`truncate`: the word
+                  // can give ground before the icon/badge do. `lg:min-w-max`
+                  // resets that shrink permission at `lg`, same gate as the
+                  // chip's.
+                  className="relative ml-auto flex h-11 min-w-0 items-center gap-1 rounded-sm bg-primary px-2 text-xs font-semibold text-primary-foreground sm:h-9 lg:min-w-max lg:gap-1.5 lg:px-3.5"
+                >
+                  <Brush className="size-3.5 shrink-0" aria-hidden />
+                  <span className="max-w-[52px] truncate">{t("unpainted.paint")}</span>
+                  {/* Reads from 2 upward, not only the partial case: any row
+                      with more than one unit to choose from shows its current
+                      n (a single-unit row, always 1 of 1, shows none) — the
+                      badge is the count Paint is about to act on. */}
+                  <span className="absolute -right-1.5 -top-1.5 grid size-5 place-items-center rounded-full bg-ink text-[10px] font-bold text-ink-foreground shadow">
+                    {n}
+                  </span>
+                </button>
+              </>
+            )
           ) : (
             <>
-              <button
-                ref={pickerToggleRef}
-                type="button"
-                data-testid="paint-chip"
-                data-code={currentThumb.code}
-                disabled={!hasPalettes}
-                aria-expanded={hasPalettes ? pickerOpen : undefined}
-                // Only meaningful while the panel it names exists.
-                aria-controls={hasPalettes && pickerOpen ? pickerPanelId : undefined}
-                onClick={hasPalettes ? onTogglePicker : undefined}
-                // `flex-1 min-w-0` + `flex-basis: 0`: the chip absorbs
-                // whatever the stepper and Paint (fixed intrinsic widths)
-                // leave behind, so it's never what forces a wrap.
-                // `lg:flex-initial`, NOT `lg:flex-none`: `flex-none` has no
-                // shrink, so a long `formatSelections` label can't truncate
-                // and pushes Paint out of the panel — `flex-initial` keeps
-                // the shrink permission the label's `truncate` needs.
-                className={cn(
-                  "flex h-11 min-w-0 flex-1 items-center gap-1 rounded-sm border bg-card pl-1 pr-1 text-xs font-medium sm:h-9 lg:flex-initial lg:gap-1.5 lg:pr-2",
-                  pickerOpen
-                    ? "border-primary shadow-[0_0_0_1px_var(--ring)]"
-                    : "border-border",
-                  !hasPalettes && "disabled:cursor-not-allowed"
-                )}
-              >
-                <DesignRound layers={currentThumb.layers} className="size-6 shrink-0 rounded-sm" />
-                {/* No dots here (unlike the painted row's info line below):
-                    the name is this chip's identity, and dots would eat the
-                    width it needs at 390. */}
-                <span className="min-w-0 truncate">{currentThumb.label}</span>
-                {hasPalettes && (
-                  <span aria-hidden className="shrink-0 text-muted-foreground">
-                    {pickerOpen ? "▴" : "▾"}
-                  </span>
-                )}
-              </button>
               <div
                 role="group"
-                aria-label={t("unpainted.paintCount")}
+                aria-label={t("quantity")}
                 className="flex h-11 items-center rounded-sm border border-border bg-card sm:h-9"
               >
                 <button
                   type="button"
                   aria-label={t("decreaseQty")}
-                  data-testid="paint-n-dec"
-                  onClick={() => onN(Math.max(1, n - 1))}
+                  data-testid="docked-qty-dec"
+                  onClick={() => onQty(line.quantity - 1)}
                   className="flex size-11 items-center justify-center sm:size-9"
                 >
                   −
                 </button>
-                {/* `min-w-8 px-1` not a fixed `w-8`: a two-digit quantity
-                    ("10/12") is wider than 32px and would overflow into
-                    the −/+ buttons on either side otherwise. */}
-                <span className="min-w-8 px-1 text-center text-sm tabular-nums" aria-live="polite">
-                  {n}
-                  <span className="text-muted-foreground">/{line.quantity}</span>
+                <span className="w-8 text-center text-sm tabular-nums" aria-live="polite">
+                  {line.quantity}
                 </span>
                 <button
                   type="button"
                   aria-label={t("increaseQty")}
-                  data-testid="paint-n-inc"
-                  onClick={() => onN(Math.min(line.quantity, n + 1))}
+                  data-testid="docked-qty-inc"
+                  onClick={() => onQty(line.quantity + 1)}
                   className="flex size-11 items-center justify-center sm:size-9"
                 >
                   +
                 </button>
               </div>
-              <button
-                type="button"
-                data-testid="paint-line"
-                onClick={() => onPaint(n)}
-                // `min-w-0` + the label's own `max-w`/`truncate`: the word
-                // can give ground before the icon/badge do. `lg:min-w-max`
-                // resets that shrink permission at `lg`, same gate as the
-                // chip's.
-                className="relative ml-auto flex h-11 min-w-0 items-center gap-1 rounded-sm bg-primary px-2 text-xs font-semibold text-primary-foreground sm:h-9 lg:min-w-max lg:gap-1.5 lg:px-3.5"
-              >
-                <Brush className="size-3.5 shrink-0" aria-hidden />
-                <span className="max-w-[52px] truncate">{t("unpainted.paint")}</span>
-                {/* Reads from 2 upward, not only the partial case: any row
-                    with more than one unit to choose from shows its current
-                    n (a single-unit row, always 1 of 1, shows none) — the
-                    badge is the count Paint is about to act on. */}
-                <span className="absolute -right-1.5 -top-1.5 grid size-5 place-items-center rounded-full bg-ink text-[10px] font-bold text-ink-foreground shadow">
-                  {n}
-                </span>
-              </button>
-            </>
-          )
-        ) : (
-          <>
-            <div
-              role="group"
-              aria-label={t("quantity")}
-              className="flex h-11 items-center rounded-sm border border-border bg-card sm:h-9"
-            >
-              <button
-                type="button"
-                aria-label={t("decreaseQty")}
-                data-testid="docked-qty-dec"
-                onClick={() => onQty(line.quantity - 1)}
-                className="flex size-11 items-center justify-center sm:size-9"
-              >
-                −
-              </button>
-              <span className="w-8 text-center text-sm tabular-nums" aria-live="polite">
-                {line.quantity}
+              {/* Mockup `BRow`'s `!unp` branch: expand + unpaint + remove live
+                  on this same row (`ml-auto` on the last pair), not a second
+                  row below — a painted legacy line has no `configSnapshot`,
+                  so the expand toggle (which needs one to open) skips it. */}
+              {line.configSnapshot && (
+                // `min-w-0` on the button + `truncate` on its label: the one
+                // item here allowed to give ground — «Vis detaljer»/«Show
+                // details» can lose characters without losing meaning, unlike
+                // the single unbreakable words beside it. The ▾/▴ stays
+                // `shrink-0` so the click target and the state glyph survive.
+                <button
+                  type="button"
+                  data-testid="cart-expand"
+                  aria-expanded={open}
+                  onClick={onToggleDetails}
+                  className="inline-flex min-h-11 min-w-0 -my-2 items-center gap-0.5 py-2 text-[11px] text-muted-foreground underline underline-offset-2 hover:text-foreground md:my-0 md:min-h-0 md:py-0"
+                >
+                  <span className="min-w-0 truncate">{open ? t("line.collapse") : t("line.expand")}</span>
+                  <span aria-hidden className="shrink-0">{open ? "▴" : "▾"}</span>
+                </button>
+              )}
+              <span className="ml-auto flex items-center gap-3">
+                <button
+                  type="button"
+                  data-testid="cart-unpaint"
+                  onClick={onUnpaint}
+                  className="flex min-h-11 shrink-0 -my-2 items-center gap-1 py-2 text-[11px] text-muted-foreground hover:text-foreground md:my-0 md:min-h-0 md:py-0"
+                >
+                  <Eraser className="size-3" aria-hidden />
+                  {t("unpaint.action")}
+                </button>
+                {/* Icon-only, per the mockup (`BRow`'s trash button carries no
+                    label) — this is also the widest thing this row could
+                    carry in its tightest spot, so the accessible name moves
+                    to `aria-label`/`title` instead of visible text. */}
+                <button
+                  type="button"
+                  data-testid="cart-remove"
+                  onClick={onRemove}
+                  aria-label={t("remove")}
+                  title={t("remove")}
+                  className="flex min-h-11 shrink-0 -my-2 items-center px-1 py-2 text-muted-foreground hover:text-foreground md:my-0 md:min-h-0 md:py-0"
+                >
+                  <Trash2 className="size-3" aria-hidden />
+                </button>
               </span>
-              <button
-                type="button"
-                aria-label={t("increaseQty")}
-                data-testid="docked-qty-inc"
-                onClick={() => onQty(line.quantity + 1)}
-                className="flex size-11 items-center justify-center sm:size-9"
-              >
-                +
-              </button>
-            </div>
-            {/* Mockup `BRow`'s `!unp` branch: expand + unpaint + remove live
-                on this same row (`ml-auto` on the last pair), not a second
-                row below — a painted legacy line has no `configSnapshot`,
-                so the expand toggle (which needs one to open) skips it. */}
-            {line.configSnapshot && (
-              // `min-w-0` on the button + `truncate` on its label: the one
-              // item here allowed to give ground — «Vis detaljer»/«Show
-              // details» can lose characters without losing meaning, unlike
-              // the single unbreakable words beside it. The ▾/▴ stays
-              // `shrink-0` so the click target and the state glyph survive.
-              <button
-                type="button"
-                data-testid="cart-expand"
-                aria-expanded={open}
-                onClick={onToggleDetails}
-                className="inline-flex min-h-11 min-w-0 -my-2 items-center gap-0.5 py-2 text-[11px] text-muted-foreground underline underline-offset-2 hover:text-foreground md:my-0 md:min-h-0 md:py-0"
-              >
-                <span className="min-w-0 truncate">{open ? t("line.collapse") : t("line.expand")}</span>
-                <span aria-hidden className="shrink-0">{open ? "▴" : "▾"}</span>
-              </button>
-            )}
-            <span className="ml-auto flex items-center gap-3">
-              <button
-                type="button"
-                data-testid="cart-unpaint"
-                onClick={onUnpaint}
-                className="flex min-h-11 shrink-0 -my-2 items-center gap-1 py-2 text-[11px] text-muted-foreground hover:text-foreground md:my-0 md:min-h-0 md:py-0"
-              >
-                <Eraser className="size-3" aria-hidden />
-                {t("unpaint.action")}
-              </button>
-              {/* Icon-only, per the mockup (`BRow`'s trash button carries no
-                  label) — this is also the widest thing this row could
-                  carry in its tightest spot, so the accessible name moves
-                  to `aria-label`/`title` instead of visible text. */}
-              <button
-                type="button"
-                data-testid="cart-remove"
-                onClick={onRemove}
-                aria-label={t("remove")}
-                title={t("remove")}
-                className="flex min-h-11 shrink-0 -my-2 items-center px-1 py-2 text-muted-foreground hover:text-foreground md:my-0 md:min-h-0 md:py-0"
-              >
-                <Trash2 className="size-3" aria-hidden />
-              </button>
-            </span>
-          </>
-        )}
+            </>
+          )}
+        </div>
       </div>
-
       {/* Task 10 — the row picker (mockup `Line(r)`'s `picker?` block):
           every saved palette as a wrapping row of pills, dim+disabled for
           another design's (card §6). Gated on `paintTarget.kind==="palette"`
