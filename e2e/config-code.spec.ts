@@ -4,8 +4,9 @@ import { designWithCode, addFirstCeramic } from "./helpers";
 /**
  * Journey 2 — config code DECODE (ADR 0011). R3-D removed the "YOUR DESIGN
  * CODE" bar from the configurator; the encode/copy/paste UI is gone, but the
- * `?code=` deep-link decode stays. The code is now surfaced only on the cart
- * recap (CartLineRecap), so we read it there and assert the deep link
+ * `?code=` deep-link decode stays. The code is now surfaced only in the cart
+ * DRAWER's expanded line details (`LineCodeSlot`, basket.tsx — `CartLineRecap`
+ * carried it until R5-BASKET-HOST), so we read it there and assert the deep link
  * reconstructs the configuration. Encode/decode units live in
  * src/lib/configurator/config-code.test.ts.
  */
@@ -21,8 +22,9 @@ test("AC5: a ?code= deep link reconstructs the configuration on step 2", async (
 
   // Task 18 — the step-3 docked/mobile row's own details panel dropped the
   // code (TL: that affordance belongs to the drawer, not the docked row).
-  // The drawer's CartLineRecap is the one surface left that renders it, and
-  // it's a header-level Sheet at every viewport (same idiom as cart.spec.ts's
+  // The drawer is the one surface left that renders it (`LineCodeSlot`, passed
+  // as `detailSlot` only by the drawer host), and it's a header-level Sheet at
+  // every viewport (same idiom as cart.spec.ts's
   // "R2-D" test), so this reads the same on desktop and mobile alike.
   await page.getByTestId("cart-button").click();
   const drawer = page.getByTestId("cart-drawer");

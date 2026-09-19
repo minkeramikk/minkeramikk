@@ -77,7 +77,7 @@ async function configCode(page: Page, slug: string) {
   await addFirstCeramic(page);
   // Task 18 — il pannello docked ha perso il codice dal proprio dettaglio
   // espanso (TL: quell'affordance è del drawer, dove già viveva) — si apre
-  // il drawer e si legge da lì, stesso `CartLineRecap` di sempre.
+  // il drawer e si legge da lì (`LineCodeSlot`, `detailSlot` del solo drawer).
   // `.last()`: il carrello si accumula fra un design e l'altro, la prima riga
   // resterebbe sempre quella del primo design.
   await page.getByTestId("cart-button").click();

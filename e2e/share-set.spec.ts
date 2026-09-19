@@ -5,8 +5,9 @@ import { designWithCode, ceramicCards } from "./helpers";
  * Journey 8 — Share your set (CA-3). ACCEPTANCE.md §8 · ADR 0016.
  * Desktop-only by policy (i due flussi di dominio; parser/cap/clamp sono unit).
  * Resilient: design con codice (righe condivisibili) + prodotti scoperti a runtime.
- * NB: il codice di riga + «Edit design» vivono nel drawer (`cart-menu.tsx` →
- * `CartLineRecap`), non nel pannello docked di step 3 — task 18 li ha tolti dal
+ * NB: il codice di riga + «Edit design» vivono nel drawer (`basket.tsx` →
+ * `LineCodeSlot`, passato come `detailSlot` solo dall'host drawer), non nel
+ * pannello docked di step 3 — task 18 li ha tolti dal
  * pannello docked (TL: appartengono al drawer, dove già esistevano). Il pannello
  * docked tiene composizione/config/ceramica/prezzo, si legge dopo `cart-expand`.
  */
