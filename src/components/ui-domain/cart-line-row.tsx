@@ -9,7 +9,9 @@ import { SetBadge } from "@/components/ui-domain/set-badge";
 import { formatMoney, money } from "@/lib/money/money";
 import { designLabel, type CartLayer, type CartLine } from "@/lib/cart/cart";
 import { formatSelections } from "@/lib/configurator/readable-selections";
-import { paletteFor, sortCurrentDesignFirst, type Palette } from "@/lib/palettes/palettes";
+import { sortCurrentDesignFirst, type Palette } from "@/lib/palettes/palettes";
+import { paletteMatchingColours } from "@/lib/configurator/save-gate";
+import { stripCustomSegment } from "@/lib/cart/set-code";
 import type { LineDiscount } from "@/lib/discounts/discount";
 import { cn } from "@/lib/utils";
 
@@ -118,7 +120,17 @@ export function CartLineRow({
    *  the customer chose from this row's picker, so `code` here is always
    *  what Paint would apply. `label`/`hexes` follow the same resolution:
    *  a saved palette's name/colours, or the design's when it isn't one yet. */
-  currentThumb: { layers: CartLayer[]; label: string; hexes: string[]; code: string };
+  currentThumb: {
+    layers: CartLayer[];
+    label: string;
+    hexes: string[];
+    code: string;
+    /** Final-review round 3, finding 1: how many colour segments `code`
+     *  has — needed to strip its inscription (`stripCustomSegment`) before
+     *  the picker's "which pill is active" check compares it to a saved
+     *  palette's own (inscription-free) code. */
+    selectionCount: number;
+  };
   /** Every saved palette (R5-PALETTES store) — this row does its own pure
    *  lookups against it: a painted line's own `configCode` → its name (info
    *  line + details), and the picker's pill list. No palette STATE lives
@@ -199,8 +211,20 @@ export function CartLineRow({
   // palettes, and the design name no longer disambiguates them. Falls back
   // to the design name when the code isn't (or is no longer, LRU eviction)
   // a saved palette — e.g. every line painted before R5-PALETTES existed.
-  const paletteName = !unpainted && line.configCode
-    ? (paletteFor(palettes, line.configCode)?.name ?? designLabel(line.configSnapshot, locale) ?? null)
+  //
+  // Final-review round 3, finding 1: matched on COLOURS
+  // (`paletteMatchingColours`), not the exact code — `line.configCode`
+  // carries the inscription now (task 4), so an exact match against a
+  // saved palette's own (inscription-free) code broke the instant a
+  // dedication was on the line: AC 5 going backwards, two rows of the same
+  // design looking identical again the moment either has one.
+  const paletteName = !unpainted && line.configCode && line.configSnapshot
+    ? (paletteMatchingColours(
+        palettes,
+        line.configCode,
+        line.configSnapshot.designSlug,
+        line.configSnapshot.selections.length
+      )?.name ?? designLabel(line.configSnapshot, locale) ?? null)
     : null;
 
   // Task 2 — the design square of the big thumb: the row's OWN colours once
@@ -690,7 +714,17 @@ export function CartLineRow({
               chips, not a filter (a dim pill stays reachable, just inert). */}
           {sortCurrentDesignFirst(palettes, currentDesignSlug).map((p) => {
             const dim = p.designSlug !== currentDesignSlug;
-            const active = p.code === currentThumb.code;
+            // Final-review round 3, finding 1: stripped, not exact — the
+            // SAME `stripCustomSegment` `paletteMatchingColours` calls
+            // (no second stripping helper). `currentThumb.code` carries the
+            // inscription once the row's own on-screen config does (task
+            // 4), so an exact match against a saved pill's own
+            // (inscription-free) code rang no pill the instant a dedication
+            // was typed.
+            const active =
+              !dim &&
+              stripCustomSegment(p.code, currentThumb.selectionCount) ===
+                stripCustomSegment(currentThumb.code, currentThumb.selectionCount);
             return (
               <button
                 key={p.code}

@@ -53,8 +53,8 @@ import { keyboardUp } from "@/lib/cart/basket-open";
 import { hoverCapable } from "@/lib/pointer";
 import { designLabel } from "@/lib/cart/cart";
 import { buildConfigLinePayload } from "@/lib/configurator/line-payload";
-import { draftMatchesSavedColours } from "@/lib/configurator/save-gate";
-import { nameFor, paletteFor, sortCurrentDesignFirst } from "@/lib/palettes/palettes";
+import { draftMatchesSavedColours, paletteMatchingColours } from "@/lib/configurator/save-gate";
+import { nameFor, sortCurrentDesignFirst } from "@/lib/palettes/palettes";
 import type { PaletteWords } from "@/lib/palettes/name-lists";
 import { PaletteBar } from "@/components/ui-domain/palette-bar";
 import { PaletteChip } from "@/components/ui-domain/palette-chip";
@@ -683,7 +683,21 @@ export function ConfiguratorClient({
   // unsaved draft (no match) or an already-saved palette (match). Never
   // both: showing the same colours twice in the lane would be noise, not
   // information (card §3/§4-bis).
-  const matchedPalette = paletteFor(palettes, draftCode);
+  //
+  // Final-review round 3, finding 1: matched on COLOURS
+  // (`paletteMatchingColours`, the same helper `ceramics-step.tsx`'s own
+  // `activePalette` uses), not the exact code. `draftCode` carries the
+  // inscription now (task 4) — an exact match against a saved palette's own
+  // (inscription-free) code broke the instant a dedication was typed, which
+  // is exactly what made this chip and step 3's disagree one click apart:
+  // dial in a saved palette, type a dedication, this said "Unsaved" while
+  // step 3 (already fixed) said the palette's name.
+  const matchedPalette = paletteMatchingColours(
+    palettes,
+    draftCode,
+    selected.slug,
+    detail.categories.length
+  );
   const [renamingPaletteCode, setRenamingPaletteCode] = useState<string | null>(
     null
   );
