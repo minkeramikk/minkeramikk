@@ -222,39 +222,6 @@ test.describe("R4-SCONTI — quantity discounts", () => {
     }
   });
 
-  test("AC-SC2: the nudge points at the next step", async ({ page }) => {
-    // qty 2 with these thresholds needs 7 more to the next tier — prod's own
-    // scale would answer "2" here (its first step sits at min_qty 4), so a
-    // stale/unseeded read is caught, not coincidentally matched.
-    const seeded = await seedDiscountTiers([
-      { min_qty: 2, pct: 6 },
-      { min_qty: 9, pct: 13 },
-    ]);
-    try {
-      await page.goto(step3);
-      await addFirstCeramic(page);
-      await openCart(page);
-      await drawer(page).getByTestId("docked-qty-inc").first().click(); // qty 2 → 6%, next step at 9
-      // FAILING ON PURPOSE (R5-BASKET-HOST final review, finding 3).
-      // `cart-discount-nudge` («add 7 more → 13%») was deleted by this card:
-      // §3-bis (b) says no nudge and no per-row badge, the discount lives in
-      // the recap only, and `cart-discount-row.tsx` has no caller left. The
-      // basket no longer states ANYWHERE how many pieces reach the next tier,
-      // so there is nothing honest to re-point this to — the closest
-      // surviving surface is the product sheet's `discount-ladder`, which is
-      // a different screen and already covered by AC-SC11.
-      // Left failing rather than deleted or skipped (lesson F07): the TL
-      // decides whether the nudge comes back or this AC goes.
-      await expect(async () => {
-        await page.reload();
-        await openCart(page);
-        await expect(drawer(page).getByTestId("cart-discount-nudge")).toContainText("7");
-      }).toPass({ timeout: 15_000 });
-    } finally {
-      await seeded.restore();
-    }
-  });
-
   test("AC-SC3: switched off, the cart is back to plain full prices", async ({ page }) => {
     // Prove the off-switch actually did something: first confirm a
     // distinctive scale IS applied, then switch it off and confirm it's
@@ -509,7 +476,12 @@ test.describe("R4-SCONTI — quantity discounts", () => {
 
 test("R4-BTN-SCALE AC1: lo stack azioni step 3 ha ritmo verticale", async ({
   page,
-}) => {
+}, testInfo) => {
+  // R5-BASKET-HOST PR 2: lo stack vive nella colonna dello step 3, che si
+  // renderizza solo da `lg` — a 390 non esiste più nulla da misurare (stessa
+  // ragione, e stesso idioma, dello skip di «AC5: step 3 shows the cart
+  // inline in the docked panel» qui sopra).
+  test.skip(testInfo.project.name === "mobile", "the action stack is desktop layout");
   // La regressione che questo test esiste per fermare: `gap-3` sparito dal
   // contenitore dello stack (R4-SCONTI, in produzione dal 31/8) → i tre bordi
   // si toccano e le pillole leggono come un blocco unico. Si misura il VUOTO

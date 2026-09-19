@@ -54,8 +54,9 @@ function persist(part: Measures) {
   writeFileSync(FILE, `${JSON.stringify({ ...onDisk, ...part }, null, 2)}\n`);
 }
 
-/** Step 3 monta `cartPanel` due volte (sezione mobile + rail desktop): senza
- *  `:visible` il locator è ambiguo e Playwright va in strict mode. */
+/** Più di un contenitore può portare lo stesso testid (la colonna dello step
+ *  3 e il drawer): senza `:visible` il locator è ambiguo e Playwright va in
+ *  strict mode. */
 const vis = (page: Page, id: string) =>
   page.locator(`[data-testid="${id}"]:visible`).first();
 
@@ -121,18 +122,27 @@ for (const locale of LOCALES) {
       // Lo stack esiste solo a carrello NON vuoto: senza una riga dentro, lo
       // screenshot proverebbe il contrario di ciò che serve.
       await addFirstCeramic(page);
-      await vis(page, "docked-checkout").scrollIntoViewIfNeeded();
-      const c = await boxOf(page, "docked-checkout");
-      const n = await boxOf(page, "new-design-cta");
-      const s = await boxOf(page, "share-set");
-      measures[k("checkout")] = Math.round(c.height);
-      measures[k("newDesign")] = Math.round(n.height);
-      measures[k("share")] = Math.round(s.height);
-      // Lo "stack" della card = dal bordo alto del primario al bordo basso
-      // dell'ultima pillola, gap compresi (237px = 72+12+71+12+70).
-      measures[k("stack")] = Math.round(s.y + s.height - c.y);
-      measures[k("gapPrimary")] = Math.round(n.y - (c.y + c.height));
-      measures[k("gapLow")] = Math.round(s.y - (n.y + n.height));
+      // R5-BASKET-HOST PR 2: le tre pillole stanno nella COLONNA dello step
+      // 3, che da questa PR si renderizza solo da `lg`. A 390 le misurava
+      // nella copia in flusso (`mobile-cart-section`), che non esiste più, e
+      // a 768 nel rail, che lì non c'è più: le misure dello stack diventano
+      // desktop, punto. Sotto `lg` restano gli scatti e i sentinelli della
+      // barra e del drawer, che sono le superfici che quelle larghezze hanno
+      // davvero.
+      if (w >= 1024) {
+        await vis(page, "docked-checkout").scrollIntoViewIfNeeded();
+        const c = await boxOf(page, "docked-checkout");
+        const n = await boxOf(page, "new-design-cta");
+        const s = await boxOf(page, "share-set");
+        measures[k("checkout")] = Math.round(c.height);
+        measures[k("newDesign")] = Math.round(n.height);
+        measures[k("share")] = Math.round(s.height);
+        // Lo "stack" della card = dal bordo alto del primario al bordo basso
+        // dell'ultima pillola, gap compresi (237px = 72+12+71+12+70).
+        measures[k("stack")] = Math.round(s.y + s.height - c.y);
+        measures[k("gapPrimary")] = Math.round(n.y - (c.y + c.height));
+        measures[k("gapLow")] = Math.round(s.y - (n.y + n.height));
+      }
       await page.screenshot({
         path: `${OUT}/step3-${locale}-${w}.png`,
         fullPage: true,
@@ -145,10 +155,12 @@ for (const locale of LOCALES) {
         });
       }
 
-      // ── sentinelli AC7: barra sticky (solo mobile) e drawer ─────────────
-      if (w < 768) {
-        // La barra si nasconde quando il blocco ordine è a schermo: il punto
-        // di osservazione va fissato in cima, dove la barra serve davvero.
+      // ── sentinelli AC7: barra sticky (sotto `lg`) e drawer ──────────────
+      // PR 2: la barra ora vive fino a `lg`, non più fino a `md`, e non si
+      // nasconde più allo scorrimento (l'IntersectionObserver guardava la
+      // sezione in flusso, cancellata col task 6). Il punto di osservazione
+      // resta in cima per confrontarsi col giro `before`.
+      if (w < 1024) {
         await page.evaluate(() => window.scrollTo(0, 0));
         measures[k("sticky")] = await heightOf(page, "sticky-bar-checkout");
       }
@@ -158,9 +170,12 @@ for (const locale of LOCALES) {
       persist(measures);
 
       // ── AC3: il touch target è il <button>, non il disco ────────────────
-      const smPills = w < 768
-        ? ["new-design-cta", "share-set", "back-step", "next-step"]
-        : ["new-design-cta", "share-set"];
+      // `new-design-cta`/`share-set` vivono nella colonna, quindi si misurano
+      // solo da `lg` (v. sopra); la riga nav dello step 2 resta sotto md.
+      const smPills = [
+        ...(w >= 1024 ? ["new-design-cta", "share-set"] : []),
+        ...(w < 768 ? ["back-step", "next-step"] : []),
+      ];
       for (const id of smPills) {
         const key = { "new-design-cta": "newDesign", "share-set": "share",
           "back-step": "back", "next-step": "next" }[id]!;
@@ -170,16 +185,18 @@ for (const locale of LOCALES) {
         ).toBeGreaterThanOrEqual(44);
       }
 
-      // ── AC4: ingombro e gerarchia dello stack ──────────────────────────
-      expect(
-        measures[k("stack")],
-        `AC4: stack @${w} ${locale} oltre 195px`
-      ).toBeLessThanOrEqual(195);
-      expect(
-        measures[k("checkout")] /
-          Math.max(measures[k("newDesign")], measures[k("share")]),
-        `AC4: il primario @${w} ${locale} non domina (rapporto < 1,4)`
-      ).toBeGreaterThanOrEqual(1.4);
+      // ── AC4: ingombro e gerarchia dello stack (colonna → da `lg`) ───────
+      if (w >= 1024) {
+        expect(
+          measures[k("stack")],
+          `AC4: stack @${w} ${locale} oltre 195px`
+        ).toBeLessThanOrEqual(195);
+        expect(
+          measures[k("checkout")] /
+            Math.max(measures[k("newDesign")], measures[k("share")]),
+          `AC4: il primario @${w} ${locale} non domina (rapporto < 1,4)`
+        ).toBeGreaterThanOrEqual(1.4);
+      }
 
       // ── AC5: la riga nav sotto md ──────────────────────────────────────
       if (w < 768) {

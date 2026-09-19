@@ -147,36 +147,42 @@ for (const locale of ["no", "en"] as const) {
       // R4-STEP3: apre lo sheet della prima card e aggiunge da lì (add-to-cart
       // non esiste finché nulla è aperto).
       await addFirstCeramic(page);
-      const checkout = page.locator('[data-testid="docked-checkout"]:visible').first();
-      await expect(checkout).toBeVisible();
 
-      // AC3: la freccetta marca ciò che FA AVANZARE il funnel, non "un solo
-      // bottone". Le altre due pillole dello stack non avanzano — una riavvia
-      // il flusso, l'altra è collaterale — quindi restano senza.
-      for (const id of ["new-design-cta", "share-set"]) {
-        const other = page.locator(`[data-testid="${id}"]:visible`).first();
-        await expect(other).toBeVisible();
+      // Lo stack delle tre pillole vive nella COLONNA dello step 3, che da
+      // R5-BASKET-HOST PR 2 si renderizza solo da `lg`: sotto, il carrello è
+      // il drawer e queste pillole non esistono. L'AC3 si verifica dove la
+      // superficie esiste; sotto `lg` il suo posto lo prende la barra ordine,
+      // controllata qui sotto.
+      if (w >= 1024) {
+        const checkout = page.locator('[data-testid="docked-checkout"]:visible').first();
+        await expect(checkout).toBeVisible();
+
+        // AC3: la freccetta marca ciò che FA AVANZARE il funnel, non "un solo
+        // bottone". Le altre due pillole dello stack non avanzano — una riavvia
+        // il flusso, l'altra è collaterale — quindi restano senza.
+        for (const id of ["new-design-cta", "share-set"]) {
+          const other = page.locator(`[data-testid="${id}"]:visible`).first();
+          await expect(other).toBeVisible();
+          expect(
+            await other.evaluate((el) => el.textContent?.includes("›") ?? false),
+            `${id} non deve avere la freccetta di avanzamento`
+          ).toBe(false);
+        }
         expect(
-          await other.evaluate((el) => el.textContent?.includes("›") ?? false),
-          `${id} non deve avere la freccetta di avanzamento`
-        ).toBe(false);
+          await checkout.evaluate((el) => el.textContent?.includes("›") ?? false)
+        ).toBe(true);
       }
-      expect(
-        await checkout.evaluate((el) => el.textContent?.includes("›") ?? false)
-      ).toBe(true);
 
-      // R4-CTA-STICKY (card `docs/revision4/R4-CTA-STICKY.md`): su mobile i
-      // "Bestill" con freccetta sono DUE e sono entrambi legittimi — la barra
-      // ordine fissa in basso e la CTA del pannello carrello. Portano allo
-      // stesso posto, quindi la gerarchia regge: l'invariante non è "una sola
-      // freccetta" ma "la freccetta solo dove si avanza". Sotto md la barra non
-      // esiste e il conto torna a uno.
+      // R4-CTA-STICKY (card `docs/revision4/R4-CTA-STICKY.md`): la barra
+      // ordine fissa in basso porta un "Bestill" con freccetta, e la CTA del
+      // carrello pure. Portano allo stesso posto, quindi la gerarchia regge:
+      // l'invariante non è "una sola freccetta" ma "la freccetta solo dove si
+      // avanza".
+      // R5-BASKET-HOST PR 2: la soglia della barra è `lg`, non più `md` —
+      // sotto `lg` la colonna dello step 3 non esiste e la barra È il
+      // carrello. Quindi a 768 la barra ORA c'è.
       const stickyPill = page.locator('[data-testid="sticky-bar-checkout"]:visible');
-      if (w < 768) {
-        // Giro garanzia: la barra si nasconde quando il blocco ordine è a
-        // schermo, quindi il punto di osservazione va fissato — in cima, dove
-        // il blocco ordine sta sotto la piega ed è esattamente lì che la barra
-        // serve.
+      if (w < 1024) {
         await page.evaluate(() => window.scrollTo(0, 0));
         await expect(stickyPill).toHaveCount(1);
         expect(
@@ -192,22 +198,21 @@ for (const locale of ["no", "en"] as const) {
         fullPage: true,
       });
 
-      // R4-CTA-STICKY, giro garanzia (ruling designer 26/8). Il tap sulla barra
-      // non "scrolla verso il carrello": APRE il form ordine e ci atterra
-      // dentro col campo nome già a fuoco (il tap è user gesture → tastiera
-      // aperta al primo tocco), e la barra sparisce perché ora il blocco ordine
-      // è a schermo — mai due «Bestill» insieme.
-      if (w < 768) {
+      // R4-CTA-STICKY, giro garanzia (ruling designer 26/8): il tap sulla
+      // barra non "scrolla verso il carrello", porta dentro il form ordine
+      // senza far cercare una seconda CTA.
+      // R5-BASKET-HOST PR 2: il form ordine sotto `lg` vive nel DRAWER —
+      // `mobile-cart-section` non esiste più. Il tap apre il drawer con il
+      // checkout già aperto (`setCheckoutHost("drawer")`), quindi la
+      // destinazione si verifica lì. Il fuoco sul campo nome non è più
+      // asseribile: un dialog Radix porta il fuoco sul proprio contenuto
+      // quando monta, e nessun focus() dentro il tap sopravvive (v. report
+      // task 6-7). Resta l'invariante che conta: un tap, il form a schermo.
+      if (w < 1024) {
         await stickyPill.click();
-        // `cartPanel` è renderizzato due volte (sezione mobile + rail
-        // desktop nascosto): il locator va scoped, altrimenti strict mode.
-        await expect(
-          page.getByTestId("mobile-cart-section").getByTestId("order-name")
-        ).toBeFocused();
-        await expect(
-          page.locator('[data-testid="step3-sticky-bar"]'),
-          "la barra deve sparire quando il blocco ordine è in viewport"
-        ).toHaveCount(0);
+        const cartDrawer = page.getByTestId("cart-drawer");
+        await expect(cartDrawer.getByTestId("cart-checkout-form")).toBeVisible();
+        await expect(cartDrawer.getByTestId("order-name")).toBeVisible();
       }
     });
   }

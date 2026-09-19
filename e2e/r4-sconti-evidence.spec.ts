@@ -141,43 +141,39 @@ test.describe("customer cart: tiers, strikethrough, nudge, docked panel", () => 
     step3 = `/no/configurator?design=${design.slug}&step=3`;
   });
 
-  test("cart-tiers + docked panel (390 + 1280), nudge (390)", async ({ page }) => {
+  test("cart-tiers + docked panel (drawer 390 + colonna 1280)", async ({ page }) => {
     // config.server.ts caches the discount config for up to `revalidate: 10`
     // seconds — reload-and-retry (toPass) instead of a single check, at every
     // checkpoint, so a screenshot is never taken against a still-stale read.
     const seeded = await seedDiscountTiers([{ min_qty: 2, pct: 12 }]);
     try {
-      // ── 390: one piece → nudge only ──────────────────────────────────────
+      // ── 390: bump to the first tier IN THE DRAWER ────────────────────────
+      // Il checkpoint del nudge («quanti pezzi al prossimo scaglione») è
+      // stato CANCELLATO, non ri-puntato: la card 1 §3-bis (b) ha tolto il
+      // nudge da ogni contenitore, quindi non c'è più un comportamento
+      // dietro l'asserzione né un soggetto per `cart-nudge-390.png`
+      // (ruling TL, R5-BASKET-HOST §4-bis). Con lui se n'è andato anche
+      // `docked-cart-tiers-390.png`: sotto `lg` un pannello docked non
+      // esiste (PR 2), e a 390 il carrello È il drawer — che è esattamente
+      // quello che `cart-tiers-390.png` fotografa.
       await page.setViewportSize(PHONE);
       await page.goto(step3);
       await addFirstCeramic(page);
       await openCart(page);
-      // FAILING ON PURPOSE (R5-BASKET-HOST final review, finding 3).
-      // At ONE piece nothing is discounted yet, so the only thing this
-      // checkpoint ever had to look at was `cart-discount-nudge` — and
-      // §3-bis (b) deleted it (`cart-discount-row.tsx` has no caller left).
-      // With no discount applied there is no recap row either, so there is
-      // nothing honest to re-point to and `cart-nudge-390.png` has no
-      // subject. Left failing rather than deleted or skipped (lesson F07):
-      // the TL decides whether the nudge comes back or this shot goes.
+      await drawer(page).getByLabel("+").first().click(); // qty 2 → 12%
+      // Il reload-and-retry resta: `config.server.ts` tiene in cache la
+      // configurazione sconti fino a `revalidate: 10` e senza questo giro lo
+      // scatto rischia di cadere su una lettura ancora stantia.
       await expect(async () => {
         await page.reload();
         await openCart(page);
-        await expect(drawer(page).getByTestId("cart-discount-nudge")).toBeVisible();
+        // `cart-line-full` (il prezzo pieno barrato) e non
+        // `cart-discount-badge`: il badge −% per riga non esiste più in
+        // nessun contenitore dalla card 1 §3-bis (b). Il blocco 1280 qui
+        // sotto lo nomina ancora ed è rosso per quel motivo, non per questa
+        // PR — elencato nel report, ruling al TL.
+        await expect(drawer(page).getByTestId("cart-line-full")).toBeVisible();
       }).toPass({ timeout: 15_000 });
-      await page.screenshot({ path: `${OUT}/cart-nudge-390.png` });
-      await page.keyboard.press("Escape");
-      await expect(drawer(page)).toBeHidden();
-
-      // ── 390: bump to the first tier via the docked (mobile) panel — this
-      // is the panel Task 4 touched and no one has looked at since ──────────
-      const dockedMobile = page.getByTestId("mobile-cart-section");
-      await dockedMobile.getByLabel("+").first().click(); // qty 2 → 12%
-      await expect(dockedMobile.getByTestId("cart-discount-badge")).toBeVisible();
-      await dockedMobile.screenshot({ path: `${OUT}/docked-cart-tiers-390.png` });
-
-      await openCart(page);
-      await expect(drawer(page).getByTestId("cart-line-full")).toBeVisible();
       await page.screenshot({ path: `${OUT}/cart-tiers-390.png` });
       await page.keyboard.press("Escape");
       await expect(drawer(page)).toBeHidden();
