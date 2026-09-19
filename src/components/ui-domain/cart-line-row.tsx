@@ -354,8 +354,12 @@ export function CartLineRow({
           // `flex-wrap`'s line-fit decision uses each item's hypothetical
           // (un-shrunk) size, not how far it *can* shrink — so an item needs
           // an actual cap (`max-width`, or a `0` flex-basis) to not be what
-          // forces a wrap; `min-width` alone doesn't do it. Resets at `lg`
-          // (1024px) not `md`: at 768 the rail (`ceramics-step.tsx`'s
+          // forces a wrap; `min-width` alone doesn't do it. Every item here
+          // is capped: the chip's `0` flex-basis absorbs the slack, Paint's
+          // label is `max-w`-capped, `cart-expand`'s label truncates
+          // (`min-w-0`), and the stepper/unpaint/remove are fixed-width
+          // (`shrink-0`) — nothing is left free to force the wrap. Resets at
+          // `lg` (1024px) not `md`: at 768 the rail (`ceramics-step.tsx`'s
           // `md:grid-cols-2`) is only ~350px, still too narrow for this
           // row's full desktop sizing.
           "flex-wrap lg:flex-nowrap lg:gap-1.5"
@@ -499,14 +503,20 @@ export function CartLineRow({
                 row below — a painted legacy line has no `configSnapshot`,
                 so the expand toggle (which needs one to open) skips it. */}
             {line.configSnapshot && (
+              // `min-w-0` on the button + `truncate` on its label: the one
+              // item here allowed to give ground — «Vis detaljer»/«Show
+              // details» can lose characters without losing meaning, unlike
+              // the single unbreakable words beside it. The ▾/▴ stays
+              // `shrink-0` so the click target and the state glyph survive.
               <button
                 type="button"
                 data-testid="cart-expand"
                 aria-expanded={open}
                 onClick={onToggleDetails}
-                className="inline-flex min-h-11 -my-2 items-center py-2 text-[11px] text-muted-foreground underline underline-offset-2 hover:text-foreground md:my-0 md:min-h-0 md:py-0"
+                className="inline-flex min-h-11 min-w-0 -my-2 items-center gap-0.5 py-2 text-[11px] text-muted-foreground underline underline-offset-2 hover:text-foreground md:my-0 md:min-h-0 md:py-0"
               >
-                {open ? `${t("line.collapse")} ▴` : `${t("line.expand")} ▾`}
+                <span className="min-w-0 truncate">{open ? t("line.collapse") : t("line.expand")}</span>
+                <span aria-hidden className="shrink-0">{open ? "▴" : "▾"}</span>
               </button>
             )}
             <span className="ml-auto flex items-center gap-3">
@@ -514,19 +524,24 @@ export function CartLineRow({
                 type="button"
                 data-testid="cart-unpaint"
                 onClick={onUnpaint}
-                className="flex min-h-11 -my-2 items-center gap-1 py-2 text-[11px] text-muted-foreground hover:text-foreground md:my-0 md:min-h-0 md:py-0"
+                className="flex min-h-11 shrink-0 -my-2 items-center gap-1 py-2 text-[11px] text-muted-foreground hover:text-foreground md:my-0 md:min-h-0 md:py-0"
               >
                 <Eraser className="size-3" aria-hidden />
                 {t("unpaint.action")}
               </button>
+              {/* Icon-only, per the mockup (`BRow`'s trash button carries no
+                  label) — this is also the widest thing this row could
+                  carry in its tightest spot, so the accessible name moves
+                  to `aria-label`/`title` instead of visible text. */}
               <button
                 type="button"
                 data-testid="cart-remove"
                 onClick={onRemove}
-                className="flex min-h-11 -my-2 items-center gap-1 py-2 text-[11px] text-muted-foreground hover:text-foreground md:my-0 md:min-h-0 md:py-0"
+                aria-label={t("remove")}
+                title={t("remove")}
+                className="flex min-h-11 shrink-0 -my-2 items-center px-1 py-2 text-muted-foreground hover:text-foreground md:my-0 md:min-h-0 md:py-0"
               >
                 <Trash2 className="size-3" aria-hidden />
-                {t("remove")}
               </button>
             </span>
           </>
