@@ -264,17 +264,21 @@ export function CartLineRow({
     <div
       data-testid="cart-line"
       data-unpainted={unpainted || undefined}
-      // Fix round 4 (QA across containers) — `@container`: this row mounts
-      // in three containers of very different widths (the step-3 rail, the
-      // drawer, the mobile in-flow copy), and what decides whether the
-      // actions fit beside the thumb is THAT width, not the viewport's.
-      // Every `sm:`/`lg:` below that governed the column-2/full-width
-      // switch is now `@[416px]:` — see the actions row's own comment for
-      // where `416` comes from. `sm:`/`md:` that size a TAP TARGET
-      // (`size-11 sm:size-9`, `min-h-11 md:min-h-0`, and friends) stay
-      // viewport-based on purpose: a finger is a property of the device
-      // holding it, not of the container the row happens to render in.
-      className="@container border-b border-border/60 py-3.5 last:border-0"
+      // Fix round 4 (QA across containers) — `@container/row`: this row
+      // mounts in three containers of very different widths (the step-3
+      // rail, the drawer, the mobile in-flow copy), and what decides
+      // whether the actions fit beside the thumb is THAT width, not the
+      // viewport's. Every `sm:`/`lg:` below that governed the
+      // column-2/full-width switch is now `row-wide:` (fix round 5, card
+      // §4-ter — a `@custom-variant` in `globals.css`, so the `416` behind
+      // it lives in one place, not copied across a dozen class strings).
+      // NAMED (`/row`), not the bare `@container`: a `@container` nested
+      // inside the row later (a picker panel, a lightbox trigger) binds its
+      // own query instead of silently answering this one. `sm:`/`md:` that
+      // size a TAP TARGET (`size-11 sm:size-9`, `min-h-11 md:min-h-0`, and
+      // friends) stay viewport-based on purpose: a finger is a property of
+      // the device holding it, not of the container the row renders in.
+      className="@container/row border-b border-border/60 py-3.5 last:border-0"
     >
       {/* AC 8 (Precisazione 19/9 bis) — a grid, not two layouts: the thumb
           spans both rows (`row-span-2`); the actions row lives in column 2
@@ -394,38 +398,24 @@ export function CartLineRow({
             stepper, expand, unpaint and remove on a painted line are ONE
             row, not split across two.
 
-            Fix round 4 — `@[416px]:`, not `sm:`/`lg:`: the switch is a
-            property of THIS ROW'S OWN width (`@container`, above), not of
-            the viewport. The rail, the drawer and the mobile in-flow copy
-            render the same row at three unrelated widths for the same
-            viewport, and a viewport query picked whichever arrangement the
-            rail wanted — the drawer at desktop viewports got column 2 too,
-            with only ~309px of it, wrapping inside a shape nobody chose.
-
-            416 is measured, not a Tailwind breakpoint: it is the smallest
-            container width whose column 2 (container − 64px thumb − 14px
-            grid gap) fits the stepper and the actions group on one line in
-            the WORSE of the two locales. Measured (rail @1280, both
-            natural/unshrunk, `sm:h-9` sizing — the only sizing this ever
-            renders at once a container is narrow enough for the switch to
-            matter): stepper 106px; group 213.875px (EN, "Show details")
-            vs. 220.1875px (NO, "Vis detaljer", the longer one); gap 6px
-            (the row's own `@[416px]:gap-1.5`, since the fit test has to use
-            the gap that actually applies once column 2 is selected). NO
-            needed = 106 + 6 + 220.1875 = 332.1875; + 64 + 14 = 410.1875.
-            Rounded up to 416 for margin against sub-pixel/font rendering
-            differences between browsers. Sanity check: the drawer's own
-            `cart-line` measures 387px inside its 420px `SheetContent`
-            (`basket.tsx`'s own `px-4`) — below 416, so the drawer gets the
-            full-width arrangement, on one line (387px ≫ 332px needed
-            there), never the half-and-half column-2-but-wrapped shape.
-            Below 416, `flex-wrap` can still drop the group to its own line
-            (fix round 3's behaviour, e.g. 390px in `/no/`) — two shapes
-            chosen by measured fit, nothing in between. */}
+            Fix round 5 (card §4-ter) — `row-wide:`, not `sm:`/`lg:`/a
+            scattered `@[416px]:`: the switch is a property of THIS ROW'S
+            OWN width (the named container `@container/row`, above), not
+            of the viewport, and the `416` behind `row-wide` now lives in
+            ONE place — the `@custom-variant` in `globals.css`, comment and
+            all (full arithmetic there, not copied here). The rail, the
+            drawer and the mobile in-flow copy render the same row at three
+            unrelated widths for the same viewport; a viewport query picked
+            whichever arrangement the rail wanted, so the drawer at desktop
+            viewports got column 2 too, with only ~309px of it, wrapping
+            inside a shape nobody chose. Below `row-wide`, `flex-wrap` can
+            still drop the actions group to its own line (fix round 3's
+            behaviour, e.g. 390px in `/no/`) — two shapes chosen by
+            measured fit, nothing in between. */}
         <div
           className={cn(
             "col-span-2 mt-3 flex min-w-0 items-center gap-2",
-            "@[416px]:col-span-1 @[416px]:col-start-2 @[416px]:row-start-2 @[416px]:mt-0 @[416px]:self-end",
+            "row-wide:col-span-1 row-wide:col-start-2 row-wide:row-start-2 row-wide:mt-0 row-wide:self-end",
             // `flex-wrap`'s line-fit decision uses each item's hypothetical
             // (un-shrunk) size, not how far it *can* shrink — so an item
             // needs an actual cap (`max-width`, or a `0` flex-basis) to not
@@ -436,10 +426,11 @@ export function CartLineRow({
             // expand/unpaint/remove group are both `shrink-0` — rigid, so
             // if they don't both fit, `flex-wrap` drops the group whole
             // (fix round 3) rather than the two overflowing. `flex-wrap`
-            // stays ON at every width: even above 416px the container can
-            // still be exactly 416-ish and tight (see the sanity check
-            // above), so nothing here ever assumes "wide, don't bother".
-            "flex-wrap @[416px]:gap-1.5"
+            // stays ON at every width: even past the `row-wide` threshold
+            // the container can still be tight (the drawer's own sanity
+            // check, `globals.css`), so nothing here ever assumes "wide,
+            // don't bother".
+            "flex-wrap row-wide:gap-1.5"
           )}
         >
           {unpainted ? (
@@ -470,15 +461,16 @@ export function CartLineRow({
                   // `flex-1 min-w-0` + `flex-basis: 0`: the chip absorbs
                   // whatever the stepper and Paint (fixed intrinsic widths)
                   // leave behind, so it's never what forces a wrap.
-                  // `@[416px]:flex-initial`, NOT `flex-none`: `flex-none`
+                  // `row-wide:flex-initial`, NOT `flex-none`: `flex-none`
                   // has no shrink, so a long `formatSelections` label can't
                   // truncate and pushes Paint out of the panel —
                   // `flex-initial` keeps the shrink permission the label's
-                  // `truncate` needs. Container-scoped (fix round 4), same
-                  // `416` as the actions row's own switch — one threshold,
-                  // not a second guess at where "enough room" starts.
+                  // `truncate` needs. Same named-container variant as the
+                  // actions row's own switch (`globals.css`) — one
+                  // threshold, not a second guess at where "enough room"
+                  // starts.
                   className={cn(
-                    "flex h-11 min-w-0 flex-1 items-center gap-1 rounded-sm border bg-card pl-1 pr-1 text-xs font-medium sm:h-9 @[416px]:flex-initial @[416px]:gap-1.5 @[416px]:pr-2",
+                    "flex h-11 min-w-0 flex-1 items-center gap-1 rounded-sm border bg-card pl-1 pr-1 text-xs font-medium sm:h-9 row-wide:flex-initial row-wide:gap-1.5 row-wide:pr-2",
                     pickerOpen
                       ? "border-primary shadow-[0_0_0_1px_var(--ring)]"
                       : "border-border",
@@ -533,9 +525,9 @@ export function CartLineRow({
                   onClick={() => onPaint(n)}
                   // `min-w-0` + the label's own `max-w`/`truncate`: the word
                   // can give ground before the icon/badge do.
-                  // `@[416px]:min-w-max` resets that shrink permission,
-                  // same container gate as the chip's.
-                  className="relative ml-auto flex h-11 min-w-0 items-center gap-1 rounded-sm bg-primary px-2 text-xs font-semibold text-primary-foreground sm:h-9 @[416px]:min-w-max @[416px]:gap-1.5 @[416px]:px-3.5"
+                  // `row-wide:min-w-max` resets that shrink permission,
+                  // same named-container gate as the chip's.
+                  className="relative ml-auto flex h-11 min-w-0 items-center gap-1 rounded-sm bg-primary px-2 text-xs font-semibold text-primary-foreground sm:h-9 row-wide:min-w-max row-wide:gap-1.5 row-wide:px-3.5"
                 >
                   <Brush className="size-3.5 shrink-0" aria-hidden />
                   <span className="max-w-[52px] truncate">{t("unpainted.paint")}</span>
