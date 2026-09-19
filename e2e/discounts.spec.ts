@@ -433,7 +433,14 @@ test("AC-SC7: a fixed deal survives the tiers being switched off", async ({ page
       const dealLine = drawer(page).getByTestId("cart-line").last();
       const savedBefore = await dealTotal.innerText();
       await dealLine.getByTestId("docked-qty-inc").click();
-      await expect(dealLine.getByTestId("cart-discount-badge")).toContainText("2");
+      // R5-BASKET-HOST §3-bis (b) deleted the per-row `cart-discount-badge`:
+      // the capped claim («−20% on 2 pcs» / «−20 % på 2 stk», `discount.
+      // badgeCapped`) is rendered by the expanded details panel now. Same
+      // assertion, same string — one click further in.
+      await dealLine.getByTestId("cart-expand").click();
+      await expect(
+        dealLine.getByTestId("cart-line-detail").getByTestId("cart-line-details-discount")
+      ).toContainText("2");
       await expect(dealTotal).toHaveText(savedBefore);
     } finally {
       await seeded.restore();
