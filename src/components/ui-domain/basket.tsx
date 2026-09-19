@@ -9,11 +9,13 @@ import {
   paintTargetFor,
   type BasketHost,
 } from "@/components/ui-domain/basket-host";
-import { itemCount, unpaintedPieces } from "@/lib/cart/cart";
+import { clampPaintN, itemCount, pruneToLive, unpaintedPieces } from "@/lib/cart/cart";
 import { formatMoney } from "@/lib/money/money";
 import { cartSaved } from "@/lib/discounts/discount";
 import { useShippingTotalSuffix } from "@/components/ui-domain/cart-shipping-row";
 import { paletteFor } from "@/lib/palettes/palettes";
+import { Link } from "@/i18n/navigation";
+import { Button } from "@/components/ui/button";
 import { CartLineRow } from "@/components/ui-domain/cart-line-row";
 import { CartSuggestion } from "@/components/ui-domain/cart-suggestion";
 import { CartTotals } from "@/components/ui-domain/cart-totals";
@@ -43,11 +45,17 @@ import { NextStepPill, PillIcon } from "@/components/ui-domain/next-step-pill";
  * Task 4 — and once the header drawer mounts a THIRD copy of the same rows
  * (task 5), "visible" stops being enough: the drawer sits over step 3 with
  * both on screen at once. So the query takes a root, which is the basket's
- * own element; `document` stays the default, which is exactly the old
- * behaviour whenever there is only one basket on screen. Returns whether it
- * found a row, so a caller holding several roots can try the next one.
+ * own element. Returns whether it found a row, so a caller holding several
+ * roots can try the next one.
+ *
+ * Fix round 1 — `root` is REQUIRED, deliberately: with `= document` as a
+ * default this function was assignable to a `() => void` callback prop
+ * (`UnpaintDialog`'s `onConfirmed`), which silently called it unscoped and
+ * put the scoping back exactly where the task removed it. A required
+ * parameter makes that substitution a type error. A caller that really wants
+ * the whole page passes `document` and says so.
  */
-export function focusFirstUnpaintedRow(root: ParentNode = document): boolean {
+export function focusFirstUnpaintedRow(root: ParentNode): boolean {
   const rows = root.querySelectorAll<HTMLElement>(
     '[data-testid="cart-line"][data-unpainted]'
   );
@@ -58,25 +66,6 @@ export function focusFirstUnpaintedRow(root: ParentNode = document): boolean {
   return true;
 }
 
-/**
- * R5-UNPAINTED/R5-PALETTES — every per-row map on this step (`paintN`, and
- * task 10's `rowPaletteCode`/`pickerOpenId`) is keyed by cart line id, and a
- * line id RECURS (`cart.ts`'s `${productId}::${code}`, and `::unpainted`):
- * paint a row in full and its id can be reborn as a brand-new, untouched
- * lot of the same product. Left alone, a stale entry would hand that new
- * lot someone else's leftover choice. One shared pruner, called from the
- * ONE effect below that owns every such map — not a second cleanup per map.
- */
-function pruneToLive<T>(m: Record<string, T>, liveIds: Set<string>): Record<string, T> {
-  let changed = false;
-  const next: Record<string, T> = {};
-  for (const [id, v] of Object.entries(m)) {
-    if (liveIds.has(id)) next[id] = v;
-    else changed = true;
-  }
-  return changed ? next : m;
-}
-
 export {
   basketCta,
   paintTargetFor,
@@ -84,14 +73,12 @@ export {
 } from "@/components/ui-domain/basket-host";
 
 /**
- * The handle `ceramics-step.tsx` keeps on the basket it mounted. The step's
- * own sticky order bar (mobile) opens the checkout form that now lives in
- * here, and it must happen INSIDE the click's user gesture (`flushSync` at
- * the call site) or iOS keeps the keyboard shut.
+ * The handle `ceramics-step.tsx` keeps on each basket it mounted — only for
+ * what is genuinely per-instance. Opening the checkout form is NOT: that is a
+ * mode of the basket and lives in `cart-context.tsx`, so the step just calls
+ * `setCheckoutOpen(true)` itself.
  */
 export type BasketHandle = {
-  /** Expand the order form in place (the step-3 `docked-checkout-form`). */
-  openCheckout: () => void;
   /** `focusFirstUnpaintedRow` scoped to THIS basket; false when it has no
    *  visible unpainted row, so the caller can try its other copy. */
   focusFirstUnpainted: () => boolean;
@@ -127,7 +114,6 @@ export function Basket({
   onAddCeramics,
   onPaintFirst,
   footerSlot,
-  onCheckoutOpenChange,
   ref,
 }: {
   host: BasketHost;
@@ -148,9 +134,6 @@ export function Basket({
   /** Column only: the new-design + share pills and the share feedback — they
    *  belong to the step (they navigate it, and the share state lives there). */
   footerSlot?: React.ReactNode;
-  /** The step's sticky bar hides itself while the form is open, so it has to
-   *  hear about a state this component now owns. */
-  onCheckoutOpenChange?: (open: boolean) => void;
   ref?: React.Ref<BasketHandle>;
 }) {
   const drawer = host === "drawer";
@@ -168,6 +151,14 @@ export function Basket({
     discount,
     palettes,
     touch: touchPalette,
+    // Fix round 1 — state of THE basket, not of this container: the checkout
+    // mode and the two line-keyed pending decisions. See `cart-context.tsx`.
+    checkoutOpen,
+    setCheckoutOpen,
+    rowPaletteCode,
+    setRowPalette,
+    setPaintN,
+    paintNFor,
   } = useCartContext();
   /** R5-PALETTES task 9 — which saved palette (if any) IS the config on
    *  screen. Same read `ceramics-step.tsx` does: the URL is the truth. */
@@ -178,24 +169,14 @@ export function Basket({
     () => focusFirstUnpaintedRow(rootRef.current ?? document),
     []
   );
+  /** `() => void` for the callback props that want it — the boolean is for
+   *  the handle's caller, which uses it to try its other copy. */
+  const focusFirstUnpaintedVoid = useCallback(() => {
+    focusFirstUnpainted();
+  }, [focusFirstUnpainted]);
 
-  /** Desktop + mobile inline: expands the order form in the cart panel. */
-  const [checkoutOpen, setCheckoutOpen] = useState(false);
   /** CA-3 E: id of the one expanded cart row (one at a time), or null. */
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  /**
-   * R5-UNPAINTED task 10: "how many to paint" per unpainted line — the row
-   * owns none of this (mirrors the mockup's `S3.n[id]`). Read through
-   * `paintNFor` below, which clamps to the line's current quantity, so a
-   * stale stored value (from before a partial paint shrank the line) never
-   * renders or submits out of range — the row never has to know.
-   */
-  const [paintN, setPaintN] = useState<Record<string, number>>({});
-  const paintNFor = useCallback(
-    (line: { id: string; quantity: number }) =>
-      Math.min(Math.max(1, paintN[line.id] ?? line.quantity), line.quantity),
-    [paintN]
-  );
   /** R5-UNPAINTED task 11: id of the line the `UnpaintDialog` is open for, or
    *  null. The dialog itself keeps rendering its last line through the exit
    *  animation (see its own comment) — this id only drives whether it's open. */
@@ -208,15 +189,6 @@ export function Basket({
    *  it render empty. */
   const [openPhotoId, setOpenPhotoId] = useState<string | null>(null);
   const openPhotoLine = cart.find((l) => l.id === openPhotoId) ?? null;
-  /**
-   * R5-PALETTES task 10 — an unpainted row's OWN palette pick, distinct from
-   * the active/on-screen one (card §4-bis: a row can paint with a DIFFERENT
-   * palette). Untouched (no entry) → defaults to whatever's on screen, same
-   * as every row painted before this task; `rowThumb` below resolves it.
-   * Same recurring-id trap as `paintN`/`unpaintId`/`expandedId` — pruned by
-   * the same effect, not a second one (see `pruneToLive`).
-   */
-  const [rowPaletteCode, setRowPaletteCode] = useState<Record<string, string>>({});
   /** Which row's picker panel is open — mirrors the mockup's `S3.pick[id]`
    *  (a map, so more than one COULD be open; in practice only the row the
    *  customer is touching ever is). Same prune as the map above. */
@@ -300,18 +272,22 @@ export function Basket({
    * keyed the same recurring way — pruned here too, so a removed-then-
    * recreated line never mounts already expanded.
    *
-   * Task 10: `rowPaletteCode`/`pickerOpenId` join the same one effect —
-   * `pruneToLive` (module scope, above) is the shared pruning logic every
-   * one of these five maps/pointers needs, computed against the SAME
-   * `liveIds` set rather than each map recomputing its own.
+   * Task 10: `pickerOpenId` joins the same one effect — `pruneToLive`
+   * (`lib/cart/cart.ts`) is the shared pruning logic every one of these
+   * maps/pointers needs, computed against the SAME `liveIds` set rather than
+   * each map recomputing its own.
    *
-   * Task 3 (R5-BASKET-HOST): `openPhotoId` joins the same effect — a sixth
-   * pointer keyed the same recurring way.
+   * Task 3 (R5-BASKET-HOST): `openPhotoId` joins the same effect.
+   *
+   * Fix round 1: `paintN` and `rowPaletteCode` have LEFT this effect with the
+   * state itself — they are a pending decision about a line, shared by every
+   * basket on screen, so `cart-context.tsx` owns them and prunes them there,
+   * with the same `pruneToLive`. What is left here is the view-only half:
+   * four pointers that are rightly per-basket (a row expanded in the drawer
+   * must not expand in the column). No map is pruned in two places.
    */
   useEffect(() => {
     const liveIds = new Set(cart.map((l) => l.id));
-    setPaintN((m) => pruneToLive(m, liveIds));
-    setRowPaletteCode((m) => pruneToLive(m, liveIds));
     setPickerOpenId((m) => pruneToLive(m, liveIds));
     setUnpaintId((id) => (id && !liveIds.has(id) ? null : id));
     setExpandedId((id) => (id && !liveIds.has(id) ? null : id));
@@ -324,32 +300,20 @@ export function Basket({
   const unpaintedInBasket = hydrated ? unpaintedPieces(cart) : 0;
   /** Task 13: the order CTA and the checkout form both gate on this. */
   const hasUnpainted = unpaintedInBasket > 0;
-  /**
-   * Fix round 2 (finding 3) — task 13's render gate (`!hasUnpainted &&
-   * checkoutOpen` below) only stops the form from being SHOWN; it never
-   * flips `checkoutOpen` back to false, and both `setCheckoutOpen(false)`
-   * call sites live inside the branch this state can no longer reach once a
-   * line goes unpainted mid-checkout. Left alone, the mobile sticky bar
-   * (gated on `!checkoutOpen`) hides itself with nothing to show for it, and
-   * the form pops back open unprompted the moment the last piece is painted.
-   */
-  useEffect(() => {
-    if (hasUnpainted) setCheckoutOpen(false);
-  }, [hasUnpainted]);
-  useEffect(() => {
-    onCheckoutOpenChange?.(checkoutOpen);
-  }, [checkoutOpen, onCheckoutOpenChange]);
-  useImperativeHandle(
-    ref,
-    () => ({ openCheckout: () => setCheckoutOpen(true), focusFirstUnpainted }),
-    [focusFirstUnpainted]
-  );
+  /* Fix round 2 (finding 3) said this must not be a render gate alone: the
+     flag has to be FLIPPED back, or the sticky bar hides itself with nothing
+     to show for it and the form pops open unprompted when the last piece is
+     painted. That effect moved to `cart-context.tsx` with the flag itself
+     (fix round 1) — one rule for every surface, and not two effects racing
+     over one state. `formOpen` below stays a render gate, which is also what
+     covers the frame before the cart has hydrated. */
+  useImperativeHandle(ref, () => ({ focusFirstUnpainted }), [focusFirstUnpainted]);
   /** The foot's own two numbers (drawer only) — taken from the engine, never
    *  re-added here, so the foot can never disagree with `CartTotals` above. */
   const saved = cartSaved(discount);
   const totalSuffix = useShippingTotalSuffix(discount.total);
 
-  // ── Docked cart panel (shared by desktop right column + mobile inline section) ──
+  // ── The panel itself, in pieces the two hosts assemble differently ──
   const header = (
     <>
       <div className="mb-1 flex items-baseline justify-between gap-2">
@@ -431,12 +395,7 @@ export function Basket({
                     onPaint={(n) => paint(line.id, n, thumb.code, thumb.snapshot, thumb.layers)}
                     onUnpaint={() => setUnpaintId(line.id)}
                     n={paintNFor(line)}
-                    onN={(next) =>
-                      setPaintN((m) => ({
-                        ...m,
-                        [line.id]: Math.min(Math.max(1, next), line.quantity),
-                      }))
-                    }
+                    onN={(next) => setPaintN(line.id, clampPaintN(next, line.quantity))}
                     currentThumb={thumb}
                     palettes={palettes}
                     currentDesignSlug={currentConfig?.designSlug ?? ""}
@@ -445,7 +404,7 @@ export function Basket({
                       setPickerOpenId((m) => ({ ...m, [line.id]: !m[line.id] }))
                     }
                     onPickPalette={(code) => {
-                      setRowPaletteCode((m) => ({ ...m, [line.id]: code }));
+                      setRowPalette(line.id, code);
                       // Mockup `selPal`: choosing one closes the picker.
                       setPickerOpenId((m) => ({ ...m, [line.id]: false }));
                       // Fix wave A finding 5: ADR 0028 is LEAST-RECENTLY-
@@ -582,9 +541,23 @@ export function Basket({
     <div ref={rootRef} className="flex h-full min-h-0 flex-col">
       <div className="shrink-0 px-4 pt-3">{header}</div>
       {count === 0 ? (
-        <p data-testid="cart-empty" className="px-4 py-6 text-sm text-muted-foreground">
-          {t("empty")}
-        </p>
+        // Fix round 1: «empty» is not a dead end. The drawer is the one host
+        // with no catalog behind it, so it keeps the way out `cart-menu.tsx`
+        // has always shown here; `onAddCeramics` (the drawer's own closer)
+        // rides along so the sheet gets out of the way as the link navigates.
+        <div
+          data-testid="cart-empty"
+          className="flex flex-1 flex-col items-center justify-center gap-4 p-6 text-center"
+        >
+          <p className="text-sm text-muted-foreground">{t("empty")}</p>
+          {/* `min-h-11`: the drawer is full-width on a phone, and the DS
+              button's own height (32px) is under the 44px touch minimum. */}
+          <Button asChild variant="outline" className="min-h-11">
+            <Link href="/configurator" data-testid="cart-empty-cta" onClick={onAddCeramics}>
+              {t("emptyCta")}
+            </Link>
+          </Button>
+        </div>
       ) : (
         <>
           <div className="min-h-0 flex-1 overflow-y-auto px-4">
@@ -683,10 +656,14 @@ export function Basket({
   return (
     <>
       {cartPanel}
-      {/* R5-UNPAINTED task 11: the inverse of Paint. Rendered once, at the end
-          of the step, driven by `unpaintId` — same pattern as `ProductSheet`
-          above. `unpaint()` is the pure primitive's context wrapper
-          (use-cart.ts); this component only decides WHEN and with WHAT n. */}
+      {/* R5-UNPAINTED task 11: the inverse of Paint. One per `Basket` — two
+          on step 3 today (mobile section + desktop rail), three once the
+          header drawer mounts its own — driven by that basket's own
+          `unpaintId`, which is why only the copy the customer actually
+          touched ever opens one. `unpaint()` is the pure primitive's context
+          wrapper (use-cart.ts); this component only decides WHEN and WITH
+          WHAT n. Radix portals it to <body>, so it adds nothing to the
+          panel's own DOM while closed. */}
       <UnpaintDialog
         line={unpaintLine}
         locale={locale}
@@ -699,15 +676,16 @@ export function Basket({
         // this dialog (the painted line becomes/joins the unpainted one), so
         // the dialog's own default focus-return (the row's «Unpaint…»
         // button) is a silent no-op. Hand focus to the survivor instead.
-        onConfirmed={focusFirstUnpaintedRow}
+        onConfirmed={focusFirstUnpaintedVoid}
       />
 
-      {/* R5-BASKET-HOST task 3: the row thumb's photo viewer. Rendered once,
-          at the end of the step, driven by `openPhotoId` — same pattern as
-          `UnpaintDialog` right above (a `CartLine | null` + a ref that keeps
-          rendering the last one through Radix's exit animation). No manual
-          focus handling: the thumb button that opened it stays mounted, so
-          Radix's own default `onCloseAutoFocus` returns focus there. */}
+      {/* R5-BASKET-HOST task 3: the row thumb's photo viewer. One per
+          `Basket`, same as the dialog above and for the same reason, driven
+          by that basket's own `openPhotoId` (a `CartLine | null` + a ref that
+          keeps rendering the last one through Radix's exit animation). No
+          manual focus handling: the thumb button that opened it stays
+          mounted, so Radix's own default `onCloseAutoFocus` returns focus
+          there. */}
       <LineLightbox
         line={openPhotoLine}
         locale={locale}

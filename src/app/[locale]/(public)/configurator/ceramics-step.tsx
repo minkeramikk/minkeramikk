@@ -231,6 +231,11 @@ export function CeramicsStep({
     allowedProduct: cartAllowedProduct,
     palettes,
     palettesHydrated,
+    /** Fix round 1 — the checkout view is a mode of THE basket, held in the
+     *  cart context now. Read here only to hide the sticky bar while the form
+     *  is up, and written by the bar's own CTA below. */
+    checkoutOpen,
+    setCheckoutOpen,
     activeCode,
     setActiveCode,
     save: savePalette,
@@ -247,10 +252,11 @@ export function CeramicsStep({
    * palette" state to drift out of sync with what a ceramic will be painted
    * with when added.
    */
-  // Moved up from further below (task 10): `rowThumb`'s default fallback
-  // (nothing chosen yet on a row) needs it, and that's declared well before
-  // its own original spot — it only ever needed `snapshot`/`locale`, both
-  // already in scope this early.
+  // Declared this early because `paintingLabel` right below needs it as its
+  // last-resort fallback, and the `PaletteBar`/`PaintingStrip` further down
+  // print it as the design's own name beside whatever palette is painting.
+  // (It used to be `rowThumb` that forced it up here; that moved to
+  // `basket.tsx` in task 4 and these two kept it where it is.)
   const designName = designLabel(snapshot, locale) ?? "";
   const activePalette = paletteFor(palettes, configCode);
   /**
@@ -507,16 +513,8 @@ export function CeramicsStep({
   const [added, setAdded] = useState<{ qty: number; name: string } | null>(null);
   const [addedOpen, setAddedOpen] = useState(false);
   const [qty, setQty] = useState(1);
-  /**
-   * Mirror of the basket's own `checkoutOpen` (task 4: the state moved into
-   * `<Basket>` with the form it drives). Read ONLY to hide the mobile sticky
-   * bar while the form is up — never written here; `<Basket>` publishes it
-   * through `onCheckoutOpenChange`, and the bar opens the form through the
-   * imperative handle below, not by flipping this.
-   */
-  const [checkoutOpen, setCheckoutOpen] = useState(false);
   /** The two mounted column baskets (mobile in-flow + desktop rail): the
-   *  sticky bar opens the form in whichever one is on screen. */
+   *  sticky bar focuses the first unpainted row of whichever is on screen. */
   const mobileBasketRef = useRef<BasketHandle>(null);
   const desktopBasketRef = useRef<BasketHandle>(null);
   /**
@@ -1148,7 +1146,6 @@ export function CeramicsStep({
       host="column"
       currentConfig={currentConfig}
       footerSlot={cartFooter}
-      onCheckoutOpenChange={setCheckoutOpen}
     />
   );
 
@@ -1309,7 +1306,7 @@ export function CeramicsStep({
           // later is no longer a gesture and iOS keeps the keyboard shut.
           // No modal: a Cloudflare Turnstile inside a Dialog is risk for
           // nothing, and mobile checkout gets rethought in R-PAY.
-          flushSync(() => mobileBasketRef.current?.openCheckout());
+          flushSync(() => setCheckoutOpen(true));
           // Scoped to the mobile block on purpose: `cartPanel` is rendered
           // twice (mobile section + desktop rail), so an unscoped query would
           // just as happily find the hidden desktop copy.

@@ -20,7 +20,13 @@ import {
 } from "@/lib/discounts/discount";
 import { buildSuggestionLine } from "@/lib/discounts/suggestion-line";
 import { designProductIds } from "@/lib/catalog/design-products-action";
-import type { CartLayer, ConfigSnapshot } from "./cart";
+import {
+  clampPaintN,
+  pruneToLive,
+  unpaintedPieces,
+  type CartLayer,
+  type ConfigSnapshot,
+} from "./cart";
 
 /**
  * R5-BASKET-HOST task 1 — what the drawer/step-3 `Basket` needs to know is
@@ -88,6 +94,39 @@ type CartApi = ReturnType<typeof useCart> &
      *  elsewhere — that absence is what makes the chip dead at step 1. */
     currentConfig: CurrentConfig | null;
     setCurrentConfig: (config: CurrentConfig | null) => void;
+    /**
+     * R5-BASKET-HOST fix round 1 — state that belongs to THE basket, not to
+     * whichever container is drawing it. The card's own thesis: «non esistono
+     * due carrelli», so the step-3 column, its mobile twin and the header
+     * drawer must all read and write these, never a copy each.
+     *
+     * `checkoutOpen` is a MODE of the basket: the order form replaces the
+     * rows. Held per container it was last-write-wins with no arbitration —
+     * on an iPad crossing `md` between landscape and portrait the copy that
+     * published `true` is not the copy that renders, and the customer got
+     * neither the form nor the sticky CTA. Closed here, for every surface at
+     * once, whenever the basket can no longer be ordered (see the effect in
+     * the provider).
+     */
+    checkoutOpen: boolean;
+    setCheckoutOpen: (open: boolean) => void;
+    /**
+     * A pending decision ABOUT a cart line, keyed by the line's own id — not
+     * view state. Which palette an unpainted row will Paint with
+     * (`rowPaletteCode`, R5-PALETTES task 10) and how many of its pieces
+     * (`paintN`). Held per container, a customer who picked «Zaffera» on a
+     * row in the drawer and then pressed Paint on that same row in the column
+     * was silently painted with the on-screen config instead.
+     *
+     * Read `paintN` through `paintNFor`, which clamps to the line's current
+     * quantity (`clampPaintN`); both maps are pruned against live line ids by
+     * the provider's own effect, because a line id recurs.
+     */
+    rowPaletteCode: Record<string, string>;
+    setRowPalette: (lineId: string, code: string) => void;
+    paintN: Record<string, number>;
+    setPaintN: (lineId: string, n: number) => void;
+    paintNFor: (line: { id: string; quantity: number }) => number;
     /** Part ②: add the suggested ceramic wearing the trigger line's design. */
     acceptSuggestion: (suggestion: ActiveSuggestion) => void;
     /**
@@ -112,6 +151,48 @@ export function CartProvider({
   const [open, setOpen] = useState(false);
   const [suggestionsDismissed, setSuggestionsDismissed] = useState(false);
   const [currentConfig, setCurrentConfig] = useState<CurrentConfig | null>(null);
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [rowPaletteCode, setRowPaletteCode] = useState<Record<string, string>>({});
+  const [paintN, setPaintNMap] = useState<Record<string, number>>({});
+  const lines = cart.cart;
+
+  const setRowPalette = useCallback(
+    (lineId: string, code: string) =>
+      setRowPaletteCode((m) => ({ ...m, [lineId]: code })),
+    []
+  );
+  const setPaintN = useCallback(
+    (lineId: string, n: number) => setPaintNMap((m) => ({ ...m, [lineId]: n })),
+    []
+  );
+  const paintNFor = useCallback(
+    (line: { id: string; quantity: number }) => clampPaintN(paintN[line.id], line.quantity),
+    [paintN]
+  );
+
+  /**
+   * The two line-keyed maps are pruned HERE, where they live — one effect,
+   * one `liveIds` set, `pruneToLive` shared with `Basket`'s own effect over
+   * the view-only pointers it still owns. Never two effects over one map.
+   */
+  useEffect(() => {
+    const liveIds = new Set(lines.map((l) => l.id));
+    setRowPaletteCode((m) => pruneToLive(m, liveIds));
+    setPaintNMap((m) => pruneToLive(m, liveIds));
+  }, [lines]);
+
+  /**
+   * The order can never leave with colourless pieces (task 13), and there is
+   * nothing to order out of an empty basket — so the checkout mode closes
+   * itself in both cases, for every surface at once. Gating only the RENDER
+   * was the old bug: the flag stayed `true`, the sticky bar hid itself with
+   * nothing to show for it, and the form popped back open unprompted the
+   * moment the last piece was painted. Owning the flag here is what finally
+   * makes one rule enough.
+   */
+  useEffect(() => {
+    if (unpaintedPieces(lines) > 0 || lines.length === 0) setCheckoutOpen(false);
+  }, [lines]);
 
   const dismissSuggestions = useCallback(() => setSuggestionsDismissed(true), []);
 
@@ -274,6 +355,13 @@ export function CartProvider({
       dismissSuggestions,
       currentConfig,
       setCurrentConfig,
+      checkoutOpen,
+      setCheckoutOpen,
+      rowPaletteCode,
+      setRowPalette,
+      paintN,
+      setPaintN,
+      paintNFor,
       acceptSuggestion,
       allowedProduct,
     }),
@@ -286,6 +374,12 @@ export function CartProvider({
       suggestions,
       dismissSuggestions,
       currentConfig,
+      checkoutOpen,
+      rowPaletteCode,
+      setRowPalette,
+      paintN,
+      setPaintN,
+      paintNFor,
       acceptSuggestion,
       allowedProduct,
     ]
