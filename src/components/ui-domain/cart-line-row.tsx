@@ -388,23 +388,21 @@ export function CartLineRow({
             // `flex-wrap`'s line-fit decision uses each item's hypothetical
             // (un-shrunk) size, not how far it *can* shrink — so an item
             // needs an actual cap (`max-width`, or a `0` flex-basis) to not
-            // be what forces a wrap; `min-width` alone doesn't do it. Every
-            // item here is capped: the chip's `0` flex-basis absorbs the
-            // slack, Paint's label is `max-w`-capped, `cart-expand`'s label
-            // truncates (`min-w-0`), and the stepper/unpaint/remove are
-            // fixed-width (`shrink-0`) — nothing is left free to force the
-            // wrap. `lg:` (1024px) widens the chip/Paint back to their
-            // natural sizing — safe when the row was still full-width at
-            // that breakpoint, but from `sm` up the row now lives in
-            // column 2 permanently (AC 8), never full width again: at the
-            // step-3 rail's ~350px this column is the tightest spot this
-            // row sees (narrower than the drawer's fixed ~420px column and
-            // the rail's own ~1280px-wide ~496px column), so the shrink
-            // caps below `lg` are what actually keep it from wrapping there
-            // — the `lg` reset only fires where the container is wide
-            // enough to afford it (verified in the task-2 report, not by
-            // breakpoint alone).
-            "flex-wrap lg:flex-nowrap lg:gap-1.5"
+            // be what forces a wrap; `min-width` alone doesn't do it. The
+            // unpainted chip is the one item here that absorbs slack
+            // (`flex-1 min-w-0`, its label truncates); Paint's label is
+            // `max-w`-capped; the painted row's stepper and its
+            // expand/unpaint/remove group are both `shrink-0` — rigid, so
+            // if they don't both fit, `flex-wrap` drops the group whole
+            // (fix round 3) rather than the two overflowing. `flex-wrap`
+            // stays ON at every width, `lg:` included: from `sm` up this
+            // row lives in column 2 permanently (AC 8), never full width
+            // again, and the drawer's own column stays a fixed ~309px
+            // regardless of viewport — `lg:flex-nowrap` (the pre-AC-8
+            // assumption that `lg` means "plenty of room") let the rigid
+            // painted-row group overflow the drawer's edge at ≥1024px
+            // instead of wrapping (caught by measuring, not by eye).
+            "flex-wrap lg:gap-1.5"
           )}
         >
           {unpainted ? (
@@ -516,7 +514,7 @@ export function CartLineRow({
               <div
                 role="group"
                 aria-label={t("quantity")}
-                className="flex h-11 items-center rounded-sm border border-border bg-card sm:h-9"
+                className="flex h-11 shrink-0 items-center rounded-sm border border-border bg-card sm:h-9"
               >
                 <button
                   type="button"
@@ -540,28 +538,51 @@ export function CartLineRow({
                   +
                 </button>
               </div>
-              {/* Mockup `BRow`'s `!unp` branch: expand + unpaint + remove live
-                  on this same row (`ml-auto` on the last pair), not a second
-                  row below — a painted legacy line has no `configSnapshot`,
-                  so the expand toggle (which needs one to open) skips it. */}
-              {line.configSnapshot && (
-                // `min-w-0` on the button + `truncate` on its label: the one
-                // item here allowed to give ground — «Vis detaljer»/«Show
-                // details» can lose characters without losing meaning, unlike
-                // the single unbreakable words beside it. The ▾/▴ stays
-                // `shrink-0` so the click target and the state glyph survive.
-                <button
-                  type="button"
-                  data-testid="cart-expand"
-                  aria-expanded={open}
-                  onClick={onToggleDetails}
-                  className="inline-flex min-h-11 min-w-0 -my-2 items-center gap-0.5 py-2 text-[11px] text-muted-foreground underline underline-offset-2 hover:text-foreground md:my-0 md:min-h-0 md:py-0"
-                >
-                  <span className="min-w-0 truncate">{open ? t("line.collapse") : t("line.expand")}</span>
-                  <span aria-hidden className="shrink-0">{open ? "▴" : "▾"}</span>
-                </button>
-              )}
-              <span className="ml-auto flex items-center gap-3">
+              {/* Fix round 3 (QA on preview) — expand, unpaint and remove are
+                  now ONE group, `ml-auto`, trash always last: grouping them
+                  (rather than leaving «Show details» to sit on its own
+                  between the stepper and the unpaint/remove pair, card 1
+                  §3's original arrangement) means that if the row runs out
+                  of width, the WHOLE group wraps to its own line — not just
+                  the one text item stranded alone, which is what happened
+                  when it was the only child here with room to shrink.
+                  `h-9 items-end` (not `items-center`): the group's own
+                  height matches the stepper's (`sm:h-9`), and every child in
+                  it bottom-aligns within that box — the stepper's own
+                  content already fills its box edge-to-edge (its −/+
+                  buttons are exactly as tall as the box), so this is what
+                  puts the group's visible bottom on the same line as the
+                  stepper's, which `self-end` (the grid, above) already put
+                  level with the ceramic photo. The `h-3 w-px bg-border`
+                  dividers get `mb-1` for the same reason: centred on the
+                  TEXT, not on the (taller, below `md`) button box around it.
+                  `shrink-0` on the group itself, not only on what's inside
+                  it (and on the stepper too, below) — without it the OUTER
+                  row's flex-shrink squeezed the group's own box below its
+                  children's combined width (a real bug caught by
+                  measuring: the dividers silently collapsed to 0px and the
+                  buttons still overflowed the assigned box) instead of
+                  leaving the row's `flex-wrap` to drop the group to its
+                  own line, whole, the way it's supposed to. Both direct
+                  children of the actions row are now rigid, so the only
+                  thing that can happen when they don't both fit is a wrap,
+                  never a squeeze. */}
+              <span className="ml-auto flex h-9 shrink-0 items-end gap-3">
+                {line.configSnapshot && (
+                  <>
+                    <button
+                      type="button"
+                      data-testid="cart-expand"
+                      aria-expanded={open}
+                      onClick={onToggleDetails}
+                      className="inline-flex min-h-11 shrink-0 -my-2 items-center gap-0.5 py-2 text-[11px] text-muted-foreground underline underline-offset-2 hover:text-foreground md:my-0 md:min-h-0 md:py-0"
+                    >
+                      <span>{open ? t("line.collapse") : t("line.expand")}</span>
+                      <span aria-hidden>{open ? "▴" : "▾"}</span>
+                    </button>
+                    <span aria-hidden className="mb-1 h-3 w-px shrink-0 bg-border" />
+                  </>
+                )}
                 <button
                   type="button"
                   data-testid="cart-unpaint"
@@ -571,13 +592,25 @@ export function CartLineRow({
                   <Eraser className="size-3" aria-hidden />
                   {t("unpaint.action")}
                 </button>
+                <span aria-hidden className="mb-1 h-3 w-px shrink-0 bg-border" />
                 {/* Icon-only, per the mockup (`BRow`'s trash button carries no
-                    label) — this is also the widest thing this row could
-                    carry in its tightest spot, so the accessible name moves
-                    to `aria-label`/`title` instead of visible text. */}
+                    label) — the accessible name moves to `aria-label`/`title`
+                    instead. `-my-2 py-2 min-h-11` (a 44px tap target) only
+                    below `md`; above it, the icon has no text of its own to
+                    keep pace with, so that padding just leaves the button's
+                    box ending below where the text beside it does — hence
+                    the `md:` reset, not a "leave the padding, just look
+                    past it" fix. `data-remove="line"` — see the sibling
+                    "Remove all" button below: `cart-remove` is on both, one
+                    row's trash and the other's text button, and a mixed
+                    cart has both kinds of row at once. Not a rename
+                    (`cart.spec` and the drawer both already read
+                    `cart-remove`); a second attribute a locator can
+                    additionally filter on. */}
                 <button
                   type="button"
                   data-testid="cart-remove"
+                  data-remove="line"
                   onClick={onRemove}
                   aria-label={t("remove")}
                   title={t("remove")}
@@ -650,12 +683,19 @@ export function CartLineRow({
           was `docked-remove`; renamed to `cart-remove`, which is what the
           drawer's own remove button was called and what `e2e/cart.spec.ts`
           reads. It is this file's alone now — `cart-menu.tsx` is down to the
-          trigger and the sheet shell (task 5). */}
+          trigger and the sheet shell (task 5). Fix round 3 —
+          `data-remove="all"` (the painted row's own trash carries
+          `data-remove="line"`): both buttons keep the `cart-remove` testid
+          on purpose (not a rename, see that button's own comment), but a
+          mixed cart has a row of each kind on screen together, and a
+          locator scoped no narrower than the drawer needs a second
+          attribute to tell them apart. */}
       {unpainted && (
         <div className="mt-2">
           <button
             type="button"
             data-testid="cart-remove"
+            data-remove="all"
             onClick={onRemove}
             className="flex min-h-11 -my-2 items-center gap-1 py-2 text-[11px] text-muted-foreground hover:text-foreground md:my-0 md:min-h-0 md:py-0"
           >
