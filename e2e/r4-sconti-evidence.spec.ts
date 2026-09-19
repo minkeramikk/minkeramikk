@@ -152,6 +152,14 @@ test.describe("customer cart: tiers, strikethrough, nudge, docked panel", () => 
       await page.goto(step3);
       await addFirstCeramic(page);
       await openCart(page);
+      // FAILING ON PURPOSE (R5-BASKET-HOST final review, finding 3).
+      // At ONE piece nothing is discounted yet, so the only thing this
+      // checkpoint ever had to look at was `cart-discount-nudge` — and
+      // §3-bis (b) deleted it (`cart-discount-row.tsx` has no caller left).
+      // With no discount applied there is no recap row either, so there is
+      // nothing honest to re-point to and `cart-nudge-390.png` has no
+      // subject. Left failing rather than deleted or skipped (lesson F07):
+      // the TL decides whether the nudge comes back or this shot goes.
       await expect(async () => {
         await page.reload();
         await openCart(page);
@@ -245,7 +253,7 @@ test.describe("customer cart: suggestion card (part ②)", () => {
       await page.goto(ruleStep3);
       await addFirstCeramic(page);
       await openCart(page);
-      await drawer(page).getByLabel("+").first().click(); // reach the threshold
+      await drawer(page).getByTestId("docked-qty-inc").first().click(); // reach the threshold
       const cardPhone = drawer(page).getByTestId("cart-suggestion");
       await expect(async () => {
         await page.reload();
@@ -259,7 +267,7 @@ test.describe("customer cart: suggestion card (part ②)", () => {
       await page.goto(ruleStep3);
       await addFirstCeramic(page);
       await openCart(page);
-      await drawer(page).getByLabel("+").first().click();
+      await drawer(page).getByTestId("docked-qty-inc").first().click();
       const cardDesktop = drawer(page).getByTestId("cart-suggestion");
       await expect(async () => {
         await page.reload();

@@ -114,9 +114,26 @@ export function usePalettes() {
   // `activeCode` needs no special-casing on delete: the consumers that read
   // it (ceramics-step.tsx) already resolve it through `paletteFor` on every
   // render and fall back the moment it stops matching a live palette.
-  const remove = useCallback((code: string) => {
+  // R5-BASKET-HOST QA: `removePalette`, NOT `remove`. The cart context spreads
+  // `...cart` and then `...palettes` into one object, so a key this hook shares
+  // with `useCart` silently WINS — and both had a `remove(id: string): void`,
+  // identical signatures, so the intersection type type-checked perfectly while
+  // every basket's trash button called `deletePalette(lineId)` and removed
+  // nothing. Second time this pair collided (`hydrated` → `palettesHydrated`
+  // was the first): the compile-time guard in cart-context.tsx now makes the
+  // class impossible rather than the instance.
+  const removePalette = useCallback((code: string) => {
     setPalettes((list) => deletePalette(list, code));
   }, []);
 
-  return { palettes, palettesHydrated, activeCode, setActiveCode, save, rename, touch, remove };
+  return {
+    palettes,
+    palettesHydrated,
+    activeCode,
+    setActiveCode,
+    save,
+    rename,
+    touch,
+    removePalette,
+  };
 }

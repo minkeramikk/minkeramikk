@@ -68,9 +68,15 @@ test("AC3: edit quantity and remove update total/badge; empty → empty state", 
   await openCart(page);
 
   const line = drawer(page).getByTestId("cart-line");
-  await line.getByRole("button", { name: "+" }).click(); // qty 2
+  // R5-BASKET-HOST task 5: the drawer renders the unified row, whose
+  // quantity steppers are labelled `cart.increaseQty`/`cart.decreaseQty`
+  // («Flere»/«Færre», «More»/«Fewer») — they were bare "+"/"-" glyphs
+  // before. The testids are the stable handle, and the only unambiguous one:
+  // an UNPAINTED row's paint-count stepper (`paint-n-inc`/`paint-n-dec`)
+  // carries the very same aria-label.
+  await line.getByTestId("docked-qty-inc").click(); // qty 2
   await expect(page.getByTestId("cart-badge")).toHaveText("2");
-  await line.getByRole("button", { name: "-" }).click(); // qty 1
+  await line.getByTestId("docked-qty-dec").click(); // qty 1
   await expect(page.getByTestId("cart-badge")).toHaveText("1");
 
   await drawer(page).getByTestId("cart-remove").click();
@@ -196,13 +202,20 @@ test.describe("R4-SCONTI — quantity discounts", () => {
       // one piece: full price only
       await expect(line.getByTestId("cart-line-full")).toHaveCount(0);
       // second piece: the ×2 tier fires
-      await drawer(page).getByLabel("+").first().click();
+      await drawer(page).getByTestId("docked-qty-inc").first().click();
       await expect(async () => {
         await page.reload();
         await openCart(page);
         await expect(line.getByTestId("cart-line-full")).toBeVisible();
       }).toPass({ timeout: 15_000 });
-      await expect(line.getByTestId("cart-discount-badge")).toContainText("12");
+      // R5-BASKET-HOST §3-bis (b) removed the per-row `−%` badge
+      // (`cart-discount-badge`): the LINE's own percentage now lives in the
+      // expanded details panel, and the basket-level saving in the recap.
+      // Same truth, two surfaces — both asserted.
+      await line.getByTestId("cart-expand").click();
+      await expect(
+        line.getByTestId("cart-line-detail").getByTestId("cart-line-details-discount")
+      ).toContainText("12");
       await expect(drawer(page).getByTestId("cart-discount-total")).toBeVisible();
     } finally {
       await seeded.restore();
@@ -221,7 +234,17 @@ test.describe("R4-SCONTI — quantity discounts", () => {
       await page.goto(step3);
       await addFirstCeramic(page);
       await openCart(page);
-      await drawer(page).getByLabel("+").first().click(); // qty 2 → 6%, next step at 9
+      await drawer(page).getByTestId("docked-qty-inc").first().click(); // qty 2 → 6%, next step at 9
+      // FAILING ON PURPOSE (R5-BASKET-HOST final review, finding 3).
+      // `cart-discount-nudge` («add 7 more → 13%») was deleted by this card:
+      // §3-bis (b) says no nudge and no per-row badge, the discount lives in
+      // the recap only, and `cart-discount-row.tsx` has no caller left. The
+      // basket no longer states ANYWHERE how many pieces reach the next tier,
+      // so there is nothing honest to re-point this to — the closest
+      // surviving surface is the product sheet's `discount-ladder`, which is
+      // a different screen and already covered by AC-SC11.
+      // Left failing rather than deleted or skipped (lesson F07): the TL
+      // decides whether the nudge comes back or this AC goes.
       await expect(async () => {
         await page.reload();
         await openCart(page);
@@ -243,7 +266,7 @@ test.describe("R4-SCONTI — quantity discounts", () => {
       await addFirstCeramic(page);
       await openCart(page);
       const line = drawer(page).getByTestId("cart-line").first();
-      await drawer(page).getByLabel("+").first().click(); // qty 2
+      await drawer(page).getByTestId("docked-qty-inc").first().click(); // qty 2
       await expect(async () => {
         await page.reload();
         await openCart(page);
@@ -279,7 +302,7 @@ test.describe("R4-SCONTI — quantity discounts", () => {
       // three pieces of the first ceramic into the basket, sheet closed
       await addFirstCeramic(page);
       await openCart(page);
-      const plus = drawer(page).getByLabel("+").first();
+      const plus = drawer(page).getByTestId("docked-qty-inc").first();
       await plus.click();
       await plus.click();
       await expect(page.getByTestId("cart-badge")).toHaveText("3");
@@ -368,7 +391,7 @@ test.describe("R4-SCONTI — quantity discounts", () => {
       await addFirstCeramic(page);
       await openCart(page);
       const line = drawer(page).getByTestId("cart-line").first();
-      await drawer(page).getByLabel("+").first().click(); // qty 2 → 12%, next step at 9
+      await drawer(page).getByTestId("docked-qty-inc").first().click(); // qty 2 → 12%, next step at 9
 
       // the seed really took: discount applied AND the nudge pointing at 9
       await expect(async () => {
@@ -376,7 +399,10 @@ test.describe("R4-SCONTI — quantity discounts", () => {
         await openCart(page);
         await expect(line.getByTestId("cart-line-full")).toBeVisible();
       }).toPass({ timeout: 15_000 });
-      await expect(drawer(page).getByTestId("cart-discount-nudge")).toBeVisible();
+      // Was `cart-discount-nudge`, deleted by R5-BASKET-HOST §3-bis (b). The
+      // tier row in the recap is where the quantity discount says it applied
+      // now, so that is what proves the seed took.
+      await expect(drawer(page).getByTestId("cart-discount-total")).toBeVisible();
 
       // now the admin off-switch: the FLAG only, rows untouched
       const off = await db
@@ -391,6 +417,12 @@ test.describe("R4-SCONTI — quantity discounts", () => {
         await expect(drawer(page).getByTestId("cart-line-full")).toHaveCount(0);
       }).toPass({ timeout: 15_000 });
       // …and nothing may still advertise a discount that is switched off.
+      // VACUOUS SINCE R5-BASKET-HOST (final review, finding 3): the nudge is
+      // deleted, so this count is 0 whatever the flag says — it proves
+      // nothing. Deliberately NOT re-pointed here: the honest mirror of the
+      // "on" assertion above is `cart-discount-total` → toHaveCount(0), but
+      // the TL asked to be told rather than have it guessed. Flagged, not
+      // silently dropped (lesson F07).
       await expect(drawer(page).getByTestId("cart-discount-nudge")).toHaveCount(0);
     } finally {
       // restore() rewrites the flag to what it found, but be explicit: this
@@ -421,7 +453,7 @@ test.describe("R4-SCONTI — quantity discounts", () => {
       await addFirstCeramic(page);
       await openCart(page);
       const line = drawer(page).getByTestId("cart-line").first();
-      await drawer(page).getByLabel("+").first().click(); // qty 2 → the ×2 tier
+      await drawer(page).getByTestId("docked-qty-inc").first().click(); // qty 2 → the ×2 tier
       await expect(async () => {
         await page.reload();
         await openCart(page);

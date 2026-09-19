@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildConfigLinePayload } from "./line-payload";
+import { buildConfigLinePayload, withCustomFields } from "./line-payload";
 import { MAX_CUSTOM_TEXT } from "@/lib/orders/schema";
 import type { DesignDetail } from "@/lib/catalog/design-options";
 
@@ -77,5 +77,45 @@ describe("buildConfigLinePayload — customText (F38)", () => {
     const { snapshot } = buildConfigLinePayload(design(false, true), {}, "", forged);
     expect(snapshot.customText).toBe("x".repeat(MAX_CUSTOM_TEXT));
     expect(snapshot.customText!.length).toBe(MAX_CUSTOM_TEXT);
+  });
+});
+
+/**
+ * R5-BASKET-HOST final review, finding 4b — the merge now has a SECOND caller:
+ * step 2's `currentConfig` publisher, which lays the note/inscription onto a
+ * snapshot the palette draft built without them. These cases are about that
+ * caller; the `buildConfigLinePayload` blocks above cover the first one.
+ */
+describe("withCustomFields", () => {
+  const base = buildConfigLinePayload(design(true, true), { farge: "o1" }).snapshot;
+
+  it("lays the customer's own words onto a snapshot that had none", () => {
+    // Exactly the step-2 case: the palette draft is note-free by design.
+    const draft = buildConfigLinePayload(design(true, true), { farge: "o1" }).snapshot;
+    const merged = withCustomFields(draft, design(true, true), "  brown dog  ", " Hei Åse ");
+    expect(merged.customNote).toBe("brown dog");
+    expect(merged.customText).toBe("Hei Åse");
+    // …and changes nothing else, so the config code and the palette match
+    // (which never see these fields) cannot move.
+    expect(merged.designSlug).toBe(draft.designSlug);
+    expect(merged.selections).toEqual(draft.selections);
+  });
+
+  it("clears a stale value when the design's gate is off", () => {
+    const withWords = withCustomFields(base, design(true, true), "note", "Hei");
+    const offDesign = withCustomFields(withWords, design(false, false), "note", "Hei");
+    expect("customNote" in offDesign).toBe(false);
+    expect("customText" in offDesign).toBe(false);
+  });
+
+  it("drops the inscription when it cleans to empty, keeps the empty note", () => {
+    const merged = withCustomFields(base, design(true, true), "", "   ");
+    expect(merged.customNote).toBe("");
+    expect("customText" in merged).toBe(false);
+  });
+
+  it("re-sanitises the inscription, it does not merely trim it", () => {
+    const merged = withCustomFields(base, design(true, true), "", "x".repeat(MAX_CUSTOM_TEXT + 20));
+    expect(merged.customText).toHaveLength(MAX_CUSTOM_TEXT);
   });
 });

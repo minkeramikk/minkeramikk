@@ -3,7 +3,7 @@
 import { useEffect, useId, useRef } from "react";
 import { useTranslations } from "next-intl";
 import { Brush, Eraser, Trash2 } from "lucide-react";
-import { CartLineThumb } from "@/components/ui-domain/cart-line-thumb";
+import { Link } from "@/i18n/navigation";
 import { DesignRound } from "@/components/ui-domain/design-round";
 import { SetBadge } from "@/components/ui-domain/set-badge";
 import { formatMoney, money } from "@/lib/money/money";
@@ -14,35 +14,44 @@ import type { LineDiscount } from "@/lib/discounts/discount";
 import { cn } from "@/lib/utils";
 
 /**
- * First selection colour of a line → colour-chip fallback for CartLineThumb.
- * Moved here from ceramics-step.tsx (task 8): this row is now its only
- * caller — cart-menu.tsx (steps 1–2 drawer) keeps its own identical copy.
- * Exported (task 11): `UnpaintDialog`'s line card needs the exact same
- * fallback for the line it is unpainting — a second copy would drift.
+ * First selection colour of a line → colour-chip fallback for the row's own
+ * thumb (and CartLineThumb's, elsewhere).
+ * Moved here from ceramics-step.tsx (task 8). Two callers: this row and
+ * `unpaint-dialog.tsx`'s line card — which is why it is exported rather than
+ * local (task 11): the dialog needs the exact same fallback for the line it
+ * is unpainting, and a second copy would drift. `cart-menu.tsx` used to keep
+ * an identical copy for the steps 1–2 drawer; that drawer is `<Basket>` now
+ * (task 5) and the copy is gone.
  */
 export function thumbHex(line: CartLine): string | undefined {
   return line.configSnapshot?.selections.find((s) => s.hex)?.hex ?? undefined;
 }
 
 /**
- * R5-UNPAINTED task 8 — the step-3 basket row (DESIGN-SYSTEM §3.14), rebuilt
- * as a grid around a line that may carry no colours (`configCode: null`).
- * Binding source: docs/revision5/mockup-palettebar.html, `Line(r)` («Step 3 ·
- * opzione A») — the icons on the Unpaint/Remove actions follow the mockup's
- * `Ico.unpaint`/`Ico.trash` glyphs (lucide `Eraser`/`Trash2` here; the task
- * brief's own "1:1" markup had dropped them, so the mockup wins per the card's
- * own tie-break rule).
+ * R5-BASKET-HOST task 2 — the basket row (DESIGN-SYSTEM §3.14), rendered by
+ * BOTH hosts: step 3's column and the header drawer mount the same
+ * `<Basket>`, and it mounts this. A two-column grid
+ * (`[auto_minmax(0,1fr)]`) carries the thumb and the info; from `sm` the
+ * actions row sits in column 2, `self-end`, and below `sm` it spans both,
+ * full width. (Task 2 shipped this as a plain vertical stack with no grid;
+ * `c614fda` brought the grid back for AC 8 — no empty band beside the
+ * photo.) Then the picker/expand/details blocks in turn. Binding source:
+ * `BRow` in
+ * `.superpowers/sdd/2026-09-19-r5-basket-host/mockup-brow.md` — the icons on
+ * the Unpaint/Remove actions still follow that mockup's `Ico.unpaint`/
+ * `Ico.trash` glyphs (lucide `Eraser`/`Trash2` here).
  *
  * Owns NO state: `open`/`onToggleDetails` and every mutation arrive as props
- * — task 10's "how many to paint" number (`n`) is no exception, it lives in
- * the parent's `Record<lineId, number>` (mirrors the mockup's `S3.n[id]`) and
+ * — the "how many to paint" number (`n`) is no exception, it lives in the
+ * parent's `Record<lineId, number>` (mirrors the mockup's `S3.n[id]`) and
  * arrives here as `n`/`onN`, so this stays a pure render of whatever the
  * parent's cart state is right now.
  *
- * Task 12 fills the last gap: the details panel below, a step-3-only
- * drilldown (composed preview + config + ceramic + price) — NOT
- * `CartLineRecap`, which stays untouched and legacy-only for the steps 1–2
- * drawer (mockup `Line(r)`'s `open` block, `docs/revision5/mockup-palettebar.html`).
+ * The details panel below is the drilldown (composed preview + config +
+ * ceramic + price) — NOT `CartLineRecap`. That component is untouched by this
+ * card and now has NO caller in `src/`: the steps 1–2 drawer it was written
+ * for renders `<Basket>` (task 5). The card allows it to stay; it is dead
+ * code, not legacy-in-use.
  */
 /**
  * The line's colours as dots. TL, 18/9: on the row the dots ARE the colours —
@@ -88,6 +97,9 @@ export function CartLineRow({
   pickerOpen,
   onTogglePicker,
   onPickPalette,
+  onOpenPhoto,
+  paintTarget,
+  detailSlot,
 }: {
   line: CartLine;
   locale: "no" | "en";
@@ -121,9 +133,30 @@ export function CartLineRow({
   pickerOpen: boolean;
   onTogglePicker: () => void;
   onPickPalette: (code: string) => void;
+  /** R5-BASKET-HOST task 2 — fires on the whole 64×132 thumb button; task 3
+   *  wired it to `LineLightbox` and `basket.tsx` passes it. Still optional,
+   *  and `undefined` is meaningful: `Basket` withholds it for a line with
+   *  neither `plateImage` nor `layers` (a pre-F19 line — both optional, no
+   *  migration), and the thumb then stays inert markup — no button, no `⤢`
+   *  affordance — because there is nothing to open. */
+  onOpenPhoto?: () => void;
+  /** R5-BASKET-HOST task 2 — `"palette"` is step 3's behaviour (picker
+   *  + n/N + Paint, unchanged). `"none"` is the header drawer's step-1 case
+   *  (wired in task 5): there is no configuration on screen to paint with, so
+   *  the chip goes dead (disabled, muted) and a link sends the customer to
+   *  step 2 instead — Paint, the n/N stepper and the picker panel all hide. */
+  paintTarget: { kind: "palette" } | { kind: "none"; href: string };
+  /** R5-BASKET-HOST task 5 — one host-specific block at the foot of the
+   *  details panel. The DRAWER puts the MK code, its copy button and «Edit
+   *  design» there (task 18's ruling: those belong to the drawer, not to
+   *  this step-3 drilldown); they used to ride on `CartLineRecap`, which the
+   *  drawer rendered instead of this row. The column passes nothing and its
+   *  panel is unchanged. */
+  detailSlot?: React.ReactNode;
 }) {
   // TODO:nb-review — cart.unpainted.* / cart.unpaint.action NO copy is new,
   // unreviewed (mirrors cart.buttonUnpainted's own "umalt/umalte" wording).
+  // cart.chooseColours and cart.line.seePhotos are the same batch (task 2).
   const t = useTranslations("cart");
   // Review fix — the picker toggle needs a stable id to point `aria-controls`
   // at; `useId()` (not the line/cart id) so two rows never collide even if a
@@ -152,8 +185,6 @@ export function CartLineRow({
   // follows it: no ▾, and the button goes inert (`disabled`, not just
   // unstyled) instead of opening on nothing.
   const hasPalettes = palettes.length > 0;
-  /** Does the thumb column hold two images (design over ceramic), or just one? */
-  const hasPlate = Boolean(line.plateImage);
   const isSet = (line.pieces ?? 1) > 1;
   // R5-PALETTES §4-bis: locale-picked like productNameNo/En — undefined on a
   // legacy line, and the info line below prints nothing for it (AC 5).
@@ -174,168 +205,257 @@ export function CartLineRow({
     ? (paletteFor(palettes, line.configCode)?.name ?? designLabel(line.configSnapshot, locale) ?? null)
     : null;
 
+  // Task 2 — the design square of the big thumb: the row's OWN colours once
+  // painted, the on-screen config's while still unpainted (same source
+  // CartLineThumb used to read, `unpainted ? currentThumb.layers : line.layers`).
+  const designLayers = unpainted ? currentThumb.layers : line.layers;
+  const hasDesignLayers = !unpainted && designLayers && designLayers.length > 0;
+  const designHex = thumbHex(line);
+
+  const bigThumb = (
+    <>
+      <span
+        aria-hidden
+        className={cn(
+          "relative block size-16 overflow-hidden rounded-md border",
+          unpainted ? "border-dashed border-primary/50 bg-muted" : "border-border bg-[var(--mk-canvas)]"
+        )}
+        style={!unpainted && !hasDesignLayers && designHex ? { backgroundColor: designHex } : undefined}
+      >
+        {unpainted ? (
+          <span className="grid size-full place-items-center text-[20px] text-primary/50">◌</span>
+        ) : (
+          hasDesignLayers &&
+          designLayers.map((l, i) => (
+            // eslint-disable-next-line @next/next/no-img-element -- composited catalog art from storage
+            <img
+              key={`${l.src}-${i}`}
+              src={l.src}
+              alt=""
+              className="absolute inset-0 size-full object-contain"
+              style={l.recolor ? { mixBlendMode: "multiply" } : undefined}
+            />
+          ))
+        )}
+      </span>
+      {/* No photo yet → skip the second square entirely, not an empty muted box. */}
+      {line.plateImage && (
+        <span
+          aria-hidden
+          className="relative block size-16 overflow-hidden rounded-md border border-border bg-muted"
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element -- chosen ceramic photo from storage */}
+          <img
+            src={line.plateImage}
+            alt=""
+            className="absolute inset-0 size-full object-contain p-1"
+          />
+          {onOpenPhoto && (
+            <span className="absolute bottom-0.5 right-0.5 grid size-5 place-items-center rounded-[5px] bg-ink/75 text-[10px] text-ink-foreground">
+              ⤢
+            </span>
+          )}
+        </span>
+      )}
+    </>
+  );
+
   return (
     <div
       data-testid="cart-line"
       data-unpainted={unpainted || undefined}
-      className="border-b border-border/60 py-3 last:border-0"
+      // Fix round 4 (QA across containers) — `@container`: this row mounts
+      // in three containers of very different widths (the step-3 rail, the
+      // drawer, the mobile in-flow copy), and what decides whether the
+      // actions fit beside the thumb is THAT width, not the viewport's.
+      // Every `sm:`/`lg:` below that governed the column-2/full-width
+      // switch is now `@[416px]:` — see the actions row's own comment for
+      // where `416` comes from. `sm:`/`md:` that size a TAP TARGET
+      // (`size-11 sm:size-9`, `min-h-11 md:min-h-0`, and friends) stay
+      // viewport-based on purpose: a finger is a property of the device
+      // holding it, not of the container the row happens to render in.
+      className="@container border-b border-border/60 py-3.5 last:border-0"
     >
-      {/* Task 14 — mobile row (DESIGN-SYSTEM §3.19: breakpoint classes, never
-          a JS media query). Binding source: docs/revision5/mockup-palettebar.html,
-          `MobLine(r)` («Step 3 · mobile»). Two columns under `md` (thumb +
-          body), three from `md` (thumb + body + price) — the price block
-          below is rendered ONCE and reparented with `md:contents`: at mobile
-          the wrapping div is a flex row (title beside price), at `md` it
-          stops generating its own box so its two children become direct
-          grid items and fall into the desktop grid's auto-placed 2nd/3rd
-          columns. A second, duplicated price node would be read twice by a
-          screen reader — this is the one-node alternative. */}
-      {/* `minmax(0,1fr)`, not `1fr`: a bare `1fr` is `minmax(auto,1fr)`, so the
-          track refuses to go below its content's min-content width — and the
-          actions row's content (chip + stepper + Paint) is wider than the rail
-          on a design whose `formatSelections` runs long. The column then grew
-          PAST the panel and pushed Paint off screen, while the chip's own
-          `flex-1` never engaged: the flex container it shrinks against was
-          already oversized. Real cart, reported from the running app. */}
-      <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 md:grid-cols-[auto_minmax(0,1fr)_auto]">
-        {/* The thumb column holds TWO images stacked (design over ceramic) only
-            when the line carries a ceramic photo; without one it is a single
-            48px square and the space under it is dead. So it spans both rows
-            only when there is something in the second one — see the actions
-            row below, which claims that space when there is not. */}
-        <div className={cn(hasPlate && "row-span-2")}>
-          <CartLineThumb
-            unpainted={unpainted}
-            layers={unpainted ? currentThumb.layers : line.layers}
-            hex={thumbHex(line)}
-            plateImage={line.plateImage}
-          />
-        </div>
-        <div className="flex min-w-0 items-start justify-between gap-2 md:contents">
-          <div className="min-w-0">
-            <div className="flex items-center gap-1.5 text-sm font-medium leading-tight">
-              {/* `min-w-0`: same bug class the chip caught with a long
-                  `formatSelections` — a nowrap flex item's `truncate`
-                  can't shrink below its own content width without it. The
-                  product name is DB text, not bounded by anything upstream. */}
-              <span className="min-w-0 truncate">
+      {/* AC 8 (Precisazione 19/9 bis) — a grid, not two layouts: the thumb
+          spans both rows (`row-span-2`); the actions row lives in column 2
+          above the container threshold, `self-end` so it aligns with the
+          CERAMIC PHOTO square (task 2's `<div class="mt-3 flex">`
+          full-width sibling left a ~64px empty band beside that photo on
+          every row — this is what restores card 1 §3's own fix). Below the
+          threshold the actions row still spans both columns, full width,
+          under the whole block — chip · n/N · Paint (or the stepper +
+          expand/unpaint/remove group) don't fit beside the thumb there.
+          `minmax(0,1fr)`, never a bare `1fr`: the trap this row has paid
+          for twice — a bare `1fr` is `minmax(auto,1fr)` and refuses to
+          shrink below its content's min-content width. */}
+      <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3.5">
+        {/* Task 2 — the 64+64 stacked thumb (mockup `BigThumb`, `mode="stack"`).
+            A real `<button>` when `onOpenPhoto` is passed (task 3 wires it to
+            `LineLightbox`), inert markup with no `⤢` disc when it is not —
+            the affordance must never promise a click that isn't there. Do NOT
+            reach for `CartLineThumb` here: its sizes and its `compact`
+            flex-switch belong to the offers list, not this row. */}
+        {onOpenPhoto ? (
+          <button
+            type="button"
+            onClick={onOpenPhoto}
+            aria-label={t("line.seePhotos")}
+            className="group relative row-span-2 flex shrink-0 flex-col gap-1"
+          >
+            {bigThumb}
+          </button>
+        ) : (
+          <div className="relative row-span-2 flex shrink-0 flex-col gap-1">{bigThumb}</div>
+        )}
+
+        {/* Task 2 — info column: name, then palette-or-unpainted line, then
+            (painted only, per the mockup) the size/set-of-N line. `min-w-0`
+            here and on every truncating child: the trap this row has already
+            paid for twice — a nowrap flex item can't shrink below its own
+            content width without it. Auto-placed into column 2, row 1 —
+            the actions row (below) is column 2's second grid item. */}
+        <div className="min-w-0">
+          <div className="flex items-start justify-between gap-2">
+            <span className="min-w-0">
+              <span className="block truncate text-[15px] font-semibold leading-tight">
                 {locale === "no" ? line.productNameNo : line.productNameEn}
               </span>
-              {/* F29: legacy lines lack `pieces` → SetBadge renders nothing */}
-              <SetBadge count={line.pieces ?? 1} className="shrink-0" />
-            </div>
-            <div className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
-              {unpainted ? (
-                <>
-                  <span className="text-warn-on-light">○ {t("unpainted.label")}</span>
-                  {" · "}
-                  {/* Fix round 2 (finding 7): the mockup prints the LINE's own
-                      quantity, not physical pieces — a set-of-3 ×2 line is "2
-                      sets", not "6 pieces". Same unit vocabulary as the unpaint
-                      dialog, not a third one. */}
-                  {line.quantity}{" "}
-                  {t(isSet ? "unpaintDialog.unitSet" : "unpaintDialog.unitPiece", {
-                    count: line.quantity,
-                  })}
-                </>
-              ) : (
-                <>
-                  {/* Fix round 1 / task 8: the mockup's Line(r) puts a mini
-                      design preview + a colour dot per selection here (Thumb +
-                      Dots) — a legacy line without `layers` skips the preview,
-                      same fallback CartLineThumb already uses. */}
-                  {line.layers && line.layers.length > 0 && (
-                    <DesignRound layers={line.layers} className="size-4 rounded-sm" />
-                  )}
-                  {/* TL, 18/9: with the colour NAMES gone (see Dots), the name
-                      has the line to itself and only truncates when it is
-                      genuinely too long for the column. Task 10: the PALETTE's
-                      name now, not the design's — see `paletteName` above. */}
-                  <span className="min-w-0 truncate font-medium text-foreground">
-                    {paletteName ?? "—"}
-                  </span>
-                  <Dots
-                    hexes={(line.configSnapshot?.selections ?? [])
-                      .map((sel) => sel.hex)
-                      .filter((hex): hex is string => Boolean(hex))}
-                  />
-                  {/* R5-PALETTES §4-bis (mockup "· Ø 26 cm"): a PAIR, read by
-                      locale like every other bilingual field on the line —
-                      absent on a line saved before this field existed, so no
-                      stray "·" prints for it (AC 5). */}
-                  {sizeLabel && <span className="shrink-0">· {sizeLabel}</span>}
-                </>
+              <span className="mt-1 flex items-center gap-1.5 text-[13px]">
+                {unpainted ? (
+                  <>
+                    <span className="font-medium text-warn-on-light">○ {t("unpainted.label")}</span>
+                    <span className="text-muted-foreground">
+                      {/* Fix round 2 (finding 7): the mockup prints the LINE's
+                          own quantity, not physical pieces — a set-of-3 ×2
+                          line is "2 sets", not "6 pieces". Same unit
+                          vocabulary as the unpaint dialog, not a third one. */}
+                      · {line.quantity}{" "}
+                      {t(isSet ? "unpaintDialog.unitSet" : "unpaintDialog.unitPiece", {
+                        count: line.quantity,
+                      })}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    {/* TL, 18/9: with the colour NAMES gone (see Dots), the
+                        name has the line to itself and only truncates when
+                        it is genuinely too long for the column. Task 10:
+                        the PALETTE's name now, not the design's — see
+                        `paletteName` above. */}
+                    {line.layers && line.layers.length > 0 && (
+                      <DesignRound layers={line.layers} className="size-5 rounded-sm" />
+                    )}
+                    <span className="min-w-0 truncate font-medium text-foreground">
+                      {paletteName ?? "—"}
+                    </span>
+                    <Dots
+                      hexes={(line.configSnapshot?.selections ?? [])
+                        .map((sel) => sel.hex)
+                        .filter((hex): hex is string => Boolean(hex))}
+                    />
+                  </>
+                )}
+              </span>
+              {/* Mockup gates this line on `!unp` — an unpainted row already
+                  says "set" vs "piece" on the line above (unitSet/unitPiece),
+                  so a second set marker here would just repeat it. `SetBadge`
+                  (not the mockup's plain "· set of N" text) reuses the one
+                  already-reviewed copy for this instead of a new, unreviewed
+                  string. */}
+              {!unpainted && (sizeLabel || isSet) && (
+                <span className="mt-0.5 flex items-center gap-1.5 text-[12px] text-muted-foreground">
+                  {sizeLabel}
+                  <SetBadge count={line.pieces ?? 1} />
+                </span>
               )}
-            </div>
-          </div>
-          <div className="flex shrink-0 flex-col items-end">
-            <span data-testid="cart-line-net" className="text-sm font-semibold tabular-nums">
-              {formatMoney(d.net, locale)}
             </span>
-            {d.pct > 0 && (
-              <s
-                data-testid="cart-line-full"
-                aria-hidden
-                className="text-[11px] tabular-nums text-muted-foreground"
-              >
-                {formatMoney(d.full, locale)}
-              </s>
-            )}
+            <span className="shrink-0 text-right leading-tight">
+              {d.pct > 0 && (
+                <s
+                  data-testid="cart-line-full"
+                  aria-hidden
+                  className="block text-[12px] tabular-nums text-muted-foreground line-through"
+                >
+                  {formatMoney(d.full, locale)}
+                </s>
+              )}
+              <span data-testid="cart-line-net" className="block text-[14px] tabular-nums">
+                {formatMoney(d.net, locale)}
+              </span>
+            </span>
           </div>
         </div>
 
-        {/* actions row — the unpainted case is the n/N paint selector plus
-            the palette picker chip (task 10, mockup `Line(r)`'s `onclick=
-            "tog('pick',…)"` button). Under
-            `md` it auto-places into the body column (mockup `MobLine` gives
-            it no col-* class at all — the thumb's own `row-span-2` already
-            keeps col 1 out of reach); from `md` it explicitly spans the two
-            right-hand columns, same as the pre-mobile layout. */}
+        {/* actions row — column 2, `self-end` above the container
+            threshold (AC 8: aligns with the ceramic photo, no more empty
+            band beside it); full width (both columns) below it, where
+            chip · n/N · Paint (or the painted row's stepper + group) don't
+            fit beside the thumb. Mockup `BRow`'s `!unp` branch: the qty
+            stepper, expand, unpaint and remove on a painted line are ONE
+            row, not split across two.
+
+            Fix round 4 — `@[416px]:`, not `sm:`/`lg:`: the switch is a
+            property of THIS ROW'S OWN width (`@container`, above), not of
+            the viewport. The rail, the drawer and the mobile in-flow copy
+            render the same row at three unrelated widths for the same
+            viewport, and a viewport query picked whichever arrangement the
+            rail wanted — the drawer at desktop viewports got column 2 too,
+            with only ~309px of it, wrapping inside a shape nobody chose.
+
+            416 is measured, not a Tailwind breakpoint: it is the smallest
+            container width whose column 2 (container − 64px thumb − 14px
+            grid gap) fits the stepper and the actions group on one line in
+            the WORSE of the two locales. Measured (rail @1280, both
+            natural/unshrunk, `sm:h-9` sizing — the only sizing this ever
+            renders at once a container is narrow enough for the switch to
+            matter): stepper 106px; group 213.875px (EN, "Show details")
+            vs. 220.1875px (NO, "Vis detaljer", the longer one); gap 6px
+            (the row's own `@[416px]:gap-1.5`, since the fit test has to use
+            the gap that actually applies once column 2 is selected). NO
+            needed = 106 + 6 + 220.1875 = 332.1875; + 64 + 14 = 410.1875.
+            Rounded up to 416 for margin against sub-pixel/font rendering
+            differences between browsers. Sanity check: the drawer's own
+            `cart-line` measures 387px inside its 420px `SheetContent`
+            (`basket.tsx`'s own `px-4`) — below 416, so the drawer gets the
+            full-width arrangement, on one line (387px ≫ 332px needed
+            there), never the half-and-half column-2-but-wrapped shape.
+            Below 416, `flex-wrap` can still drop the group to its own line
+            (fix round 3's behaviour, e.g. 390px in `/no/`) — two shapes
+            chosen by measured fit, nothing in between. */}
         <div
           className={cn(
-            "flex min-w-0 items-end",
-            hasPlate
-              ? "md:col-start-2 md:col-span-2"
-              : // No ceramic photo → nothing sits under the thumb, so the row
-                // starts at the left edge and takes the whole width. On a
-                // narrow phone that is 60px the chip did not have before.
-                "col-start-1 col-span-2 md:col-span-3"
+            "col-span-2 mt-3 flex min-w-0 items-center gap-2",
+            "@[416px]:col-span-1 @[416px]:col-start-2 @[416px]:row-start-2 @[416px]:mt-0 @[416px]:self-end",
+            // `flex-wrap`'s line-fit decision uses each item's hypothetical
+            // (un-shrunk) size, not how far it *can* shrink — so an item
+            // needs an actual cap (`max-width`, or a `0` flex-basis) to not
+            // be what forces a wrap; `min-width` alone doesn't do it. The
+            // unpainted chip is the one item here that absorbs slack
+            // (`flex-1 min-w-0`, its label truncates); Paint's label is
+            // `max-w`-capped; the painted row's stepper and its
+            // expand/unpaint/remove group are both `shrink-0` — rigid, so
+            // if they don't both fit, `flex-wrap` drops the group whole
+            // (fix round 3) rather than the two overflowing. `flex-wrap`
+            // stays ON at every width: even above 416px the container can
+            // still be exactly 416-ish and tight (see the sanity check
+            // above), so nothing here ever assumes "wide, don't bother".
+            "flex-wrap @[416px]:gap-1.5"
           )}
         >
-          {/* Fit at 375 AND 390, in BOTH locales — not just 390/no, which
-              happened to have 4px of slack while 390/en (295px needed) and
-              375/either (275px available) genuinely wrapped. The fix is
-              SHRINKING, not wrapping: the chip (its own comment, below) is
-              `flex-1 min-w-0` with no cap at all, so it always absorbs
-              whatever the stepper and Paint (their own intrinsic sizes)
-              leave behind, and Paint's own label carries a defensive
-              `max-width` so IT can't be the thing that forces a wrap
-              either — a `max-width` (or a `0` flex-basis, the chip's own
-              trick) is what actually bounds an item's size for
-              `flex-wrap`'s line-fit decision (it uses each item's
-              hypothetical/un-shrunk size to decide breaks; `min-width`
-              alone, which Paint also carries, only sets how far it can
-              shrink AFTER it's already on a line — it does nothing for the
-              fit decision by itself, which is why min-w-0 alone didn't fix
-              this originally). Between the chip absorbing the slack and
-              Paint's own cap, the row's real content fits at every
-              width/locale combo this card supports, so `flex-wrap` stays a
-              genuine last resort — dormant today, not the everyday path —
-              rather than deleted outright.
-
-              Every trim on this row resets at `lg` (1024px), not `md`
-              (768px): `ceramics-step.tsx`'s own two-column layout
-              (`md:grid-cols-2`) makes the desktop rail a 50/50 split of the
-              viewport, so at exactly 768 the rail is ~350px wide — narrower
-              than the row needs for PR 2's full desktop sizing (chip +
-              stepper + Paint at their natural widths measured ~306px
-              against a ~248px actions column, a real page overflow caught
-              by testing 768 specifically, not 1280 alone). The row stays in
-              its mobile-safe, shrink-first mode through the whole 768-1023
-              range and only takes PR 2's own numbers back at 1024+, where
-              the rail is comfortably wide again. */}
-          <div className="flex w-full flex-wrap items-center gap-1 pt-2 lg:flex-nowrap lg:gap-1.5">
-            {unpainted ? (
+          {unpainted ? (
+            paintTarget.kind === "none" ? (
+              // Card §1: at step 1 there's no configuration on screen to paint
+              // with, so the chip IS the link to step 2 — not a disabled chip
+              // plus a separate text link. No `DesignRound` here either: with
+              // no config, `layers` is `[]` and it painted an empty circle.
+              <Link
+                href={paintTarget.href}
+                data-testid="paint-chip"
+                className="inline-flex min-h-11 -my-2 items-center py-2 text-[11px] text-muted-foreground underline underline-offset-2 hover:text-foreground md:my-0 md:min-h-0 md:py-0"
+              >
+                {t("chooseColours")}
+              </Link>
+            ) : (
               <>
                 <button
                   ref={pickerToggleRef}
@@ -344,45 +464,21 @@ export function CartLineRow({
                   data-code={currentThumb.code}
                   disabled={!hasPalettes}
                   aria-expanded={hasPalettes ? pickerOpen : undefined}
-                  // Finding 5 (minor) — an id only meaningful while the panel
-                  // it names actually exists; pointing at it while closed
-                  // described a node that wasn't there.
+                  // Only meaningful while the panel it names exists.
                   aria-controls={hasPalettes && pickerOpen ? pickerPanelId : undefined}
                   onClick={hasPalettes ? onTogglePicker : undefined}
-                  // `flex-1 min-w-0`: no fixed cap on the label (a magic
-                  // number like 32px is a stub, not a label, once the
-                  // thumb+icon already carry the colour meaning) — instead
-                  // the chip's own `flex-basis` is 0, so it contributes ~0
-                  // to `flex-wrap`'s line-fit decision (that decision uses
-                  // each item's hypothetical/un-shrunk size; a `0` basis is
-                  // the smallest possible one) and it can never be the
-                  // reason the row wraps. It then grows to fill whatever
-                  // the stepper and Paint (both sized to their own
-                  // intrinsic widths, `flex-grow: 0`) leave behind — more
-                  // room at 390 than 375, more in /no/ than /en/ (Paint's
-                  // own footprint is wider there).
-                  //
-                  // `lg:flex-initial` (`flex: 0 1 auto`, NOT `lg:flex-none`
-                  // — a real cart caught this: `flex-none` is `flex: 0 0
-                  // 0 auto`, no shrink, so a design with many categories
-                  // (`formatSelections` can read like "Svane / Swan ·
-                  // Celeste · Verde Ramina Carico · Giallo · Arancio
-                  // Vietri · No color") rendered at its full intrinsic
-                  // width and pushed Paint clean out of the panel —
-                  // `truncate` on the label can't help an item that never
-                  // shrinks, it has no width to truncate against). Grow
-                  // still stays 0, so the chip never stretches across the
-                  // rail at 1024+ the way it does below `lg`; it just
-                  // takes its natural width when there's room and
-                  // truncates (via `min-w-0` + the label's own `truncate`,
-                  // same mechanism as the mobile side) when there isn't —
-                  // matching every other reset on this row, which stays
-                  // `lg`-gated, not `md` (see the row comment above).
+                  // `flex-1 min-w-0` + `flex-basis: 0`: the chip absorbs
+                  // whatever the stepper and Paint (fixed intrinsic widths)
+                  // leave behind, so it's never what forces a wrap.
+                  // `@[416px]:flex-initial`, NOT `flex-none`: `flex-none`
+                  // has no shrink, so a long `formatSelections` label can't
+                  // truncate and pushes Paint out of the panel —
+                  // `flex-initial` keeps the shrink permission the label's
+                  // `truncate` needs. Container-scoped (fix round 4), same
+                  // `416` as the actions row's own switch — one threshold,
+                  // not a second guess at where "enough room" starts.
                   className={cn(
-                    "flex h-11 min-w-0 flex-1 items-center gap-1 rounded-sm border bg-card pl-1 pr-1 text-xs font-medium sm:h-9 lg:flex-initial lg:gap-1.5 lg:pr-2",
-                    // Finding 5 (minor) — the mockup's OPEN trigger carries
-                    // `border-primary shadow-[0_0_0_1px_var(--ring)]`, not
-                    // just a glyph flip; this had dropped the border/ring half.
+                    "flex h-11 min-w-0 flex-1 items-center gap-1 rounded-sm border bg-card pl-1 pr-1 text-xs font-medium sm:h-9 @[416px]:flex-initial @[416px]:gap-1.5 @[416px]:pr-2",
                     pickerOpen
                       ? "border-primary shadow-[0_0_0_1px_var(--ring)]"
                       : "border-border",
@@ -390,24 +486,10 @@ export function CartLineRow({
                   )}
                 >
                   <DesignRound layers={currentThumb.layers} className="size-6 shrink-0 rounded-sm" />
-                  {/* TL (mobile fix, 18/9): this chip used to carry Dots before
-                      the name, same order as the painted row's info line below —
-                      that was right in the PREVIOUS card, when a row had no
-                      palette and no name and the dots were the only thing
-                      saying anything about the colours. Named palettes changed
-                      that: the name is the row's identity now, and at 390 the
-                      dots ate the width the name needed, truncating
-                      "Turchino" down to "T." Drop the dots here, let the name
-                      have the room — the thumb above still carries the
-                      composited design, which is what the dots were standing
-                      in for. Do NOT restore them on this chip; the painted
-                      row's info line (below) has a full-width line to spend
-                      and keeps dots + name + size together on purpose. */}
+                  {/* No dots here (unlike the painted row's info line below):
+                      the name is this chip's identity, and dots would eat the
+                      width it needs at 390. */}
                   <span className="min-w-0 truncate">{currentThumb.label}</span>
-                  {/* Task 10 — the mockup's `▾`/`▴` (`picker?'▴':'▾'`); `shrink-0`
-                      so a long palette name truncates before this ever gives
-                      ground, same rule as the dots beside it. Finding 2: no
-                      glyph at all when there's nothing to pick. */}
                   {hasPalettes && (
                     <span aria-hidden className="shrink-0 text-muted-foreground">
                       {pickerOpen ? "▴" : "▾"}
@@ -449,54 +531,30 @@ export function CartLineRow({
                   type="button"
                   data-testid="paint-line"
                   onClick={() => onPaint(n)}
-                  // `min-w-0`: removes the button's default content-based
-                  // minimum, so it CAN shrink below its label's full width —
-                  // paired with the label's own `max-w`/`truncate` below,
-                  // which is what actually matters for the flex-wrap
-                  // line-fit decision (a `max-width` bounds an item's
-                  // hypothetical size for that decision; `min-width` alone
-                  // does not — see the chip's own comment above for the
-                  // width budget this and the chip cap were sized against).
-                  // The brush icon (`shrink-0`) and the paint-count badge
-                  // always survive; only the word can give ground.
-                  // `lg:min-w-max` resets the shrink-permission itself, not
-                  // just the padding — and resets at `lg` (1024px), same as
-                  // the row's other trims (see the row comment above): at
-                  // 768 the desktop rail (`ceramics-step.tsx`'s own
-                  // `md:grid-cols-2`, a 50/50 split) is only ~350px wide,
-                  // too narrow for chip + stepper + Paint at PR 2's full
-                  // desktop sizing (~306px needed against a measured ~248px
-                  // actions column) — resetting this at `md` instead of
-                  // `lg` was tried first and produced a real page overflow
-                  // at 768, caught by testing that width specifically
-                  // rather than trusting 1280 to stand in for "desktop".
-                  className="relative ml-auto flex h-11 min-w-0 items-center gap-1 rounded-sm bg-primary px-2 text-xs font-semibold text-primary-foreground sm:h-9 lg:min-w-max lg:gap-1.5 lg:px-3.5"
+                  // `min-w-0` + the label's own `max-w`/`truncate`: the word
+                  // can give ground before the icon/badge do.
+                  // `@[416px]:min-w-max` resets that shrink permission,
+                  // same container gate as the chip's.
+                  className="relative ml-auto flex h-11 min-w-0 items-center gap-1 rounded-sm bg-primary px-2 text-xs font-semibold text-primary-foreground sm:h-9 @[416px]:min-w-max @[416px]:gap-1.5 @[416px]:px-3.5"
                 >
                   <Brush className="size-3.5 shrink-0" aria-hidden />
                   <span className="max-w-[52px] truncate">{t("unpainted.paint")}</span>
-                  {/* TL change (fix round 1): badge reads from 2 upward, not
-                      only the partial case — a 2-piece row at its default 2/2
-                      showed NO badge before and only grew one after a −
-                      press. Any row with more than one unit to choose from
-                      always carries its current n; a single-unit row (n is
-                      always 1 of 1, nothing to choose) still shows none. This
-                      is a deliberate divergence from the mockup, which only
-                      badges the partial case. */}
-                  {/* Always, not only on a partial selection: the badge is the
-                      count Paint is about to act on, and «1» is as much an
-                      answer as «2». TL, from the running app. */}
-                  {(
-                    <span className="absolute -right-1.5 -top-1.5 grid size-5 place-items-center rounded-full bg-ink text-[10px] font-bold text-ink-foreground shadow">
-                      {n}
-                    </span>
-                  )}
+                  {/* Reads from 2 upward, not only the partial case: any row
+                      with more than one unit to choose from shows its current
+                      n (a single-unit row, always 1 of 1, shows none) — the
+                      badge is the count Paint is about to act on. */}
+                  <span className="absolute -right-1.5 -top-1.5 grid size-5 place-items-center rounded-full bg-ink text-[10px] font-bold text-ink-foreground shadow">
+                    {n}
+                  </span>
                 </button>
               </>
-            ) : (
+            )
+          ) : (
+            <>
               <div
                 role="group"
                 aria-label={t("quantity")}
-                className="flex h-11 items-center rounded-sm border border-border bg-card sm:h-9"
+                className="flex h-11 shrink-0 items-center rounded-sm border border-border bg-card sm:h-9"
               >
                 <button
                   type="button"
@@ -520,264 +578,322 @@ export function CartLineRow({
                   +
                 </button>
               </div>
-            )}
-          </div>
-        </div>
-
-        {/* Task 10 — the row picker (mockup `Line(r)`'s `picker?` block):
-            every saved palette as a wrapping row of pills, dim+disabled for
-            another design's (card §6). Same explicit `col-span-2 md:col-span-3`
-            as the full-bleed row below, not the actions row's hasPlate-
-            conditional placement above — this panel isn't chasing the chip's
-            own column, it's a full-width drop-down under it, and reusing the
-            proven-safe full-bleed geometry (already verified not to overflow
-            at 375/390/768/1280) sidesteps the auto-placement risk a THIRD
-            sibling with no explicit column would otherwise hit once the
-            thumb's `row-span-2` no longer reaches this far down. `h-11
-            lg:h-8`: a 44px touch target through the 768 rail the row's other
-            controls already treat as mobile-narrow (see the row comment
-            above), the mockup's own `h-8` only from `lg` (1024px). */}
-        {unpainted && pickerOpen && (
-          <div
-            id={pickerPanelId}
-            role="group"
-            aria-label={t("unpainted.pickerLabel")}
-            className="col-span-2 mt-1.5 flex flex-wrap items-center gap-1.5 md:col-span-3"
-          >
-            {/* Card §4-bis (added mid-PR): current design's own palettes
-                lead, the rest trail dimmed — same stable sort as the bar's
-                chips, not a filter (a dim pill stays reachable, just inert). */}
-            {sortCurrentDesignFirst(palettes, currentDesignSlug).map((p) => {
-              const dim = p.designSlug !== currentDesignSlug;
-              const active = p.code === currentThumb.code;
-              return (
+              {/* Fix round 3 (QA on preview) — expand, unpaint and remove are
+                  now ONE group, `ml-auto`, trash always last: grouping them
+                  (rather than leaving «Show details» to sit on its own
+                  between the stepper and the unpaint/remove pair, card 1
+                  §3's original arrangement) means that if the row runs out
+                  of width, the WHOLE group wraps to its own line — not just
+                  the one text item stranded alone, which is what happened
+                  when it was the only child here with room to shrink.
+                  `h-9 items-end` (not `items-center`): the group's own
+                  height matches the stepper's (`sm:h-9`), and every child in
+                  it bottom-aligns within that box — the stepper's own
+                  content already fills its box edge-to-edge (its −/+
+                  buttons are exactly as tall as the box), so this is what
+                  puts the group's visible bottom on the same line as the
+                  stepper's, which `self-end` (the grid, above) already put
+                  level with the ceramic photo. The `h-3 w-px bg-border`
+                  dividers get `mb-1` for the same reason: centred on the
+                  TEXT, not on the (taller, below `md`) button box around it.
+                  `shrink-0` on the group itself, not only on what's inside
+                  it (and on the stepper too, below) — without it the OUTER
+                  row's flex-shrink squeezed the group's own box below its
+                  children's combined width (a real bug caught by
+                  measuring: the dividers silently collapsed to 0px and the
+                  buttons still overflowed the assigned box) instead of
+                  leaving the row's `flex-wrap` to drop the group to its
+                  own line, whole, the way it's supposed to. Both direct
+                  children of the actions row are now rigid, so the only
+                  thing that can happen when they don't both fit is a wrap,
+                  never a squeeze. */}
+              <span className="ml-auto flex h-9 shrink-0 items-end gap-3">
+                {line.configSnapshot && (
+                  <>
+                    <button
+                      type="button"
+                      data-testid="cart-expand"
+                      aria-expanded={open}
+                      onClick={onToggleDetails}
+                      className="inline-flex min-h-11 shrink-0 -my-2 items-center gap-0.5 py-2 text-[11px] text-muted-foreground underline underline-offset-2 hover:text-foreground md:my-0 md:min-h-0 md:py-0"
+                    >
+                      <span>{open ? t("line.collapse") : t("line.expand")}</span>
+                      <span aria-hidden>{open ? "▴" : "▾"}</span>
+                    </button>
+                    <span aria-hidden className="mb-1 h-3 w-px shrink-0 bg-border" />
+                  </>
+                )}
                 <button
-                  key={p.code}
                   type="button"
-                  data-testid="palette-pill"
-                  data-code={p.code}
-                  data-active={active || undefined}
-                  disabled={dim}
-                  aria-pressed={active}
-                  onClick={() => onPickPalette(p.code)}
-                  className={cn(
-                    "flex h-11 min-w-0 shrink-0 items-center gap-1.5 rounded-full pl-1 pr-2.5 text-xs lg:h-8",
-                    dim
-                      ? "bg-muted text-muted-foreground opacity-45"
-                      : active
-                        ? "bg-card font-semibold shadow-[0_0_0_1.5px_var(--ring)]"
-                        : "bg-muted hover:bg-secondary"
-                  )}
+                  data-testid="cart-unpaint"
+                  onClick={onUnpaint}
+                  className="flex min-h-11 shrink-0 -my-2 items-center gap-1 py-2 text-[11px] text-muted-foreground hover:text-foreground md:my-0 md:min-h-0 md:py-0"
                 >
-                  <DesignRound layers={p.layers} className="size-6 shrink-0 rounded-sm" />
-                  <span className="max-w-[108px] truncate">{p.name}</span>
-                  {/* Finding 5 (minor) — the mockup's dim pill carries the
-                      other design's name ("· Limoni"); the chips already do
-                      this (dimDesignName), the pills hadn't caught up. */}
-                  {dim && (
-                    <span className="shrink-0 text-[10px] text-muted-foreground">
-                      · {designLabel(p.snapshot, locale) ?? p.designSlug}
-                    </span>
-                  )}
+                  <Eraser className="size-3" aria-hidden />
+                  {t("unpaint.action")}
                 </button>
-              );
-            })}
-          </div>
-        )}
-
-        {/* full-bleed row, under the thumb too — matches mockup MobLine's
-            `col-span-2` (mobile) / Line's `col-span-3` (desktop), same
-            treatment as the actions row above but reaching col 1 as well. */}
-        <div className="col-span-2 mt-1.5 flex items-center justify-between text-[11px] md:col-span-3">
-          {/* Fix round 2 (finding 9): a painted LEGACY line has no
-              `configSnapshot` — the details panel below never renders one,
-              so the toggle must not promise it either. */}
-          {!unpainted && line.configSnapshot ? (
-            <button
-              type="button"
-              data-testid="cart-expand"
-              aria-expanded={open}
-              onClick={onToggleDetails}
-              // `min-h-11 -my-2 py-2`: this row came in at PR 2 as a bare
-              // text-[11px] button (~16px hit area) — a real 44px tap
-              // target under `md`, without moving the visible baseline: the
-              // negative margin gives the extra height back to the
-              // surrounding flow, and `md:` resets to PR 2's own rhythm.
-              className="inline-flex min-h-11 -my-2 items-center py-2 text-muted-foreground underline underline-offset-2 hover:text-foreground md:my-0 md:min-h-0 md:py-0"
-            >
-              {open ? `${t("line.collapse")} ▴` : `${t("line.expand")} ▾`}
-            </button>
-          ) : (
-            <span />
-          )}
-          <span className="flex items-center gap-3">
-            {!unpainted && (
-              <button
-                type="button"
-                data-testid="cart-unpaint"
-                onClick={onUnpaint}
-                className="flex min-h-11 -my-2 items-center gap-1 py-2 text-muted-foreground hover:text-foreground md:my-0 md:min-h-0 md:py-0"
-              >
-                <Eraser className="size-3" aria-hidden />
-                {t("unpaint.action")}
-              </button>
-            )}
-            <button
-              type="button"
-              data-testid="docked-remove"
-              onClick={onRemove}
-              className="flex min-h-11 -my-2 items-center gap-1 py-2 text-muted-foreground hover:text-foreground md:my-0 md:min-h-0 md:py-0"
-            >
-              <Trash2 className="size-3" aria-hidden />
-              {unpainted ? t("unpainted.removeAll") : t("remove")}
-            </button>
-          </span>
-        </div>
-        {/* Task 12 — step-3-only drilldown (mockup `open` block). `!unpainted`
-            is belt-and-braces: the toggle button above never renders for an
-            unpainted row, so `open` can't really be true here, but a line's
-            id changes shape on paint/unpaint (see class comment) and this
-            keeps the panel from ever reading a null `configSnapshot`.
-            TODO:nb-review — cart.line.config / cart.line.price NO copy is
-            new, unreviewed (same batch as unpainted.cta below).
-            Fix round 2 (blocker 1) — `cart-line-detail` (singular) is the
-            SAME testid the retired `CartLineRecap` used, in the mockup's own
-            `dl` idiom rather than a `CartLineRecap` re-import.
-            Task 18 (TL) — the code and «Edit design» that fix round 2 put
-            here were the wrong home: this panel is a step-3-only drilldown
-            (Config/Ceramic/Price), the code + edit affordance is the CART
-            DRAWER's job and already lives there via `CartLineRecap`
-            (cart-menu.tsx) — the three e2e specs that used to read them off
-            this panel now read them off the drawer instead. */}
-        {open && !unpainted && line.configSnapshot && (
-          <div
-            data-testid="cart-line-detail"
-            className="col-span-2 mt-2 grid grid-cols-[112px_1fr] gap-4 rounded-sm border border-primary/30 bg-card/60 p-3 md:col-span-3"
-          >
-            {/* Composed preview, same compositing as CartLineThumb/CartLineRecap
-                (multiply-blend the recolour layers) at the mockup's size-28 —
-                this card's own preview, not a reuse of CartLineRecap's size-52. */}
-            <span
-              aria-hidden
-              className="relative block size-28 overflow-hidden rounded-md border border-border bg-[var(--mk-canvas)]"
-            >
-              {(line.layers ?? []).map((l, i) => (
-                // eslint-disable-next-line @next/next/no-img-element -- composited catalog art from storage
-                <img
-                  key={`${l.src}-${i}`}
-                  src={l.src}
-                  alt=""
-                  className="absolute inset-0 size-full object-contain"
-                  style={l.recolor ? { mixBlendMode: "multiply" } : undefined}
-                />
-              ))}
-            </span>
-
-            <div className="flex min-w-0 flex-col gap-2">
-              {colourVariant && (
-                <span
-                  data-testid="colour-badge"
-                  data-variant={colourVariant}
-                  className="self-start rounded-full border border-border bg-muted/40 px-2 py-0.5 text-[10px] font-medium text-muted-foreground"
+                <span aria-hidden className="mb-1 h-3 w-px shrink-0 bg-border" />
+                {/* Icon-only, per the mockup (`BRow`'s trash button carries no
+                    label) — the accessible name moves to `aria-label`/`title`
+                    instead. `-my-2 py-2 min-h-11` (a 44px tap target) only
+                    below `md`; above it, the icon has no text of its own to
+                    keep pace with, so that padding just leaves the button's
+                    box ending below where the text beside it does — hence
+                    the `md:` reset, not a "leave the padding, just look
+                    past it" fix. `data-remove="line"` — see the sibling
+                    "Remove all" button below: `cart-remove` is on both, one
+                    row's trash and the other's text button, and a mixed
+                    cart has both kinds of row at once. Not a rename
+                    (`cart.spec` and the drawer both already read
+                    `cart-remove`); a second attribute a locator can
+                    additionally filter on. */}
+                <button
+                  type="button"
+                  data-testid="cart-remove"
+                  data-remove="line"
+                  onClick={onRemove}
+                  aria-label={t("remove")}
+                  title={t("remove")}
+                  className="flex min-h-11 shrink-0 -my-2 items-center px-1 py-2 text-muted-foreground hover:text-foreground md:my-0 md:min-h-0 md:py-0"
                 >
-                  {colourVariant === "custom" ? t("colourBadge.custom") : t("colourBadge.studio")}
-                </span>
-              )}
-
-              <dl className="grid grid-cols-[auto_1fr] content-start gap-x-3 gap-y-1.5 text-xs">
-                {/* Task 10 — the mockup's `Palette` dt (name + a swatch per
-                    colour, `cname()` there ↔ `s.option` here, the design's own
-                    readable colour name — no separate name lookup needed).
-                    Distinct from `line.config` below: this is the PALETTE
-                    (human name + colours), that is the technical selection
-                    breakdown (category: option). */}
-                <dt className="text-muted-foreground">{t("line.palette")}</dt>
-                <dd className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                  <span className="font-semibold">{paletteName ?? "—"}</span>
-                  {line.configSnapshot.selections
-                    .filter((s) => s.hex)
-                    .map((s) => (
-                      <span key={`pal-${s.label}`} className="flex items-center gap-1">
-                        <span
-                          aria-hidden
-                          className="size-3 rounded-full border border-border"
-                          style={{ background: s.hex ?? undefined }}
-                        />
-                        {s.option}
-                      </span>
-                    ))}
-                </dd>
-
-                <dt className="text-muted-foreground">{t("line.config")}</dt>
-                <dd className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                  <span className="font-semibold">
-                    {formatSelections(line.configSnapshot.selections, locale)}
+                  <Trash2 className="size-3" aria-hidden />
+                </button>
+              </span>
+            </>
+          )}
+        </div>
+      </div>
+      {/* Task 10 — the row picker (mockup `Line(r)`'s `picker?` block):
+          every saved palette as a wrapping row of pills, dim+disabled for
+          another design's (card §6). Gated on `paintTarget.kind==="palette"`
+          too (task 2): the "none" target hides the picker entirely — there's
+          nothing here for it to open. `h-11 lg:h-8`: a 44px touch target
+          through the 768 rail the row's other controls already treat as
+          mobile-narrow, the mockup's own `h-8` only from `lg` (1024px). */}
+      {unpainted && paintTarget.kind === "palette" && pickerOpen && (
+        <div
+          id={pickerPanelId}
+          role="group"
+          aria-label={t("unpainted.pickerLabel")}
+          className="mt-1.5 flex flex-wrap items-center gap-1.5"
+        >
+          {/* Card §4-bis (added mid-PR): current design's own palettes
+              lead, the rest trail dimmed — same stable sort as the bar's
+              chips, not a filter (a dim pill stays reachable, just inert). */}
+          {sortCurrentDesignFirst(palettes, currentDesignSlug).map((p) => {
+            const dim = p.designSlug !== currentDesignSlug;
+            const active = p.code === currentThumb.code;
+            return (
+              <button
+                key={p.code}
+                type="button"
+                data-testid="palette-pill"
+                data-code={p.code}
+                data-active={active || undefined}
+                disabled={dim}
+                aria-pressed={active}
+                onClick={() => onPickPalette(p.code)}
+                className={cn(
+                  "flex h-11 min-w-0 shrink-0 items-center gap-1.5 rounded-full pl-1 pr-2.5 text-xs lg:h-8",
+                  dim
+                    ? "bg-muted text-muted-foreground opacity-45"
+                    : active
+                      ? "bg-card font-semibold shadow-[0_0_0_1.5px_var(--ring)]"
+                      : "bg-muted hover:bg-secondary"
+                )}
+              >
+                <DesignRound layers={p.layers} className="size-6 shrink-0 rounded-sm" />
+                <span className="max-w-[108px] truncate">{p.name}</span>
+                {/* A dim pill (another design's) carries that design's own
+                    name too, same as the palette bar's chips. */}
+                {dim && (
+                  <span className="shrink-0 text-[10px] text-muted-foreground">
+                    · {designLabel(p.snapshot, locale) ?? p.designSlug}
                   </span>
-                  {line.configSnapshot.selections
-                    .filter((s) => s.hex)
-                    .map((s) => (
+                )}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Mockup `BRow`'s unpainted branch: its own line, not part of the
+          actions row above (a painted line's expand/unpaint/remove live
+          there instead — see that row's comment). Decision B7: this testid
+          was `docked-remove`; renamed to `cart-remove`, which is what the
+          drawer's own remove button was called and what `e2e/cart.spec.ts`
+          reads. It is this file's alone now — `cart-menu.tsx` is down to the
+          trigger and the sheet shell (task 5). Fix round 3 —
+          `data-remove="all"` (the painted row's own trash carries
+          `data-remove="line"`): both buttons keep the `cart-remove` testid
+          on purpose (not a rename, see that button's own comment), but a
+          mixed cart has a row of each kind on screen together, and a
+          locator scoped no narrower than the drawer needs a second
+          attribute to tell them apart. */}
+      {unpainted && (
+        <div className="mt-2">
+          <button
+            type="button"
+            data-testid="cart-remove"
+            data-remove="all"
+            onClick={onRemove}
+            className="flex min-h-11 -my-2 items-center gap-1 py-2 text-[11px] text-muted-foreground hover:text-foreground md:my-0 md:min-h-0 md:py-0"
+          >
+            <Trash2 className="size-3" aria-hidden />
+            {t("unpainted.removeAll")}
+          </button>
+        </div>
+      )}
+      {/* Task 12 — step-3-only drilldown (mockup `open` block). `!unpainted`
+          is belt-and-braces: the toggle button above never renders for an
+          unpainted row, so `open` can't really be true here, but a line's
+          id changes shape on paint/unpaint (see class comment) and this
+          keeps the panel from ever reading a null `configSnapshot`.
+          TODO:nb-review — cart.line.config / cart.line.price NO copy is
+          new, unreviewed (same batch as unpainted.cta below).
+          Task 18 (TL) — the code and «Edit design» that fix round 2 put
+          here were the wrong home: this panel is the drilldown
+          (Config/Ceramic/Price), the code + edit affordance is the CART
+          DRAWER's job. It used to live there in `CartLineRecap`; since task 5
+          the drawer is `<Basket>` too, so `basket.tsx` passes them back in as
+          `detailSlot` — drawer only — and that is what the three e2e specs
+          read. `CartLineRecap` itself has no caller left.
+          Outside the grid above on purpose: this panel is the next block in
+          the stack, full width, not a third column. */}
+      {open && !unpainted && line.configSnapshot && (
+        <div
+          data-testid="cart-line-detail"
+          className="mt-2 grid grid-cols-[112px_1fr] gap-4 rounded-sm border border-primary/30 bg-card/60 p-3"
+        >
+          {/* Composed preview, same compositing as CartLineThumb/CartLineRecap
+              (multiply-blend the recolour layers), size-28 — this card's own
+              preview, not a reuse of CartLineRecap's size-52. */}
+          <span
+            aria-hidden
+            className="relative block size-28 overflow-hidden rounded-md border border-border bg-[var(--mk-canvas)]"
+          >
+            {(line.layers ?? []).map((l, i) => (
+              // eslint-disable-next-line @next/next/no-img-element -- composited catalog art from storage
+              <img
+                key={`${l.src}-${i}`}
+                src={l.src}
+                alt=""
+                className="absolute inset-0 size-full object-contain"
+                style={l.recolor ? { mixBlendMode: "multiply" } : undefined}
+              />
+            ))}
+          </span>
+
+          <div className="flex min-w-0 flex-col gap-2">
+            {colourVariant && (
+              <span
+                data-testid="colour-badge"
+                data-variant={colourVariant}
+                className="self-start rounded-full border border-border bg-muted/40 px-2 py-0.5 text-[10px] font-medium text-muted-foreground"
+              >
+                {colourVariant === "custom" ? t("colourBadge.custom") : t("colourBadge.studio")}
+              </span>
+            )}
+
+            <dl className="grid grid-cols-[auto_1fr] content-start gap-x-3 gap-y-1.5 text-xs">
+              {/* Task 10 — the mockup's `Palette` dt (name + a swatch per
+                  colour, `cname()` there ↔ `s.option` here, the design's own
+                  readable colour name — no separate name lookup needed).
+                  Distinct from `line.config` below: this is the PALETTE
+                  (human name + colours), that is the technical selection
+                  breakdown (category: option). */}
+              <dt className="text-muted-foreground">{t("line.palette")}</dt>
+              <dd className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                <span className="font-semibold">{paletteName ?? "—"}</span>
+                {line.configSnapshot.selections
+                  .filter((s) => s.hex)
+                  .map((s) => (
+                    <span key={`pal-${s.label}`} className="flex items-center gap-1">
                       <span
-                        key={s.label}
                         aria-hidden
-                        data-testid="cart-line-config-dot"
                         className="size-3 rounded-full border border-border"
                         style={{ background: s.hex ?? undefined }}
                       />
-                    ))}
-                </dd>
-
-                {/* Text position is card 6's — this row prints the inscription
-                    alone, no position, until that card exists. */}
-                {line.configSnapshot.customText && (
-                  <>
-                    <dt className="text-muted-foreground">{t("line.customText")}</dt>
-                    <dd className="min-w-0 font-medium">«{line.configSnapshot.customText}»</dd>
-                  </>
-                )}
-
-                <dt className="text-muted-foreground">{t("line.ceramic")}</dt>
-                <dd className="flex flex-wrap items-center gap-1.5 font-medium">
-                  {locale === "no" ? line.productNameNo : line.productNameEn}
-                  <SetBadge count={line.pieces ?? 1} />
-                  <span className="text-muted-foreground">
-                    · {t("line.pieces", { count: (line.pieces ?? 1) * line.quantity })}
-                  </span>
-                  {/* Fix round 2 (task 10 review) — AC 5 names the info line
-                      AND the details for `sizeLabel`; the row (line ~204)
-                      already had it, this panel didn't. */}
-                  {sizeLabel && <span className="text-muted-foreground">· {sizeLabel}</span>}
-                </dd>
-
-                <dt className="text-muted-foreground">{t("line.price")}</dt>
-                <dd className="flex flex-wrap items-center gap-2">
-                  <span className="tabular-nums">
-                    {formatMoney(money(line.unitPriceCents, line.currency), locale)} × {line.quantity}
-                  </span>
-                  {/* Discount tag: same `--discount` recipe as `CartLinePrice`
-                      (cart-discount-row.tsx) — read for the colours, not
-                      reinvented, per the card's own instruction; that file is
-                      untouched. Only when the line is actually discounted. */}
-                  {d.pct > 0 && (
-                    <span
-                      data-testid="cart-line-details-discount"
-                      className="inline-flex items-center rounded-full px-2 py-0.5 text-[10.5px] font-semibold whitespace-nowrap"
-                      style={{
-                        backgroundColor: "color-mix(in oklab, var(--discount) 16%, white)",
-                        color: "color-mix(in oklab, var(--discount), black 34%)",
-                        border: "1px solid color-mix(in oklab, var(--discount) 38%, white)",
-                      }}
-                    >
-                      {d.coveredQty < d.quantity
-                        ? t("discount.badgeCapped", { pct: d.pct, qty: d.coveredQty })
-                        : t("discount.badge", { pct: d.pct })}
+                      {s.option}
                     </span>
-                  )}
-                </dd>
-              </dl>
-            </div>
+                  ))}
+              </dd>
+
+              <dt className="text-muted-foreground">{t("line.config")}</dt>
+              <dd className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                <span className="font-semibold">
+                  {formatSelections(line.configSnapshot.selections, locale)}
+                </span>
+                {line.configSnapshot.selections
+                  .filter((s) => s.hex)
+                  .map((s) => (
+                    <span
+                      key={s.label}
+                      aria-hidden
+                      data-testid="cart-line-config-dot"
+                      className="size-3 rounded-full border border-border"
+                      style={{ background: s.hex ?? undefined }}
+                    />
+                  ))}
+              </dd>
+
+              {/* Text position is card 6's — this row prints the inscription
+                  alone, no position, until that card exists. */}
+              {line.configSnapshot.customText && (
+                <>
+                  <dt className="text-muted-foreground">{t("line.customText")}</dt>
+                  <dd className="min-w-0 font-medium">«{line.configSnapshot.customText}»</dd>
+                </>
+              )}
+
+              <dt className="text-muted-foreground">{t("line.ceramic")}</dt>
+              <dd className="flex flex-wrap items-center gap-1.5 font-medium">
+                {locale === "no" ? line.productNameNo : line.productNameEn}
+                <SetBadge count={line.pieces ?? 1} />
+                <span className="text-muted-foreground">
+                  · {t("line.pieces", { count: (line.pieces ?? 1) * line.quantity })}
+                </span>
+                {/* Fix round 2 (task 10 review) — AC 5 names the info line
+                    AND the details for `sizeLabel`; the row (line ~204)
+                    already had it, this panel didn't. */}
+                {sizeLabel && <span className="text-muted-foreground">· {sizeLabel}</span>}
+              </dd>
+
+              <dt className="text-muted-foreground">{t("line.price")}</dt>
+              <dd className="flex flex-wrap items-center gap-2">
+                <span className="tabular-nums">
+                  {formatMoney(money(line.unitPriceCents, line.currency), locale)} × {line.quantity}
+                </span>
+                {/* Discount tag: same `--discount` recipe as `CartLinePrice`
+                    (cart-discount-row.tsx) — read for the colours, not
+                    reinvented, per the card's own instruction; that file is
+                    untouched. Only when the line is actually discounted. */}
+                {d.pct > 0 && (
+                  <span
+                    data-testid="cart-line-details-discount"
+                    className="inline-flex items-center rounded-full px-2 py-0.5 text-[10.5px] font-semibold whitespace-nowrap"
+                    style={{
+                      backgroundColor: "color-mix(in oklab, var(--discount) 16%, white)",
+                      color: "color-mix(in oklab, var(--discount), black 34%)",
+                      border: "1px solid color-mix(in oklab, var(--discount) 38%, white)",
+                    }}
+                  >
+                    {d.coveredQty < d.quantity
+                      ? t("discount.badgeCapped", { pct: d.pct, qty: d.coveredQty })
+                      : t("discount.badge", { pct: d.pct })}
+                  </span>
+                )}
+              </dd>
+            </dl>
           </div>
-        )}
-      </div>
+
+          {/* Task 5: drawer-only (the code + copy + «Edit design»). Spans the
+              grid because it is a foot, not a second column. */}
+          {detailSlot && (
+            <div className="col-span-2 border-t border-border/50 pt-2.5">{detailSlot}</div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

@@ -209,9 +209,12 @@
       "continue": "Keep shopping"
     },
     "cartTitle": "Basket",
+    "chooseColours": "Choose colours in step 2 ›",
     "paintedWith": "new ceramics come painted with <b>{name}</b>",
     "empty": "Your basket is empty",
     "emptyCta": "Back to the configurator",
+    "addCeramics": "+ Add ceramics",
+    "saved": "−{amount} saved",
     "remove": "Remove",
     "subtotal": "Subtotal",
     "total": "Total price",
@@ -251,6 +254,7 @@
       "unavailable": "{count, plural, one {# item is no longer available} other {# items are no longer available}}"
     },
     "line": {
+      "seePhotos": "See the ceramic",
       "expand": "Show details",
       "collapse": "Hide details",
       "edit": "Edit design",
@@ -261,6 +265,10 @@
       "price": "Price",
       "code": "Code",
       "pieces": "{count, plural, one {# piece} other {# pieces}}"
+    },
+    "lightbox": {
+      "ceramic": "The ceramic",
+      "withPalette": "With your palette"
     },
     "unpainted": {
       "label": "Unpainted",
