@@ -26,6 +26,45 @@ export interface ConfigLinePayload {
 }
 
 /**
+ * R2-2b/F38 — the customer's OWN WORDS (colour note + inscription), merged
+ * onto a snapshot under the design's own gates.
+ *
+ * Pulled out of `buildConfigLinePayload` (R5-BASKET-HOST final review,
+ * finding 4b) because it has a SECOND caller now: step 2 publishes a
+ * `currentConfig` for the header drawer, and the drawer's Paint hands that
+ * snapshot straight to `paint()`. Step 2's own `draftPayload` is deliberately
+ * note-free — it is the PALETTE draft, and a palette is a set of colours —
+ * so without this merge Paint-from-the-drawer at step 2 produced a line with
+ * no inscription, while the same Paint at step 3 kept it. Two producers, one
+ * rule; the release has already shipped two bugs of exactly this shape.
+ *
+ * Neither field enters the config code or the `set=` link, so the merge can
+ * never change which saved palette a configuration matches.
+ *
+ * @param customNote R2-2b — trimmed; only stored when the design accepts notes
+ *   ("" means "studio's complementary colours", which is why it is kept).
+ * @param customText F38 — untrusted URL input, so `cleanCustomText` re-sanitises
+ *   and re-truncates here: this is the single choke point for that read path.
+ *   Dropped entirely when empty (no "studio default" for text).
+ */
+export function withCustomFields(
+  snapshot: ConfigSnapshot,
+  detail: Pick<DesignDetail, "acceptsCustomNotes" | "acceptsCustomText">,
+  customNote?: string,
+  customText?: string
+): ConfigSnapshot {
+  const cleanedText = detail.acceptsCustomText ? cleanCustomText(customText ?? "") : "";
+  // Cleared first: a gate that is OFF must leave nothing behind, or a
+  // snapshot that once carried an inscription would keep it forever.
+  const merged: ConfigSnapshot = { ...snapshot };
+  delete merged.customNote;
+  delete merged.customText;
+  if (detail.acceptsCustomNotes) merged.customNote = (customNote ?? "").trim();
+  if (cleanedText) merged.customText = cleanedText;
+  return merged;
+}
+
+/**
  * @param selById categorySlug → optionId; missing/unknown falls back to the
  *   category's cover default (is_default else first-by-sort_order) (same
  *   tolerance as the step-3 page always had).
@@ -47,32 +86,26 @@ export function buildConfigLinePayload(
   const pick = (c: DesignDetail["categories"][number]) =>
     c.options.find((o) => o.id === selById[c.slug]) ?? pickDefaultOption(c.options);
 
-  // F38: `text=` is untrusted URL input → re-sanitise + re-truncate here, the
-  // one place every snapshot producer routes through (TL mandate 1). Only on
-  // text-enabled designs; whitespace-only cleans to "" → treated as absent.
-  const cleanedText = detail.acceptsCustomText ? cleanCustomText(customText ?? "") : "";
-
-  const snapshot: ConfigSnapshot = {
-    designSlug: detail.slug,
-    designName: detail.name,
-    designNameNo: detail.nameNo,
-    designNameEn: detail.nameEn,
-    selections: detail.categories.map((c) => {
-      const opt = pick(c);
-      return {
-        label: (c.labelNo ?? c.slug) as string,
-        labelEn: c.labelEn ?? undefined,
-        option: opt?.name ?? "",
-        hex: opt?.hex ?? null,
-      };
-    }),
-    // R2-2b: present (possibly "") only on designs that accept notes; the
-    // server re-sanitises at order submit (zod). Off-feature designs omit it.
-    ...(detail.acceptsCustomNotes ? { customNote: (customNote ?? "").trim() } : {}),
-    // F38: present only when non-empty after cleaning (no "studio default" for
-    // text, unlike the note). Never enters the config code / set= link.
-    ...(cleanedText ? { customText: cleanedText } : {}),
-  };
+  const snapshot = withCustomFields(
+    {
+      designSlug: detail.slug,
+      designName: detail.name,
+      designNameNo: detail.nameNo,
+      designNameEn: detail.nameEn,
+      selections: detail.categories.map((c) => {
+        const opt = pick(c);
+        return {
+          label: (c.labelNo ?? c.slug) as string,
+          labelEn: c.labelEn ?? undefined,
+          option: opt?.name ?? "",
+          hex: opt?.hex ?? null,
+        };
+      }),
+    },
+    detail,
+    customNote,
+    customText
+  );
 
   const normalized: Record<string, string> = {};
   for (const c of detail.categories) {

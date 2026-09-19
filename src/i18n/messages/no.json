@@ -109,9 +109,9 @@
       "close": "Lukk"
     },
     "stickyBar": {
-      "title": "Din bestilling",
       "pieces": "{count, plural, one {# del} other {# deler}}",
-      "saved": "spart {amount}"
+      "saved": "spart {amount}",
+      "unpainted": "{count, plural, one {# umalt} other {# umalte}}"
     },
     "steps": {
       "design": "1. Design",
@@ -208,9 +208,12 @@
       "continue": "Fortsett å handle"
     },
     "cartTitle": "Handlekurv",
+    "chooseColours": "Velg farger i steg 2 ›",
     "paintedWith": "ny keramikk males med <b>{name}</b>",
     "empty": "Handlekurven er tom",
     "emptyCta": "Tilbake til konfiguratoren",
+    "addCeramics": "+ Legg til keramikk",
+    "saved": "−{amount} spart",
     "remove": "Fjern",
     "subtotal": "Delsum",
     "total": "Totalpris",
@@ -250,6 +253,7 @@
       "unavailable": "{count, plural, one {# vare er ikke lenger tilgjengelig} other {# varer er ikke lenger tilgjengelige}}"
     },
     "line": {
+      "seePhotos": "Se keramikken",
       "expand": "Vis detaljer",
       "collapse": "Skjul detaljer",
       "edit": "Rediger design",
@@ -260,6 +264,10 @@
       "price": "Pris",
       "code": "Kode",
       "pieces": "{count, plural, one {# del} other {# deler}}"
+    },
+    "lightbox": {
+      "ceramic": "Keramikken",
+      "withPalette": "Med paletten din"
     },
     "unpainted": {
       "label": "Umalt",

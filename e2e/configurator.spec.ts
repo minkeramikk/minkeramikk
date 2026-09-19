@@ -453,13 +453,13 @@ test.describe("R2-3+R2-4 expandable card", () => {
       await expect(sheet.getByTestId("details-toggle")).toHaveCount(0);
 
       // Inline add → docked cart gains a line (robust: docked cart, not header badge).
-      // Note: cart-line renders in BOTH the desktop panel and the mobile section
-      // (same cartPanel JSX rendered twice with CSS show/hide). Count before add,
-      // then assert exactly 2 more after (one per panel = one cart line added).
+      // R5-BASKET-HOST PR 2 deleted the in-flow mobile copy: step 3 mounts the
+      // column ONCE (hidden below `lg`, but in the DOM, which is what `count()`
+      // reads) and the drawer is closed here, so one added line is one node.
       const allCartLines = page.getByTestId("cart-line");
       const linesBefore = await allCartLines.count();
       await sheet.getByTestId("add-to-cart").click();
-      await expect(allCartLines).toHaveCount(linesBefore + 2);
+      await expect(allCartLines).toHaveCount(linesBefore + 1);
 
       // §3.20: adding closes the sheet FIRST, then raises a toast — replaces
       // the old inline "added" confirmation (add-feedback is gone). The toast
@@ -734,11 +734,13 @@ test.describe("R2-7 bilingual design name", () => {
         await sheet.getByTestId("add-to-cart").click();
         await expect(sheet).toBeHidden();
         // cart-line subtitle: designLabel(snapshot, "en") → snapshot.designNameEn = enName.
-        // The cart-line renders twice (desktop panel + mobile section, one hidden via
-        // CSS per breakpoint), so scope to the VISIBLE copy — `.first()` alone can land
-        // on the hidden one (desktop picks the hidden mobile copy → false negative).
+        // R5-BASKET-HOST PR 2: below `lg` the step-3 column is not rendered at
+        // all, so there is no VISIBLE cart line on a phone until the basket is
+        // opened — and the basket, at every width, is the drawer. Asserting in
+        // there is the one reading that holds in both projects.
+        await page.getByTestId("cart-button").click();
         await expect(
-          page.getByTestId("cart-line").filter({ hasText: enName }).filter({ visible: true }).first()
+          page.getByTestId("cart-drawer").getByTestId("cart-line").filter({ hasText: enName }).first()
         ).toBeVisible();
       } else {
         // No visible product for this supplier → the EN cart-line assertion is
