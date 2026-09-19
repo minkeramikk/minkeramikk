@@ -209,6 +209,7 @@
       "continue": "Keep shopping"
     },
     "cartTitle": "Basket",
+    "chooseColours": "Choose colours in step 2 ›",
     "paintedWith": "new ceramics come painted with <b>{name}</b>",
     "empty": "Your basket is empty",
     "emptyCta": "Back to the configurator",
@@ -251,6 +252,7 @@
       "unavailable": "{count, plural, one {# item is no longer available} other {# items are no longer available}}"
     },
     "line": {
+      "seePhotos": "See the ceramic",
       "expand": "Show details",
       "collapse": "Hide details",
       "edit": "Edit design",

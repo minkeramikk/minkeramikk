@@ -1307,6 +1307,11 @@ export function CeramicsStep({
                       // and is first out of the LRU.
                       touchPalette(code, Date.now());
                     }}
+                    // R5-BASKET-HOST task 2: step 3 always has a config on
+                    // screen (the active design) — the drawer's step-1 "no
+                    // config yet" case (`{ kind: "none" }`) doesn't apply
+                    // here, so this stays step 3's own behaviour unchanged.
+                    paintTarget={{ kind: "palette" }}
                   />
                 );
               })}
