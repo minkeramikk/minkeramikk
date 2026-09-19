@@ -52,7 +52,7 @@ import { useCartContext } from "@/lib/cart/cart-context";
 import { keyboardUp } from "@/lib/cart/basket-open";
 import { hoverCapable } from "@/lib/pointer";
 import { designLabel } from "@/lib/cart/cart";
-import { buildConfigLinePayload, withCustomFields } from "@/lib/configurator/line-payload";
+import { buildConfigLinePayload } from "@/lib/configurator/line-payload";
 import { nameFor, paletteFor, sortCurrentDesignFirst } from "@/lib/palettes/palettes";
 import type { PaletteWords } from "@/lib/palettes/name-lists";
 import { PaletteBar } from "@/components/ui-domain/palette-bar";
@@ -609,12 +609,29 @@ export function ConfiguratorClient({
     return () => publishKeyboardOpen(false);
   }, [step, typing, publishKeyboardOpen]);
   // The DRAFT is exactly what step 3 would turn into a cart line: same
-  // builder, same inputs (card §3). No note/text carried in — a palette is a
-  // set of COLOURS, and neither one ever enters the config code either
-  // (F38/R2-2b), so they can't change which saved palette this matches.
+  // builder, same inputs (card §3), including the inscription and colour
+  // wish now (R5-TEXT-IDENTITY task 4-follow-up) — this is the SAME call
+  // page.tsx makes for step 3, so a config painted from THIS step and one
+  // painted from step 3 get the identical code for the identical visible
+  // configuration. Before this, the draft was built colours-only on
+  // purpose; that silently dropped a dedication typed here and Painted
+  // straight from the drawer (`text=` no longer carries it either, task 4),
+  // and it made the SAME on-screen configuration have two different
+  // identities depending only on which step happened to add it — worse
+  // than the bug this card set out to fix, because it was silent. Card §3's
+  // OWN consequence of the code now moving with the words — the "Save as
+  // palette" offer must not treat a mere inscription change as a new
+  // palette — is a separate follow-up (the save-gate), not this fix: the
+  // identity itself has to be correct first.
   const draftPayload = useMemo(
-    () => buildConfigLinePayload(detail, selections),
-    [detail, selections]
+    () =>
+      buildConfigLinePayload(
+        detail,
+        selections,
+        noteMode === "custom" ? noteText : "",
+        showCustomText ? customText : ""
+      ),
+    [detail, selections, noteMode, noteText, showCustomText, customText]
   );
   const draftCode = draftPayload.configCode;
   // The chip that represents "what's on screen right now" — either the
@@ -637,6 +654,24 @@ export function ConfiguratorClient({
    * the save-strip can never drift apart the way the desktop bar's chip and
    * `saveDraftAsPalette` used to (two separate `nameFor()` calls below,
    * now one).
+   *
+   * R5-TEXT-IDENTITY follow-up — WHAT THIS MEANS NOW THAT `draftCode`
+   * CARRIES THE INSCRIPTION: `nameFor()` hashes the code, so while the
+   * customer is actively typing a dedication, this label recomputes and can
+   * visibly change on every keystroke (a different hashed word each time)
+   * until they stop. This is a direct, INTENDED consequence of card §1
+   * ("due configurazioni con... dediche diverse sono due palette diverse...
+   * e quindi nomi diversi") for the FINAL, settled text — a saved palette's
+   * name really is allowed to depend on its dedication. The live flicker
+   * WHILE COMPOSING is a side effect nobody asked for, though: it wasn't
+   * possible before this change (the draft code used to be colours-only, so
+   * this label was stable while typing). Not fixed here — if it reads badly
+   * in practice, the lightest fix would be debouncing the label
+   * specifically (e.g. only re-run `nameFor()` a few hundred ms after the
+   * last keystroke, or freeze it while the text input has focus and resolve
+   * on blur) without touching `draftCode` itself, which must stay live for
+   * identity/Paint to be correct. Left for Daniele/TL to decide, not
+   * guessed at here.
    */
   // Round 4 (TL-reported duplicate «Zaffera»): `nameFor()` needs every
   // name already saved so it can pick a FREE word instead of repeating one
@@ -657,44 +692,34 @@ export function ConfiguratorClient({
    *  (`designLabel()` on the snapshot), just this step's own snapshot. */
   const activeDesignName = designLabel(draftPayload.snapshot, locale as "no" | "en") ?? "";
   /**
-   * Final-review finding 4b — what the DRAWER paints with at step 2.
-   * `draftPayload.snapshot` is the palette draft and carries no note/text on
-   * purpose (see its comment). The drawer's Paint hands the published
-   * snapshot straight to `paint()`, so publishing the bare draft dropped the
-   * customer's inscription: Paint from the drawer at step 2 made a line with
-   * no `customText`, while the same Paint at step 3 — or «Legg i
-   * handlekurv» — kept it. This is money-and-mail data: it reaches the
-   * order mail and the lab PDF.
-   *
-   * Merged with the SAME gates `goToStep` uses to put `note=`/`text=` on the
-   * URL, so what the drawer paints and what step 3 would build from that URL
-   * are one configuration. Neither field enters the config code, so
-   * `draftCode` and the palette match are untouched.
-   */
-  const paintingSnapshot = useMemo(
-    () =>
-      withCustomFields(
-        draftPayload.snapshot,
-        detail,
-        noteMode === "custom" ? noteText : "",
-        showCustomText ? customText : ""
-      ),
-    [draftPayload.snapshot, detail, noteMode, noteText, showCustomText, customText]
-  );
-
-  /**
    * R5-BASKET-HOST task 1 — step 2 publishes the same `CurrentConfig` shape
    * step 3 does (ceramics-step.tsx), so the header drawer (outside this
    * subtree, later task) can render its own preview chip. Published ONLY
    * while this IS step 2 — step 1 publishes nothing on purpose, which is what
    * keeps the chip dead there — and cleared on unmount or on leaving step 2,
    * mirroring step 3's own publish/clear effect exactly.
+   *
+   * R5-TEXT-IDENTITY follow-up (final-review finding 4b, closed properly) —
+   * `draftPayload.snapshot` used to carry no note/text on purpose (a palette
+   * was colours only), so the drawer's Paint — which hands this published
+   * snapshot straight to `paint()` — silently dropped a customer's
+   * inscription: Paint from the drawer at step 2 made a line with no
+   * `customText`, while the same Paint at step 3 kept it. A SEPARATE merged
+   * `paintingSnapshot` (built with `withCustomFields`) used to patch that
+   * over ONLY for this publish, while `draftPayload.configCode` stayed
+   * colours-only — which meant the drawer's Paint carried the words in the
+   * snapshot but not in the code, so the SAME on-screen configuration had
+   * two different identities depending on which step added it to the cart.
+   * `draftPayload` now builds WITH the inscription/wish (see its own
+   * comment above), so `draftPayload.snapshot` already has everything the
+   * separate merge used to add — there is nothing left to patch, and the
+   * code and the snapshot finally agree.
    */
   useEffect(() => {
     if (step !== 2) return;
     setCurrentConfig({
       code: draftPayload.configCode,
-      snapshot: paintingSnapshot,
+      snapshot: draftPayload.snapshot,
       layers: activePaletteLayers,
       designSlug: detail.slug,
       label: activePaletteName,
@@ -703,7 +728,7 @@ export function ConfiguratorClient({
       explicit: true,
     });
     return () => setCurrentConfig(null);
-  }, [step, draftPayload, paintingSnapshot, activePaletteLayers, detail.slug, activePaletteName, setCurrentConfig]);
+  }, [step, draftPayload, activePaletteLayers, detail.slug, activePaletteName, setCurrentConfig]);
 
   function saveDraftAsPalette() {
     const now = Date.now();
