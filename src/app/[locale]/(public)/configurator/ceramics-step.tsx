@@ -1212,19 +1212,20 @@ export function CeramicsStep({
       >
         <ShoppingBag className="size-5 shrink-0 text-muted-foreground" aria-hidden />
         <span className="min-w-0 flex-1">
-        {/* At 360px a long basket ("100 deler") overflows this line. The COUNT
-            is the half worth keeping, so it never shrinks and the title
-            truncates instead — the reverse loses exactly the information the
-            bar exists to show. Same for the unpainted count: it is the one
-            thing that still needs doing. */}
-        <span className="flex items-baseline gap-1 text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
-          <span className="truncate">{t("cartTitle")}</span>
-          <span className="shrink-0 whitespace-nowrap">
-            · {tc("stickyBar.pieces", { count: pieces })}
-          </span>
+        {/* ONE line, clipped as one (measured at 375 EN: the three parts want
+            195px and the CTA leaves 120 — as three `shrink-0` flex children
+            they ran under the pill). A plain block with `truncate` keeps the
+            ellipsis and, more importantly, the bleed inside the button.
+            What the tail loses at the narrowest widths is the unpainted
+            count, which is the one thing here that is NOT lost: the pill
+            beside it spells it out in full — «Paint 1 piece first» — for
+            exactly as long as there is an unpainted piece. */}
+        <span className="block truncate text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
+          {t("cartTitle")} · {tc("stickyBar.pieces", { count: pieces })}
           {hasUnpainted && (
-            <span className="shrink-0 whitespace-nowrap text-warn-on-light">
-              · {tc("stickyBar.unpainted", { count: unpaintedInBasket })}
+            <span className="text-warn-on-light">
+              {" · "}
+              {tc("stickyBar.unpainted", { count: unpaintedInBasket })}
             </span>
           )}
         </span>
