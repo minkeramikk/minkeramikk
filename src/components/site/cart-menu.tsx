@@ -203,7 +203,11 @@ export function CartMenu() {
           // is what sets the floor now. Full width below `sm` was already
           // here; the base `Sheet`'s own `w-3/4` is shared with every other
           // sheet and is not touched.
-          className="w-full! gap-0 p-0 sm:max-w-[420px]!"
+          // PR 2 review: AC 4 names ✕ as a required way to close the drawer,
+          // and the shared `Sheet` draws it `size-icon-sm` = 28px. Widened
+          // from the drawer's OWN className (card §2: never touch the shared
+          // component), so every other sheet keeps its 28px.
+          className="w-full! gap-0 p-0 sm:max-w-[420px]! [&>[data-slot=sheet-close]]:size-11"
           onCloseAutoFocus={() => {
             if (!paintFirstRef.current) return;
             paintFirstRef.current = false;
