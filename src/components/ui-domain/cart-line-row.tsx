@@ -47,11 +47,10 @@ export function thumbHex(line: CartLine): string | undefined {
  * arrives here as `n`/`onN`, so this stays a pure render of whatever the
  * parent's cart state is right now.
  *
- * The details panel below is the drilldown (composed preview + config +
- * ceramic + price) — NOT `CartLineRecap`. That component is untouched by this
- * card and now has NO caller in `src/`: the steps 1–2 drawer it was written
- * for renders `<Basket>` (task 5). The card allows it to stay; it is dead
- * code, not legacy-in-use.
+ * The details panel below is the drilldown: composed preview, config,
+ * ceramic, price. It is the ONLY such panel — `CartLineRecap`, the drawer's
+ * old recap, was deleted in R5-BASKET-HOST once the drawer started rendering
+ * `<Basket>` (`b6d939f`).
  */
 /**
  * The line's colours as dots. TL, 18/9: on the row the dots ARE the colours —
@@ -149,9 +148,9 @@ export function CartLineRow({
   /** R5-BASKET-HOST task 5 — one host-specific block at the foot of the
    *  details panel. The DRAWER puts the MK code, its copy button and «Edit
    *  design» there (task 18's ruling: those belong to the drawer, not to
-   *  this step-3 drilldown); they used to ride on `CartLineRecap`, which the
-   *  drawer rendered instead of this row. The column passes nothing and its
-   *  panel is unchanged. */
+   *  this step-3 drilldown); they used to ride on the drawer's own recap,
+   *  deleted in `b6d939f`. The column passes nothing and its panel is
+   *  unchanged. */
   detailSlot?: React.ReactNode;
 }) {
   // TODO:nb-review — cart.unpainted.* / cart.unpaint.action NO copy is new,
@@ -189,10 +188,9 @@ export function CartLineRow({
   // R5-PALETTES §4-bis: locale-picked like productNameNo/En — undefined on a
   // legacy line, and the info line below prints nothing for it (AC 5).
   const sizeLabel = locale === "no" ? line.sizeLabelNo : line.sizeLabelEn;
-  // Fix round 2 (blocker 1) — same colour-source rule as the retired
-  // `CartLineRecap`: `customNote` is present (possibly "") only when the
-  // design takes notes; non-empty ⇒ custom colours, "" ⇒ studio's, absent ⇒
-  // no badge.
+  // `customNote` is present (possibly "") only when the design takes notes;
+  // non-empty ⇒ the customer's colours, "" ⇒ the studio's, absent ⇒ no badge.
+  // The rule predates this row and outlived the recap it came from.
   const note = line.configSnapshot?.customNote;
   const colourVariant = note === undefined ? null : note.trim() ? "custom" : "studio";
   // R5-PALETTES task 10 — a painted row is named by the palette it was
@@ -764,10 +762,10 @@ export function CartLineRow({
           Task 18 (TL) — the code and «Edit design» that fix round 2 put
           here were the wrong home: this panel is the drilldown
           (Config/Ceramic/Price), the code + edit affordance is the CART
-          DRAWER's job. It used to live there in `CartLineRecap`; since task 5
-          the drawer is `<Basket>` too, so `basket.tsx` passes them back in as
-          `detailSlot` — drawer only — and that is what the three e2e specs
-          read. `CartLineRecap` itself has no caller left.
+          DRAWER's job. It used to live there in the drawer's own recap;
+          the drawer renders `<Basket>` now, so `basket.tsx` passes them back
+          in as `detailSlot` — drawer only — and that is what the three e2e
+          specs read.
           Outside the grid above on purpose: this panel is the next block in
           the stack, full width, not a third column. */}
       {open && !unpainted && line.configSnapshot && (
@@ -775,9 +773,9 @@ export function CartLineRow({
           data-testid="cart-line-detail"
           className="mt-2 grid grid-cols-[112px_1fr] gap-4 rounded-sm border border-primary/30 bg-card/60 p-3"
         >
-          {/* Composed preview, same compositing as CartLineThumb/CartLineRecap
-              (multiply-blend the recolour layers), size-28 — this card's own
-              preview, not a reuse of CartLineRecap's size-52. */}
+          {/* Composed preview, same compositing as `CartLineThumb`
+              (multiply-blend the recolour layers), at size-28 — this panel's
+              own preview, not a reuse of a bigger one. */}
           <span
             aria-hidden
             className="relative block size-28 overflow-hidden rounded-md border border-border bg-[var(--mk-canvas)]"
