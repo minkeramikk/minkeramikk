@@ -69,8 +69,11 @@ test("AC3: edit quantity and remove update total/badge; empty → empty state", 
 
   const line = drawer(page).getByTestId("cart-line");
   // R5-BASKET-HOST task 5: the drawer renders the unified row, whose
-  // steppers are labelled «Øk antall»/«Increase quantity» (they were bare
-  // "+"/"-" glyphs before) — the testids are the stable handle.
+  // quantity steppers are labelled `cart.increaseQty`/`cart.decreaseQty`
+  // («Flere»/«Færre», «More»/«Fewer») — they were bare "+"/"-" glyphs
+  // before. The testids are the stable handle, and the only unambiguous one:
+  // an UNPAINTED row's paint-count stepper (`paint-n-inc`/`paint-n-dec`)
+  // carries the very same aria-label.
   await line.getByTestId("docked-qty-inc").click(); // qty 2
   await expect(page.getByTestId("cart-badge")).toHaveText("2");
   await line.getByTestId("docked-qty-dec").click(); // qty 1
@@ -199,7 +202,7 @@ test.describe("R4-SCONTI — quantity discounts", () => {
       // one piece: full price only
       await expect(line.getByTestId("cart-line-full")).toHaveCount(0);
       // second piece: the ×2 tier fires
-      await drawer(page).getByLabel("+").first().click();
+      await drawer(page).getByTestId("docked-qty-inc").first().click();
       await expect(async () => {
         await page.reload();
         await openCart(page);
@@ -224,7 +227,7 @@ test.describe("R4-SCONTI — quantity discounts", () => {
       await page.goto(step3);
       await addFirstCeramic(page);
       await openCart(page);
-      await drawer(page).getByLabel("+").first().click(); // qty 2 → 6%, next step at 9
+      await drawer(page).getByTestId("docked-qty-inc").first().click(); // qty 2 → 6%, next step at 9
       await expect(async () => {
         await page.reload();
         await openCart(page);
@@ -246,7 +249,7 @@ test.describe("R4-SCONTI — quantity discounts", () => {
       await addFirstCeramic(page);
       await openCart(page);
       const line = drawer(page).getByTestId("cart-line").first();
-      await drawer(page).getByLabel("+").first().click(); // qty 2
+      await drawer(page).getByTestId("docked-qty-inc").first().click(); // qty 2
       await expect(async () => {
         await page.reload();
         await openCart(page);
@@ -282,7 +285,7 @@ test.describe("R4-SCONTI — quantity discounts", () => {
       // three pieces of the first ceramic into the basket, sheet closed
       await addFirstCeramic(page);
       await openCart(page);
-      const plus = drawer(page).getByLabel("+").first();
+      const plus = drawer(page).getByTestId("docked-qty-inc").first();
       await plus.click();
       await plus.click();
       await expect(page.getByTestId("cart-badge")).toHaveText("3");
@@ -371,7 +374,7 @@ test.describe("R4-SCONTI — quantity discounts", () => {
       await addFirstCeramic(page);
       await openCart(page);
       const line = drawer(page).getByTestId("cart-line").first();
-      await drawer(page).getByLabel("+").first().click(); // qty 2 → 12%, next step at 9
+      await drawer(page).getByTestId("docked-qty-inc").first().click(); // qty 2 → 12%, next step at 9
 
       // the seed really took: discount applied AND the nudge pointing at 9
       await expect(async () => {
@@ -424,7 +427,7 @@ test.describe("R4-SCONTI — quantity discounts", () => {
       await addFirstCeramic(page);
       await openCart(page);
       const line = drawer(page).getByTestId("cart-line").first();
-      await drawer(page).getByLabel("+").first().click(); // qty 2 → the ×2 tier
+      await drawer(page).getByTestId("docked-qty-inc").first().click(); // qty 2 → the ×2 tier
       await expect(async () => {
         await page.reload();
         await openCart(page);

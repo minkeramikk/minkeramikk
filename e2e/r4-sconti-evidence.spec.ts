@@ -245,7 +245,7 @@ test.describe("customer cart: suggestion card (part ②)", () => {
       await page.goto(ruleStep3);
       await addFirstCeramic(page);
       await openCart(page);
-      await drawer(page).getByLabel("+").first().click(); // reach the threshold
+      await drawer(page).getByTestId("docked-qty-inc").first().click(); // reach the threshold
       const cardPhone = drawer(page).getByTestId("cart-suggestion");
       await expect(async () => {
         await page.reload();
@@ -259,7 +259,7 @@ test.describe("customer cart: suggestion card (part ②)", () => {
       await page.goto(ruleStep3);
       await addFirstCeramic(page);
       await openCart(page);
-      await drawer(page).getByLabel("+").first().click();
+      await drawer(page).getByTestId("docked-qty-inc").first().click();
       const cardDesktop = drawer(page).getByTestId("cart-suggestion");
       await expect(async () => {
         await page.reload();
