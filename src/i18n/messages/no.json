@@ -263,6 +263,10 @@
       "code": "Kode",
       "pieces": "{count, plural, one {# del} other {# deler}}"
     },
+    "lightbox": {
+      "ceramic": "Keramikken",
+      "withPalette": "Med paletten din"
+    },
     "unpainted": {
       "label": "Umalt",
       "note": "{count, plural, one {# del er fortsatt umalt} other {# deler er fortsatt umalte}} — velg en palett på raden, og trykk Mal.",

@@ -264,6 +264,10 @@
       "code": "Code",
       "pieces": "{count, plural, one {# piece} other {# pieces}}"
     },
+    "lightbox": {
+      "ceramic": "The ceramic",
+      "withPalette": "With your palette"
+    },
     "unpainted": {
       "label": "Unpainted",
       "note": "{count, plural, one {# piece is} other {# pieces are}} still unpainted — choose a palette on the row, then Paint.",

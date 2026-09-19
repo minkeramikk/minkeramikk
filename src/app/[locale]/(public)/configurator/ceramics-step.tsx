@@ -54,6 +54,7 @@ import type { ResolvedSharedSet } from "./resolve-shared-set";
 import { ProductSheet } from "@/components/ui-domain/product-sheet";
 import { AddedSheet } from "@/components/ui-domain/added-sheet";
 import { UnpaintDialog } from "@/components/ui-domain/unpaint-dialog";
+import { LineLightbox } from "@/components/ui-domain/line-lightbox";
 import { NextStepPill, PillIcon } from "@/components/ui-domain/next-step-pill";
 
 export interface CeramicProduct {
@@ -602,6 +603,13 @@ export function CeramicsStep({
    *  animation (see its own comment) — this id only drives whether it's open. */
   const [unpaintId, setUnpaintId] = useState<string | null>(null);
   const unpaintLine = cart.find((l) => l.id === unpaintId) ?? null;
+  /** R5-BASKET-HOST task 3: id of the line the thumb's `LineLightbox` is open
+   *  for, or null. Same recurring-id trap as `unpaintId` — pruned in the same
+   *  effect below, and `openPhotoLine` resolving to `null` when the id no
+   *  longer matches a live line is what closes the dialog instead of letting
+   *  it render empty. */
+  const [openPhotoId, setOpenPhotoId] = useState<string | null>(null);
+  const openPhotoLine = cart.find((l) => l.id === openPhotoId) ?? null;
   /**
    * R5-PALETTES task 10 — an unpainted row's OWN palette pick, distinct from
    * the active/on-screen one (card §4-bis: a row can paint with a DIFFERENT
@@ -695,6 +703,9 @@ export function CeramicsStep({
    * `pruneToLive` (module scope, above) is the shared pruning logic every
    * one of these five maps/pointers needs, computed against the SAME
    * `liveIds` set rather than each map recomputing its own.
+   *
+   * Task 3 (R5-BASKET-HOST): `openPhotoId` joins the same effect — a sixth
+   * pointer keyed the same recurring way.
    */
   useEffect(() => {
     const liveIds = new Set(cart.map((l) => l.id));
@@ -703,6 +714,7 @@ export function CeramicsStep({
     setPickerOpenId((m) => pruneToLive(m, liveIds));
     setUnpaintId((id) => (id && !liveIds.has(id) ? null : id));
     setExpandedId((id) => (id && !liveIds.has(id) ? null : id));
+    setOpenPhotoId((id) => (id && !liveIds.has(id) ? null : id));
   }, [cart]);
   /** CA-3 C: share feedback under the panel header (aria-live). */
   const [shareState, setShareState] = useState<
@@ -1312,6 +1324,9 @@ export function CeramicsStep({
                     // config yet" case (`{ kind: "none" }`) doesn't apply
                     // here, so this stays step 3's own behaviour unchanged.
                     paintTarget={{ kind: "palette" }}
+                    // R5-BASKET-HOST task 3: the thumb now opens something —
+                    // keyed by id, pruned in the shared effect above.
+                    onOpenPhoto={() => setOpenPhotoId(line.id)}
                   />
                 );
               })}
@@ -1979,6 +1994,18 @@ export function CeramicsStep({
         // the dialog's own default focus-return (the row's «Unpaint…»
         // button) is a silent no-op. Hand focus to the survivor instead.
         onConfirmed={focusFirstUnpaintedRow}
+      />
+
+      {/* R5-BASKET-HOST task 3: the row thumb's photo viewer. Rendered once,
+          at the end of the step, driven by `openPhotoId` — same pattern as
+          `UnpaintDialog` right above (a `CartLine | null` + a ref that keeps
+          rendering the last one through Radix's exit animation). No manual
+          focus handling: the thumb button that opened it stays mounted, so
+          Radix's own default `onCloseAutoFocus` returns focus there. */}
+      <LineLightbox
+        line={openPhotoLine}
+        locale={locale}
+        onOpenChange={(open) => !open && setOpenPhotoId(null)}
       />
 
       {/* §3.20: visible confirmation, replacing the old sr-only announcement.
