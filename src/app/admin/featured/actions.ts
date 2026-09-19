@@ -45,7 +45,15 @@ export type FeaturedFormState = {
   preview?: FeaturedPreview | null;
 };
 
-/** Parse + validate the pasted input; shared by Preview and Add. */
+/** Parse + validate the pasted input; shared by Preview and Add.
+ *
+ *  R5-TEXT-IDENTITY (featured-fix): `v.canonicalPayload` (colours-only —
+ *  every row's inscription/colour-wish segment stripped by
+ *  `validateFeaturedPayload`) is what gets previewed below AND what
+ *  `addFeatured` stores, never `parsed.payload`. An admin can paste a
+ *  customer's own "Copy code" (cart drawer) straight into this curator;
+ *  without this, that customer's dedication would go onto the public home
+ *  strip. */
 async function resolveInput(
   raw: string
 ): Promise<{ error: string } | { preview: FeaturedPreview }> {
@@ -60,7 +68,7 @@ async function resolveInput(
   const layers = (await resolveCodeLayers(v.firstCode)) ?? [];
   const rows =
     parsed.kind === "set"
-      ? decodeSetParam(parsed.payload).entries.map((e) => ({
+      ? decodeSetParam(v.canonicalPayload).entries.map((e) => ({
           code: e.configCode,
           productSlug: e.productSlug,
           qty: e.qty,
@@ -70,7 +78,7 @@ async function resolveInput(
   return {
     preview: {
       kind: parsed.kind,
-      payload: parsed.payload,
+      payload: v.canonicalPayload,
       designName: v.designName,
       setCount: v.setCount,
       firstCode: v.firstCode,

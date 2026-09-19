@@ -12,6 +12,7 @@ import {
   type CodecDesign,
 } from "@/lib/configurator/config-code";
 import { decodeSetParam } from "@/lib/cart/set-code";
+import { stripFeaturedCode, stripFeaturedSet } from "./featured-strip";
 
 /** A featured_configs row, as stored (F28 / ADR 0016). */
 export interface FeaturedRow {
@@ -47,8 +48,18 @@ export type PayloadValidation =
       designName: string;
       designNameEn: string;
       setCount: number | null;
-      /** the code whose composition represents the entry (set: first row) */
+      /** the code whose composition represents the entry (set: first row).
+       *  Already colours-only — see `canonicalPayload`. */
       firstCode: string;
+      /**
+       * R5-TEXT-IDENTITY (featured-fix) — `payload` with every row's
+       * inscription/colour-wish segment stripped (`stripFeaturedCode` /
+       * `stripFeaturedSet`). This is what MUST be previewed and stored: an
+       * admin can paste a customer's own "Copy code" (cart drawer) into this
+       * curator, and without this, that customer's dedication would go
+       * straight onto the public home strip.
+       */
+      canonicalPayload: string;
     }
   | { ok: false; reason: string };
 
@@ -86,15 +97,16 @@ export async function validateFeaturedPayload(
 
   if (kind === "design") {
     const r = resolveDesign(payload);
-    return r.reason !== undefined
-      ? { ok: false, reason: r.reason }
-      : {
-          ok: true,
-          designName: r.design.nameNo,
-          designNameEn: r.design.nameEn,
-          setCount: null,
-          firstCode: payload,
-        };
+    if (r.reason !== undefined) return { ok: false, reason: r.reason };
+    const canonicalPayload = stripFeaturedCode(payload, findByCode);
+    return {
+      ok: true,
+      designName: r.design.nameNo,
+      designNameEn: r.design.nameEn,
+      setCount: null,
+      firstCode: canonicalPayload,
+      canonicalPayload,
+    };
   }
 
   // kind=set: every row must still resolve (design active + ceramic visible)
@@ -120,12 +132,14 @@ export async function validateFeaturedPayload(
     // set too, and its N comes from the ceramic's own piece count.
     pieces += entry.qty * product.pieces;
   }
+  const canonicalPayload = stripFeaturedSet(payload, findByCode);
   return {
     ok: true,
     designName: namesNo.join(" + "),
     designNameEn: namesEn.join(" + "),
     setCount: pieces,
-    firstCode: entries[0].configCode,
+    firstCode: decodeSetParam(canonicalPayload).entries[0]?.configCode ?? entries[0].configCode,
+    canonicalPayload,
   };
 }
 
