@@ -169,9 +169,9 @@ test.describe("customer cart: tiers, strikethrough, nudge, docked panel", () => 
         await openCart(page);
         // `cart-line-full` (il prezzo pieno barrato) e non
         // `cart-discount-badge`: il badge −% per riga non esiste più in
-        // nessun contenitore dalla card 1 §3-bis (b). Il blocco 1280 qui
-        // sotto lo nomina ancora ed è rosso per quel motivo, non per questa
-        // PR — elencato nel report, ruling al TL.
+        // nessun contenitore dalla card 1 §3-bis (b). Qui serve un semaforo
+        // — «lo sconto seminato è arrivato» — prima dello scatto, e lo
+        // strikethrough è esattamente ciò che lo scatto deve mostrare.
         await expect(drawer(page).getByTestId("cart-line-full")).toBeVisible();
       }).toPass({ timeout: 15_000 });
       await page.screenshot({ path: `${OUT}/cart-tiers-390.png` });
@@ -186,9 +186,20 @@ test.describe("customer cart: tiers, strikethrough, nudge, docked panel", () => 
       await dockedDesktop.getByLabel("+").first().click(); // qty 2 → 12%
       await expect(async () => {
         await page.reload();
-        await expect(dockedDesktop.getByTestId("cart-discount-badge")).toBeVisible();
+        await expect(dockedDesktop.getByTestId("cart-line-full")).toBeVisible();
       }).toPass({ timeout: 15_000 });
       await dockedDesktop.screenshot({ path: `${OUT}/docked-cart-tiers-1280.png` });
+      // La PERCENTUALE per riga non è sparita con `cart-discount-badge`: la
+      // card 1 §3-bis (b) l'ha spostata nel pannello dei dettagli. Si asserisce
+      // dove vive ora — stessa lettura adottata da `cart.spec` (AC-SC1) e da
+      // `discounts.spec` (deal capped). Lo scatto sopra resta quello che
+      // dichiara di essere (le righe come le vede il cliente, prezzo pieno
+      // barrato incluso): i dettagli si aprono dopo.
+      const desktopRow = dockedDesktop.getByTestId("cart-line").first();
+      await desktopRow.getByTestId("cart-expand").click();
+      await expect(
+        desktopRow.getByTestId("cart-line-detail").getByTestId("cart-line-details-discount")
+      ).toContainText("12");
 
       await openCart(page);
       await expect(drawer(page).getByTestId("cart-line-full")).toBeVisible();
@@ -529,31 +540,48 @@ test.describe("R4-SCONTI evidence — an offer is not owed below its own size", 
         await page.setViewportSize(PHONE);
         await page.goto(`/${locale}/configurator?design=${slug}&step=3`);
         await addFirstCeramic(page);
-        await page.getByTestId("docked-qty-inc").first().click(); // reach the trigger
-        // The step-3 docked panel is mounted TWICE (desktop column + mobile
-        // section) and both carry the same testids, so every query here is
-        // scoped to the VISIBLE one — an unscoped getByTestId trips Playwright's
-        // strict mode. (Deferred minor D4 of the final review, met in the wild.)
-        const vis = (id: string) => page.locator(`[data-testid="${id}"]:visible`);
-        const card = vis("cart-suggestion");
+        // R5-BASKET-HOST PR 2: a 390 il carrello È il drawer — la colonna
+        // dello step 3 non si renderizza sotto `lg` e la sezione in flusso è
+        // stata cancellata, quindi `:visible` su quei testid non trova più
+        // niente. Tutto quello che qui sotto era "la copia visibile" ora è
+        // semplicemente "dentro il drawer": un contenitore solo, niente
+        // strict mode da schivare.
+        await openCart(page);
+        const basket = drawer(page);
+        await basket.getByTestId("docked-qty-inc").first().click(); // reach the trigger
+        const card = basket.getByTestId("cart-suggestion");
         await expect(async () => {
           await page.reload();
+          await openCart(page);
           await expect(card).toBeVisible();
         }).toPass({ timeout: 20_000 });
         await card.getByTestId("cart-suggestion-add").click();
 
         // (a) the deal ON, at exactly the offer's size
-        const dealLine = vis("cart-line").last();
-        await expect(dealLine.locator('[data-testid="cart-discount-badge"]')).toBeVisible();
+        const dealLine = basket.getByTestId("cart-line").last();
         await page.screenshot({ path: `${OUT}/deal-at-offer-390-${locale}.png` });
+        // La percentuale della riga non è più un badge sulla riga
+        // (`cart-discount-badge`, tolto dalla card 1 §3-bis (b)): sta nel
+        // pannello dei dettagli, ed è lì che si legge — stessa lettura di
+        // `discounts.spec` sul deal cappato. Lo scatto resta della riga
+        // chiusa, come la vede il cliente: i dettagli si aprono dopo.
+        const detailPct = () =>
+          dealLine.getByTestId("cart-line-detail").getByTestId("cart-line-details-discount");
+        await dealLine.getByTestId("cart-expand").click();
+        await expect(detailPct()).toContainText(String(OFFER_PCT));
+        await dealLine.getByTestId("cart-expand").click(); // richiudi: lo scatto (b) è della riga chiusa
 
-        // (b) one piece short: the discount is gone and the nudge explains it
-        await dealLine.locator('[data-testid="docked-qty-dec"]').click();
-        await expect(dealLine.locator('[data-testid="cart-discount-badge"]')).toHaveCount(0);
-        const nudge = dealLine.locator('[data-testid="cart-deal-nudge"]');
-        await expect(nudge).toBeVisible();
-        await expect(nudge).toContainText(String(OFFER_PCT));
+        // (b) one piece short: the discount goes
+        // `cart-deal-nudge` («aggiungine 1 e torni al −15 %») non esiste più
+        // in `src`: è la stessa forma del nudge cancellato per ruling TL
+        // (§4-bis) — un'asserzione senza comportamento dietro. Cancellata,
+        // non ri-puntata. Quello che il checkpoint deve ancora provare — che
+        // sotto la soglia lo sconto sparisce — resta, letto dove la
+        // percentuale vive adesso.
+        await dealLine.getByTestId("docked-qty-dec").click();
         await page.screenshot({ path: `${OUT}/deal-below-offer-390-${locale}.png` });
+        await dealLine.getByTestId("cart-expand").click();
+        await expect(detailPct()).toHaveCount(0);
       } finally {
         await seeded.restore();
       }
@@ -618,11 +646,16 @@ test.describe("R4-SCONTI evidence — offers are a list", () => {
         await page.setViewportSize(PHONE);
         await page.goto(`/${locale}/configurator?design=${slug}&step=3`);
         await addFirstCeramic(page);
+        // R5-BASKET-HOST PR 2: a 390 il carrello — e quindi il blocco offerte
+        // che vive dentro di esso — è il drawer. Si apre, e ogni `reload()`
+        // lo richiude: va riaperto dentro il poll.
+        await openCart(page);
         // The row COUNT goes inside the poll, not after it: the config is
         // cached for `revalidate: 10`, so a run started seconds after another
         // one's restore can still be served the previous test's rules.
         await expect(async () => {
           await page.reload();
+          await openCart(page);
           await expect(vis("cart-suggestion-row")).toHaveCount(1);
         }).toPass({ timeout: 20_000 });
         await vis("cart-suggestion").scrollIntoViewIfNeeded();
@@ -646,6 +679,7 @@ test.describe("R4-SCONTI evidence — offers are a list", () => {
         try {
           await expect(async () => {
             await page.reload();
+            await openCart(page);
             await expect(vis("cart-suggestion-row")).toHaveCount(3);
           }).toPass({ timeout: 20_000 });
           await expect(vis("cart-suggestion")).toHaveCount(1); // ONE block
@@ -696,8 +730,9 @@ test.describe("R4-SCONTI evidence — offers are a list", () => {
  * seed/restore, with `localStorage.clear()` between the passes so the second
  * one is not looking at the first one's basket.
  *
- * Every lookup is scoped `:visible`: `cart-line` / `cart-list` are mounted
- * twice on step 3 (desktop rail + mobile section, same testids).
+ * Every lookup is scoped `:visible`: `cart-line` / `cart-list` exist in the
+ * step-3 column AND in the drawer, with the same testids — and since PR 2 the
+ * column is the one that stops existing below `lg`.
  */
 test.describe("R4-UPSELL-POST-ADD evidence — the post-add panel", () => {
   test.skip(!CAN_SEED, "MK_E2E_SEED=1 richiesto: semina una regola upsell nel catalogo reale");
@@ -792,6 +827,10 @@ test.describe("R4-UPSELL-POST-ADD evidence — the post-add panel", () => {
           // (d) the basket behind it: two lines, the ceramic and the offer.
           await vis("added-sheet-continue").click();
           await expect(vis("added-sheet")).toHaveCount(0);
+          // R5-BASKET-HOST PR 2: a 390 "il carrello dietro" è il drawer — la
+          // colonna dello step 3 esiste solo da `lg` — quindi lo si apre
+          // prima di guardarlo. A 1280 la colonna è già lì, come sempre.
+          if (vpLabel === "390") await openCart(page);
           await expect(vis("cart-line")).toHaveCount(2); // the ceramic + the offer
           await vis("cart-list").scrollIntoViewIfNeeded();
           await page.screenshot({

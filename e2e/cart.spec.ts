@@ -342,12 +342,9 @@ test.describe("R4-SCONTI — quantity discounts", () => {
     // (the empty scale is refused by `.min(1)` in saveDiscountTiers). This is
     // that real state.
     //
-    // TWO steps on purpose, and the fixture only works this way: with a single
-    // step at min_qty 2 and a cart of 2, `nextTier(2, …)` finds no threshold
-    // above 2 and CartDiscountNudge returns null on its own — the test would go
-    // green without proving anything. With a second step at 9 there IS a next
-    // tier, so the nudge renders whenever it is asked to, which is what makes
-    // the off-state assertable at all.
+    // TWO steps on purpose: the scale has to be distinctive enough that a
+    // stale or unseeded read cannot be mistaken for the seeded one (prod's own
+    // first step sits at min_qty 4).
     const seeded = await seedDiscountTiers([
       { min_qty: 2, pct: 12 },
       { min_qty: 9, pct: 20 },
@@ -360,7 +357,7 @@ test.describe("R4-SCONTI — quantity discounts", () => {
       const line = drawer(page).getByTestId("cart-line").first();
       await drawer(page).getByTestId("docked-qty-inc").first().click(); // qty 2 → 12%, next step at 9
 
-      // the seed really took: discount applied AND the nudge pointing at 9
+      // the seed really took: the discount is applied
       await expect(async () => {
         await page.reload();
         await openCart(page);
@@ -383,14 +380,6 @@ test.describe("R4-SCONTI — quantity discounts", () => {
         await openCart(page);
         await expect(drawer(page).getByTestId("cart-line-full")).toHaveCount(0);
       }).toPass({ timeout: 15_000 });
-      // …and nothing may still advertise a discount that is switched off.
-      // VACUOUS SINCE R5-BASKET-HOST (final review, finding 3): the nudge is
-      // deleted, so this count is 0 whatever the flag says — it proves
-      // nothing. Deliberately NOT re-pointed here: the honest mirror of the
-      // "on" assertion above is `cart-discount-total` → toHaveCount(0), but
-      // the TL asked to be told rather than have it guessed. Flagged, not
-      // silently dropped (lesson F07).
-      await expect(drawer(page).getByTestId("cart-discount-nudge")).toHaveCount(0);
     } finally {
       // restore() rewrites the flag to what it found, but be explicit: this
       // test flipped it outside the seeder, so it puts it back itself first.
