@@ -84,29 +84,49 @@ export function CartMenu() {
   }, [pathname, setOpen]);
 
   /**
-   * «Paint N pieces first ›» from the drawer (the column just focuses its own
-   * first unpainted row — `Basket`'s default). Here: close, go to step 3 of
-   * whatever design is on screen, then hand focus to the row.
+   * «Paint N pieces first ›» from the drawer. It has to land the customer on a
+   * row they can press Paint on, and since PR 2 there are two answers to
+   * «which rows», decided by whether the step-3 column is on screen:
    *
-   * The focus can't happen in the click: Radix restores focus to the trigger
-   * when the sheet finishes closing, which would undo it, and while the exit
-   * animation runs the drawer's OWN copy of the rows is still on screen — an
-   * unscoped `focusFirstUnpaintedRow` would focus a dying node. So it rides
-   * on `onCloseAutoFocus` (fires once the content is gone, right after the
-   * trigger got focus back) and one frame later, without preventing Radix's
-   * restore: if no row is found, focus stays on the cart button instead of
-   * falling to `<body>`.
+   * - column on screen (from `lg`): close, go to step 3 of whatever design is
+   *   on screen, hand focus to the row there — unchanged behaviour.
+   * - no column (below `lg`): the drawer's own rows are the ONLY rows, because
+   *   task 6 deleted the in-flow copy. So the drawer STAYS OPEN and the focus
+   *   lands on the Paint button already under the customer's thumb. Closing
+   *   would take away the very thing this CTA points at, which is what it did
+   *   between task 6 and this fix.
    *
-   * ponytail: no pending-focus channel through the router. When the drawer is
-   * already over step 3 — where this CTA matters — the column's rows are
-   * mounted and this lands. Coming from step 1/2 the push is a real soft
-   * navigation and step 3 may not have rendered within that frame, in which
-   * case nothing is focused (the customer still arrives at step 3, scrolled
-   * to the top). Making that case reliable needs a mechanism this task
-   * deliberately did not invent — see the report.
+   * The question is asked of the LAYOUT, not of a second copy of its rule: the
+   * column is `hidden lg:block`, so below `lg` it sits in the DOM with no
+   * `offsetParent` — the same "is it on screen" test `focusFirstUnpaintedRow`
+   * applies to the rows themselves. No `matchMedia("64rem")` here to drift out
+   * of step with the class list over there.
+   *
+   * No column element at all means we are not on step 3, and then the push is
+   * the only way to reach a column: that keeps today's behaviour at every
+   * width (below `lg` it arrives at step 3 with nothing focused, the gap
+   * recorded in R5-GARANZIA.md §1 — not this card's to close).
+   *
+   * In the closing branch the focus can't happen in the click: Radix restores
+   * focus to the trigger when the sheet finishes closing, which would undo it,
+   * and while the exit animation runs the drawer's OWN copy of the rows is
+   * still on screen — an unscoped `focusFirstUnpaintedRow` would focus a dying
+   * node. So it rides on `onCloseAutoFocus` (fires once the content is gone,
+   * right after the trigger got focus back) and one frame later, without
+   * preventing Radix's restore: if no row is found, focus stays on the cart
+   * button instead of falling to `<body>`.
    */
   const paintFirstRef = useRef(false);
   function handlePaintFirst() {
+    const column = document.querySelector<HTMLElement>(
+      '[data-testid="docked-cart-panel"]'
+    );
+    if (column && !column.offsetParent) {
+      focusFirstUnpaintedRow(
+        document.querySelector('[data-testid="cart-drawer"]') ?? document
+      );
+      return;
+    }
     paintFirstRef.current = true;
     setOpen(false);
     // Final-review finding 4a: the target is the URL we are ALREADY on with

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Truck, Brush } from "lucide-react";
 import { useCartContext, type CurrentConfig } from "@/lib/cart/cart-context";
@@ -142,18 +142,6 @@ function LineCodeSlot({
 }
 
 /**
- * The handle `ceramics-step.tsx` keeps on each basket it mounted — only for
- * what is genuinely per-instance. Opening the checkout form is NOT: that is a
- * mode of the basket and lives in `cart-context.tsx`, so the step just calls
- * `setCheckoutHost("column")` itself.
- */
-export type BasketHandle = {
-  /** `focusFirstUnpaintedRow` scoped to THIS basket; false when it has no
-   *  visible unpainted row, so the caller can try its other copy. */
-  focusFirstUnpainted: () => boolean;
-};
-
-/**
  * R5-BASKET-HOST task 4 — «there are not two baskets». The step-3 right
  * column and the header's side drawer render THIS component; `host` is the
  * only thing that differs between them.
@@ -184,7 +172,6 @@ export function Basket({
   onAddCeramics,
   onPaintFirst,
   footerSlot,
-  ref,
 }: {
   host: BasketHost;
   /**
@@ -215,7 +202,6 @@ export function Basket({
   /** Column only: the new-design + share pills and the share feedback — they
    *  belong to the step (they navigate it, and the share state lives there). */
   footerSlot?: React.ReactNode;
-  ref?: React.Ref<BasketHandle>;
 }) {
   const drawer = host === "drawer";
   const t = useTranslations("cart");
@@ -250,8 +236,8 @@ export function Basket({
     () => focusFirstUnpaintedRow(rootRef.current ?? document),
     []
   );
-  /** `() => void` for the callback props that want it — the boolean is for
-   *  the handle's caller, which uses it to try its other copy. */
+  /** `() => void` for the callback props that want it; the boolean belongs to
+   *  `focusFirstUnpaintedRow` itself, which every caller reads directly. */
   const focusFirstUnpaintedVoid = useCallback(() => {
     focusFirstUnpainted();
   }, [focusFirstUnpainted]);
@@ -388,7 +374,6 @@ export function Basket({
      (fix round 1) — one rule for every surface, and not two effects racing
      over one state. `formOpen` below stays a render gate, which is also what
      covers the frame before the cart has hydrated. */
-  useImperativeHandle(ref, () => ({ focusFirstUnpainted }), [focusFirstUnpainted]);
   /** The foot's own two numbers (drawer only) — taken from the engine, never
    *  re-added here, so the foot can never disagree with `CartTotals` above. */
   const saved = cartSaved(discount);
