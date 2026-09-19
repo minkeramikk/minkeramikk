@@ -48,17 +48,23 @@ describe("paintTargetFor", () => {
     });
   });
 
-  it("no configuration → the chip is a link to step 2 on the known design", () => {
+  it("no configuration → the chip is a link to step 2 on the design in hand", () => {
+    // Finding 5: this is the case the drawer at step 1/2 actually hits now.
+    // The slug never comes from the LINE — an unpainted line has no
+    // `configSnapshot` at all (cart.ts) — it is `Basket`'s
+    // `fallbackDesignSlug`, read off the URL the drawer is open over. Before
+    // the fix this branch was unreachable and every chip pointed at the bare
+    // configurator.
     expect(paintTargetFor(null, "juletre")).toEqual({
       kind: "none",
       href: "/configurator?design=juletre&step=2",
     });
   });
 
-  it("no configuration and no design → the bare configurator", () => {
+  it("no configuration and no design at all → the bare configurator", () => {
+    // Only reachable where the URL names no design either — the drawer
+    // opened over `/order` or the basket page, not over the configurator.
     expect(paintTargetFor(null)).toEqual({ kind: "none", href: "/configurator" });
-    // An unpainted line carries no `configSnapshot` at all (cart.ts), so this
-    // is the case the drawer at step 1 actually hits.
     expect(paintTargetFor(null, undefined)).toEqual({
       kind: "none",
       href: "/configurator",

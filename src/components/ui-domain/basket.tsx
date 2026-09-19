@@ -180,6 +180,7 @@ export type BasketHandle = {
 export function Basket({
   host,
   currentConfig,
+  fallbackDesignSlug,
   onAddCeramics,
   onPaintFirst,
   footerSlot,
@@ -193,6 +194,17 @@ export function Basket({
    * `paintTarget: { kind: "none" }` and no picker can open.
    */
   currentConfig: CurrentConfig | null;
+  /**
+   * Final-review finding 5 — the design slug to fall back on when a row has
+   * none of its own. `unpaintLines()` sets `configSnapshot: null` (cart.ts),
+   * so an unpainted row's slug is ALWAYS undefined and the step-1 chip's link
+   * was always the bare `/configurator`: step 1 with the catalog's first
+   * design, not «step 2 of the design you are looking at», which is what
+   * card §1 asks for («porta lì»). The drawer passes the `design` of the URL
+   * it is open over. The column never needs it: it always has a
+   * `currentConfig`, so its chip is the palette picker.
+   */
+  fallbackDesignSlug?: string | null;
   /** Drawer only: «+ Add ceramics» at the end of the scroll — it closes the
    *  drawer and sends the customer back to the catalog. */
   onAddCeramics?: () => void;
@@ -488,9 +500,12 @@ export function Basket({
                     // one, so its behaviour is unchanged); the drawer opened
                     // at step 1 has none, and the chip becomes the link to
                     // step 2 instead — one pure decision, `paintTargetFor`.
+                    // Finding 5: `?? fallbackDesignSlug` is what makes the
+                    // second argument ever arrive — an unpainted row has no
+                    // `configSnapshot`, so its own slug is always undefined.
                     paintTarget={paintTargetFor(
                       currentConfig,
-                      line.configSnapshot?.designSlug
+                      line.configSnapshot?.designSlug ?? fallbackDesignSlug
                     )}
                     // R5-BASKET-HOST task 3: the thumb now opens something —
                     // keyed by id, pruned in the shared effect above. Fix

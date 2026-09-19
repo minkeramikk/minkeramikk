@@ -41,6 +41,15 @@ export function basketCta(
  * picker and Paint works, exactly as step 3 has always behaved. With none —
  * the drawer opened at step 1 — there is nothing to paint WITH, so the chip
  * becomes a link to step 2, on the design we know about if we know one.
+ *
+ * Final-review finding 5: `lineDesignSlug` does NOT come from the line.
+ * `unpaintLines()` sets `configSnapshot: null` (cart.ts), so an unpainted
+ * row's own slug is always undefined and this always answered the bare
+ * `/configurator` — step 1 with the catalog's first design, when card §1
+ * asks the chip to «porta lì». The caller falls back to the `design` of the
+ * URL the drawer is open over (`Basket`'s `fallbackDesignSlug`); the bare
+ * configurator is now only for a drawer opened somewhere with no design at
+ * all, e.g. over `/order`.
  */
 export function paintTargetFor(
   currentConfig: { designSlug: string } | null,

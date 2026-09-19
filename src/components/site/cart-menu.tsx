@@ -189,6 +189,12 @@ export function CartMenu() {
             <Basket
               host="drawer"
               currentConfig={currentConfig}
+              // Finding 5: an unpainted row carries no `configSnapshot`, so
+              // without this its «choose colours» chip always pointed at the
+              // bare `/configurator` — step 1 with the catalog's first
+              // design. The URL the drawer is open over knows which design
+              // the customer is looking at.
+              fallbackDesignSlug={searchParams.get("design")}
               onAddCeramics={() => setOpen(false)}
               onPaintFirst={handlePaintFirst}
             />
