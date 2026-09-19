@@ -721,10 +721,11 @@ export function CeramicsStep({
   const unpaintedInBasket = hydrated ? unpaintedPieces(cart) : 0;
   /** Task 13: the order CTA and the checkout form both gate on this. */
   const hasUnpainted = unpaintedInBasket > 0;
-  // R4-SCONTI fix-1: the sticky bar can be on screen at the same time as the
-  // docked panel's totals (see the intersection-observer note above) — both
-  // must read the same NET number, never the panel's net beside the bar's
-  // gross.
+  // R4-SCONTI fix-1: the bar and a basket's own totals can be on screen at
+  // the same time (at 768 the bar is up and the drawer can be open over it),
+  // so both must read the same NET number — never a panel's net beside the
+  // bar's gross. (The intersection-observer this used to point at went with
+  // the in-flow mobile copy in task 6.)
   const stickyTotalSuffix = useShippingTotalSuffix(discount.total);
   /** R4-SCONTI: what the basket saves in total — tier and deal together. Taken
    *  from the engine (subtotal − total) rather than added up here, so the bar

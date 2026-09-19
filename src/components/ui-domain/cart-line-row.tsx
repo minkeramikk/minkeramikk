@@ -265,10 +265,10 @@ export function CartLineRow({
       data-testid="cart-line"
       data-unpainted={unpainted || undefined}
       // Fix round 4 (QA across containers) — `@container/row`: this row
-      // mounts in three containers of very different widths (the step-3
-      // rail, the drawer, the mobile in-flow copy), and what decides
-      // whether the actions fit beside the thumb is THAT width, not the
-      // viewport's. Every `sm:`/`lg:` below that governed the
+      // mounts in containers of very different widths (the step-3 column and
+      // the drawer; there was a third, the mobile in-flow copy, until PR 2),
+      // and what decides whether the actions fit beside the thumb is THAT
+      // width, not the viewport's. Every `sm:`/`lg:` below that governed the
       // column-2/full-width switch is now `row-wide:` (fix round 5, card
       // §4-ter — a `@custom-variant` in `globals.css`, so the `416` behind
       // it lives in one place, not copied across a dozen class strings).
@@ -403,9 +403,10 @@ export function CartLineRow({
             OWN width (the named container `@container/row`, above), not
             of the viewport, and the `416` behind `row-wide` now lives in
             ONE place — the `@custom-variant` in `globals.css`, comment and
-            all (full arithmetic there, not copied here). The rail, the
-            drawer and the mobile in-flow copy render the same row at three
-            unrelated widths for the same viewport; a viewport query picked
+            all (full arithmetic there, not copied here). The column and
+            the drawer render the same row at unrelated widths for the same
+            viewport (three containers until PR 2 deleted the mobile in-flow
+            copy); a viewport query picked
             whichever arrangement the rail wanted, so the drawer at desktop
             viewports got column 2 too, with only ~309px of it, wrapping
             inside a shape nobody chose. Below `row-wide`, `flex-wrap` can

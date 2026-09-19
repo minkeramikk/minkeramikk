@@ -7,8 +7,9 @@
  *
  * `basket.tsx` re-exports both, so nothing else has to know they live here.
  */
-/** Where this basket is mounted. Task 5 adds the header drawer; step 3's
- *  right column (and its mobile in-flow twin) is `"column"`. */
+/** Where this basket is mounted: the header drawer, or step 3's right column
+ *  — which from PR 2 exists only from `lg` (its mobile in-flow twin, also a
+ *  `"column"`, was deleted there). */
 export type BasketHost = "column" | "drawer";
 
 /**
