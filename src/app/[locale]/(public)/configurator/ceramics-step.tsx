@@ -54,7 +54,7 @@ import type { ResolvedSharedSet } from "./resolve-shared-set";
 import { ProductSheet } from "@/components/ui-domain/product-sheet";
 import { AddedSheet } from "@/components/ui-domain/added-sheet";
 import { UnpaintDialog } from "@/components/ui-domain/unpaint-dialog";
-import { LineLightbox } from "@/components/ui-domain/line-lightbox";
+import { LineLightbox, lineLightboxSlides } from "@/components/ui-domain/line-lightbox";
 import { NextStepPill, PillIcon } from "@/components/ui-domain/next-step-pill";
 
 export interface CeramicProduct {
@@ -1325,8 +1325,17 @@ export function CeramicsStep({
                     // here, so this stays step 3's own behaviour unchanged.
                     paintTarget={{ kind: "palette" }}
                     // R5-BASKET-HOST task 3: the thumb now opens something —
-                    // keyed by id, pruned in the shared effect above.
-                    onOpenPhoto={() => setOpenPhotoId(line.id)}
+                    // keyed by id, pruned in the shared effect above. Fix
+                    // round 1 — only when there's actually something to show:
+                    // a pre-F19 line can carry neither `plateImage` nor
+                    // `layers` (both optional, no migration), and without
+                    // this gate that line's thumb would still turn into a
+                    // real button opening a title + ✕ over a blank area.
+                    onOpenPhoto={
+                      lineLightboxSlides(line).length > 0
+                        ? () => setOpenPhotoId(line.id)
+                        : undefined
+                    }
                   />
                 );
               })}

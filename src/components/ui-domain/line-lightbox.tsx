@@ -115,8 +115,18 @@ export function LineLightbox({
         aria-describedby={undefined}
         data-testid="line-lightbox"
         onCloseAutoFocus={(e) => {
-          e.preventDefault();
-          trigger.current?.focus();
+          // Fix round 1 — cross-tab sync can prune `openPhotoId` (the line
+          // painted/removed elsewhere) in the same render that unmounts the
+          // row, so `trigger` can point at a detached node: `.focus()` on
+          // that is a silent no-op and focus would land on `<body>`. Only
+          // take over when the node is still actually in the document;
+          // otherwise don't `preventDefault()` and let Radix fall back to
+          // its own restore — same escape hatch `UnpaintDialog` keeps via
+          // `onConfirmed` for its own "the trigger is gone" case.
+          if (trigger.current?.isConnected) {
+            e.preventDefault();
+            trigger.current.focus();
+          }
         }}
         className="top-0 left-0 flex h-dvh max-w-none! translate-x-0 translate-y-0 flex-col gap-0 rounded-none bg-ink/92 px-4 py-3 ring-0 sm:max-w-none!"
       >
