@@ -9,7 +9,13 @@ import {
   paintTargetFor,
   type BasketHost,
 } from "@/components/ui-domain/basket-host";
-import { clampPaintN, itemCount, pruneToLive, unpaintedPieces } from "@/lib/cart/cart";
+import {
+  clampPaintN,
+  itemCount,
+  pruneToLive,
+  unpaintedPieces,
+  type CartLine,
+} from "@/lib/cart/cart";
 import { formatMoney } from "@/lib/money/money";
 import { cartSaved } from "@/lib/discounts/discount";
 import { useShippingTotalSuffix } from "@/components/ui-domain/cart-shipping-row";
@@ -71,6 +77,69 @@ export {
   paintTargetFor,
   type BasketHost,
 } from "@/components/ui-domain/basket-host";
+
+/**
+ * R5-BASKET-HOST task 5 — the foot of the DRAWER's details panel: the MK
+ * code, its copy button and «Edit design». Task 18 ruled these belong to the
+ * drawer and not to step 3's drilldown, and until this task they rode on
+ * `CartLineRecap`, which the drawer rendered instead of `CartLineRow`. Four
+ * specs read them off the drawer (`cart.spec` "AC R2-D", `config-code.spec`,
+ * `share-set.spec` AC5, `r4-canvas-white-evidence.spec`), so they travel with
+ * the host, not with the component that stopped being rendered. Copy logic
+ * lifted verbatim from `CartLineRecap` — same `actions.*` keys, same silent
+ * catch when the clipboard is blocked.
+ *
+ * `onNavigate` is the drawer's own closer (the same `onAddCeramics` the empty
+ * state's link already uses): the link navigates, so the sheet has to get out
+ * of the way — `SheetClose` isn't reachable from here and doesn't need to be.
+ */
+function LineCodeSlot({
+  line,
+  onNavigate,
+}: {
+  line: CartLine;
+  onNavigate?: () => void;
+}) {
+  const t = useTranslations("cart");
+  const ta = useTranslations("actions");
+  const [copied, setCopied] = useState(false);
+  async function copy() {
+    if (!line.configCode) return;
+    try {
+      await navigator.clipboard.writeText(line.configCode);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      /* clipboard blocked — no-op */
+    }
+  }
+  if (!line.configCode) return null;
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <div className="flex min-w-0 items-center gap-2">
+        <code className="min-w-0 truncate font-mono text-[10px] text-muted-foreground">
+          {line.configCode}
+        </code>
+        <button
+          type="button"
+          data-testid="cart-copy-code"
+          onClick={copy}
+          className="flex min-h-11 shrink-0 -my-2 items-center py-2 text-[10px] text-muted-foreground underline underline-offset-2 hover:text-foreground md:my-0 md:min-h-0 md:py-0"
+        >
+          {copied ? ta("copied") : ta("copyCode")}
+        </button>
+      </div>
+      <Link
+        href={`/configurator?code=${encodeURIComponent(line.configCode)}&step=2`}
+        data-testid="cart-edit-design"
+        onClick={onNavigate}
+        className="flex min-h-11 shrink-0 -my-2 items-center py-2 text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground md:my-0 md:min-h-0 md:py-0"
+      >
+        ✎ {t("line.edit")}
+      </Link>
+    </div>
+  );
+}
 
 /**
  * The handle `ceramics-step.tsx` keeps on each basket it mounted — only for
@@ -434,6 +503,11 @@ export function Basket({
                       lineLightboxSlides(line).length > 0
                         ? () => setOpenPhotoId(line.id)
                         : undefined
+                    }
+                    // Drawer only — see `LineCodeSlot` above. The column's
+                    // details panel keeps exactly the shape task 2 gave it.
+                    detailSlot={
+                      drawer ? <LineCodeSlot line={line} onNavigate={onAddCeramics} /> : undefined
                     }
                   />
                 );

@@ -68,9 +68,12 @@ test("AC3: edit quantity and remove update total/badge; empty → empty state", 
   await openCart(page);
 
   const line = drawer(page).getByTestId("cart-line");
-  await line.getByRole("button", { name: "+" }).click(); // qty 2
+  // R5-BASKET-HOST task 5: the drawer renders the unified row, whose
+  // steppers are labelled «Øk antall»/«Increase quantity» (they were bare
+  // "+"/"-" glyphs before) — the testids are the stable handle.
+  await line.getByTestId("docked-qty-inc").click(); // qty 2
   await expect(page.getByTestId("cart-badge")).toHaveText("2");
-  await line.getByRole("button", { name: "-" }).click(); // qty 1
+  await line.getByTestId("docked-qty-dec").click(); // qty 1
   await expect(page.getByTestId("cart-badge")).toHaveText("1");
 
   await drawer(page).getByTestId("cart-remove").click();

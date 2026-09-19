@@ -90,6 +90,7 @@ export function CartLineRow({
   onPickPalette,
   onOpenPhoto,
   paintTarget,
+  detailSlot,
 }: {
   line: CartLine;
   locale: "no" | "en";
@@ -134,6 +135,13 @@ export function CartLineRow({
    *  the chip goes dead (disabled, muted) and a link sends the customer to
    *  step 2 instead — Paint, the n/N stepper and the picker panel all hide. */
   paintTarget: { kind: "palette" } | { kind: "none"; href: string };
+  /** R5-BASKET-HOST task 5 — one host-specific block at the foot of the
+   *  details panel. The DRAWER puts the MK code, its copy button and «Edit
+   *  design» there (task 18's ruling: those belong to the drawer, not to
+   *  this step-3 drilldown); they used to ride on `CartLineRecap`, which the
+   *  drawer rendered instead of this row. The column passes nothing and its
+   *  panel is unchanged. */
+  detailSlot?: React.ReactNode;
 }) {
   // TODO:nb-review — cart.unpainted.* / cart.unpaint.action NO copy is new,
   // unreviewed (mirrors cart.buttonUnpainted's own "umalt/umalte" wording).
@@ -761,6 +769,12 @@ export function CartLineRow({
               </dd>
             </dl>
           </div>
+
+          {/* Task 5: drawer-only (the code + copy + «Edit design»). Spans the
+              grid because it is a foot, not a second column. */}
+          {detailSlot && (
+            <div className="col-span-2 border-t border-border/50 pt-2.5">{detailSlot}</div>
+          )}
         </div>
       )}
     </div>
