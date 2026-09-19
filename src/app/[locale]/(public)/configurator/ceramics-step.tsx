@@ -9,7 +9,7 @@ import { PaletteBar } from "@/components/ui-domain/palette-bar";
 import { PaletteChip } from "@/components/ui-domain/palette-chip";
 import { PaintingStrip } from "@/components/ui-domain/painting-strip";
 import { nameFor, paletteFor, sortCurrentDesignFirst } from "@/lib/palettes/palettes";
-import { draftMatchesSavedColours } from "@/lib/configurator/save-gate";
+import { draftMatchesSavedColours, paletteMatchingColours } from "@/lib/configurator/save-gate";
 import type { PaletteWords } from "@/lib/palettes/name-lists";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -249,9 +249,19 @@ export function CeramicsStep({
    * R5-PALETTES task 9 — which palette is painting. Same rule as step 2's own
    * `matchedPalette` (card §4-bis: the active palette IS the URL): `configCode`
    * is a server prop derived from the URL, so whichever saved palette shares
-   * its code is the one actually in use, full stop — no separate "current
+   * its COLOURS is the one actually in use, full stop — no separate "current
    * palette" state to drift out of sync with what a ceramic will be painted
    * with when added.
+   *
+   * Final-review round 2, finding 3: matched on COLOURS
+   * (`paletteMatchingColours`, stripping any inscription/wish segment), not
+   * on the exact code any more. `configCode` carries the inscription now
+   * (task 4), so an exact-code match stopped working the instant a
+   * dedication was typed — a saved palette's own stored code never has that
+   * customer's current words in it. "Which palette is painting" is a
+   * question about colours; that a dedication makes SAVING see a new
+   * identity (the §3 guard, `canSaveDraft` below) is a different question
+   * with a different answer on purpose.
    */
   // Declared this early because `paintingLabel` right below needs it as its
   // last-resort fallback, and the `PaletteBar`/`PaintingStrip` further down
@@ -259,7 +269,12 @@ export function CeramicsStep({
   // (It used to be `rowThumb` that forced it up here; that moved to
   // `basket.tsx` in task 4 and these two kept it where it is.)
   const designName = designLabel(snapshot, locale) ?? "";
-  const activePalette = paletteFor(palettes, configCode);
+  const activePalette = paletteMatchingColours(
+    palettes,
+    configCode,
+    design.slug,
+    snapshot.selections.length
+  );
   /**
    * TL follow-up (post-task-12): the ONE name for "what's painting right
    * now" — the draft chip below and the basket header both used to compute
@@ -357,9 +372,15 @@ export function CeramicsStep({
     setActiveCode(code);
     // Fix wave A finding 1: build from the CURRENT params, the way `goToStep`
     // below already does — a from-scratch URL was dropping note=/text=
-    // (R2-2b/F38, the ONLY carrier for both at step 3) and set=/origin=set
-    // (the shared-set banner), silently losing the customer's own words and
-    // the shared basket on every chip tap.
+    // and set=/origin=set (the shared-set banner), silently losing the
+    // customer's own words and the shared basket on every chip tap.
+    // R5-TEXT-IDENTITY final-review round 2 (finding 5a — this comment used
+    // to claim `note=`/`text=` were "the ONLY carrier for both at step 3",
+    // which stopped being true for `text=` once the code itself started
+    // carrying the inscription (task 4; `page.tsx` seeds the field from a
+    // decoded `?code=` when `?text=` is absent). `note=` is still the ONLY
+    // carrier for the colour wish — the code only ever holds a non-reversible
+    // hash of it, never the words themselves.
     const params = new URLSearchParams(searchParams.toString());
     // Fix wave B finding 5 (minor) — `code=` already wins over stale `opt_*`
     // (page.tsx gives it priority, nothing breaks), but there's no reason to

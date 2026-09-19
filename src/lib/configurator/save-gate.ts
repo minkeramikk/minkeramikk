@@ -26,12 +26,44 @@
 import { stripCustomSegment } from "@/lib/cart/set-code";
 
 /**
- * True when `draftCode`'s COLOURS (the code with any inscription/colour-wish
- * segment stripped) already match a saved palette of the SAME design —
- * however many different dedications away. `selectionCount` is the design's
- * own category count (`detail.categories.length`), the same value
- * `set-code.ts`'s callers read off a snapshot; here the caller already has
- * the live design detail, so it's read directly, no snapshot needed.
+ * The saved palette (of `designSlug`) whose COLOURS — the code with any
+ * inscription/colour-wish segment stripped — match `code`'s, or `null` when
+ * none does. `selectionCount` is the design's own category count
+ * (`detail.categories.length` at step 2; `snapshot.selections.length` at
+ * step 3, same value by construction — `buildConfigLinePayload` builds
+ * `selections` one entry per category), the same value `set-code.ts`'s own
+ * callers read off a snapshot.
+ *
+ * Final-review round 2, finding 3 — "which palette is painting" is a
+ * question about COLOURS: an exact-code match (`p.code === code`) stops
+ * working the moment the code also carries an inscription, because typing
+ * any dedication changes `code` while a saved palette's own stored code
+ * doesn't move. Without this, tapping a saved palette (or just having its
+ * colours on screen) while a dedication is typed shows no active state —
+ * wrongly, since the customer's words are exactly what's SUPPOSED to make
+ * this a different identity for SAVING (the §3 guard above), not for
+ * recognising which colours are already on screen.
+ */
+export function paletteMatchingColours<P extends { code: string; designSlug: string }>(
+  palettes: P[],
+  code: string,
+  designSlug: string,
+  selectionCount: number
+): P | null {
+  const targetColours = stripCustomSegment(code, selectionCount);
+  return (
+    palettes.find(
+      (p) =>
+        p.designSlug === designSlug &&
+        stripCustomSegment(p.code, selectionCount) === targetColours
+    ) ?? null
+  );
+}
+
+/**
+ * True when `draftCode`'s colours already match a saved palette of the SAME
+ * design — however many different dedications away. See card §3 guard
+ * (TL ruling) at the top of this file for why.
  */
 export function draftMatchesSavedColours(
   palettes: { code: string; designSlug: string }[],
@@ -39,10 +71,5 @@ export function draftMatchesSavedColours(
   designSlug: string,
   selectionCount: number
 ): boolean {
-  const draftColours = stripCustomSegment(draftCode, selectionCount);
-  return palettes.some(
-    (p) =>
-      p.designSlug === designSlug &&
-      stripCustomSegment(p.code, selectionCount) === draftColours
-  );
+  return paletteMatchingColours(palettes, draftCode, designSlug, selectionCount) !== null;
 }
