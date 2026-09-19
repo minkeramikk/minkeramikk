@@ -71,6 +71,26 @@ export type CurrentConfig = {
  * so every cart surface (badge, drawer, step 3) reads the same CartDiscount
  * object instead of each recomputing it.
  */
+/**
+ * R5-BASKET-HOST QA — the guard that makes the trash bug a compile error.
+ *
+ * The value below is `{ ...cart, ...palettes, … }`, so any key the two hooks
+ * SHARE is silently won by the later spread. That is not hypothetical: both
+ * exposed `remove(id: string): void`, with identical signatures, so this
+ * intersection type accepted it and `remove` resolved to `deletePalette` —
+ * every basket's trash button called it with a cart line id and removed
+ * nothing at all. `hydrated`/`palettesHydrated` was the same collision, one
+ * card earlier. An intersection type cannot catch this (two identical
+ * signatures intersect to themselves), so the overlap is asserted directly:
+ * add a shared key to either hook and this line stops compiling.
+ */
+type SharedKeys = Extract<
+  keyof ReturnType<typeof useCart>,
+  keyof ReturnType<typeof usePalettes>
+>;
+const _noHookKeyCollision: SharedKeys extends never ? true : never = true;
+void _noHookKeyCollision;
+
 type CartApi = ReturnType<typeof useCart> &
   ReturnType<typeof usePalettes> & {
     open: boolean;

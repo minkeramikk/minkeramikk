@@ -559,7 +559,7 @@ export function ConfiguratorClient({
     setActiveCode,
     save: savePalette,
     rename: renamePalette,
-    remove: deletePalette,
+    removePalette: deletePalette,
     setCurrentConfig,
   } = useCartContext();
   // The DRAFT is exactly what step 3 would turn into a cart line: same

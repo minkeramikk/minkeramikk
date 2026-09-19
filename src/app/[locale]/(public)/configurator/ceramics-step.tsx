@@ -243,7 +243,7 @@ export function CeramicsStep({
     save: savePalette,
     touch: touchPalette,
     rename: renamePalette,
-    remove: deletePalette,
+    removePalette: deletePalette,
   } = useCartContext();
 
   /**
