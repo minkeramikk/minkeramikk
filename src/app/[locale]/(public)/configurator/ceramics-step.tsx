@@ -232,10 +232,12 @@ export function CeramicsStep({
     palettes,
     palettesHydrated,
     /** Fix round 1 — the checkout view is a mode of THE basket, held in the
-     *  cart context now. Read here only to hide the sticky bar while the form
-     *  is up, and written by the bar's own CTA below. */
-    checkoutOpen,
-    setCheckoutOpen,
+     *  cart context now, and it names the host that opened it. Read here only
+     *  to hide the sticky bar while the COLUMN's form is up, and written by
+     *  the bar's own CTA below — which opens the column's checkout, never the
+     *  drawer's. */
+    checkoutHost,
+    setCheckoutHost,
     activeCode,
     setActiveCode,
     save: savePalette,
@@ -1228,7 +1230,7 @@ export function CeramicsStep({
   // sheet is a second fixed bottom layer just like the product sheet, and
   // was the one case this line forgot to name.
   const showStickyBar = count > 0 && !sheetOpen && !paletteSheetOpen;
-  const stickyBar = showStickyBar && !checkoutOpen && !orderCtaInView && (
+  const stickyBar = showStickyBar && checkoutHost !== "column" && !orderCtaInView && (
     <div
       data-testid="step3-sticky-bar"
       // z-40: under Radix's overlay/content (z-50), so the sheet and the
@@ -1278,16 +1280,15 @@ export function CeramicsStep({
           DOES advance the funnel — see the e2e note in r-extra-pill.
           Fix round 1: `hasUnpainted` reskins it exactly like the panel's own
           primary pill (tertiary, `unpainted.cta`, no arrow — this tap does
-          NOT send the order) and its `onClick` stops touching `checkoutOpen`
-          entirely. Before this fix, tapping it while unpainted did
-          `flushSync(() => setCheckoutOpen(true))`, which the panel's own
-          `!hasUnpainted && checkoutOpen` gate stops from ever mounting the
-          form — but `stickyBar` below is gated on `!checkoutOpen`, so the
-          bar hid itself with nothing to show for it, AND `checkoutOpen`
-          stayed stuck `true` forever (both `setCheckoutOpen(false)` call
-          sites live inside the branch this state can never reach), so the
-          form popped open unprompted the moment the last piece got
-          painted. */}
+          NOT send the order) and its `onClick` stops touching the checkout
+          flag entirely. Before this fix, tapping it while unpainted did
+          `flushSync(() => setCheckoutHost("column"))`, which the panel's own
+          `!hasUnpainted && checkoutHost === host` gate stops from ever
+          mounting the form — but `stickyBar` above is gated on that same
+          flag, so the bar hid itself with nothing to show for it, AND the
+          flag stayed stuck on the column forever (both call sites that clear
+          it live inside the branch this state can never reach), so the form
+          popped open unprompted the moment the last piece got painted. */}
       <NextStepPill
         data-testid="sticky-bar-checkout"
         className="shrink-0"
@@ -1306,7 +1307,7 @@ export function CeramicsStep({
           // later is no longer a gesture and iOS keeps the keyboard shut.
           // No modal: a Cloudflare Turnstile inside a Dialog is risk for
           // nothing, and mobile checkout gets rethought in R-PAY.
-          flushSync(() => setCheckoutOpen(true));
+          flushSync(() => setCheckoutHost("column"));
           // Scoped to the mobile block on purpose: `cartPanel` is rendered
           // twice (mobile section + desktop rail), so an unscoped query would
           // just as happily find the hidden desktop copy.

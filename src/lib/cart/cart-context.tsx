@@ -20,6 +20,7 @@ import {
 } from "@/lib/discounts/discount";
 import { buildSuggestionLine } from "@/lib/discounts/suggestion-line";
 import { designProductIds } from "@/lib/catalog/design-products-action";
+import type { BasketHost } from "@/components/ui-domain/basket-host";
 import {
   clampPaintN,
   pruneToLive,
@@ -100,16 +101,25 @@ type CartApi = ReturnType<typeof useCart> &
      * due carrelli», so the step-3 column, its mobile twin and the header
      * drawer must all read and write these, never a copy each.
      *
-     * `checkoutOpen` is a MODE of the basket: the order form replaces the
-     * rows. Held per container it was last-write-wins with no arbitration —
-     * on an iPad crossing `md` between landscape and portrait the copy that
+     * Checkout is a MODE of the basket: the order form replaces the rows.
+     * Held per container it was last-write-wins with no arbitration - on an
+     * iPad crossing `md` between landscape and portrait the copy that
      * published `true` is not the copy that renders, and the customer got
      * neither the form nor the sticky CTA. Closed here, for every surface at
      * once, whenever the basket can no longer be ordered (see the effect in
      * the provider).
+     *
+     * It is ONE decision, but it carries WHERE it was taken. A boolean made
+     * every mounted basket render an `<OrderForm>` - and a `<Turnstile>` -
+     * off a single click: step 3 mounts TWO column copies (mobile section +
+     * desktop rail) and the drawer a third, so `getByTestId("order-form")`
+     * matched three nodes. `checkoutHost` names the host that asked, so only
+     * that host's copies draw the form: the drawer's checkout stays in the
+     * drawer, the column's in the column (both copies of it, one visible) -
+     * exactly the pre-R5 behaviour. `null` is the only closed state.
      */
-    checkoutOpen: boolean;
-    setCheckoutOpen: (open: boolean) => void;
+    checkoutHost: BasketHost | null;
+    setCheckoutHost: (host: BasketHost | null) => void;
     /**
      * A pending decision ABOUT a cart line, keyed by the line's own id — not
      * view state. Which palette an unpainted row will Paint with
@@ -151,7 +161,7 @@ export function CartProvider({
   const [open, setOpen] = useState(false);
   const [suggestionsDismissed, setSuggestionsDismissed] = useState(false);
   const [currentConfig, setCurrentConfig] = useState<CurrentConfig | null>(null);
-  const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [checkoutHost, setCheckoutHost] = useState<BasketHost | null>(null);
   const [rowPaletteCode, setRowPaletteCode] = useState<Record<string, string>>({});
   const [paintN, setPaintNMap] = useState<Record<string, number>>({});
   const lines = cart.cart;
@@ -191,7 +201,7 @@ export function CartProvider({
    * makes one rule enough.
    */
   useEffect(() => {
-    if (unpaintedPieces(lines) > 0 || lines.length === 0) setCheckoutOpen(false);
+    if (unpaintedPieces(lines) > 0 || lines.length === 0) setCheckoutHost(null);
   }, [lines]);
 
   const dismissSuggestions = useCallback(() => setSuggestionsDismissed(true), []);
@@ -355,8 +365,8 @@ export function CartProvider({
       dismissSuggestions,
       currentConfig,
       setCurrentConfig,
-      checkoutOpen,
-      setCheckoutOpen,
+      checkoutHost,
+      setCheckoutHost,
       rowPaletteCode,
       setRowPalette,
       paintN,
@@ -374,7 +384,7 @@ export function CartProvider({
       suggestions,
       dismissSuggestions,
       currentConfig,
-      checkoutOpen,
+      checkoutHost,
       rowPaletteCode,
       setRowPalette,
       paintN,

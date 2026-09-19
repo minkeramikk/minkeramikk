@@ -145,7 +145,7 @@ function LineCodeSlot({
  * The handle `ceramics-step.tsx` keeps on each basket it mounted — only for
  * what is genuinely per-instance. Opening the checkout form is NOT: that is a
  * mode of the basket and lives in `cart-context.tsx`, so the step just calls
- * `setCheckoutOpen(true)` itself.
+ * `setCheckoutHost("column")` itself.
  */
 export type BasketHandle = {
   /** `focusFirstUnpaintedRow` scoped to THIS basket; false when it has no
@@ -160,7 +160,7 @@ export type BasketHandle = {
  *
  * Moved here from `ceramics-step.tsx`'s own `cartPanel` block, together with
  * the state that block owns (`expandedId`, `paintN`, `rowPaletteCode`,
- * `pickerOpenId`, `unpaintId`, `checkoutOpen`, `openPhotoId`), the ONE effect
+ * `pickerOpenId`, `unpaintId`, `checkoutHost`, `openPhotoId`), the ONE effect
  * that prunes all of them against live line ids, and the two dialogs those
  * pointers drive. The step keeps everything else: the catalog, the sheets,
  * the palette bar, the sticky bar, the share.
@@ -222,8 +222,8 @@ export function Basket({
     touch: touchPalette,
     // Fix round 1 — state of THE basket, not of this container: the checkout
     // mode and the two line-keyed pending decisions. See `cart-context.tsx`.
-    checkoutOpen,
-    setCheckoutOpen,
+    checkoutHost,
+    setCheckoutHost,
     rowPaletteCode,
     setRowPalette,
     setPaintN,
@@ -560,17 +560,22 @@ export function Basket({
             <Truck className="size-5 text-primary" />
           </PillIcon>
         }
-        onClick={() => setCheckoutOpen(true)}
+        onClick={() => setCheckoutHost(host)}
       />
     );
 
   /**
+   * `checkoutHost === host`: the checkout is ONE decision for the whole
+   * basket, taken in the host that asked for it. The drawer's CTA draws the
+   * form in the drawer, the column's in the column - never in all three
+   * mounted baskets at once (see `cart-context.tsx`).
+   *
    * Task 13: `!hasUnpainted` gates the form shut even if it was already open
    * when the basket picked up a new unpainted line (e.g. adding a ceramic
    * mid-checkout) — the order can never leave with colourless pieces, so the
    * form can never be on screen with one either.
    */
-  const formOpen = !hasUnpainted && checkoutOpen;
+  const formOpen = !hasUnpainted && checkoutHost === host;
   const checkoutForm = (
     // scroll-mt: the mobile header is sticky and 56px tall, so a bare
     // scrollIntoView would park the form's first rows under it. Fix wave PR3
@@ -584,7 +589,7 @@ export function Basket({
       <button
         type="button"
         data-testid={drawer ? "cart-back" : "docked-back-to-cart"}
-        onClick={() => setCheckoutOpen(false)}
+        onClick={() => setCheckoutHost(null)}
         className="mb-3 self-start text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
       >
         ← {t("backToCart")}
@@ -593,7 +598,7 @@ export function Basket({
         cart={cart}
         onSuccess={() => {
           clear();
-          setCheckoutOpen(false);
+          setCheckoutHost(null);
         }}
       />
     </div>
