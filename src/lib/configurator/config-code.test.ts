@@ -163,6 +163,103 @@ describe("config-code — tolerant decode (degenerate cases, never crash)", () =
   });
 });
 
+describe("config-code — text identity backward compatibility (R5-TEXT-IDENTITY task 2, AC 2)", () => {
+  // Codes in TODAY's shape — the ones already sitting in a customer's
+  // localStorage palette, an already-sent share link, or a cart row in an
+  // open session — must decode EXACTLY as they did before this task, and
+  // must never surface a customText. This has to hold before the encoder is
+  // taught anything new, and keep holding after (re-run below the AC 1
+  // tests confirms nothing regressed).
+
+  it("every colour segment present (today's normal shape) → no customText", () => {
+    const decoded = decodeConfigCode("MK-A-A-A", byCode); // design A: 2 categories, 2 segments, nothing more
+    expect(decoded.selections).toEqual({
+      borders: "borders-opt-0",
+      details: "details-opt-0",
+    });
+    expect(decoded.customText).toBeUndefined();
+  });
+
+  it("one colour segment missing (an old short/truncated code) → defaults, no customText", () => {
+    const decoded = decodeConfigCode("MK-A-C", byCode); // only 1 of design A's 2 segments given
+    expect(decoded.selections["borders"]).toBe("borders-opt-2");
+    expect(decoded.selections["details"]).toBe("details-opt-0"); // missing → default
+    expect(decoded.customText).toBeUndefined();
+  });
+
+  it("one extra segment (old trailing noise past the last category) → ignored, no customText", () => {
+    const decoded = decodeConfigCode("MK-E-D-Z-Z-Z", byCode); // striper has 1 category, 3 extra segments
+    expect(decoded.selections).toEqual({ stripes: "stripes-opt-3" });
+    expect(decoded.customText).toBeUndefined();
+  });
+
+  it("property check: every code from today's 2-arg encoder decodes with no customText", () => {
+    const rnd = mulberry32(20260919);
+    for (let i = 0; i < 200; i++) {
+      const design = DESIGNS[Math.floor(rnd() * DESIGNS.length)];
+      const sel = randomFullSelection(design, rnd);
+      const code = encodeConfigCode(design, sel); // no extras — the only shape that existed before task 2
+      expect(decodeConfigCode(code, byCode).customText).toBeUndefined();
+    }
+  });
+});
+
+describe("config-code — inscription identity (R5-TEXT-IDENTITY task 2, AC 1)", () => {
+  const d = byCode("E")!; // striper: 1 category, keeps the fixture short
+  const sel = { stripes: "stripes-opt-1" };
+
+  it("two different inscriptions, same design/selections → two different codes", () => {
+    const code1 = encodeConfigCode(d, sel, { customText: "Til Anna" });
+    const code2 = encodeConfigCode(d, sel, { customText: "Til Kari" });
+    expect(code1).not.toBe(code2);
+  });
+
+  it("the same inscription twice → the same code (determinism, keeps palette names stable)", () => {
+    const code1 = encodeConfigCode(d, sel, { customText: "Gratulerer med dagen" });
+    const code2 = encodeConfigCode(d, sel, { customText: "Gratulerer med dagen" });
+    expect(code1).toBe(code2);
+  });
+
+  it("same colours AND same inscription, two different colour WISHES → two different codes", () => {
+    // This is hashNote doing its job (R5-GARANZIA.md §5): two order lines
+    // with identical colours/inscription but different private wishes must
+    // not silently collapse into "the same configuration".
+    const code1 = encodeConfigCode(d, sel, {
+      customText: "Til Anna",
+      customNote: "litt mer blått, takk",
+    });
+    const code2 = encodeConfigCode(d, sel, {
+      customText: "Til Anna",
+      customNote: "litt mer rosa, takk",
+    });
+    expect(code1).not.toBe(code2);
+  });
+
+  it("no inscription and no wish → byte-identical to the pre-task-2 (2-arg) call", () => {
+    expect(encodeConfigCode(d, sel, {})).toBe(encodeConfigCode(d, sel));
+    expect(encodeConfigCode(d, sel, { customText: "", customNote: "" })).toBe(
+      encodeConfigCode(d, sel)
+    );
+  });
+
+  it("decode recovers the inscription text but never the wish hash (identity only)", () => {
+    const code = encodeConfigCode(d, sel, {
+      customText: "Til Anna",
+      customNote: "litt mer blått, takk",
+    });
+    const decoded = decodeConfigCode(code, byCode);
+    expect(decoded.customText).toBe("Til Anna");
+    expect(decoded).not.toHaveProperty("noteHash");
+  });
+
+  it("a colour wish alone (no inscription) still changes the code, but decodes with no customText", () => {
+    const withWish = encodeConfigCode(d, sel, { customNote: "litt mer blått, takk" });
+    const withoutWish = encodeConfigCode(d, sel);
+    expect(withWish).not.toBe(withoutWish);
+    expect(decodeConfigCode(withWish, byCode).customText).toBeUndefined();
+  });
+});
+
 describe("toCodecDesign defaultOptionId", () => {
   function detail(opts: { id: string; code: string; isDefault?: boolean }[]) {
     return {

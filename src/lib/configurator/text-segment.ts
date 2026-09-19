@@ -37,8 +37,18 @@ import { fnv1a } from "@/lib/palettes/palettes";
 const ZERO = BigInt(0);
 const ONE = BigInt(1);
 const BYTE = BigInt(256);
-const BASE = BigInt(CODE_ALPHABET.length); // 31
-
+// NOT `const BASE = BigInt(CODE_ALPHABET.length)` at module scope (task 2,
+// R5-TEXT-IDENTITY): config-code.ts now imports FROM this module too
+// (encodeTextSegment/decodeTextSegment/hashNote), so this module and
+// config-code.ts are a cycle. Reading CODE_ALPHABET at THIS module's top
+// level races config-code.ts's own top-level `export const CODE_ALPHABET =
+// ...`: whichever of the two modules starts loading first, the other's
+// import can still be mid-evaluation, and CODE_ALPHABET.length was hit
+// before it existed (`TypeError: Cannot read properties of undefined
+// (reading 'length')`, reproduced when config-code.test.ts loads
+// config-code.ts first). Computing it inside the functions that need it —
+// after both modules have finished loading — sidesteps the load-order race
+// entirely; the value never changes at runtime either way.
 const FLAG_TEXT = 1;
 const FLAG_NOTE_HASH = 2;
 const KNOWN_FLAGS = FLAG_TEXT | FLAG_NOTE_HASH;
@@ -52,7 +62,8 @@ const NOTE_HASH_LEN = 4;
 // 31^4 buckets for the wish fingerprint — plenty to tell two different
 // customer wishes apart within one order line; a same-bucket collision just
 // means two DIFFERENT wishes get treated as one duplicate, never the reverse.
-const NOTE_HASH_SPACE = CODE_ALPHABET.length ** NOTE_HASH_LEN;
+// Computed inside hashNote(), not here — see the BASE comment above for why
+// CODE_ALPHABET can't be read at this module's top level any more.
 
 export interface DecodedTextSegment {
   text: string;
@@ -89,22 +100,24 @@ export function bigIntToBytes(value: bigint): Uint8Array {
 
 export function bigIntToBase31(value: bigint): string {
   if (value <= ZERO) return "";
+  const base = BigInt(CODE_ALPHABET.length); // 31 — see the BASE comment above
   let v = value;
   const digits: string[] = [];
   while (v > ZERO) {
-    digits.unshift(CODE_ALPHABET[Number(v % BASE)]);
-    v /= BASE;
+    digits.unshift(CODE_ALPHABET[Number(v % base)]);
+    v /= base;
   }
   return digits.join("");
 }
 
 /** null when `s` contains a char outside CODE_ALPHABET (corrupt input). */
 export function base31ToBigInt(s: string): bigint | null {
+  const base = BigInt(CODE_ALPHABET.length); // 31 — see the BASE comment above
   let value = ZERO;
   for (const ch of s) {
     const idx = CODE_ALPHABET.indexOf(ch);
     if (idx < 0) return null;
-    value = value * BASE + BigInt(idx);
+    value = value * base + BigInt(idx);
   }
   return value;
 }
@@ -116,7 +129,8 @@ export function base31ToBigInt(s: string): bigint | null {
  * it's zero-padded on the left explicitly.
  */
 export function hashNote(note: string): string {
-  let v = fnv1a(note) % NOTE_HASH_SPACE;
+  const noteHashSpace = CODE_ALPHABET.length ** NOTE_HASH_LEN; // see comment above
+  let v = fnv1a(note) % noteHashSpace;
   const digits: string[] = [];
   for (let i = 0; i < NOTE_HASH_LEN; i++) {
     digits.unshift(CODE_ALPHABET[v % CODE_ALPHABET.length]);
