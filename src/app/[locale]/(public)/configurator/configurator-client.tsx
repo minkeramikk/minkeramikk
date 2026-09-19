@@ -275,8 +275,14 @@ export function ConfiguratorClient({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- key on design only
   }, [selected.slug]);
 
-  // F38: custom inscription. Lives in state + the working URL (text=) only —
-  // never the config code nor the set= link (privacy/lean, like the note).
+  // F38: custom inscription. Lives in state + the working URL (text=), AND
+  // — since task 4 — the config code itself (`buildConfigLinePayload` folds
+  // it into `encodeConfigCode`'s `extras`): identity now, not colours-only.
+  // R5-TEXT-IDENTITY final-review round 2 (finding 5a): this comment used to
+  // say "never the config code", which this branch made false the moment
+  // task 4 landed — AC 6's rule applies to what we wrote today, not just to
+  // pre-existing code. It still never enters the `set=` link (task 3 strips
+  // it before a shared kit is built).
   const [customText, setCustomText] = useState(searchParams.get("text") ?? "");
 
   /** R4-POLISH voce 8: mentre si scrive, il canvas molla lo `sticky`. Con la
@@ -531,13 +537,45 @@ export function ConfiguratorClient({
   );
   // F19: a ?code= deep-link (cart-row "reopen" or a shared link) is decoded once
   // on arrival into the canonical opt_* params, then dropped from the URL.
+  //
+  // R5-TEXT-IDENTITY final-review round 2, finding 1 (BLOCKER): this effect
+  // used to destructure only `{ designSlug, selections }` and threw the
+  // decoded `customText` away — page.tsx already seeds step 3's field from
+  // it, step 2 didn't. The live callers are the cart row's «Edit design»
+  // (basket.tsx → `?code=…&step=2`) and `loadPalette` below (same `?code=`
+  // shape). Losing the words here meant: edit a line that had a dedication,
+  // change a colour, continue — the NEW line has no dedication (a silent
+  // loss reaching the order mail and the lab PDF); and a palette saved WITH
+  // a dedication could never be re-activated by tapping its chip, because
+  // `draftCode` (built with an empty `customText`) could never equal the
+  // saved code again — the strip said "Unsaved" forever, and the §3 guard
+  // then hid the save button too (nothing to re-save over).
+  //
+  // `setCustomText` here, not just writing `text=` into the URL: this
+  // effect only re-fires on `searchParams`/`codecDesigns` changes, but nothing
+  // ELSE re-reads `text=` into the live `customText` state unless `selected
+  // .slug` also changes (the OTHER effect, keyed on design) — `loadPalette`/
+  // «Edit design» often stay on the SAME design, so that second effect would
+  // never fire and the field would stay empty despite the URL being correct.
+  // Explicit `?text=` in the incoming URL still wins outright (it's the live
+  // edit) — this only fills in when it's ABSENT, same precedence as page.tsx.
+  //
+  // Unconditional sync when there's no explicit override — INCLUDING down to
+  // "" when the code carries no inscription — not just "fill in if present":
+  // loading a colours-only saved palette right after typing a dedication
+  // into an unrelated draft must clear the stale words, or the newly-loaded
+  // palette's own `draftCode` would carry someone else's leftover text and
+  // never equal the saved code it was just loaded from (the same
+  // "matchedPalette null forever" symptom this finding is about, from a
+  // different angle).
   useEffect(() => {
     const incoming = searchParams.get("code");
     if (!incoming) return;
+    const explicitText = searchParams.get("text");
     const params = new URLSearchParams(searchParams.toString());
     params.delete("code");
     try {
-      const { designSlug, selections: sel } = decodeConfigCode(
+      const { designSlug, selections: sel, customText: decodedText } = decodeConfigCode(
         incoming,
         (c) => codecDesigns.find((d) => d.code === c.toUpperCase()) ?? null
       );
@@ -546,6 +584,12 @@ export function ConfiguratorClient({
         if (key.startsWith("opt_")) params.delete(key);
       for (const [catSlug, optId] of Object.entries(sel))
         params.set(`opt_${catSlug}`, optId);
+      if (explicitText === null) {
+        const seededText = decodedText ?? "";
+        setCustomText(seededText);
+        if (seededText) params.set("text", seededText);
+        else params.delete("text");
+      }
     } catch {
       /* invalid code → just drop the param, never crash */
     }
