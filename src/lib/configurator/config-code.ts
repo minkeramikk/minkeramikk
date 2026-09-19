@@ -14,11 +14,13 @@
 
 import { pickDefaultOption } from "./default-option";
 import { decodeTextSegment, encodeTextSegment, hashNote } from "./text-segment";
+import { CODE_ALPHABET, CODE_PREFIX } from "./code-alphabet";
 
-/** Safe alphabet (ADR 0011): A–Z minus O,I,L, plus 2–9. 31 symbols. */
-export const CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
-
-export const CODE_PREFIX = "MK";
+// Re-exported so today's importers (assign-codes.ts, assign-codes.test.ts,
+// set-code.test.ts) keep reading the alphabet from here, unchanged. The
+// canonical definition lives in ./code-alphabet, which text-segment.ts also
+// imports directly — see that module's doc comment for why it had to move.
+export { CODE_ALPHABET, CODE_PREFIX };
 
 /** Minimal catalog shape the codec needs (from the DB, no UI types). */
 export interface CodecCategory {
