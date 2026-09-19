@@ -560,6 +560,7 @@ export function ConfiguratorClient({
     save: savePalette,
     rename: renamePalette,
     remove: deletePalette,
+    setCurrentConfig,
   } = useCartContext();
   // The DRAFT is exactly what step 3 would turn into a cart line: same
   // builder, same inputs (card §3). No note/text carried in — a palette is a
@@ -609,6 +610,25 @@ export function ConfiguratorClient({
    *  suffix — same source ceramics-step.tsx's own `designName` reads
    *  (`designLabel()` on the snapshot), just this step's own snapshot. */
   const activeDesignName = designLabel(draftPayload.snapshot, locale as "no" | "en") ?? "";
+
+  /**
+   * R5-BASKET-HOST task 1 — step 2 publishes the same `CurrentConfig` shape
+   * step 3 does (ceramics-step.tsx), so the header drawer (outside this
+   * subtree, later task) can render its own preview chip. Published ONLY
+   * while this IS step 2 — step 1 publishes nothing on purpose, which is what
+   * keeps the chip dead there — and cleared on unmount or on leaving step 2,
+   * mirroring step 3's own publish/clear effect exactly.
+   */
+  useEffect(() => {
+    if (step !== 2) return;
+    setCurrentConfig({
+      code: draftPayload.configCode,
+      snapshot: draftPayload.snapshot,
+      layers: activePaletteLayers,
+      designSlug: detail.slug,
+    });
+    return () => setCurrentConfig(null);
+  }, [step, draftPayload, activePaletteLayers, detail.slug, setCurrentConfig]);
 
   function saveDraftAsPalette() {
     const now = Date.now();

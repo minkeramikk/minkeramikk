@@ -281,7 +281,7 @@ export function CeramicsStep({
     unpaint,
     discount,
     discountConfig,
-    setCurrentConfigCode,
+    setCurrentConfig,
     acceptSuggestion,
     allowedProduct: cartAllowedProduct,
     palettes,
@@ -300,11 +300,17 @@ export function CeramicsStep({
    * trigger line (TL ruling 2026-08-31). Cleared on unmount: in the drawer at
    * steps 1-2 there is no current configuration and the donor falls back to
    * quantity, exactly as before.
+   *
+   * R5-BASKET-HOST task 1: widened from a bare code to the full `CurrentConfig`
+   * (code + snapshot + layers + designSlug) — the header drawer lives outside
+   * this subtree and cannot compute "what's painting" itself, so the object it
+   * needs to render its own preview chip has to travel through this same
+   * publish/clear channel the donor logic already used.
    */
   useEffect(() => {
-    setCurrentConfigCode(configCode);
-    return () => setCurrentConfigCode(null);
-  }, [configCode, setCurrentConfigCode]);
+    setCurrentConfig({ code: configCode, snapshot, layers: designLayers, designSlug: snapshot.designSlug });
+    return () => setCurrentConfig(null);
+  }, [configCode, snapshot, designLayers, setCurrentConfig]);
 
   /**
    * R5-PALETTES task 9 — which palette is painting. Same rule as step 2's own

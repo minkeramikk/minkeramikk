@@ -20,6 +20,20 @@ import {
 } from "@/lib/discounts/discount";
 import { buildSuggestionLine } from "@/lib/discounts/suggestion-line";
 import { designProductIds } from "@/lib/catalog/design-products-action";
+import type { CartLayer, ConfigSnapshot } from "./cart";
+
+/**
+ * R5-BASKET-HOST task 1 — what the drawer/step-3 `Basket` needs to know is
+ * "painting right now": not just the code (the old `currentConfigCode`), but
+ * enough of the config to render a preview chip from OUTSIDE the configurator
+ * subtree (the header drawer has no access to step 2/3's own state).
+ */
+export type CurrentConfig = {
+  code: string;
+  snapshot: ConfigSnapshot;
+  layers: CartLayer[];
+  designSlug: string;
+};
 
 /**
  * Shared cart view (F16). The cart STATE and persistence already live in
@@ -50,9 +64,12 @@ type CartApi = ReturnType<typeof useCart> &
     /** The ✕ closes the WHOLE block, not one offer — closing a card to reveal the
      *  next is the behaviour the list replaced. Session-only, never persisted. */
     dismissSuggestions: () => void;
-    /** Step 3 tells the cart which configuration is on screen, so an offer can
-     *  borrow the design the customer is actually looking at. Null elsewhere. */
-    setCurrentConfigCode: (code: string | null) => void;
+    /** Step 2/3 tell the cart which configuration is on screen, so an offer
+     *  can borrow the design the customer is actually looking at, and (R5-
+     *  BASKET-HOST) the header drawer can render its own preview chip. Null
+     *  elsewhere — that absence is what makes the chip dead at step 1. */
+    currentConfig: CurrentConfig | null;
+    setCurrentConfig: (config: CurrentConfig | null) => void;
     /** Part ②: add the suggested ceramic wearing the trigger line's design. */
     acceptSuggestion: (suggestion: ActiveSuggestion) => void;
     /**
@@ -76,7 +93,7 @@ export function CartProvider({
   const palettes = usePalettes();
   const [open, setOpen] = useState(false);
   const [suggestionsDismissed, setSuggestionsDismissed] = useState(false);
-  const [currentConfigCode, setCurrentConfigCode] = useState<string | null>(null);
+  const [currentConfig, setCurrentConfig] = useState<CurrentConfig | null>(null);
 
   const dismissSuggestions = useCallback(() => setSuggestionsDismissed(true), []);
 
@@ -170,13 +187,18 @@ export function CartProvider({
               configCode: l.configCode ?? undefined,
             })),
             config,
-            { supplierOf, supplierOfProduct, allowedProduct, currentConfigCode }
+            {
+              supplierOf,
+              supplierOfProduct,
+              allowedProduct,
+              currentConfigCode: currentConfig?.code ?? null,
+            }
           ),
     [
       cart.cart,
       config,
       suggestionsDismissed,
-      currentConfigCode,
+      currentConfig,
       supplierOf,
       supplierOfProduct,
       allowedProduct,
@@ -232,7 +254,8 @@ export function CartProvider({
       discount,
       suggestions,
       dismissSuggestions,
-      setCurrentConfigCode,
+      currentConfig,
+      setCurrentConfig,
       acceptSuggestion,
       allowedProduct,
     }),
@@ -244,6 +267,7 @@ export function CartProvider({
       discount,
       suggestions,
       dismissSuggestions,
+      currentConfig,
       acceptSuggestion,
       allowedProduct,
     ]
