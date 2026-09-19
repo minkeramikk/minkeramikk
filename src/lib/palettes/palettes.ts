@@ -158,7 +158,9 @@ function isMainColourLabel(label: string | undefined): boolean {
 }
 
 // Small FNV-1a (32-bit) — deterministic code → index, no dependency.
-function fnv1a(str: string): number {
+// Exported: text-segment.ts (R5-TEXT-IDENTITY) reuses it for hashNote rather
+// than adding a second hash function to the codebase.
+export function fnv1a(str: string): number {
   let hash = 0x811c9dc5;
   for (let i = 0; i < str.length; i++) {
     hash ^= str.charCodeAt(i);
