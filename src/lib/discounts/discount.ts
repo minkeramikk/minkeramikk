@@ -424,11 +424,7 @@ export function activeSuggestions(
         (l) =>
           l.productId &&
           rule.triggerProductIds.includes(l.productId) &&
-          included(l.productId, config) &&
-          // R5-UNPAINTED: a line with no configCode has no design to lend —
-          // never a donor candidate, so the next-biggest painted sibling gets
-          // the offer instead of the whole rule being dropped under it.
-          l.configCode !== undefined
+          included(l.productId, config)
       )
       .sort((a, b) => b.quantity - a.quantity);
     const from =

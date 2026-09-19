@@ -60,10 +60,7 @@ export const orderItemSchema = z.object({
   unitPriceCents: z.number().int().nonnegative().max(100_000_000),
   currency: z.enum(CURRENCIES),
   quantity: z.number().int().positive().max(10_000),
-  /** R5-UNPAINTED: shape-valid, business-invalid. The null is accepted HERE so
-   *  the refusal below it can name the reason («unpainted») instead of a
-   *  blanket «invalid payload»; `createOrder` rejects it immediately after. */
-  configCode: z.string().min(1).nullable(),
+  configCode: z.string().min(1),
   // The snapshot is trusted-by-shape EXCEPT the free-text note and inscription,
   // which are sanitised + length-checked here (AC7, F38). passthrough keeps
   // the other fields.
@@ -85,14 +82,6 @@ export const orderItemSchema = z.object({
 });
 
 export type OrderItemInput = z.infer<typeof orderItemSchema>;
-
-/** R5-UNPAINTED: an `OrderItemInput` whose colour is settled. `createOrder`'s
- *  refusal gate (see create.ts) is the ONLY place that produces this — by
- *  narrowing, never by casting — and everything past it (order rows, the
- *  confirmation mail) is typed against this, not the raw payload, so a
- *  `config_code`/`configCode` column or field that must never be null gets a
- *  compile-time guarantee instead of a runtime hope. */
-export type PaintedOrderItem = OrderItemInput & { configCode: string };
 
 /**
  * The customer-facing form fields (also validated client-side).

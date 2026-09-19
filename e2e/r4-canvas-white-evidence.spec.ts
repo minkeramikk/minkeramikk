@@ -75,17 +75,14 @@ async function configCode(page: Page, slug: string) {
   await page.evaluate(() => localStorage.clear());
   await page.goto(`/no/configurator?design=${slug}&step=3`);
   await addFirstCeramic(page);
-  // Task 18 — il pannello docked ha perso il codice dal proprio dettaglio
-  // espanso (TL: quell'affordance è del drawer, dove già viveva) — si apre
-  // il drawer e si legge da lì, stesso `CartLineRecap` di sempre.
   // `.last()`: il carrello si accumula fra un design e l'altro, la prima riga
   // resterebbe sempre quella del primo design.
-  await page.getByTestId("cart-button").click();
-  const line = page.getByTestId("cart-drawer").getByTestId("cart-line").last();
+  const line = page
+    .getByTestId("docked-cart-panel")
+    .getByTestId("cart-line")
+    .last();
   await line.getByTestId("cart-expand").click();
-  const code = (await line.locator("code").first().innerText()).trim();
-  await page.keyboard.press("Escape"); // richiudi il drawer, la prossima nav lo scarta comunque
-  return code;
+  return (await line.locator("code").first().innerText()).trim();
 }
 
 // ── a) i 3 affiancamenti (solo DOPO) ──────────────────────────────────────

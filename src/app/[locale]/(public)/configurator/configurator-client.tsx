@@ -48,15 +48,6 @@ import { MAX_CUSTOM_TEXT } from "@/lib/orders/schema";
 import { cn } from "@/lib/utils";
 import type { DesignDetail } from "@/lib/catalog/design-options";
 import type { PreviewLayer } from "@/lib/configurator/preview";
-import { useCartContext } from "@/lib/cart/cart-context";
-import { designLabel } from "@/lib/cart/cart";
-import { buildConfigLinePayload } from "@/lib/configurator/line-payload";
-import { nameFor, paletteFor, sortCurrentDesignFirst } from "@/lib/palettes/palettes";
-import type { PaletteWords } from "@/lib/palettes/name-lists";
-import { PaletteBar } from "@/components/ui-domain/palette-bar";
-import { PaletteChip } from "@/components/ui-domain/palette-chip";
-import { PaintingStrip } from "@/components/ui-domain/painting-strip";
-import { DesignRound } from "@/components/ui-domain/design-round";
 
 /** Pagina di ispirazione del cliente (fuori sito, apre in nuova scheda). */
 const INSPIRATION_URL = "https://www.minkeramikk.no/inspirasjon";
@@ -159,7 +150,6 @@ export function ConfiguratorClient({
   detailsBySlug,
   ceramicThumbs = {},
   featuredSlot = null,
-  paletteWords,
 }: {
   designs: DesignChoice[];
   detailsBySlug: Record<string, DesignDetail>;
@@ -167,16 +157,6 @@ export function ConfiguratorClient({
   ceramicThumbs?: Record<string, string[]>;
   /** F28: server-rendered featured strip — step 1 only, between stepper and grid. */
   featuredSlot?: React.ReactNode;
-  /**
-   * Fix-wave finding 3: `nameFor()`'s default parameter calls `paletteWords()`,
-   * which reads `process.env.MK_PALETTE_WORDS` — fine on the server, always
-   * `undefined` here since this is `"use client"` (Next.js only inlines
-   * `NEXT_PUBLIC_*` into the client bundle, and this must NOT become public,
-   * card §2/§4-bis). The server component that renders us
-   * (`configurator/page.tsx`) resolves `paletteWords()` once and hands the
-   * result down, so an operator's override still reaches the customer's save.
-   */
-  paletteWords: PaletteWords;
 }) {
   const t = useTranslations("configurator");
   const locale = useLocale();
@@ -217,16 +197,9 @@ export function ConfiguratorClient({
   /** R4-RESTYLE: la corsia tab è fatta SOLO di gruppi-opzione — «Detaljer» e
    *  «Bilder» non esistono più (i loro contenuti sono in pagina, sopra il
    *  pannello). Quindi la tab attiva è sempre lo slug di una categoria. */
-  // PR3 round 2: `PALETTES_TAB` (the module-level fallback fix wave PR3
-  // finding 11 introduced) is gone with the tab it existed for — the
-  // Palettes tab is no longer in this lane at all, reached instead from a
-  // control above it (see `paletteSheetOpen` below), so there is no longer
-  // a "one tab that always exists" to fall back to. Back to `?? ""`,
-  // exactly as this read before that tab ever existed: a design with zero
-  // categories leaves the (category-only, «Fargeønsker») lane with nothing
-  // selected, same pre-existing edge case this card didn't introduce and
-  // isn't the one to fix.
-  const [activeTab, setActiveTab] = useState<string>(detail.categories[0]?.slug ?? "");
+  const [activeTab, setActiveTab] = useState<string>(
+    detail.categories[0]?.slug ?? ""
+  );
   // design nuovo = categorie nuove: la tab attiva torna alla prima.
   useEffect(() => {
     setActiveTab(detail.categories[0]?.slug ?? "");
@@ -403,12 +376,6 @@ export function ConfiguratorClient({
         onBlur={() => setTyping(false)}
         aria-label={t("customText.title")}
         aria-describedby="custom-text-helper"
-        // `scroll-mt-14` = header only. TL round 3 made `<PaintingStrip>`
-        // release its own `sticky` at the same moment the canvas does
-        // (`group-data-[typing=1]/step2:static`, wired where the strip
-        // renders) specifically so this stays true instead of growing a
-        // second constant: while typing, the top of the page is STILL just
-        // the header, exactly as it was before the strip existed.
         className="w-full rounded-sm border border-input bg-card p-2 text-base focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring md:text-sm max-md:scroll-mt-14"
       />
       <div className="mt-1 flex items-start justify-between gap-3">
@@ -549,125 +516,6 @@ export function ConfiguratorClient({
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
   }, [searchParams, codecDesigns, pathname, router]);
 
-  // ── R5-PALETTES task 8: the manage bar (step 2, desktop) ──
-  // One `usePalettes()` instance for the whole tab, shared via CartProvider
-  // (cart-context.tsx) with the header/step 3 — this screen never touches
-  // localStorage directly.
-  const tPaletteBar = useTranslations("palettes.bar");
-  const {
-    palettes,
-    setActiveCode,
-    save: savePalette,
-    rename: renamePalette,
-    remove: deletePalette,
-  } = useCartContext();
-  // The DRAFT is exactly what step 3 would turn into a cart line: same
-  // builder, same inputs (card §3). No note/text carried in — a palette is a
-  // set of COLOURS, and neither one ever enters the config code either
-  // (F38/R2-2b), so they can't change which saved palette this matches.
-  const draftPayload = useMemo(
-    () => buildConfigLinePayload(detail, selections),
-    [detail, selections]
-  );
-  const draftCode = draftPayload.configCode;
-  // The chip that represents "what's on screen right now" — either the
-  // unsaved draft (no match) or an already-saved palette (match). Never
-  // both: showing the same colours twice in the lane would be noise, not
-  // information (card §3/§4-bis).
-  const matchedPalette = paletteFor(palettes, draftCode);
-  const [renamingPaletteCode, setRenamingPaletteCode] = useState<string | null>(
-    null
-  );
-  /** PR3 round 2 — the mobile palette sheet's own open/close, mirroring
-   *  ceramics-step.tsx's `paletteSheetOpen` (same `PaletteSheet`, wired at
-   *  this step too now that the removed Palettes tab no longer covers it). */
-  const [paletteSheetOpen, setPaletteSheetOpen] = useState(false);
-  /**
-   * R5-PALETTES task 12 — the ONE "what's on screen" label, mirroring
-   * ceramics-step.tsx's own `paintingLabel` comment: a saved match names it,
-   * else the deterministic `nameFor()` draft label. Computed ONCE so the
-   * mobile palette sheet's trigger dot, the draft chip, the save button and
-   * the save-strip can never drift apart the way the desktop bar's chip and
-   * `saveDraftAsPalette` used to (two separate `nameFor()` calls below,
-   * now one).
-   */
-  // Round 4 (TL-reported duplicate «Zaffera»): `nameFor()` needs every
-  // name already saved so it can pick a FREE word instead of repeating one
-  // — the same `palettes` list this bar already reads, so the chip below
-  // and `saveDraftAsPalette` (which reuses `activePaletteName`, never
-  // calls `nameFor()` again) can't disagree with what actually gets saved.
-  const activePaletteName =
-    matchedPalette?.name ??
-    nameFor(
-      draftCode,
-      draftPayload.snapshot,
-      paletteWords,
-      palettes.map((p) => p.name)
-    );
-  const activePaletteLayers = matchedPalette?.layers ?? draftPayload.designLayers;
-  /** The design pattern's own name, for `<PaintingStrip>`'s "· design"
-   *  suffix — same source ceramics-step.tsx's own `designName` reads
-   *  (`designLabel()` on the snapshot), just this step's own snapshot. */
-  const activeDesignName = designLabel(draftPayload.snapshot, locale as "no" | "en") ?? "";
-
-  function saveDraftAsPalette() {
-    const now = Date.now();
-    savePalette({
-      code: draftCode,
-      name: activePaletteName,
-      designSlug: selected.slug,
-      snapshot: draftPayload.snapshot,
-      layers: draftPayload.designLayers,
-      createdAt: now,
-      usedAt: now,
-    });
-    setActiveCode(draftCode);
-  }
-
-  // Card §C3: a saved chip of THIS design loads by NAVIGATING — step 2's
-  // selections live in the URL (`resolveSelections`), and the `?code=` decode
-  // effect above is the one and only place that turns a code into `opt_*`
-  // params. Setting local state here would be a second, competing source of
-  // truth for the same thing.
-  function loadPalette(code: string) {
-    // Fix wave A finding 1: same bug as step 3's `paintWith` — a from-scratch
-    // URL was dropping every other param, `design=` included. The `?code=`
-    // decode effect above sets `design` from the code, but only AFTER a
-    // render with the OLD `design` param (or none) has already run, and that
-    // render falls back to `designs[0]` — resetting `noteText`/`customText`/
-    // `activeTab` through the effects keyed on the design, losing note=/text=
-    // for good on any design that isn't first by sort order. Building from
-    // the current params (like `goToStep` does) keeps `design=` in place.
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("code", code);
-    params.set("step", "2");
-    // Fix wave PR3 finding 3: `resetPaletteDraft` a few lines below already
-    // passes this — a phone picks a chip mid-page (the mobile tab lane sits
-    // well past the fold), and without it every tap threw the customer back
-    // to the top. The sticky desktop bar hid the same bug there.
-    router.push(`${pathname}?${params.toString()}`, { scroll: false });
-  }
-
-  /**
-   * PR3 round 2 — the mobile palette sheet's «+ New»: resets the draft to
-   * the DESIGN'S OWN DEFAULTS (`resolveSelections`'s fallback, same
-   * `pickDefaultOption` step 1 already uses on first paint). Deliberately
-   * different from step 3's own «+ New palette» (ceramics-step.tsx), which
-   * reopens step 2 keeping whatever is on screen so it can be tweaked — this
-   * one is explicit: reset, not carry-forward (unsurprising here, we're
-   * already ON step 2). `code=` is dropped too, so a saved match's colours
-   * don't win the next decode. Formerly the removed mobile Palettes tab's
-   * «+ New» chip; same function, now wired to the sheet's `onNewPalette`.
-   */
-  function resetPaletteDraft() {
-    const params = new URLSearchParams(searchParams.toString());
-    for (const key of [...params.keys()]) {
-      if (key.startsWith("opt_")) params.delete(key);
-    }
-    params.delete("code");
-    router.push(`${pathname}?${params.toString()}`, { scroll: false });
-  }
-
   function selectDesign(d: DesignChoice) {
     if (d.slug === selected.slug) return;
     const params = new URLSearchParams(searchParams.toString());
@@ -805,202 +653,11 @@ export function ConfiguratorClient({
     setNoteMode(order[next]);
   }
 
-  // R5-PALETTES task 8: the lane's chips, leading with "what's on screen"
-  // (draft or, if it matches a save, that save shown active/renamable),
-  // then every OTHER saved palette — dim when it belongs to a different
-  // design (card §6: switching design from a dim chip is a later card, so
-  // it stays inert here, no onSelect). Card §4-bis (added mid-PR): among
-  // those "other" palettes, the current design's own still lead, the rest
-  // trail dimmed — a stable sort, not a filter.
-  const otherPaletteChips = sortCurrentDesignFirst(
-    palettes.filter((p) => p.code !== matchedPalette?.code),
-    selected.slug
-  )
-    .map((p) => {
-      const dim = p.designSlug !== selected.slug;
-      if (dim) {
-        const dimDesign = designs.find((d) => d.slug === p.designSlug);
-        return (
-          <PaletteChip
-            key={p.code}
-            code={p.code}
-            name={p.name}
-            layers={p.layers}
-            dim
-            dimDesignName={dimDesign ? designName(dimDesign) : p.designSlug}
-            onDelete={() => deletePalette(p.code)}
-          />
-        );
-      }
-      return (
-        <PaletteChip
-          key={p.code}
-          code={p.code}
-          name={p.name}
-          layers={p.layers}
-          onSelect={() => loadPalette(p.code)}
-          onDelete={() => deletePalette(p.code)}
-        />
-      );
-    });
-  const leadPaletteChip = matchedPalette ? (
-    <PaletteChip
-      key={matchedPalette.code}
-      code={matchedPalette.code}
-      name={matchedPalette.name}
-      layers={matchedPalette.layers}
-      active
-      renaming={renamingPaletteCode === matchedPalette.code}
-      onRenameStart={() => setRenamingPaletteCode(matchedPalette.code)}
-      onRenameConfirm={(next) => {
-        renamePalette(matchedPalette.code, next);
-        setRenamingPaletteCode(null);
-      }}
-      onRenameCancel={() => setRenamingPaletteCode(null)}
-      onDelete={() => deletePalette(matchedPalette.code)}
-    />
-  ) : (
-    <PaletteChip
-      key="draft"
-      code={draftCode}
-      name={activePaletteName}
-      layers={draftPayload.designLayers}
-      draft
-    />
-  );
   return (
     // R4-RESTYLE: no `data-editor` hook and no height chain — the globals.css
     // block that locked the viewport is gone. Under md step 2 is an ordinary
     // page scroller whose canvas is `position: sticky`.
-    <div
-      data-testid="configurator"
-      // Fix wave B finding 5 (minor) — nothing on this page carried
-      // `scroll-margin-top`, so a keyboard-focused control that scrolls
-      // itself into view lands right under the 69px sticky `PaletteBar`
-      // (step 2 only — the bar only mounts then). `*:focus-visible`, not a
-      // fixed id list: any control in the step-2 column can be the one Tab
-      // lands on next.
-      //
-      // TL round 3 follow-up: `<PaintingStrip>` (below) is a SIBLING of the
-      // grid further down, not its descendant, so the grid's own
-      // `group/step2` + `data-typing` (R4-POLISH voce 8, where the canvas
-      // and tab lane release their `sticky` while the customer types) can't
-      // reach it. Same attribute, same `typing` boolean, duplicated onto
-      // THIS ancestor instead of invented twice: the grid keeps its own
-      // copy (its `[&>[data-preview-column]]`/`[&_[data-tabs-bar]]`
-      // selectors are self-referencing and still need it there), and the
-      // strip binds to this outer `group/step2` the same way the nav row
-      // already binds to the grid's inner one — nearest named-group
-      // ancestor wins, no conflict between the two.
-      className={cn(
-        step === 2 && "md:[&_*:focus-visible]:scroll-mt-[69px]",
-        step === 2 && "group/step2"
-      )}
-      data-typing={step === 2 && typing ? "1" : undefined}
-    >
-      {/* R5-PALETTES task 8: desktop only (mobile gets its own top palette
-          control — PR3 round 2, replacing the removed «Palettes» tab).
-          `main` (public-shell.tsx) wraps every page in `px-5 py-7`; `-mt-7`
-          cancels the top half of that so the bar sits flush under the
-          header before any scroll. The HORIZONTAL full-bleed (PR3 fix —
-          the bar used to stop short of the viewport edges, capped at
-          `main`'s own `max-w-[1060px]`) is now owned by `PaletteBar` itself
-          (`md:w-screen md:ml-[calc(50%-50vw)]`, see that component) — no
-          `-mx-5` needed here any more, it would only have cancelled
-          `main`'s padding, not its width cap. `sticky top-0` (not `top-14`,
-          see palette-bar.tsx) is what then pins it once scrolled: the
-          desktop site header is NOT sticky (site-header.tsx:15,
-          `max-md:sticky` — R2-6 C, desktop chrome unchanged), so `top-14`
-          would park the bar 56px below the viewport top with page content
-          showing above it.
-          The classes go on `PaletteBar` itself via `className`, NOT a
-          wrapper div around it: a sticky element only stays pinned for as
-          long as its OWN parent is taller than it is, and this component's
-          parent here is `data-testid="configurator"` — the whole step's
-          height — not a div sized to just the bar. Wrapping it would give it
-          zero scroll room and unstick it the instant it reached `top-0`. */}
-      {step === 2 && (
-        <PaletteBar
-          mode="manage"
-          count={palettes.length}
-          sticky
-          className="hidden md:-mt-7 md:mb-6 md:block"
-          chips={
-            <>
-              {leadPaletteChip}
-              {otherPaletteChips}
-            </>
-          }
-          extra={
-            !matchedPalette && (
-              <button
-                type="button"
-                onClick={saveDraftAsPalette}
-                className="ml-auto flex h-12 shrink-0 items-center gap-2 rounded-full border-2 border-primary bg-primary/10 px-5 text-[13.5px] font-semibold hover:bg-primary/20"
-              >
-                {tPaletteBar("save")}
-              </button>
-            )
-          }
-        />
-      )}
-
-      {/* TL "menu sopra come step3" (PR3 round 3): step 2's mobile opener
-          moves from floating above the option lane (inside the editor card)
-          to HERE — sticky directly under the header, first thing in the
-          step's own flow, same spot step 3's `paintingStrip` occupies
-          (ceramics-step.tsx). Desktop is unaffected: the component itself is
-          `md:hidden`, same as the bar above. `activePaletteName`/
-          `activeDesignName` are this step's own "what's painting" values —
-          reused here, not recomputed a second time for the strip.
-
-          TL round 3 fix: the canvas/tab lane already release their `sticky`
-          while the customer types (R4-POLISH voce 8, `data-typing`) so the
-          keyboard has somewhere to put the field — this strip is now a
-          THIRD sticky layer and has to join them at the exact same moment,
-          or a field scrolled "clear" under the old rule lands under the
-          strip instead. `group-data-[typing=1]/step2:static` binds to the
-          `group/step2` this file now also carries on the root
-          `data-testid="configurator"` div (this strip's nearest ancestor
-          with that name — see the comment there): same `typing` boolean,
-          same attribute, no second detection mechanism. */}
-      {step === 2 && (
-        <PaintingStrip
-          testId="step2-painting-strip"
-          className="max-md:group-data-[typing=1]/step2:static"
-          designLayers={activePaletteLayers}
-          paintingLabel={activePaletteName}
-          designName={activeDesignName}
-          palettes={palettes}
-          currentDesignSlug={selected.slug}
-          activeCode={matchedPalette?.code ?? null}
-          draft={!matchedPalette}
-          locale={locale as "no" | "en"}
-          onPick={(code) => {
-            loadPalette(code);
-            setPaletteSheetOpen(false);
-          }}
-          onNewPalette={() => {
-            resetPaletteDraft();
-            setPaletteSheetOpen(false);
-          }}
-          onSaveDraft={() => {
-            saveDraftAsPalette();
-            setPaletteSheetOpen(false);
-          }}
-          renamingCode={renamingPaletteCode}
-          onRenameStart={(code) => setRenamingPaletteCode(code)}
-          onRenameConfirm={(code, name) => {
-            renamePalette(code, name);
-            setRenamingPaletteCode(null);
-          }}
-          onRenameCancel={() => setRenamingPaletteCode(null)}
-          onDelete={(code) => deletePalette(code)}
-          open={paletteSheetOpen}
-          onOpenChange={setPaletteSheetOpen}
-        />
-      )}
-
+    <div data-testid="configurator">
       {/* CA-2: the top cluster holds ONLY the stepper (orientation + step
           jumps, F18). The advance/back CTAs live in-flow at the END of the
           options column — no climb back to the top on desktop. Decision closed
@@ -1087,18 +744,7 @@ export function ConfiguratorClient({
         data-typing={step === 2 && typing ? "1" : undefined}
         style={
           step === 2
-            ? ({
-                "--mk-canvas-h": "clamp(200px,38svh,300px)",
-                // TL "menu sopra come step3": `<PaintingStrip>` is now a
-                // SECOND sticky layer above the canvas (mobile only), so
-                // both the canvas's own `top` and the tab lane's `top` below
-                // (`data-tabs-bar`) need to sit this much further down —
-                // MEASURED (not hand-calculated: this card already paid for
-                // a 68-vs-69px rounding bug once, see `docked-cart-panel`'s
-                // own comment further up), one number here, `calc()`'d into
-                // both instead of typed twice.
-                "--mk-strip-h": "61px",
-              } as React.CSSProperties)
+            ? ({ "--mk-canvas-h": "clamp(200px,38svh,300px)" } as React.CSSProperties)
             : undefined
         }
       >
@@ -1146,24 +792,7 @@ export function ConfiguratorClient({
         <div
           data-preview-column
           className={cn(
-            // R5-PALETTES task 8: the PaletteBar above (68px + 1px bottom
-            // border = 69px) is now wired in and, on desktop, sticks at
-            // `top-0` — NOT `top-14` — because the desktop site header isn't
-            // sticky at all (site-header.tsx:15, `max-md:sticky` only —
-            // R2-6 C). So there is no header height to add here: the offset
-            // is just the bar's own rendered height plus the original 1rem
-            // gap. (Tasks 6/7 shipped `calc(3.5rem+68px+1rem)`, assuming a
-            // sticky header like the mockup patches in — wrong on this site;
-            // see progress.md's PR-2 ruling.)
-            //
-            // Fix-wave finding 2: the bar only mounts at step === 2 (below),
-            // but this offset used to apply unconditionally — step 1 shares
-            // this same column and got 68px of empty space above the canvas
-            // for no bar. Gate it: `top-4` (the pre-palette-bar 1rem gap,
-            // card §5.6 — step 1 stays untouched) everywhere the bar isn't
-            // actually above the canvas.
-            "z-30 flex min-w-0 flex-col gap-3 md:sticky md:self-start",
-            step === 2 ? "md:top-[calc(69px+1rem)]" : "md:top-4",
+            "z-30 flex min-w-0 flex-col gap-3 md:sticky md:top-4 md:self-start",
             // CA-7 (variant B): design-first on mobile step 1 — the hero is
             // hidden entirely (the design cards double as the preview). It stays
             // MOUNTED (display:none only) so the same PreviewCanvas instance
@@ -1191,25 +820,17 @@ export function ConfiguratorClient({
             // senza bordo il bianco si fonde con la prima card. Costo
             // verticale 0 — `box-sizing: border-box` la tiene dentro
             // `--mk-canvas-h`.
-            // `top-[calc(3.5rem+var(--mk-strip-h))]` = the ink header's `h-14`
-            // (3.5rem, itself `max-md:sticky top-0`, site-header.tsx) PLUS
-            // `<PaintingStrip>` now sitting between them as its own sticky
-            // layer (TL "menu sopra come step3") — the canvas parks under
-            // BOTH, not just the header. Was a bare `top-14` before the
-            // strip existed; `--mk-strip-h` is declared once, above.
+            // `top-14` = the ink header's `h-14`, which is itself `max-md:sticky
+            // top-0` (site-header.tsx): the canvas parks UNDER it, not behind it.
             // R4-POLISH: l'altezza del canvas è pubblicata come `--mk-canvas-h`
             // sul contenitore per essere fonte unica SOLO per questa classe
             // (che la consuma per lo `h-[...]` sopra). Il campo scritta NON la
             // usa: il suo `max-md:scroll-mt-14` (sotto) è l'altezza del solo
             // header ink, apposta senza il canvas — quando il campo ha il
             // focus il canvas ha già mollato lo sticky (`data-typing`), quindi
-            // in alto non resta altro che l'header — TL round 3: anche
-            // `<PaintingStrip>` molla allo stesso momento
-            // (`group-data-[typing=1]/step2:static`, cablato dove la striscia
-            // renderizza), quindi questo resta vero esattamente come prima
-            // che la striscia esistesse, nessuna nuova costante da inseguire.
+            // in alto non resta altro che l'header.
             step === 2 &&
-              "max-md:sticky max-md:top-[calc(3.5rem+var(--mk-strip-h))] max-md:-mx-5 max-md:h-[var(--mk-canvas-h)] max-md:flex-none max-md:items-center max-md:justify-center max-md:gap-1 max-md:px-5 max-md:pt-2 max-md:border-b max-md:border-border max-md:bg-[var(--mk-canvas)]"
+              "max-md:sticky max-md:top-14 max-md:-mx-5 max-md:h-[var(--mk-canvas-h)] max-md:flex-none max-md:items-center max-md:justify-center max-md:gap-1 max-md:px-5 max-md:pt-2 max-md:border-b max-md:border-border max-md:bg-[var(--mk-canvas)]"
           )}
         >
           <div
@@ -1418,13 +1039,6 @@ export function ConfiguratorClient({
           >
             {/* R4-FIX 1: nessun trattino in testa al pannello. Non trascinava
                 niente — affordance falsa, rimossa. */}
-            {/* PR3 round 3 (TL "menu sopra come step3"): the mobile control
-                that used to live HERE, floating above the option lane inside
-                this card, is gone too — moved to `<PaintingStrip>`, sticky
-                directly under the header (see the top of this component's
-                `step === 2` block, mirroring step 3's own strip position).
-                One opener for the sheet, in one place, not a second one
-                surviving in the editor card. */}
             {/* R4-STEP2 (mockup .cats): corsia tab orizzontale — solo mobile.
                 Dot = colore selezionato della categoria, conteggio = opzioni.
                 I ruoli tab esistono solo dove esiste la corsia (isDesktop).
@@ -1441,20 +1055,17 @@ export function ConfiguratorClient({
                 prime lettere delle frasi a sinistra risultavano sbiadite. Il
                 riferimento è questo wrapper, e nient'altro. */}
             {/* R4-FOLLOWUPS Ⓒ: la barra è STICKY subito sotto il canvas
-                (`top` = header 3.5rem + `--mk-strip-h` + `--mk-canvas-h`, le
-                stesse variabili che posizionano/dimensionano canvas e strip —
-                TL "menu sopra come step3" ha inserito `--mk-strip-h` come
-                terzo addendo, non un valore nuovo), su fondo `card` e sopra
-                il contenuto del pannello (`z-20`, sotto il canvas che è
-                `z-30`). Così i titoli delle categorie restano raggiungibili
-                anche a pagina scrollata in fondo, senza tornare su. `sticky`
-                sostituisce `relative`: è comunque un elemento posizionato,
-                quindi le fade `absolute` qui sotto continuano a risolversi
-                su questo wrapper (R4-FIX 5) — e il wrapper è `md:hidden`,
-                non esiste da md in su. */}
+                (`top` = header 3.5rem + `--mk-canvas-h`, la stessa variabile che
+                dà l'altezza al canvas), su fondo `card` e sopra il contenuto
+                del pannello (`z-20`, sotto il canvas che è `z-30`). Così i
+                titoli delle categorie restano raggiungibili anche a pagina
+                scrollata in fondo, senza tornare su. `sticky` sostituisce
+                `relative`: è comunque un elemento posizionato, quindi le fade
+                `absolute` qui sotto continuano a risolversi su questo wrapper
+                (R4-FIX 5) — e il wrapper è `md:hidden`, non esiste da md in su. */}
             <div
               data-tabs-bar
-              className="sticky top-[calc(3.5rem+var(--mk-strip-h)+var(--mk-canvas-h))] z-20 -mx-3 flex-none bg-[var(--mk-canvas)] px-3 md:hidden"
+              className="sticky top-[calc(3.5rem+var(--mk-canvas-h))] z-20 -mx-3 flex-none bg-[var(--mk-canvas)] px-3 md:hidden"
             >
               <div
                 ref={tabsRef}
@@ -1824,45 +1435,6 @@ export function ConfiguratorClient({
                 no `viewport-fit=cover`, so there is no safe area to read) — it
                 is in the padding so the row is already correct the day that
                 lands, not because it does something now. */}
-            {/* R5-PALETTES task 12 — «Save as palette» strip (mockup `#sM`'s
-                bottom-of-`Phone()` block, both states). The mockup puts this
-                strip AND the nav row above INSIDE one `sticky bottom-0`
-                container — deliberately NOT followed here, for exactly the
-                reason the comment right above this one already proves with
-                evidence: a bottom-sticky bar is a FIXED bar until it reaches
-                its flow position, and this panel's page continues below the
-                fold, so it would sit on top of the option lane at first
-                paint. This strip goes in normal flow, directly above the nav
-                row — same fix, same place, one paragraph up. Mobile only:
-                desktop's equivalent is the bar's own `extra` button (task 8).
-                `activePaletteName`/`activePaletteLayers` are the SAME values
-                the Palettes tab's dot and draft chip already use — computed
-                once, above.
-                // TODO:nb-review — step2.paletteStripUnsaved / step2.paletteStripSaved */}
-            <div
-              data-testid="step2-palette-strip"
-              className="md:hidden flex min-h-11 items-center gap-2 px-1 pb-2 text-[13px]"
-            >
-              <DesignRound layers={activePaletteLayers} className="size-6" />
-              <span className="min-w-0 flex-1 truncate">
-                <b className="font-semibold">{activePaletteName}</b>{" "}
-                <span className="text-muted-foreground">
-                  {matchedPalette
-                    ? t("step2.paletteStripSaved")
-                    : t("step2.paletteStripUnsaved")}
-                </span>
-              </span>
-              {!matchedPalette && (
-                <button
-                  type="button"
-                  data-testid="save-palette-mobile"
-                  onClick={saveDraftAsPalette}
-                  className="ml-auto flex h-11 shrink-0 items-center justify-center rounded-sm border-2 border-primary bg-primary/10 px-4 text-xs font-semibold"
-                >
-                  {tPaletteBar("save")}
-                </button>
-              )}
-            </div>
             <div
               // R4-STEP2-SHEET: sotto md la riga nav è dentro il foglio, non una
               // barra a sé — stessa campitura `--mk-canvas` del canvas e del

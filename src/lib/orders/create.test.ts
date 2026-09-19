@@ -220,32 +220,6 @@ describe("createOrder — the server resolves a deal from the DB config, never t
   });
 });
 
-describe("R5-UNPAINTED — an order cannot carry a colourless line", () => {
-  it("refuses an order that still carries an unpainted line", async () => {
-    const { db } = makeMockDb();
-    const res = await createOrder(payloadWith({ configCode: null }), {
-      config: EMPTY_CONFIG,
-      db,
-      verify: async () => true,
-    });
-    expect(res).toEqual({ ok: false, status: 400, error: "unpainted" });
-  });
-
-  it("refuses BEFORE Turnstile and never touches the db — the gate sits ahead of both", async () => {
-    const { db, calls } = makeMockDb();
-    const res = await createOrder(payloadWith({ configCode: null }), {
-      config: EMPTY_CONFIG,
-      db,
-      // A `verify` that always fails: if the unpainted check ran AFTER
-      // Turnstile, this would surface as a Turnstile failure instead —
-      // proving the refusal precedes it.
-      verify: async () => false,
-    });
-    expect(res).toEqual({ ok: false, status: 400, error: "unpainted" });
-    expect(calls).toHaveLength(0);
-  });
-});
-
 describe("R4-MAIL-JOURNEY §E — the emails leave AFTER the response", () => {
   it("createOrder sends nothing by itself; the thunk does", async () => {
     const { db } = makeMockDb();

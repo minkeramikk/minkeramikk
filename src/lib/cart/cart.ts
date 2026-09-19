@@ -72,13 +72,8 @@ export interface CartLine {
   unitPriceCents: number;
   currency: Currency;
   quantity: number;
-  /**
-   * Reloadable configurator code. `null` = an UNPAINTED line (R5-UNPAINTED):
-   * the ceramic is in the basket at full price and the colours are chosen
-   * later. `configSnapshot` and `layers` are null/absent on such a line; the
-   * gate against ordering one lives on the ORDER, not on the cart.
-   */
-  configCode: string | null;
+  /** Reloadable configurator code (interim: the configurator query string; F04 formalizes). */
+  configCode: string;
   configSnapshot: ConfigSnapshot | null;
   /**
    * F19 — the DESIGN pattern layers (no plate) for the mini composited preview
@@ -112,17 +107,6 @@ export interface CartLine {
    * dictate a price. Optional/back-compatible like `layers`: no migration.
    */
   dealRuleId?: string;
-  /**
-   * R5-PALETTES §4-bis — the ceramic's own dimensional attribute (e.g.
-   * "Ø 26 cm"), frozen at add-time. A PAIR, not one localised string: mirrors
-   * `productNameNo`/`productNameEn` (R2-7) for the exact same reason — a
-   * single string would freeze the row into whichever language it was added
-   * in, and the cart is read in both. Optional/back-compatible like `layers`:
-   * a line saved before this field existed simply has neither, and the row
-   * prints no stray "·" for it. No migration.
-   */
-  sizeLabelNo?: string;
-  sizeLabelEn?: string;
 }
 
 export type Cart = CartLine[];
@@ -131,11 +115,8 @@ export type NewCartLine = Omit<CartLine, "id" | "quantity"> & {
   quantity?: number;
 };
 
-/** The key half of an unpainted line's id — one such line per product. */
-const UNPAINTED_KEY = "unpainted";
-
-export function lineKey(productId: string, configCode: string | null): string {
-  return `${productId}::${configCode ?? UNPAINTED_KEY}`;
+export function lineKey(productId: string, configCode: string): string {
+  return `${productId}::${configCode}`;
 }
 
 /** Add a line; if an identical (product + config) line exists, merge quantity. */
@@ -170,83 +151,6 @@ export function updateQuantity(cart: Cart, id: string, quantity: number): Cart {
 
 export function removeLine(cart: Cart, id: string): Cart {
   return cart.filter((l) => l.id !== id);
-}
-
-/**
- * Shared plumbing for `paintLines`/`unpaintLines`: shrink the source line to
- * `remaining` and land `moved` pieces on `dest` (everything the destination
- * line needs, quantity aside). `addToCart`'s merge-or-append is right in every
- * case except one: source emptied + no destination line yet, where a plain
- * append would drop the new line at the bottom of the basket. That one case
- * gets the source's own array index instead, so painting/unpainting a whole
- * row leaves it exactly where the customer touched it.
- */
-function moveQuantity(
-  cart: Cart,
-  lineId: string,
-  remaining: number,
-  moved: number,
-  dest: NewCartLine
-): Cart {
-  const srcIndex = cart.findIndex((l) => l.id === lineId);
-  const rest = updateQuantity(cart, lineId, remaining);
-  const newLine = { ...dest, quantity: moved };
-  if (remaining > 0) return addToCart(rest, newLine);
-
-  const destId = lineKey(dest.productId, dest.configCode);
-  if (rest.some((l) => l.id === destId)) return addToCart(rest, newLine);
-
-  const withDest = [...rest];
-  withDest.splice(srcIndex, 0, { ...newLine, id: destId });
-  return withDest;
-}
-
-/**
- * R5-UNPAINTED — move `n` pieces off a line onto the SAME product wearing
- * `configCode`. Pure and total: the moved pieces are clamped to what the line
- * holds, the source disappears when it empties, and the destination merges
- * through `addToCart` when it already exists. Painting is therefore just a
- * transfer — the price, the pieces and the discount never move. When the
- * source empties into a destination that doesn't exist yet, the new line
- * takes the source's own array index (see `moveQuantity`) instead of
- * teleporting to the bottom of the basket.
- */
-export function paintLines(
-  cart: Cart,
-  lineId: string,
-  n: number,
-  configCode: string,
-  configSnapshot: ConfigSnapshot | null,
-  layers?: CartLayer[]
-): Cart {
-  const src = cart.find((l) => l.id === lineId);
-  if (!src || n <= 0) return cart;
-  const moved = Math.min(n, src.quantity);
-  return moveQuantity(cart, lineId, src.quantity - moved, moved, {
-    ...src,
-    configCode,
-    configSnapshot,
-    layers,
-  });
-}
-
-/**
- * The inverse: `n` pieces go back to the product's unpainted line, colours
- * off. Same index-preserving move as `paintLines` (see `moveQuantity`) when
- * the source empties into a destination that doesn't exist yet.
- */
-export function unpaintLines(cart: Cart, lineId: string, n: number): Cart {
-  const src = cart.find((l) => l.id === lineId);
-  if (!src || n <= 0 || src.configCode === null) return cart;
-  const moved = Math.min(n, src.quantity);
-  return moveQuantity(cart, lineId, src.quantity - moved, moved, {
-    ...src,
-    configCode: null,
-    configSnapshot: null,
-    // `layers` is what a row would composite; an unpainted row has nothing to
-    // composite. Explicit, because the spread above would carry them over.
-    layers: undefined,
-  });
 }
 
 // M3, fix wave: zero production callers since R4-SCONTI (computeCartDiscount
@@ -294,16 +198,4 @@ export function designLabel(
   if (!snapshot) return null;
   const localized = locale === "no" ? snapshot.designNameNo : snapshot.designNameEn;
   return localized ?? snapshot.designName ?? null;
-}
-
-/**
- * R5-UNPAINTED — physical pieces with no colours yet. Pieces, not lines: the
- * basket box, the header marker and the CTA all say «N pieces», and one line
- * can be a set of N (F29), exactly like `cartPieces`.
- */
-export function unpaintedPieces(cart: Cart): number {
-  return cart.reduce(
-    (n, l) => n + (l.configCode === null ? (l.pieces ?? 1) * l.quantity : 0),
-    0
-  );
 }

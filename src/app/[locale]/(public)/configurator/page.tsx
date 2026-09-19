@@ -7,13 +7,7 @@ import { getSupplierProducts, getDesignProducts } from "@/lib/catalog/products";
 import { assetUrl } from "@/lib/storage";
 import { buildConfigLinePayload } from "@/lib/configurator/line-payload";
 import { pickDefaultOption } from "@/lib/configurator/default-option";
-import {
-  decodeConfigCode,
-  toCodecDesign,
-  type CodecDesign,
-} from "@/lib/configurator/config-code";
 import { getFeaturedConfigs } from "@/lib/catalog/featured";
-import { paletteWords } from "@/lib/palettes/name-lists";
 import { FeaturedStrip } from "./featured-strip";
 import { ConfiguratorClient } from "./configurator-client";
 import { CeramicsStep } from "./ceramics-step";
@@ -87,44 +81,7 @@ export default async function ConfiguratorPage({
     const fromSet = sharedSet?.context
       ? designs.find((d) => d.slug === sharedSet.context!.designSlug)
       : undefined;
-
-    /**
-     * R5-PALETTES task 9: a PaletteBar chip navigates with `?code=<code>` and
-     * NO `design=`/`opt_*` at all (card §4-bis: the active palette IS the
-     * URL, mirroring step 2's own `loadPalette`) — `router.push('/configurator
-     * ?code=<code>&step=3')`. Steps 1–2 decode that shape CLIENT-side (the F19
-     * effect in configurator-client.tsx, which then rewrites the URL to
-     * opt_*); step 3 has no such effect, it's a server render, so the decode
-     * has to happen here instead, straight into `selById` below. Only paid
-     * for when the param is present: it needs every design's option-code map,
-     * the same cost steps 1–2 already carry on every load (`detailsBySlug`
-     * further down this file) — tolerant like the client version (a
-     * malformed/unknown code is simply ignored, never a crash).
-     */
-    const rawCode = typeof params.code === "string" ? params.code : "";
-    let decodedCode: { designSlug: string; selections: Record<string, string> } | null =
-      null;
-    if (rawCode) {
-      const allDetails = await Promise.all(designs.map((d) => getDesignDetail(d.slug)));
-      const codecDesigns = allDetails
-        .map((d) => (d ? toCodecDesign(d) : null))
-        .filter((d): d is CodecDesign => d !== null);
-      try {
-        decodedCode = decodeConfigCode(
-          rawCode,
-          (c) => codecDesigns.find((d) => d.code === c.toUpperCase()) ?? null
-        );
-      } catch {
-        decodedCode = null;
-      }
-    }
-    const codeDesign = decodedCode
-      ? designs.find((d) => d.slug === decodedCode!.designSlug)
-      : undefined;
-    const currentDesign = chosen ?? codeDesign ?? fromSet ?? selected;
-    // A `?code=` pick is as explicit a colour choice as `?design=` — it just
-    // arrives via a palette chip instead of the design grid.
-    const explicitDesignChoice = explicitChoice || (decodedCode !== null && !fromSetOrigin);
+    const currentDesign = chosen ?? fromSet ?? selected;
 
     const [detail, products] = await Promise.all([
       getDesignDetail(currentDesign.slug),
@@ -138,10 +95,7 @@ export default async function ConfiguratorPage({
       for (const c of detail.categories) {
         const v = params[`opt_${c.slug}`];
         const fromShared = sharedSet?.context?.selections[c.slug];
-        const fromCode = decodedCode?.selections[c.slug];
         const opt =
-          // The palette pick wins first — it's the whole point of the nav.
-          (fromCode && c.options.find((o) => o.id === fromCode)) ||
           (typeof v === "string" && c.options.find((o) => o.id === v)) ||
           // Set landing: the colours come from the shared row, not from the
           // design's defaults — otherwise "this ceramic + your design" would
@@ -199,10 +153,9 @@ export default async function ConfiguratorPage({
               snapshot={snapshot}
               configCode={configCode}
               designLayers={designLayers}
-              hasExplicitDesign={explicitDesignChoice}
+              hasExplicitDesign={explicitChoice}
               selections={selById}
               sharedSet={sharedSet}
-              paletteWords={paletteWords()}
             />
         </section>
       );
@@ -265,11 +218,6 @@ export default async function ConfiguratorPage({
         designs={designs}
         detailsBySlug={detailsBySlug}
         ceramicThumbs={ceramicThumbs}
-        // Fix-wave finding 3: resolved HERE, server-side, so
-        // `MK_PALETTE_WORDS` (not `NEXT_PUBLIC_*`, deliberately — card
-        // §2/§4-bis says it must not become public) actually reaches the
-        // client instead of always reading `undefined` from the browser.
-        paletteWords={paletteWords()}
         featuredSlot={
           featured.length > 0 ? (
             <FeaturedStrip

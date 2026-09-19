@@ -23,18 +23,14 @@ export function CartLineThumb({
   plateImage,
   className,
   compact = false,
-  unpainted = false,
 }: {
   layers?: CartLayer[];
   hex?: string;
   plateImage?: string;
   className?: string;
   compact?: boolean;
-  /** R5-UNPAINTED: no colours chosen yet — a dashed, empty square. The ceramic
-   *  photo below stays: it is what the customer is buying either way. */
-  unpainted?: boolean;
 }) {
-  const composed = !unpainted && layers && layers.length > 0;
+  const composed = layers && layers.length > 0;
   const box = compact ? "size-[38px]" : "size-12";
 
   return (
@@ -47,19 +43,14 @@ export function CartLineThumb({
     >
       <span
         aria-hidden
-        data-testid={unpainted ? "cart-thumb-unpainted" : composed ? "cart-thumb" : "cart-thumb-chip"}
+        data-testid={composed ? "cart-thumb" : "cart-thumb-chip"}
         className={cn(
-          "relative block overflow-hidden rounded-md border",
+          "relative block overflow-hidden rounded-md border border-border",
           box,
-          unpainted
-            ? "border-dashed border-primary/50 bg-muted"
-            : cn("border-border", composed ? "bg-[var(--mk-canvas)]" : "bg-muted")
+          composed ? "bg-[var(--mk-canvas)]" : "bg-muted"
         )}
-        style={!unpainted && !composed && hex ? { backgroundColor: hex } : undefined}
+        style={!composed && hex ? { backgroundColor: hex } : undefined}
       >
-        {unpainted && (
-          <span className="grid size-full place-items-center text-[16px] text-primary/60">◌</span>
-        )}
         {composed &&
           layers.map((l, i) => (
             // eslint-disable-next-line @next/next/no-img-element -- composited catalog art from storage
