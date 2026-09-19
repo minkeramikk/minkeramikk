@@ -31,7 +31,8 @@ import { useEffect, useRef, useState } from "react";
  * right column renders: rows, suggestion, totals, the fixed one-line foot
  * (total + saved + CTA), the empty state and the checkout form all live
  * there now. This file is down to what is genuinely the HEADER's: the
- * trigger with its two badges, the sheet shell, and the count announcement.
+ * trigger with its badge and its warning dot, the sheet shell, and the count
+ * announcement.
  */
 export function CartMenu() {
   const t = useTranslations("cart");
@@ -46,8 +47,8 @@ export function CartMenu() {
   const count = itemCount(cart);
   // gate count on hydration to avoid SSR/client mismatch (cart starts empty)
   const liveCount = hydrated ? count : 0;
-  // R5-UNPAINTED: pieces, not lines (unpaintedPieces), matching the header
-  // marker's `○k` unit and the aria-label below.
+  // R5-UNPAINTED: pieces, not lines (unpaintedPieces) — the unit the
+  // aria-label below announces, and what the warning dot stands for.
   const unpainted = hydrated ? unpaintedPieces(cart) : 0;
 
   // R2-6 C: pop the badge when the count GROWS (an item was added) — a mobile
@@ -128,7 +129,8 @@ export function CartMenu() {
             data-testid="cart-button"
             // R5-UNPAINTED: the header keeps its icon+badge, no text pill (TL
             // decision) — the unpainted count rides in the aria-label instead,
-            // via a dedicated key so the sighted marker below can stay a glyph.
+            // via a dedicated key — and it stays there now that the sighted
+            // marker below is a dot with no number in it at all (task 7).
             // TODO:nb-review — cart.buttonUnpainted NO copy is new, unreviewed.
             aria-label={
               unpainted > 0
@@ -150,14 +152,26 @@ export function CartMenu() {
                 {count}
               </span>
             )}
+            {/* Task 7 (card §4-quinquies, QA 19/9 — option B): a DOT, not a
+                second number. Two unlabelled numbers fought over the same
+                20px bag and neither read at true size; «how many» is not
+                actionable from the header anyway — to act you open the
+                basket, where the count is already in the info box and in
+                «Paint N pieces first». So the badge says one thing: there
+                is something left to finish. The ring is the header's own
+                `--ink`, which is what lifts the dot off the bag's stroke.
+                `--warn` full strength as the ruling asks: it is a graphic,
+                not text (3.6:1 on the header clears the 3:1 that 1.4.11
+                asks of non-text), so the `warn-on-dark` variant the glyph
+                needed for 4.5:1 is not needed here.
+                The count itself is NOT lost: it rides in the button's
+                `aria-label` above, same key as before. */}
             {hydrated && unpainted > 0 && (
               <span
                 data-testid="cart-badge-unpainted"
                 aria-hidden
-                className="absolute -bottom-0.5 right-1 text-[10px] leading-none font-semibold text-warn-on-dark"
-              >
-                ○{unpainted}
-              </span>
+                className="absolute bottom-1 right-1.5 size-2 rounded-full bg-warn ring-2 ring-ink"
+              />
             )}
           </button>
         </SheetTrigger>
