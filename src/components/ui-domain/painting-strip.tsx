@@ -2,6 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { DesignRound } from "@/components/ui-domain/design-round";
+import { PaletteDedicationLine } from "@/components/ui-domain/palette-chip";
 import { PaletteSheet } from "@/components/ui-domain/palette-sheet";
 import type { CartLayer } from "@/lib/cart/cart";
 import type { Palette } from "@/lib/palettes/palettes";
@@ -33,6 +34,12 @@ export interface PaintingStripProps {
    *  extraction removes. Also doubles as the sheet's `draftName`/
    *  `draftLayers` (below) — same reuse rule, one value in, not two. */
   paintingLabel: string;
+  /** R5-TEXT-IDENTITY (TL ruling) — the dedication of whatever's painting,
+   *  in quotes, on its own line under the name. Same "one value, not
+   *  recomputed" rule as `paintingLabel` — the caller's own
+   *  `ConfigSnapshot.customText`, never decoded here. Also forwarded to the
+   *  sheet's draft tile (below), same reuse as `paintingLabel`/`draftName`. */
+  dedication?: string;
   /** The design pattern's own name, shown as the "· design" suffix. */
   designName: string;
   palettes: Palette[];
@@ -76,6 +83,7 @@ export function PaintingStrip({
   testId,
   designLayers,
   paintingLabel,
+  dedication,
   designName,
   palettes,
   currentDesignSlug,
@@ -129,6 +137,7 @@ export function PaintingStrip({
           {paintingLabel}{" "}
           <span className="font-normal text-muted-foreground">· {designName}</span>
         </p>
+        <PaletteDedicationLine text={dedication} className="max-w-none" />
       </div>
       {/* Fix wave PR3 finding 9: the strip is the sheet's ONE opener — a real
           `SheetTrigger` (not a hand-rolled button) gets `aria-haspopup`,
@@ -164,6 +173,7 @@ export function PaintingStrip({
         draft={draft}
         canSaveDraft={canSaveDraft}
         draftName={paintingLabel}
+        draftDedication={dedication}
         draftLayers={designLayers}
         locale={locale}
         onPick={onPick}

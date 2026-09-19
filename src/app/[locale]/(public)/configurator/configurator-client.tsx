@@ -54,6 +54,7 @@ import { hoverCapable } from "@/lib/pointer";
 import { designLabel } from "@/lib/cart/cart";
 import { buildConfigLinePayload } from "@/lib/configurator/line-payload";
 import { draftMatchesSavedColours, paletteMatchingColours } from "@/lib/configurator/save-gate";
+import { stripCustomSegment } from "@/lib/cart/set-code";
 import { nameFor, sortCurrentDesignFirst } from "@/lib/palettes/palettes";
 import type { PaletteWords } from "@/lib/palettes/name-lists";
 import { PaletteBar } from "@/components/ui-domain/palette-bar";
@@ -714,24 +715,18 @@ export function ConfiguratorClient({
    * `saveDraftAsPalette` used to (two separate `nameFor()` calls below,
    * now one).
    *
-   * R5-TEXT-IDENTITY follow-up — WHAT THIS MEANS NOW THAT `draftCode`
-   * CARRIES THE INSCRIPTION: `nameFor()` hashes the code, so while the
-   * customer is actively typing a dedication, this label recomputes and can
-   * visibly change on every keystroke (a different hashed word each time)
-   * until they stop. This is a direct, INTENDED consequence of card §1
-   * ("due configurazioni con... dediche diverse sono due palette diverse...
-   * e quindi nomi diversi") for the FINAL, settled text — a saved palette's
-   * name really is allowed to depend on its dedication. The live flicker
-   * WHILE COMPOSING is a side effect nobody asked for, though: it wasn't
-   * possible before this change (the draft code used to be colours-only, so
-   * this label was stable while typing). Not fixed here — this task is
-   * scoped to identity correctness (this file) and the save-offer guard
-   * (below); if it reads badly in practice, the lightest fix would be
-   * debouncing the label specifically (e.g. only re-run `nameFor()` a
-   * few hundred ms after the last keystroke, or freeze it while the text
-   * input has focus and resolve on blur) without touching `draftCode`
-   * itself, which must stay live for identity/Paint to be correct. Left for
-   * Daniele/TL to decide, not guessed at here.
+   * R5-TEXT-IDENTITY follow-up, TL ruling ("the name is noise") — `draftCode`
+   * CARRIES THE INSCRIPTION (identity/Paint need it), but `nameFor()` below
+   * is called on a STRIPPED, colours-only copy of it: the name exists to be
+   * recognised, and a customer who watches it reshuffle on every keystroke
+   * learns it's noise, not identity. Same colours ⇒ same name, whatever is
+   * typed — a debounce would only have hidden that symptom, not the cause
+   * (the code, not the name, is where two dedications of the same colours
+   * tell apart — see `activeDedication` and `PaletteChip`'s own second
+   * line, just below). Card §1's "different dedications ⇒ different
+   * palettes" still holds at the level that matters: the CODE (and so the
+   * saved entry) differs; only the deterministic WORD stopped being one of
+   * the things that differs with it.
    */
   // Round 4 (TL-reported duplicate «Zaffera»): `nameFor()` needs every
   // name already saved so it can pick a FREE word instead of repeating one
@@ -741,12 +736,23 @@ export function ConfiguratorClient({
   const activePaletteName =
     matchedPalette?.name ??
     nameFor(
-      draftCode,
+      // TL ruling (R5-TEXT-IDENTITY, "the name is noise"): colours-only
+      // input, same `stripCustomSegment` everything else already strips
+      // with — `draftCode` itself is untouched (identity/Paint still need
+      // the inscription), only what `nameFor` hashes changes. This is what
+      // stops the chip renaming itself on every keystroke: same colours,
+      // same name, whatever the customer types.
+      stripCustomSegment(draftCode, detail.categories.length),
       draftPayload.snapshot,
       paletteWords,
       palettes.map((p) => p.name)
     );
   const activePaletteLayers = matchedPalette?.layers ?? draftPayload.designLayers;
+  /** The dedication of whatever's painting right now — read off data
+   *  already at hand (`ConfigSnapshot.customText`), never decoded from
+   *  `draftCode`. Same "one value, not recomputed" rule `activePaletteName`
+   *  already follows. */
+  const activeDedication = matchedPalette?.snapshot.customText ?? draftPayload.snapshot.customText;
   /** The design pattern's own name, for `<PaintingStrip>`'s "· design"
    *  suffix — same source ceramics-step.tsx's own `designName` reads
    *  (`designLabel()` on the snapshot), just this step's own snapshot. */
@@ -1016,6 +1022,7 @@ export function ConfiguratorClient({
             key={p.code}
             code={p.code}
             name={p.name}
+            dedication={p.snapshot.customText}
             layers={p.layers}
             dim
             dimDesignName={dimDesign ? designName(dimDesign) : p.designSlug}
@@ -1028,6 +1035,7 @@ export function ConfiguratorClient({
           key={p.code}
           code={p.code}
           name={p.name}
+          dedication={p.snapshot.customText}
           layers={p.layers}
           onSelect={() => loadPalette(p.code)}
           onDelete={() => deletePalette(p.code)}
@@ -1039,6 +1047,7 @@ export function ConfiguratorClient({
       key={matchedPalette.code}
       code={matchedPalette.code}
       name={matchedPalette.name}
+      dedication={matchedPalette.snapshot.customText}
       layers={matchedPalette.layers}
       active
       renaming={renamingPaletteCode === matchedPalette.code}
@@ -1055,6 +1064,7 @@ export function ConfiguratorClient({
       key="draft"
       code={draftCode}
       name={activePaletteName}
+      dedication={activeDedication}
       layers={draftPayload.designLayers}
       draft
     />
@@ -1161,6 +1171,7 @@ export function ConfiguratorClient({
           className="max-md:group-data-[typing=1]/step2:static"
           designLayers={activePaletteLayers}
           paintingLabel={activePaletteName}
+          dedication={activeDedication}
           designName={activeDesignName}
           palettes={palettes}
           currentDesignSlug={selected.slug}
@@ -1289,6 +1300,14 @@ export function ConfiguratorClient({
                 // a 68-vs-69px rounding bug once, see `docked-cart-panel`'s
                 // own comment further up), one number here, `calc()`'d into
                 // both instead of typed twice.
+                //
+                // R5-TEXT-IDENTITY (TL, "the name is noise"): the strip
+                // gained a third (dedication) line — checked again, not
+                // assumed: all three lines are `text-[10px]`/`[13.5px]`
+                // with `leading-tight`, and the row's own intrinsic height
+                // (measured, devtools, with a dedication on screen) is
+                // UNCHANGED at 61px — this constant already had the slack
+                // for it, one number, still.
                 "--mk-strip-h": "61px",
               } as React.CSSProperties)
             : undefined

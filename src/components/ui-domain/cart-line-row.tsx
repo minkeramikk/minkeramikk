@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { Brush, Eraser, Trash2 } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { DesignRound } from "@/components/ui-domain/design-round";
+import { PaletteDedicationLine } from "@/components/ui-domain/palette-chip";
 import { SetBadge } from "@/components/ui-domain/set-badge";
 import { formatMoney, money } from "@/lib/money/money";
 import { designLabel, type CartLayer, type CartLine } from "@/lib/cart/cart";
@@ -123,6 +124,10 @@ export function CartLineRow({
   currentThumb: {
     layers: CartLayer[];
     label: string;
+    /** R5-TEXT-IDENTITY (TL ruling) — the on-screen dedication, shown as
+     *  the closed picker chip's own second line (`PaletteDedicationLine`,
+     *  same rule as every other tile). */
+    dedication?: string;
     hexes: string[];
     code: string;
     /** Final-review round 3, finding 1: how many colour segments `code`
@@ -493,7 +498,11 @@ export function CartLineRow({
                   // threshold, not a second guess at where "enough room"
                   // starts.
                   className={cn(
-                    "flex h-11 min-w-0 flex-1 items-center gap-1 rounded-sm border bg-card pl-1 pr-1 text-xs font-medium sm:h-9 row-wide:flex-initial row-wide:gap-1.5 row-wide:pr-2",
+                    // `min-h-11 sm:min-h-9`, not a fixed height: the
+                    // dedication line (R5-TEXT-IDENTITY) is a genuine
+                    // second line, same "let it grow" fix every other tile
+                    // needed.
+                    "flex min-h-11 min-w-0 flex-1 items-center gap-1 rounded-sm border bg-card pl-1 pr-1 text-xs font-medium sm:min-h-9 row-wide:flex-initial row-wide:gap-1.5 row-wide:pr-2",
                     pickerOpen
                       ? "border-primary shadow-[0_0_0_1px_var(--ring)]"
                       : "border-border",
@@ -504,7 +513,10 @@ export function CartLineRow({
                   {/* No dots here (unlike the painted row's info line below):
                       the name is this chip's identity, and dots would eat the
                       width it needs at 390. */}
-                  <span className="min-w-0 truncate">{currentThumb.label}</span>
+                  <span className="flex min-w-0 flex-col items-start leading-tight">
+                    <span className="min-w-0 max-w-full truncate">{currentThumb.label}</span>
+                    <PaletteDedicationLine text={currentThumb.dedication} className="max-w-full" />
+                  </span>
                   {hasPalettes && (
                     <span aria-hidden className="shrink-0 text-muted-foreground">
                       {pickerOpen ? "▴" : "▾"}
@@ -736,7 +748,10 @@ export function CartLineRow({
                 aria-pressed={active}
                 onClick={() => onPickPalette(p.code)}
                 className={cn(
-                  "flex h-11 min-w-0 shrink-0 items-center gap-1.5 rounded-full pl-1 pr-2.5 text-xs lg:h-8",
+                  // `min-h-11 lg:min-h-8`, not a fixed height: a dedication
+                  // (R5-TEXT-IDENTITY) is a genuine second line, same "let
+                  // it grow" fix `PaletteChip`'s own tile needed.
+                  "flex min-h-11 min-w-0 shrink-0 items-center gap-1.5 rounded-full pl-1 pr-2.5 text-xs lg:min-h-8",
                   dim
                     ? "bg-muted text-muted-foreground opacity-45"
                     : active
@@ -745,14 +760,20 @@ export function CartLineRow({
                 )}
               >
                 <DesignRound layers={p.layers} className="size-6 shrink-0 rounded-sm" />
-                <span className="max-w-[108px] truncate">{p.name}</span>
-                {/* A dim pill (another design's) carries that design's own
-                    name too, same as the palette bar's chips. */}
-                {dim && (
-                  <span className="shrink-0 text-[10px] text-muted-foreground">
-                    · {designLabel(p.snapshot, locale) ?? p.designSlug}
-                  </span>
-                )}
+                <span className="flex min-w-0 flex-col leading-tight">
+                  <span className="max-w-[108px] truncate">{p.name}</span>
+                  {/* A dim pill (another design's) carries that design's own
+                      name too, same as the palette bar's chips; otherwise
+                      the pill's own dedication (R5-TEXT-IDENTITY, TL ruling),
+                      same rule every other tile uses. */}
+                  {dim ? (
+                    <span className="max-w-[108px] truncate text-[10px] text-muted-foreground">
+                      · {designLabel(p.snapshot, locale) ?? p.designSlug}
+                    </span>
+                  ) : (
+                    <PaletteDedicationLine text={p.snapshot.customText} />
+                  )}
+                </span>
               </button>
             );
           })}

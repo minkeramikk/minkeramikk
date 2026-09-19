@@ -28,7 +28,7 @@ import {
   type ConfigSnapshot,
   type NewCartLine,
 } from "@/lib/cart/cart";
-import { encodeSetParam, selectionCountOf, SET_LINK_BUDGET } from "@/lib/cart/set-code";
+import { encodeSetParam, selectionCountOf, SET_LINK_BUDGET, stripCustomSegment } from "@/lib/cart/set-code";
 import {
   activeSuggestions,
   cartSaved,
@@ -293,12 +293,25 @@ export function CeramicsStep({
   const paintingLabel =
     activePalette?.name ??
     nameFor(
-      configCode,
+      // TL ruling (R5-TEXT-IDENTITY, "the name is noise"): the name is a
+      // function of the COLOURS, never the words — `nameFor` hashes
+      // whatever code it's given, so an unstripped code renamed the palette
+      // on every keystroke into the dedication field. Same
+      // `stripCustomSegment` everything else already strips with (no
+      // second stripping helper) — `code` keeps the inscription for
+      // identity/Paint, only the NAME's input is colours-only.
+      stripCustomSegment(configCode, snapshot.selections.length),
       snapshot,
       paletteWords,
       palettes.map((p) => p.name)
     ) ??
     designName;
+  /** The dedication of whatever's painting right now — a saved palette's
+   *  own stored words, or the draft's live field value. Read off data
+   *  already at hand (`ConfigSnapshot.customText`), never decoded from a
+   *  code: the chip/strip/sheet/pill all render this the same way
+   *  (`PaletteChip`'s own `dedication` prop). */
+  const paintingDedication = activePalette?.snapshot.customText ?? snapshot.customText;
 
   /**
    * Card §3 guard (TL ruling), same rule as step 2's own `canSaveDraft`
@@ -422,6 +435,7 @@ export function CeramicsStep({
           key={p.code}
           code={p.code}
           name={p.name}
+          dedication={p.snapshot.customText}
           layers={p.layers}
           dim
           dimDesignName={designLabel(p.snapshot, locale) ?? p.designSlug}
@@ -435,6 +449,7 @@ export function CeramicsStep({
         key={p.code}
         code={p.code}
         name={p.name}
+        dedication={p.snapshot.customText}
         layers={p.layers}
         active={isActive}
         brush={isActive}
@@ -473,6 +488,7 @@ export function CeramicsStep({
       key="draft"
       code={configCode}
       name={paintingLabel}
+      dedication={paintingDedication}
       layers={designLayers}
       draft
       brush
@@ -1191,6 +1207,7 @@ export function CeramicsStep({
       testId="step3-your-selection-strip"
       designLayers={designLayers}
       paintingLabel={paintingLabel}
+      dedication={paintingDedication}
       designName={designName}
       palettes={palettes}
       currentDesignSlug={design.slug}

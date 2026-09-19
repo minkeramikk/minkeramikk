@@ -11,6 +11,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { DesignRound } from "@/components/ui-domain/design-round";
+import { PaletteDedicationLine } from "@/components/ui-domain/palette-chip";
 import { Dots } from "@/components/ui-domain/cart-line-row";
 import { designLabel } from "@/lib/cart/cart";
 import type { CartLayer } from "@/lib/cart/cart";
@@ -54,6 +55,7 @@ export function PaletteSheet({
   draft,
   canSaveDraft,
   draftName,
+  draftDedication,
   draftLayers,
   locale,
   onPick,
@@ -97,6 +99,10 @@ export function PaletteSheet({
    *  lead chip SHOWED the draft, not just a save button, and this sheet
    *  didn't; now it does, at both steps. */
   draftName: string;
+  /** R5-TEXT-IDENTITY (TL ruling) — the draft tile's own dedication, in
+   *  quotes, same as every other tile (`PaletteDedicationLine`). The
+   *  caller's live field value, never decoded from a code. */
+  draftDedication?: string;
   draftLayers: CartLayer[];
   locale: "no" | "en";
   /** Picking a tile has the same effect as picking a chip on the desktop bar
@@ -184,6 +190,7 @@ export function PaletteSheet({
                   {tChip("unsaved")}
                 </span>
                 <span className="block truncate text-xs font-medium">{draftName}</span>
+                <PaletteDedicationLine text={draftDedication} className="max-w-none" />
               </span>
               {canSaveDraft && (
                 <button
@@ -369,6 +376,10 @@ function PaletteTile({
           <DesignRound layers={palette.layers} className={cn("size-8", dim && "grayscale-[.3]")} />
           <span className="min-w-0 leading-tight">
             <span className="block truncate font-medium">{palette.name}</span>
+            {/* R5-TEXT-IDENTITY (TL ruling) — the dedication, when there is
+                one; read straight off the palette's own stored snapshot,
+                nothing decoded from `palette.code`. */}
+            {!dim && <PaletteDedicationLine text={palette.snapshot.customText} className="max-w-none" />}
             <span className="block truncate text-[10px] text-muted-foreground">
               {/* Fix wave PR3 finding 6: was its own near-copy of `cart-line-row.tsx`'s
                   `Dots` (the mockup's `Dots(code)`) that had drifted off ADR 0008's

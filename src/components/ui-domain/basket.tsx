@@ -318,6 +318,12 @@ export function Basket({
           code: explicitPalette.code,
           layers: explicitPalette.layers,
           label: explicitPalette.name,
+          // R5-TEXT-IDENTITY (TL ruling) — the explicit pick's OWN words
+          // stay silent about the palette's name (colours only, above);
+          // same source as the merged `customText` below: the customer's
+          // current on-screen words, not the palette's stored (dedication-
+          // free) snapshot.
+          dedication: currentConfig?.snapshot.customText,
           hexes: explicitPalette.snapshot.selections
             .map((s) => s.hex)
             .filter((h): h is string => Boolean(h)),
@@ -341,6 +347,7 @@ export function Basket({
         // `designName` before, the same "vaguer of two names for the same
         // thing on screen" bug the header had.
         label: currentConfig?.label ?? "",
+        dedication: currentConfig?.snapshot.customText,
         hexes:
           currentConfig?.snapshot.selections
             .map((s) => s.hex)

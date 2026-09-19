@@ -27,6 +27,15 @@ export interface PaletteChipProps {
   code: string;
   /** The palette's name — `nameFor()` or the customer's rename. Data, never translated. */
   name: string;
+  /**
+   * R5-TEXT-IDENTITY (TL ruling, "the name is noise"): the customer's own
+   * words, shown as a second line in quotes — `ConfigSnapshot.customText`
+   * off whatever's already at hand (a saved palette's own snapshot, or the
+   * draft's live field value), never decoded from `code`. Optional: most
+   * palettes carry no dedication, and `dim` chips show `dimDesignName` in
+   * this same slot instead (that takes priority — see the render below).
+   */
+  dedication?: string;
   /** Design pattern layers for the 36px composited thumb (same technique as the cart row). */
   layers: CartLayer[];
   /** This is the palette in use right now — bold surface, ring, `aria-current`. */
@@ -61,6 +70,7 @@ export interface PaletteChipProps {
 export function PaletteChip({
   code,
   name,
+  dedication,
   layers,
   active = false,
   draft = false,
@@ -144,7 +154,11 @@ export function PaletteChip({
       data-code={code}
       data-active={active || undefined}
       className={cn(
-        "group relative flex h-12 shrink-0 items-center gap-2.5 rounded-full pl-1.5 pr-4 text-[13.5px] transition-colors",
+        // `min-h-12`, not `h-12`: a dedication is a genuine third line
+        // (unsaved eyebrow + name + dedication) that a FIXED 48px would
+        // clip — same "let it grow" fix `PaletteBar`'s own row already
+        // needed for the same reason.
+        "group relative flex min-h-12 shrink-0 items-center gap-2.5 rounded-full py-1 pl-1.5 pr-4 text-[13.5px] transition-colors",
         skin
       )}
     >
@@ -208,10 +222,12 @@ export function PaletteChip({
                 </span>
               )}
               <span className="max-w-[108px] truncate">{name}</span>
-              {dim && dimDesignName && (
+              {dim && dimDesignName ? (
                 <span className="max-w-[108px] truncate text-[10px] text-muted-foreground">
                   {dimDesignName}
                 </span>
+              ) : (
+                <PaletteDedicationLine text={dedication} />
               )}
             </span>
           </button>
@@ -272,5 +288,30 @@ export function PaletteChip({
         </>
       )}
     </div>
+  );
+}
+
+/**
+ * The one place that decides how a dedication renders: quoted, truncated,
+ * secondary-style, or nothing at all when there isn't one. `PaletteChip`
+ * uses it for its own second line; `PaletteTile`/the sheet's draft tile
+ * (palette-sheet.tsx), the mobile strip (painting-strip.tsx) and the cart
+ * row's palette picker (cart-line-row.tsx) reuse it too — TL ruling: every
+ * tile shows a dedication the same way, not a copy of the rule per file.
+ * `className` lets a caller override the width cap (`max-w-[108px]` fits
+ * this chip's own thumb+padding budget, not every caller's).
+ */
+export function PaletteDedicationLine({
+  text,
+  className,
+}: {
+  text?: string;
+  className?: string;
+}) {
+  if (!text) return null;
+  return (
+    <span className={cn("block max-w-[108px] truncate text-[10px] text-muted-foreground", className)}>
+      «{text}»
+    </span>
   );
 }
