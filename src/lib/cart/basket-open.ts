@@ -32,12 +32,18 @@ export function basketOpen({
   current: boolean;
   /** What a surface asked for, or `null` when nothing was asked. */
   request?: boolean | null;
-  /** Step 2's Text field has focus, i.e. the on-screen keyboard is up. */
+  /**
+   * An on-screen keyboard is up. Composed by the publisher, not here:
+   * `keyboardUp({ step, typing })` for the gesture, `hoverCapable()` for
+   * whether this device even HAS such a keyboard (PR 2 review finding 6).
+   * Both of those questions are about the world; this function only decides
+   * what the basket does about the answer, which is what keeps it pure.
+   */
   typing: boolean;
 }): boolean {
   // The keyboard wins over every request, including one made in the same
-  // tick: with the field focused the visual viewport is ~300px and a modal
-  // sheet over it is a trap, not a basket.
+  // tick: with it up the visual viewport is ~300px and a modal sheet over it
+  // is a trap, not a basket.
   if (typing) return false;
   return request ?? current;
 }

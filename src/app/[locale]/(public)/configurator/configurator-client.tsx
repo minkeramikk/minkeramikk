@@ -50,6 +50,7 @@ import type { DesignDetail } from "@/lib/catalog/design-options";
 import type { PreviewLayer } from "@/lib/configurator/preview";
 import { useCartContext } from "@/lib/cart/cart-context";
 import { keyboardUp } from "@/lib/cart/basket-open";
+import { hoverCapable } from "@/lib/pointer";
 import { designLabel } from "@/lib/cart/cart";
 import { buildConfigLinePayload, withCustomFields } from "@/lib/configurator/line-payload";
 import { nameFor, paletteFor, sortCurrentDesignFirst } from "@/lib/palettes/palettes";
@@ -562,7 +563,7 @@ export function ConfiguratorClient({
     rename: renamePalette,
     removePalette: deletePalette,
     setCurrentConfig,
-    setTyping: publishTyping,
+    setKeyboardOpen: publishKeyboardOpen,
   } = useCartContext();
   /**
    * R5-BASKET-HOST task 8 (card §3) — the same `typing` that makes the canvas
@@ -587,14 +588,26 @@ export function ConfiguratorClient({
    * exists there), so coming BACK to step 2 does not re-publish a latched
    * `true`. And the cleanup still matters: the context outlives this screen
    * (`public-shell.tsx`), so an unmount must not leave the basket shut.
+   *
+   * `hoverCapable()` is the last term, and it is what makes the published
+   * flag honest (PR 2 review finding 6): the guard exists because a phone
+   * with the keyboard up has ~300px of visual viewport left, and on a mouse
+   * device there is no keyboard and no trap — a customer typing an
+   * inscription at 1280 who clicks the header cart to check the total must
+   * get the drawer, not silence. An on-screen keyboard is a property of the
+   * INPUT DEVICE, not of the window width, so this asks the pointer rather
+   * than a breakpoint; a touch laptop keeping the guard is a harmless false
+   * positive, a phone losing it would not be. It is called inside the effect,
+   * i.e. on the client only, so SSR never touches `matchMedia` and there is
+   * no hydration mismatch to explain.
    */
   useEffect(() => {
     if (step !== 2 && typing) setTyping(false);
   }, [step, typing]);
   useEffect(() => {
-    publishTyping(keyboardUp({ step, typing }));
-    return () => publishTyping(false);
-  }, [step, typing, publishTyping]);
+    publishKeyboardOpen(keyboardUp({ step, typing }) && !hoverCapable());
+    return () => publishKeyboardOpen(false);
+  }, [step, typing, publishKeyboardOpen]);
   // The DRAFT is exactly what step 3 would turn into a cart line: same
   // builder, same inputs (card §3). No note/text carried in — a palette is a
   // set of COLOURS, and neither one ever enters the config code either
