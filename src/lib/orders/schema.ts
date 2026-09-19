@@ -45,11 +45,22 @@ const customNoteSchema = z
   .refine((s) => s.length <= MAX_CUSTOM_NOTE, { message: "custom note too long" });
 
 /** F38: the inscription on the form path — same cleaner as the note, tighter
- *  cap. Over-cap → payload rejected (400), like customNoteSchema. */
+ *  cap. Over-cap → payload rejected (400), like customNoteSchema.
+ *
+ *  Final-review round 2, finding 4: counts CODE POINTS
+ *  (`Array.from(s).length`), not `s.length` (UTF-16 code units) — the same
+ *  unit `cleanCustomText` above truncates by. A value that already went
+ *  through `cleanCustomText` (the untrusted `?text=` read path) is
+ *  guaranteed to be at most `MAX_CUSTOM_TEXT` CODE POINTS, but an astral
+ *  character (an emoji, say) is 2 UTF-16 units — so 25 code points of
+ *  emoji is 50 UTF-16 units, and the old `s.length <= 25` check rejected a
+ *  value `cleanCustomText` itself had already deemed exactly at the cap.
+ *  That mismatch turned a legitimate checkout into a 400 ("custom text too
+ *  long") for no reason the customer could see or fix. */
 const customTextSchema = z
   .string()
   .transform(cleanCustomNote)
-  .refine((s) => s.length <= MAX_CUSTOM_TEXT, { message: "custom text too long" });
+  .refine((s) => Array.from(s).length <= MAX_CUSTOM_TEXT, { message: "custom text too long" });
 
 /** One cart line as it travels to the server (snapshots are rebuilt server-side
  *  from these trusted-by-shape fields; prices stay cents+currency, never float). */

@@ -170,6 +170,25 @@ describe("orderPayloadSchema — customText sanitisation (F38 AC3/AC5)", () => {
     const result = orderPayloadSchema.safeParse(payloadWithText(undefined));
     expect(result.success).toBe(true);
   });
+
+  // Final-review round 2, finding 4: cleanCustomText truncates by CODE
+  // POINT (25 of them, however many UTF-16 units that takes), but this
+  // schema's own refine used to count UTF-16 units instead — so a value
+  // cleanCustomText itself had already capped at exactly 25 code points of
+  // astral characters (50 UTF-16 units) got rejected here as "too long",
+  // a checkout that could never complete for no reason visible to the
+  // customer.
+  it("accepts 25 CODE POINTS of astral (surrogate-pair) characters, not 25 UTF-16 units (R5-TEXT-IDENTITY final review)", () => {
+    const twentyFiveEmoji = "😀".repeat(25); // 25 code points, 50 UTF-16 units
+    expect(twentyFiveEmoji.length).toBe(50);
+    expect(Array.from(twentyFiveEmoji)).toHaveLength(25);
+    expect(orderPayloadSchema.safeParse(payloadWithText(twentyFiveEmoji)).success).toBe(
+      true
+    );
+    expect(
+      orderPayloadSchema.safeParse(payloadWithText("😀".repeat(26))).success
+    ).toBe(false);
+  });
 });
 
 describe("orderPayloadSchema — poststed (R4-ORDERS-PLUS voce C)", () => {
