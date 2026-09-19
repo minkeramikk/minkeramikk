@@ -638,7 +638,24 @@ export function CartLineRow({
                     cart has both kinds of row at once. Not a rename
                     (`cart.spec` and the drawer both already read
                     `cart-remove`); a second attribute a locator can
-                    additionally filter on. */}
+                    additionally filter on.
+
+                    Fix round 6 (card §4-quater) — below `md` this is the
+                    only way to remove a line once the step-3 column is gone
+                    (PR 2), and the icon-only box is 44px tall but only
+                    ~20px wide (`px-1` around a `size-3` icon). Widened the
+                    HIT AREA, not the button: `relative` + an absolutely
+                    positioned `after:` at a negative `inset-x` (the
+                    `CLOSE_DISC` idiom, `close-disc.ts`) grows it to 44×44 —
+                    `after:inset-y-0` stretches it to the button's own
+                    (already-44-below-`md`) height instead of guessing a
+                    number that would drift if that height ever changes.
+                    Padding or `width` would have re-widened the visible
+                    button and pushed `cart-unpaint` — exactly the flush
+                    alignment AC 8 just closed. Checked, not assumed: the
+                    expanded hit box's left edge (12px past the button's own
+                    left) still sits 13px clear of `cart-unpaint`'s own
+                    right edge — no overlap (numbers in the task-2 report). */}
                 <button
                   type="button"
                   data-testid="cart-remove"
@@ -646,7 +663,7 @@ export function CartLineRow({
                   onClick={onRemove}
                   aria-label={t("remove")}
                   title={t("remove")}
-                  className="flex min-h-11 shrink-0 -my-2 items-center px-1 py-2 text-muted-foreground hover:text-foreground md:my-0 md:min-h-0 md:py-0"
+                  className="relative flex min-h-11 shrink-0 -my-2 items-center px-1 py-2 text-muted-foreground after:absolute after:inset-y-0 after:-inset-x-3 after:content-[''] hover:text-foreground md:my-0 md:min-h-0 md:py-0"
                 >
                   <Trash2 className="size-3" aria-hidden />
                 </button>
