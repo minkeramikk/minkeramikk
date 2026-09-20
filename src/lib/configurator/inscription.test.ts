@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   fitRatio,
+  INSCRIPTION_FIT_SLACK,
   INSCRIPTION_MIN_FIT,
   INSCRIPTION_TAPER_FROM,
   INSCRIPTION_TAPER_TO,
@@ -80,12 +81,21 @@ describe("taperForLength", () => {
 describe("fitRatio", () => {
   it("leaves a short line that already fits at full size", () => {
     expect(fitRatio(100, 200, 8)).toBe(1);
-    expect(fitRatio(200, 200, 8)).toBe(1);
   });
 
-  it("shrinks proportionally when the line hits the wall", () => {
+  it("backs off a line that fills the box exactly", () => {
+    // è il caso che produce i tre puntini: largo quanto la scatola al decimo
+    // di pixel, e un arrotondamento altrove se ne mangia le ultime lettere
+    expect(fitRatio(200, 200, 8)).toBeCloseTo(INSCRIPTION_FIT_SLACK, 10);
+  });
+
+  it("shrinks proportionally when the line hits the wall, minus the slack", () => {
     // 8 caratteri: la rampa non è ancora partita, decide solo la larghezza
-    expect(fitRatio(400, 200, 8)).toBe(0.5);
+    expect(fitRatio(400, 200, 8)).toBeCloseTo(0.5 * INSCRIPTION_FIT_SLACK, 10);
+  });
+
+  it("never lands EXACTLY on the wall — è lì che nascono i tre puntini", () => {
+    expect(fitRatio(400, 200, 8)).toBeLessThan(0.5);
   });
 
   it("takes the length ramp when it is stricter than the wall", () => {
@@ -98,7 +108,10 @@ describe("fitRatio", () => {
 
   it("takes the wall when IT is the stricter of the two", () => {
     // rampa a 0,7 ma la scatola ne concede 0,5: comanda la scatola (AC 3)
-    expect(fitRatio(400, 200, MAX_CUSTOM_TEXT)).toBeCloseTo(0.5, 10);
+    expect(fitRatio(400, 200, MAX_CUSTOM_TEXT)).toBeCloseTo(
+      0.5 * INSCRIPTION_FIT_SLACK,
+      10
+    );
   });
 
   it("stops shrinking at the floor — below it the line truncates (AC 3)", () => {

@@ -122,6 +122,13 @@ function Inscription({ text }: { text: string }) {
     if (!el || !box || !square) return;
 
     const measure = () => {
+      // Il taglio si accende SOLO da qui. Nell'HTML del server `--fit` non è
+      // ancora stato scritto da nessuno e la riga può risultare più larga del
+      // suo muro: con `overflow:hidden` in classe, quel primo fotogramma
+      // uscirebbe con tre puntini per poi saltare alla misura giusta. Meglio
+      // che per un fotogramma sbordi di qualche punto percentuale — su un
+      // piatto che ha spazio fino a r = 0,79 R — che vedere le lettere sparire.
+      el.style.overflow = "hidden";
       // Misura a corpo pieno e applica il rapporto nella stessa passata di
       // layout: nessun lampo a corpo sbagliato, nessun secondo giro.
       el.style.setProperty("--fit", "1");
@@ -153,12 +160,19 @@ function Inscription({ text }: { text: string }) {
       className="pointer-events-none absolute left-1/2 -translate-x-1/2 -translate-y-1/2 text-center"
       style={{
         top: `${INSCRIPTION_CENTER_Y}%`,
-        maxWidth: `${INSCRIPTION_MAX_WIDTH}cqmin`,
+        // Larghezza FISSA, non `max-width`: con un massimo la scatola si
+        // stringe sul testo, quindi «quanto spazio c'è» e «quanto testo c'è»
+        // diventano lo stesso numero — la misura non ha più un muro contro cui
+        // confrontarsi e la riga finisce sempre larga quanto la sua scatola, al
+        // decimo di pixel. Da lì i tre puntini: basta un arrotondamento e il
+        // browser si mangia le ultime lettere. Fissa, il muro è il muro e dopo
+        // il fit restano tre punti percentuali di aria veri.
+        width: `${INSCRIPTION_MAX_WIDTH}cqmin`,
       }}
     >
       <span
         ref={ref}
-        className="block overflow-hidden text-ellipsis whitespace-nowrap"
+        className="block text-ellipsis whitespace-nowrap"
         style={{
           // Serif corsivo scuro: la veste della parola che lo studio disegna
           // già a mano. Nessun font nuovo — stack di sistema (la card: «non si

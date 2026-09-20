@@ -74,6 +74,17 @@ export const INSCRIPTION_MAX_WIDTH = 22;
  */
 export const INSCRIPTION_FONT_SIZE = 3.5;
 /**
+ * Un filo d'aria fra la riga e il suo muro. Un fit ESATTO è il caso peggiore per
+ * `text-overflow: ellipsis`: la riga finisce larga quanto la scatola al decimo
+ * di pixel, e basta un arrotondamento nell'altro verso — un altro schermo, un
+ * altro rapporto di pixel, un altro font caricato — perché il browser decida che
+ * non ci sta e si mangi le ultime lettere con tre puntini. Misurato: 53,88px di
+ * testo in 54px di scatola, 0,12px di margine. Il 3% è invisibile a occhio e
+ * toglie i puntini da tutti gli schermi.
+ */
+export const INSCRIPTION_FIT_SLACK = 0.97;
+
+/**
  * Sotto questo fattore non si rimpicciolisce più: si tronca (AC 3).
  *
  * Va tenuto **sotto** `INSCRIPTION_TAPER_TO`: è un pavimento applicato dopo la
@@ -124,7 +135,8 @@ export function fitRatio(
 ): number {
   const taper = taperForLength(length);
   if (!(textWidth > 0) || !(boxWidth > 0)) return taper;
-  return Math.max(INSCRIPTION_MIN_FIT, Math.min(taper, boxWidth / textWidth));
+  const wall = (boxWidth / textWidth) * INSCRIPTION_FIT_SLACK;
+  return Math.max(INSCRIPTION_MIN_FIT, Math.min(taper, wall));
 }
 
 /**
