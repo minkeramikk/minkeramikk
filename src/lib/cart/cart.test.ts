@@ -18,6 +18,7 @@ import {
   type NewCartLine,
 } from "./cart";
 import { formatMoney } from "@/lib/money/money";
+import { encodeConfigCode, type CodecDesign } from "@/lib/configurator/config-code";
 
 const vietriFlat: NewCartLine = {
   productId: "p-flat",
@@ -464,5 +465,85 @@ describe("clampPaintN", () => {
 
   it("passes an in-range number through", () => {
     expect(clampPaintN(2, 4)).toBe(2);
+  });
+});
+
+/**
+ * R5-TEXT-IDENTITY, card §2 AC 4 — closes R5-GARANZIA.md §5. NO CHANGE to
+ * `cart.ts` for this: `addToCart`/`lineKey` already key a line's identity on
+ * `configCode` alone, and that is the whole point of moving the customer's
+ * words INTO the code (task 2/4) instead of leaving them only in the
+ * snapshot — two lines that used to look identical to `lineKey` (same
+ * product, same colours, different private words) now simply carry
+ * different codes, and this store's existing merge-or-append logic keeps
+ * them apart on its own.
+ */
+describe("cart store — R5-TEXT-IDENTITY (AC 4)", () => {
+  // 1 category, so the fixture stays tiny — the codec itself is task 2's,
+  // already exhaustively tested in config-code.test.ts.
+  const TEXT_DESIGN: CodecDesign = {
+    code: "T",
+    slug: "text-design",
+    categories: [
+      { slug: "colors", optionCodeToId: { B: "colors-opt-b" }, defaultOptionId: "colors-opt-b" },
+    ],
+  };
+  const SEL = { colors: "colors-opt-b" };
+  const snap = (customText?: string, customNote?: string) => ({
+    designSlug: "text-design",
+    designName: "Text design",
+    selections: [{ label: "Colors", option: "Blue", hex: "#00f" }],
+    ...(customText !== undefined ? { customText } : {}),
+    ...(customNote !== undefined ? { customNote } : {}),
+  });
+  const lineFor = (configCode: string, snapshot: NewCartLine["configSnapshot"]): NewCartLine => ({
+    ...vietriFlat,
+    configCode,
+    configSnapshot: snapshot,
+  });
+
+  it("two lines, same product/colours, different inscriptions → two rows, each keeping its own words", () => {
+    const codeAnna = encodeConfigCode(TEXT_DESIGN, SEL, { customText: "Til Anna" });
+    const codeKari = encodeConfigCode(TEXT_DESIGN, SEL, { customText: "Til Kari" });
+    expect(codeAnna).not.toBe(codeKari); // sanity: task 2's codec really does this
+
+    let cart = addToCart([], lineFor(codeAnna, snap("Til Anna")));
+    cart = addToCart(cart, lineFor(codeKari, snap("Til Kari")));
+
+    expect(cart).toHaveLength(2);
+    expect(cart.map((l) => l.configSnapshot?.customText).sort()).toEqual([
+      "Til Anna",
+      "Til Kari",
+    ]);
+  });
+
+  it("same colours and same inscription, two different colour WISHES → still two rows", () => {
+    const codeBlue = encodeConfigCode(TEXT_DESIGN, SEL, {
+      customText: "Til Anna",
+      customNote: "litt mer blått, takk",
+    });
+    const codePink = encodeConfigCode(TEXT_DESIGN, SEL, {
+      customText: "Til Anna",
+      customNote: "litt mer rosa, takk",
+    });
+    expect(codeBlue).not.toBe(codePink); // hashNote doing its job
+
+    let cart = addToCart([], lineFor(codeBlue, snap("Til Anna", "litt mer blått, takk")));
+    cart = addToCart(cart, lineFor(codePink, snap("Til Anna", "litt mer rosa, takk")));
+
+    expect(cart).toHaveLength(2);
+    expect(cart.map((l) => l.configSnapshot?.customNote).sort()).toEqual([
+      "litt mer blått, takk",
+      "litt mer rosa, takk",
+    ]);
+  });
+
+  it("the SAME inscription twice still merges into one row (determinism preserved)", () => {
+    const code = encodeConfigCode(TEXT_DESIGN, SEL, { customText: "Til Anna" });
+    let cart = addToCart([], lineFor(code, snap("Til Anna")));
+    cart = addToCart(cart, { ...lineFor(code, snap("Til Anna")), quantity: 2 });
+
+    expect(cart).toHaveLength(1);
+    expect(cart[0].quantity).toBe(3); // default 1 + 2
   });
 });

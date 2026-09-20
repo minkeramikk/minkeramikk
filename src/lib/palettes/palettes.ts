@@ -158,7 +158,9 @@ function isMainColourLabel(label: string | undefined): boolean {
 }
 
 // Small FNV-1a (32-bit) — deterministic code → index, no dependency.
-function fnv1a(str: string): number {
+// Exported: text-segment.ts (R5-TEXT-IDENTITY) reuses it for hashNote rather
+// than adding a second hash function to the codebase.
+export function fnv1a(str: string): number {
   let hash = 0x811c9dc5;
   for (let i = 0; i < str.length; i++) {
     hash ^= str.charCodeAt(i);
@@ -180,6 +182,17 @@ function fnv1a(str: string): number {
  * hashed index is still `i=0` of the walk below, so an uncontested palette
  * is byte-for-byte unchanged. Compared trimmed + lower-cased, so a
  * customer's own rename ("zaffera") blocks the word it collides with too.
+ *
+ * `code` IS HASHED VERBATIM — this function does not know about the
+ * inscription/wish segment `text-segment.ts` can append (importing
+ * `stripCustomSegment`, `set-code.ts` → `config-code.ts` → `text-segment.ts`
+ * → this file for `fnv1a`, would be the exact import cycle that module's own
+ * comment exists to avoid). R5-TEXT-IDENTITY (TL ruling, "the name is
+ * noise"): every caller that can carry a dedication in its code MUST strip
+ * it first (the same single `stripCustomSegment` everything else uses) —
+ * the palette's NAME is a function of its colours alone, never of what the
+ * customer typed, or it renames itself on every keystroke. Passing an
+ * unstripped code is a caller bug, not a variant this function supports.
  */
 export function nameFor(
   code: string,

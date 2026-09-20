@@ -9,7 +9,7 @@ import {
   normalizeConfigCode,
   type CodecDesign,
 } from "@/lib/configurator/config-code";
-import { encodeSetParam, SET_ROW_SEP } from "@/lib/cart/set-code";
+import { encodeSetParam, selectionCountOf, SET_ROW_SEP } from "@/lib/cart/set-code";
 import {
   isOpenStatus,
   isOrderStatus,
@@ -297,13 +297,18 @@ export interface ReplicaSet {
  *  reuses the share-set encoder, which shape-validates the config code + slug
  *  and clamps qty to 1–99. Lines without a usable code or slug (legacy orders,
  *  vanished products) are dropped and counted in `skipped` — degrade, never
- *  fail, exactly like the public share-set. */
+ *  fail, exactly like the public share-set.
+ *
+ *  R5-TEXT-IDENTITY task 3: selectionCountOf(item.configSnapshot) strips each
+ *  line's inscription/colour-wish segment before it enters the replica link —
+ *  still no catalog lookup, `buildReplicaSet` stays pure. */
 export function buildReplicaSet(order: AdminOrder): ReplicaSet {
   const param = encodeSetParam(
     order.items.map((i) => ({
       configCode: i.configCode ?? "",
       productSlug: i.productSlug ?? undefined,
       quantity: i.quantity,
+      selectionCount: selectionCountOf(i.configSnapshot),
     }))
   );
   const included = param ? param.split(SET_ROW_SEP).length : 0;

@@ -13,6 +13,11 @@
  */
 import { describe, expect, it } from "vitest";
 import { basketCta, paintFirstHref, paintTargetFor } from "@/components/ui-domain/basket-host";
+import {
+  decodeConfigCode,
+  encodeConfigCode,
+  type CodecDesign,
+} from "@/lib/configurator/config-code";
 
 describe("basketCta", () => {
   it("the column flips between its two testids", () => {
@@ -85,27 +90,53 @@ describe("paintTargetFor", () => {
 
 /**
  * R5-BASKET-HOST final review, finding 4a — «Paint N pieces first ›» from the
- * drawer. The bug was a target built from the config code alone; the rule is
- * that the code carries the COLOURS and the configuration on screen carries
- * the customer's own words.
+ * drawer. The bug was a target built from the config code alone; the rule
+ * WAS that the code carries the COLOURS and the configuration on screen
+ * carries the customer's own words.
+ *
+ * R5-TEXT-IDENTITY task 4 flips that rule for the inscription specifically:
+ * the code now carries it too (`line-payload.ts`), «la push si porta la
+ * dedica perché si porta il codice» — so this href no longer writes `text=`
+ * at all. `note=` is unchanged: the colour WISH enters the code only as a
+ * non-reversible hash, so the actual words still need the URL to reach the
+ * rebuilt snapshot.
  */
 describe("paintFirstHref", () => {
   const at = (qs: string) => new URLSearchParams(qs);
-  const cfg = (code: string, snapshot: { customNote?: string; customText?: string } = {}) => ({
+  const cfg = (code: string, snapshot: { customNote?: string } = {}) => ({
     code,
     snapshot,
   });
 
-  it("carries the inscription the config code cannot encode", () => {
-    // The real step-2 case: nothing in the query yet, the words are still in
-    // component state and only `currentConfig` knows them.
+  // A tiny real catalog fixture — same pattern config-code.test.ts and
+  // set-code.test.ts use — so "the inscription survives the push" is
+  // checked against the REAL codec, not a placeholder string.
+  const DESIGN: CodecDesign = {
+    code: "T",
+    slug: "text-design",
+    categories: [
+      { slug: "colors", optionCodeToId: { B: "colors-opt-b" }, defaultOptionId: "colors-opt-b" },
+    ],
+  };
+  const findDesign = (code: string): CodecDesign | null =>
+    code.toUpperCase() === DESIGN.code ? DESIGN : null;
+  const SEL = { colors: "colors-opt-b" };
+
+  it("the inscription survives the push THROUGH the code, never via text=", () => {
+    const codeWithInscription = encodeConfigCode(DESIGN, SEL, {
+      customText: "Til Åse",
+    });
     const q = new URL(
-      paintFirstHref(at("design=amalfi-dyr"), cfg("AB12", { customText: "Til Åse" })),
+      paintFirstHref(at("design=amalfi-dyr"), cfg(codeWithInscription)),
       "https://x"
     ).searchParams;
-    expect(q.get("text")).toBe("Til Åse");
-    expect(q.get("code")).toBe("AB12");
+    expect(q.get("code")).toBe(codeWithInscription);
+    expect(q.get("text")).toBeNull(); // never written — the code already has it
     expect(q.get("step")).toBe("3");
+    // and it really is recoverable from that same code at the destination
+    expect(decodeConfigCode(codeWithInscription, findDesign).customText).toBe(
+      "Til Åse"
+    );
   });
 
   it("writes the note only when there is one, exactly like goToStep", () => {
@@ -123,7 +154,7 @@ describe("paintFirstHref", () => {
     expect(studio.get("note")).toBeNull();
   });
 
-  it("clears a stale text= the configuration no longer has", () => {
+  it("always drops a stale text= — the code is the only source of truth for it now", () => {
     const q = new URL(paintFirstHref(at("text=old"), cfg("AB12")), "https://x").searchParams;
     expect(q.get("text")).toBeNull();
   });

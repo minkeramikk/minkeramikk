@@ -44,7 +44,7 @@ import {
 import { pickDefaultOption } from "@/lib/configurator/default-option";
 import { fullRowInsertIndex } from "@/lib/configurator/grid-rows";
 import { keyboardSafeScrollDelta } from "@/lib/configurator/keyboard-safe-scroll";
-import { MAX_CUSTOM_TEXT } from "@/lib/orders/schema";
+import { MAX_CUSTOM_NOTE, MAX_CUSTOM_TEXT } from "@/lib/orders/schema";
 import { cn } from "@/lib/utils";
 import type { DesignDetail } from "@/lib/catalog/design-options";
 import type { PreviewLayer } from "@/lib/configurator/preview";
@@ -52,8 +52,10 @@ import { useCartContext } from "@/lib/cart/cart-context";
 import { keyboardUp } from "@/lib/cart/basket-open";
 import { hoverCapable } from "@/lib/pointer";
 import { designLabel } from "@/lib/cart/cart";
-import { buildConfigLinePayload, withCustomFields } from "@/lib/configurator/line-payload";
-import { nameFor, paletteFor, sortCurrentDesignFirst } from "@/lib/palettes/palettes";
+import { buildConfigLinePayload } from "@/lib/configurator/line-payload";
+import { draftMatchesSavedColours, paletteMatchingColours } from "@/lib/configurator/save-gate";
+import { stripCustomSegment } from "@/lib/cart/set-code";
+import { nameFor, sortCurrentDesignFirst } from "@/lib/palettes/palettes";
 import type { PaletteWords } from "@/lib/palettes/name-lists";
 import { PaletteBar } from "@/components/ui-domain/palette-bar";
 import { PaletteChip } from "@/components/ui-domain/palette-chip";
@@ -274,8 +276,14 @@ export function ConfiguratorClient({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- key on design only
   }, [selected.slug]);
 
-  // F38: custom inscription. Lives in state + the working URL (text=) only —
-  // never the config code nor the set= link (privacy/lean, like the note).
+  // F38: custom inscription. Lives in state + the working URL (text=), AND
+  // — since task 4 — the config code itself (`buildConfigLinePayload` folds
+  // it into `encodeConfigCode`'s `extras`): identity now, not colours-only.
+  // R5-TEXT-IDENTITY final-review round 2 (finding 5a): this comment used to
+  // say "never the config code", which this branch made false the moment
+  // task 4 landed — AC 6's rule applies to what we wrote today, not just to
+  // pre-existing code. It still never enters the `set=` link (task 3 strips
+  // it before a shared kit is built).
   const [customText, setCustomText] = useState(searchParams.get("text") ?? "");
 
   /** R4-POLISH voce 8: mentre si scrive, il canvas molla lo `sticky`. Con la
@@ -530,13 +538,45 @@ export function ConfiguratorClient({
   );
   // F19: a ?code= deep-link (cart-row "reopen" or a shared link) is decoded once
   // on arrival into the canonical opt_* params, then dropped from the URL.
+  //
+  // R5-TEXT-IDENTITY final-review round 2, finding 1 (BLOCKER): this effect
+  // used to destructure only `{ designSlug, selections }` and threw the
+  // decoded `customText` away — page.tsx already seeds step 3's field from
+  // it, step 2 didn't. The live callers are the cart row's «Edit design»
+  // (basket.tsx → `?code=…&step=2`) and `loadPalette` below (same `?code=`
+  // shape). Losing the words here meant: edit a line that had a dedication,
+  // change a colour, continue — the NEW line has no dedication (a silent
+  // loss reaching the order mail and the lab PDF); and a palette saved WITH
+  // a dedication could never be re-activated by tapping its chip, because
+  // `draftCode` (built with an empty `customText`) could never equal the
+  // saved code again — the strip said "Unsaved" forever, and the §3 guard
+  // then hid the save button too (nothing to re-save over).
+  //
+  // `setCustomText` here, not just writing `text=` into the URL: this
+  // effect only re-fires on `searchParams`/`codecDesigns` changes, but nothing
+  // ELSE re-reads `text=` into the live `customText` state unless `selected
+  // .slug` also changes (the OTHER effect, keyed on design) — `loadPalette`/
+  // «Edit design» often stay on the SAME design, so that second effect would
+  // never fire and the field would stay empty despite the URL being correct.
+  // Explicit `?text=` in the incoming URL still wins outright (it's the live
+  // edit) — this only fills in when it's ABSENT, same precedence as page.tsx.
+  //
+  // Unconditional sync when there's no explicit override — INCLUDING down to
+  // "" when the code carries no inscription — not just "fill in if present":
+  // loading a colours-only saved palette right after typing a dedication
+  // into an unrelated draft must clear the stale words, or the newly-loaded
+  // palette's own `draftCode` would carry someone else's leftover text and
+  // never equal the saved code it was just loaded from (the same
+  // "matchedPalette null forever" symptom this finding is about, from a
+  // different angle).
   useEffect(() => {
     const incoming = searchParams.get("code");
     if (!incoming) return;
+    const explicitText = searchParams.get("text");
     const params = new URLSearchParams(searchParams.toString());
     params.delete("code");
     try {
-      const { designSlug, selections: sel } = decodeConfigCode(
+      const { designSlug, selections: sel, customText: decodedText } = decodeConfigCode(
         incoming,
         (c) => codecDesigns.find((d) => d.code === c.toUpperCase()) ?? null
       );
@@ -545,6 +585,12 @@ export function ConfiguratorClient({
         if (key.startsWith("opt_")) params.delete(key);
       for (const [catSlug, optId] of Object.entries(sel))
         params.set(`opt_${catSlug}`, optId);
+      if (explicitText === null) {
+        const seededText = decodedText ?? "";
+        setCustomText(seededText);
+        if (seededText) params.set("text", seededText);
+        else params.delete("text");
+      }
     } catch {
       /* invalid code → just drop the param, never crash */
     }
@@ -609,19 +655,50 @@ export function ConfiguratorClient({
     return () => publishKeyboardOpen(false);
   }, [step, typing, publishKeyboardOpen]);
   // The DRAFT is exactly what step 3 would turn into a cart line: same
-  // builder, same inputs (card §3). No note/text carried in — a palette is a
-  // set of COLOURS, and neither one ever enters the config code either
-  // (F38/R2-2b), so they can't change which saved palette this matches.
+  // builder, same inputs (card §3), including the inscription and colour
+  // wish now (R5-TEXT-IDENTITY task 4-follow-up) — this is the SAME call
+  // page.tsx makes for step 3, so a config painted from THIS step and one
+  // painted from step 3 get the identical code for the identical visible
+  // configuration. Before this, the draft was built colours-only on
+  // purpose; that silently dropped a dedication typed here and Painted
+  // straight from the drawer (`text=` no longer carries it either, task 4),
+  // and it made the SAME on-screen configuration have two different
+  // identities depending only on which step happened to add it — worse
+  // than the bug this card set out to fix, because it was silent. Card §3's
+  // OWN consequence of the code now moving with the words — the "Save as
+  // palette" offer must not treat a mere inscription change as a new
+  // palette — is handled separately below (`canSaveDraft`), not here: the
+  // identity itself has to be correct first.
   const draftPayload = useMemo(
-    () => buildConfigLinePayload(detail, selections),
-    [detail, selections]
+    () =>
+      buildConfigLinePayload(
+        detail,
+        selections,
+        noteMode === "custom" ? noteText : "",
+        showCustomText ? customText : ""
+      ),
+    [detail, selections, noteMode, noteText, showCustomText, customText]
   );
   const draftCode = draftPayload.configCode;
   // The chip that represents "what's on screen right now" — either the
   // unsaved draft (no match) or an already-saved palette (match). Never
   // both: showing the same colours twice in the lane would be noise, not
   // information (card §3/§4-bis).
-  const matchedPalette = paletteFor(palettes, draftCode);
+  //
+  // Final-review round 3, finding 1: matched on COLOURS
+  // (`paletteMatchingColours`, the same helper `ceramics-step.tsx`'s own
+  // `activePalette` uses), not the exact code. `draftCode` carries the
+  // inscription now (task 4) — an exact match against a saved palette's own
+  // (inscription-free) code broke the instant a dedication was typed, which
+  // is exactly what made this chip and step 3's disagree one click apart:
+  // dial in a saved palette, type a dedication, this said "Unsaved" while
+  // step 3 (already fixed) said the palette's name.
+  const matchedPalette = paletteMatchingColours(
+    palettes,
+    draftCode,
+    selected.slug,
+    detail.categories.length
+  );
   const [renamingPaletteCode, setRenamingPaletteCode] = useState<string | null>(
     null
   );
@@ -637,6 +714,19 @@ export function ConfiguratorClient({
    * the save-strip can never drift apart the way the desktop bar's chip and
    * `saveDraftAsPalette` used to (two separate `nameFor()` calls below,
    * now one).
+   *
+   * R5-TEXT-IDENTITY follow-up, TL ruling ("the name is noise") — `draftCode`
+   * CARRIES THE INSCRIPTION (identity/Paint need it), but `nameFor()` below
+   * is called on a STRIPPED, colours-only copy of it: the name exists to be
+   * recognised, and a customer who watches it reshuffle on every keystroke
+   * learns it's noise, not identity. Same colours ⇒ same name, whatever is
+   * typed — a debounce would only have hidden that symptom, not the cause
+   * (the code, not the name, is where two dedications of the same colours
+   * tell apart — see `currentDedication` and `PaletteChip`'s own second
+   * line, just below). Card §1's "different dedications ⇒ different
+   * palettes" still holds at the level that matters: the CODE (and so the
+   * saved entry) differs; only the deterministic WORD stopped being one of
+   * the things that differs with it.
    */
   // Round 4 (TL-reported duplicate «Zaffera»): `nameFor()` needs every
   // name already saved so it can pick a FREE word instead of repeating one
@@ -646,41 +736,60 @@ export function ConfiguratorClient({
   const activePaletteName =
     matchedPalette?.name ??
     nameFor(
-      draftCode,
+      // TL ruling (R5-TEXT-IDENTITY, "the name is noise"): colours-only
+      // input, same `stripCustomSegment` everything else already strips
+      // with — `draftCode` itself is untouched (identity/Paint still need
+      // the inscription), only what `nameFor` hashes changes. This is what
+      // stops the chip renaming itself on every keystroke: same colours,
+      // same name, whatever the customer types.
+      stripCustomSegment(draftCode, detail.categories.length),
       draftPayload.snapshot,
       paletteWords,
       palettes.map((p) => p.name)
     );
   const activePaletteLayers = matchedPalette?.layers ?? draftPayload.designLayers;
+  /**
+   * TL correction (round after "the name is noise") — NOT `matchedPalette?.
+   * snapshot.customText ?? draftPayload...` the way `activePaletteName`
+   * reads `matchedPalette?.name ?? nameFor(...)`. The name and the
+   * dedication are NOT the same kind of question: the name asks "which
+   * colours is this", and colours are exactly what matched, so inheriting
+   * the saved palette's name is right. The dedication asks "what did the
+   * customer write", and that is the one thing NOT shared with the saved
+   * palette — matching colours with a different inscription is the whole
+   * reason this second line exists. A tile that shows what's painting
+   * RIGHT NOW must show the field the customer is looking at while they
+   * type, always `draftPayload.snapshot.customText`, whether or not the
+   * colours happen to match something already saved. (A saved palette's
+   * OWN chip, elsewhere in this file, still reads its own stored
+   * `p.snapshot.customText` — that tile describes THAT palette, not the
+   * canvas.)
+   */
+  const currentDedication = draftPayload.snapshot.customText;
   /** The design pattern's own name, for `<PaintingStrip>`'s "· design"
    *  suffix — same source ceramics-step.tsx's own `designName` reads
    *  (`designLabel()` on the snapshot), just this step's own snapshot. */
   const activeDesignName = designLabel(draftPayload.snapshot, locale as "no" | "en") ?? "";
   /**
-   * Final-review finding 4b — what the DRAWER paints with at step 2.
-   * `draftPayload.snapshot` is the palette draft and carries no note/text on
-   * purpose (see its comment). The drawer's Paint hands the published
-   * snapshot straight to `paint()`, so publishing the bare draft dropped the
-   * customer's inscription: Paint from the drawer at step 2 made a line with
-   * no `customText`, while the same Paint at step 3 — or «Legg i
-   * handlekurv» — kept it. This is money-and-mail data: it reaches the
-   * order mail and the lab PDF.
+   * Card §3 guard (TL ruling) — «Save as palette» is withheld when the
+   * draft's COLOURS already match a saved palette of this design, however
+   * many dedications away. `matchedPalette` alone (an EXACT code match,
+   * inscription included) is no longer enough to gate the offer: once the
+   * code carries the words, typing any new dedication makes `matchedPalette`
+   * null even though the colours are identical to something already saved
+   * — exactly the "six names, six near-duplicate palettes" case §3 warns
+   * about. `draftMatchesSavedColours` reuses `stripCustomSegment` (the SAME
+   * function `set-code.ts` strips a shared link's inscription with, task 3)
+   * rather than a second idea of where the colours end.
    *
-   * Merged with the SAME gates `goToStep` uses to put `note=`/`text=` on the
-   * URL, so what the drawer paints and what step 3 would build from that URL
-   * are one configuration. Neither field enters the config code, so
-   * `draftCode` and the palette match are untouched.
+   * Only the OFFER is affected: `matchedPalette`/`activePaletteName`/the
+   * "Unsaved" draft tile are untouched, so the customer still sees exactly
+   * what's on screen and its (possibly dedication-specific) name — they
+   * just aren't invited to save a near-duplicate of something already kept.
    */
-  const paintingSnapshot = useMemo(
-    () =>
-      withCustomFields(
-        draftPayload.snapshot,
-        detail,
-        noteMode === "custom" ? noteText : "",
-        showCustomText ? customText : ""
-      ),
-    [draftPayload.snapshot, detail, noteMode, noteText, showCustomText, customText]
-  );
+  const canSaveDraft =
+    !matchedPalette &&
+    !draftMatchesSavedColours(palettes, draftCode, selected.slug, detail.categories.length);
 
   /**
    * R5-BASKET-HOST task 1 — step 2 publishes the same `CurrentConfig` shape
@@ -689,12 +798,18 @@ export function ConfiguratorClient({
    * while this IS step 2 — step 1 publishes nothing on purpose, which is what
    * keeps the chip dead there — and cleared on unmount or on leaving step 2,
    * mirroring step 3's own publish/clear effect exactly.
+   *
+   * R5-TEXT-IDENTITY follow-up — `draftPayload.snapshot` now already carries
+   * the inscription/wish (it's built WITH them above), so there is no
+   * separate `paintingSnapshot` merge to publish any more: what the drawer
+   * Paints with and what `draftCode` encodes are finally one object, at one
+   * step, the same way step 3 has always worked.
    */
   useEffect(() => {
     if (step !== 2) return;
     setCurrentConfig({
       code: draftPayload.configCode,
-      snapshot: paintingSnapshot,
+      snapshot: draftPayload.snapshot,
       layers: activePaletteLayers,
       designSlug: detail.slug,
       label: activePaletteName,
@@ -703,7 +818,7 @@ export function ConfiguratorClient({
       explicit: true,
     });
     return () => setCurrentConfig(null);
-  }, [step, draftPayload, paintingSnapshot, activePaletteLayers, detail.slug, activePaletteName, setCurrentConfig]);
+  }, [step, draftPayload, activePaletteLayers, detail.slug, activePaletteName, setCurrentConfig]);
 
   function saveDraftAsPalette() {
     const now = Date.now();
@@ -920,6 +1035,7 @@ export function ConfiguratorClient({
             key={p.code}
             code={p.code}
             name={p.name}
+            dedication={p.snapshot.customText}
             layers={p.layers}
             dim
             dimDesignName={dimDesign ? designName(dimDesign) : p.designSlug}
@@ -932,6 +1048,7 @@ export function ConfiguratorClient({
           key={p.code}
           code={p.code}
           name={p.name}
+          dedication={p.snapshot.customText}
           layers={p.layers}
           onSelect={() => loadPalette(p.code)}
           onDelete={() => deletePalette(p.code)}
@@ -943,6 +1060,12 @@ export function ConfiguratorClient({
       key={matchedPalette.code}
       code={matchedPalette.code}
       name={matchedPalette.name}
+      // TL correction: this chip is the LEAD one — it IS the canvas right
+      // now, just happening to share its colours with a save. It shows
+      // what's in the field (`currentDedication`), not `matchedPalette`'s
+      // own stored words, which may belong to a different dedication of
+      // these same colours than the one on screen right now.
+      dedication={currentDedication}
       layers={matchedPalette.layers}
       active
       renaming={renamingPaletteCode === matchedPalette.code}
@@ -959,6 +1082,7 @@ export function ConfiguratorClient({
       key="draft"
       code={draftCode}
       name={activePaletteName}
+      dedication={currentDedication}
       layers={draftPayload.designLayers}
       draft
     />
@@ -1027,7 +1151,7 @@ export function ConfiguratorClient({
             </>
           }
           extra={
-            !matchedPalette && (
+            canSaveDraft && (
               <button
                 type="button"
                 onClick={saveDraftAsPalette}
@@ -1065,11 +1189,13 @@ export function ConfiguratorClient({
           className="max-md:group-data-[typing=1]/step2:static"
           designLayers={activePaletteLayers}
           paintingLabel={activePaletteName}
+          dedication={currentDedication}
           designName={activeDesignName}
           palettes={palettes}
           currentDesignSlug={selected.slug}
           activeCode={matchedPalette?.code ?? null}
           draft={!matchedPalette}
+          canSaveDraft={canSaveDraft}
           locale={locale as "no" | "en"}
           onPick={(code) => {
             loadPalette(code);
@@ -1192,6 +1318,14 @@ export function ConfiguratorClient({
                 // a 68-vs-69px rounding bug once, see `docked-cart-panel`'s
                 // own comment further up), one number here, `calc()`'d into
                 // both instead of typed twice.
+                //
+                // R5-TEXT-IDENTITY (TL, "the name is noise"): the strip
+                // gained a third (dedication) line — checked again, not
+                // assumed: all three lines are `text-[10px]`/`[13.5px]`
+                // with `leading-tight`, and the row's own intrinsic height
+                // (measured, devtools, with a dedication on screen) is
+                // UNCHANGED at 61px — this constant already had the slack
+                // for it, one number, still.
                 "--mk-strip-h": "61px",
               } as React.CSSProperties)
             : undefined
@@ -1850,7 +1984,7 @@ export function ConfiguratorClient({
                         ref={noteTextareaRef}
                         data-testid="custom-notes-text"
                         value={noteText}
-                        maxLength={250}
+                        maxLength={MAX_CUSTOM_NOTE}
                         rows={3}
                         onChange={(e) => setNoteText(e.target.value)}
                         placeholder={t("customNotes.placeholder")}
@@ -1866,7 +2000,7 @@ export function ConfiguratorClient({
                           {t("customNotes.helper")}
                         </p>
                         <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
-                          {t("customNotes.counter", { count: noteText.length })}
+                          {t("customNotes.counter", { count: noteText.length, max: MAX_CUSTOM_NOTE })}
                         </span>
                       </div>
                     </div>
@@ -1947,7 +2081,7 @@ export function ConfiguratorClient({
                     : t("step2.paletteStripUnsaved")}
                 </span>
               </span>
-              {!matchedPalette && (
+              {canSaveDraft && (
                 <button
                   type="button"
                   data-testid="save-palette-mobile"

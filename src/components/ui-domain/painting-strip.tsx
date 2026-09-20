@@ -2,6 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { DesignRound } from "@/components/ui-domain/design-round";
+import { PaletteDedicationLine } from "@/components/ui-domain/palette-chip";
 import { PaletteSheet } from "@/components/ui-domain/palette-sheet";
 import type { CartLayer } from "@/lib/cart/cart";
 import type { Palette } from "@/lib/palettes/palettes";
@@ -33,6 +34,18 @@ export interface PaintingStripProps {
    *  extraction removes. Also doubles as the sheet's `draftName`/
    *  `draftLayers` (below) — same reuse rule, one value in, not two. */
   paintingLabel: string;
+  /**
+   * TL correction (round after "the name is noise") — the CURRENT field
+   * value, always: this strip describes the canvas, so this is never a
+   * saved match's own stored words, even when `paintingLabel` above came
+   * from one (the name is about colours, this is about words — the one
+   * thing NOT shared with a colour-match). The caller's own
+   * `ConfigSnapshot.customText`, never decoded here. Forwarded to the
+   * sheet as `currentDedication` (below) — same reuse as `paintingLabel`/
+   * `draftName`, renamed there because the sheet also uses it to override
+   * its OWN active tile, not only the draft one.
+   */
+  dedication?: string;
   /** The design pattern's own name, shown as the "· design" suffix. */
   designName: string;
   palettes: Palette[];
@@ -44,6 +57,16 @@ export interface PaintingStripProps {
    *  No separate copy needed here: this prop alone is what makes that read
    *  true at either step. */
   draft: boolean;
+  /** R5-TEXT-IDENTITY (card §3 guard) — whether the draft TILE's own "Save
+   *  as palette" button renders. Separate from `draft`: the tile itself
+   *  (thumb + "Unsaved" + name) still shows whenever `draft` is true — the
+   *  customer should always see what's actually on screen — but the SAVE
+   *  offer is withheld when the draft's colours already match a saved
+   *  palette of this design and only the inscription differs (the caller's
+   *  `draftMatchesSavedColours` check). Meaningless while `!draft` (there is
+   *  no tile to put a button on), so callers just always pass their own
+   *  `canSaveDraft`. */
+  canSaveDraft: boolean;
   locale: "no" | "en";
   onPick: (code: string) => void;
   onNewPalette: () => void;
@@ -66,11 +89,13 @@ export function PaintingStrip({
   testId,
   designLayers,
   paintingLabel,
+  dedication,
   designName,
   palettes,
   currentDesignSlug,
   activeCode,
   draft,
+  canSaveDraft,
   locale,
   onPick,
   onNewPalette,
@@ -118,6 +143,7 @@ export function PaintingStrip({
           {paintingLabel}{" "}
           <span className="font-normal text-muted-foreground">· {designName}</span>
         </p>
+        <PaletteDedicationLine text={dedication} className="max-w-none" />
       </div>
       {/* Fix wave PR3 finding 9: the strip is the sheet's ONE opener — a real
           `SheetTrigger` (not a hand-rolled button) gets `aria-haspopup`,
@@ -151,7 +177,9 @@ export function PaintingStrip({
         currentDesignSlug={currentDesignSlug}
         activeCode={activeCode}
         draft={draft}
+        canSaveDraft={canSaveDraft}
         draftName={paintingLabel}
+        currentDedication={dedication}
         draftLayers={designLayers}
         locale={locale}
         onPick={onPick}

@@ -5,11 +5,14 @@ import { useTranslations } from "next-intl";
 import { Brush, Eraser, Trash2 } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { DesignRound } from "@/components/ui-domain/design-round";
+import { PaletteDedicationLine } from "@/components/ui-domain/palette-chip";
 import { SetBadge } from "@/components/ui-domain/set-badge";
 import { formatMoney, money } from "@/lib/money/money";
 import { designLabel, type CartLayer, type CartLine } from "@/lib/cart/cart";
 import { formatSelections } from "@/lib/configurator/readable-selections";
-import { paletteFor, sortCurrentDesignFirst, type Palette } from "@/lib/palettes/palettes";
+import { sortCurrentDesignFirst, type Palette } from "@/lib/palettes/palettes";
+import { paletteMatchingColours } from "@/lib/configurator/save-gate";
+import { stripCustomSegment } from "@/lib/cart/set-code";
 import type { LineDiscount } from "@/lib/discounts/discount";
 import { cn } from "@/lib/utils";
 
@@ -47,11 +50,10 @@ export function thumbHex(line: CartLine): string | undefined {
  * arrives here as `n`/`onN`, so this stays a pure render of whatever the
  * parent's cart state is right now.
  *
- * The details panel below is the drilldown (composed preview + config +
- * ceramic + price) — NOT `CartLineRecap`. That component is untouched by this
- * card and now has NO caller in `src/`: the steps 1–2 drawer it was written
- * for renders `<Basket>` (task 5). The card allows it to stay; it is dead
- * code, not legacy-in-use.
+ * The details panel below is the drilldown: composed preview, config,
+ * ceramic, price. It is the ONLY such panel — `CartLineRecap`, the drawer's
+ * old recap, was deleted in R5-BASKET-HOST once the drawer started rendering
+ * `<Basket>` (`b6d939f`).
  */
 /**
  * The line's colours as dots. TL, 18/9: on the row the dots ARE the colours —
@@ -119,7 +121,30 @@ export function CartLineRow({
    *  the customer chose from this row's picker, so `code` here is always
    *  what Paint would apply. `label`/`hexes` follow the same resolution:
    *  a saved palette's name/colours, or the design's when it isn't one yet. */
-  currentThumb: { layers: CartLayer[]; label: string; hexes: string[]; code: string };
+  currentThumb: {
+    layers: CartLayer[];
+    label: string;
+    /**
+     * TL correction (round after "the name is noise") — checked, already
+     * correct: THIS ROW's own words, not the canvas's borrowed for the
+     * moment. `basket.tsx`'s `rowThumb()` sets this from `currentConfig.
+     * snapshot.customText` in both branches, which — by the pre-existing
+     * explicit-pick rule ("takes the palette's colours but keeps the
+     * customer's own words") — genuinely IS this row's own value in
+     * either case: untouched, the row's configuration simply IS the
+     * canvas's; explicitly picked, the row keeps the canvas's words on
+     * purpose. Never a saved pick's own stored dedication (see the picker
+     * pills below, which correctly show that for every OTHER pill).
+     */
+    dedication?: string;
+    hexes: string[];
+    code: string;
+    /** Final-review round 3, finding 1: how many colour segments `code`
+     *  has — needed to strip its inscription (`stripCustomSegment`) before
+     *  the picker's "which pill is active" check compares it to a saved
+     *  palette's own (inscription-free) code. */
+    selectionCount: number;
+  };
   /** Every saved palette (R5-PALETTES store) — this row does its own pure
    *  lookups against it: a painted line's own `configCode` → its name (info
    *  line + details), and the picker's pill list. No palette STATE lives
@@ -149,9 +174,9 @@ export function CartLineRow({
   /** R5-BASKET-HOST task 5 — one host-specific block at the foot of the
    *  details panel. The DRAWER puts the MK code, its copy button and «Edit
    *  design» there (task 18's ruling: those belong to the drawer, not to
-   *  this step-3 drilldown); they used to ride on `CartLineRecap`, which the
-   *  drawer rendered instead of this row. The column passes nothing and its
-   *  panel is unchanged. */
+   *  this step-3 drilldown); they used to ride on the drawer's own recap,
+   *  deleted in `b6d939f`. The column passes nothing and its panel is
+   *  unchanged. */
   detailSlot?: React.ReactNode;
 }) {
   // TODO:nb-review — cart.unpainted.* / cart.unpaint.action NO copy is new,
@@ -189,10 +214,9 @@ export function CartLineRow({
   // R5-PALETTES §4-bis: locale-picked like productNameNo/En — undefined on a
   // legacy line, and the info line below prints nothing for it (AC 5).
   const sizeLabel = locale === "no" ? line.sizeLabelNo : line.sizeLabelEn;
-  // Fix round 2 (blocker 1) — same colour-source rule as the retired
-  // `CartLineRecap`: `customNote` is present (possibly "") only when the
-  // design takes notes; non-empty ⇒ custom colours, "" ⇒ studio's, absent ⇒
-  // no badge.
+  // `customNote` is present (possibly "") only when the design takes notes;
+  // non-empty ⇒ the customer's colours, "" ⇒ the studio's, absent ⇒ no badge.
+  // The rule predates this row and outlived the recap it came from.
   const note = line.configSnapshot?.customNote;
   const colourVariant = note === undefined ? null : note.trim() ? "custom" : "studio";
   // R5-PALETTES task 10 — a painted row is named by the palette it was
@@ -201,8 +225,20 @@ export function CartLineRow({
   // palettes, and the design name no longer disambiguates them. Falls back
   // to the design name when the code isn't (or is no longer, LRU eviction)
   // a saved palette — e.g. every line painted before R5-PALETTES existed.
-  const paletteName = !unpainted && line.configCode
-    ? (paletteFor(palettes, line.configCode)?.name ?? designLabel(line.configSnapshot, locale) ?? null)
+  //
+  // Final-review round 3, finding 1: matched on COLOURS
+  // (`paletteMatchingColours`), not the exact code — `line.configCode`
+  // carries the inscription now (task 4), so an exact match against a
+  // saved palette's own (inscription-free) code broke the instant a
+  // dedication was on the line: AC 5 going backwards, two rows of the same
+  // design looking identical again the moment either has one.
+  const paletteName = !unpainted && line.configCode && line.configSnapshot
+    ? (paletteMatchingColours(
+        palettes,
+        line.configCode,
+        line.configSnapshot.designSlug,
+        line.configSnapshot.selections.length
+      )?.name ?? designLabel(line.configSnapshot, locale) ?? null)
     : null;
 
   // Task 2 — the design square of the big thumb: the row's OWN colours once
@@ -471,7 +507,11 @@ export function CartLineRow({
                   // threshold, not a second guess at where "enough room"
                   // starts.
                   className={cn(
-                    "flex h-11 min-w-0 flex-1 items-center gap-1 rounded-sm border bg-card pl-1 pr-1 text-xs font-medium sm:h-9 row-wide:flex-initial row-wide:gap-1.5 row-wide:pr-2",
+                    // `min-h-11 sm:min-h-9`, not a fixed height: the
+                    // dedication line (R5-TEXT-IDENTITY) is a genuine
+                    // second line, same "let it grow" fix every other tile
+                    // needed.
+                    "flex min-h-11 min-w-0 flex-1 items-center gap-1 rounded-sm border bg-card pl-1 pr-1 text-xs font-medium sm:min-h-9 row-wide:flex-initial row-wide:gap-1.5 row-wide:pr-2",
                     pickerOpen
                       ? "border-primary shadow-[0_0_0_1px_var(--ring)]"
                       : "border-border",
@@ -482,7 +522,10 @@ export function CartLineRow({
                   {/* No dots here (unlike the painted row's info line below):
                       the name is this chip's identity, and dots would eat the
                       width it needs at 390. */}
-                  <span className="min-w-0 truncate">{currentThumb.label}</span>
+                  <span className="flex min-w-0 flex-col items-start leading-tight">
+                    <span className="min-w-0 max-w-full truncate">{currentThumb.label}</span>
+                    <PaletteDedicationLine text={currentThumb.dedication} className="max-w-full" />
+                  </span>
                   {hasPalettes && (
                     <span aria-hidden className="shrink-0 text-muted-foreground">
                       {pickerOpen ? "▴" : "▾"}
@@ -692,7 +735,17 @@ export function CartLineRow({
               chips, not a filter (a dim pill stays reachable, just inert). */}
           {sortCurrentDesignFirst(palettes, currentDesignSlug).map((p) => {
             const dim = p.designSlug !== currentDesignSlug;
-            const active = p.code === currentThumb.code;
+            // Final-review round 3, finding 1: stripped, not exact — the
+            // SAME `stripCustomSegment` `paletteMatchingColours` calls
+            // (no second stripping helper). `currentThumb.code` carries the
+            // inscription once the row's own on-screen config does (task
+            // 4), so an exact match against a saved pill's own
+            // (inscription-free) code rang no pill the instant a dedication
+            // was typed.
+            const active =
+              !dim &&
+              stripCustomSegment(p.code, currentThumb.selectionCount) ===
+                stripCustomSegment(currentThumb.code, currentThumb.selectionCount);
             return (
               <button
                 key={p.code}
@@ -704,7 +757,10 @@ export function CartLineRow({
                 aria-pressed={active}
                 onClick={() => onPickPalette(p.code)}
                 className={cn(
-                  "flex h-11 min-w-0 shrink-0 items-center gap-1.5 rounded-full pl-1 pr-2.5 text-xs lg:h-8",
+                  // `min-h-11 lg:min-h-8`, not a fixed height: a dedication
+                  // (R5-TEXT-IDENTITY) is a genuine second line, same "let
+                  // it grow" fix `PaletteChip`'s own tile needed.
+                  "flex min-h-11 min-w-0 shrink-0 items-center gap-1.5 rounded-full pl-1 pr-2.5 text-xs lg:min-h-8",
                   dim
                     ? "bg-muted text-muted-foreground opacity-45"
                     : active
@@ -713,14 +769,28 @@ export function CartLineRow({
                 )}
               >
                 <DesignRound layers={p.layers} className="size-6 shrink-0 rounded-sm" />
-                <span className="max-w-[108px] truncate">{p.name}</span>
-                {/* A dim pill (another design's) carries that design's own
-                    name too, same as the palette bar's chips. */}
-                {dim && (
-                  <span className="shrink-0 text-[10px] text-muted-foreground">
-                    · {designLabel(p.snapshot, locale) ?? p.designSlug}
-                  </span>
-                )}
+                <span className="flex min-w-0 flex-col leading-tight">
+                  <span className="max-w-[108px] truncate">{p.name}</span>
+                  {/* A dim pill (another design's) carries that design's own
+                      name too, same as the palette bar's chips. The ACTIVE
+                      pill is this ROW's own words right now (`currentThumb.
+                      dedication` — an explicit pick keeps the customer's
+                      current text over this palette's colours, see
+                      `rowThumb` in basket.tsx), NOT this palette's stored
+                      ones: picking a pill never actually adopts its saved
+                      dedication, so showing it here would promise words the
+                      row won't paint with. Every other (selectable, non-
+                      active) pill is purely "a saved palette in a list" and
+                      keeps its own — TL correction, same fix as the bar/
+                      sheet's active chip/tile. */}
+                  {dim ? (
+                    <span className="max-w-[108px] truncate text-[10px] text-muted-foreground">
+                      · {designLabel(p.snapshot, locale) ?? p.designSlug}
+                    </span>
+                  ) : (
+                    <PaletteDedicationLine text={active ? currentThumb.dedication : p.snapshot.customText} />
+                  )}
+                </span>
               </button>
             );
           })}
@@ -764,10 +834,10 @@ export function CartLineRow({
           Task 18 (TL) — the code and «Edit design» that fix round 2 put
           here were the wrong home: this panel is the drilldown
           (Config/Ceramic/Price), the code + edit affordance is the CART
-          DRAWER's job. It used to live there in `CartLineRecap`; since task 5
-          the drawer is `<Basket>` too, so `basket.tsx` passes them back in as
-          `detailSlot` — drawer only — and that is what the three e2e specs
-          read. `CartLineRecap` itself has no caller left.
+          DRAWER's job. It used to live there in the drawer's own recap;
+          the drawer renders `<Basket>` now, so `basket.tsx` passes them back
+          in as `detailSlot` — drawer only — and that is what the three e2e
+          specs read.
           Outside the grid above on purpose: this panel is the next block in
           the stack, full width, not a third column. */}
       {open && !unpainted && line.configSnapshot && (
@@ -775,9 +845,9 @@ export function CartLineRow({
           data-testid="cart-line-detail"
           className="mt-2 grid grid-cols-[112px_1fr] gap-4 rounded-sm border border-primary/30 bg-card/60 p-3"
         >
-          {/* Composed preview, same compositing as CartLineThumb/CartLineRecap
-              (multiply-blend the recolour layers), size-28 — this card's own
-              preview, not a reuse of CartLineRecap's size-52. */}
+          {/* Composed preview, same compositing as `CartLineThumb`
+              (multiply-blend the recolour layers), at size-28 — this panel's
+              own preview, not a reuse of a bigger one. */}
           <span
             aria-hidden
             className="relative block size-28 overflow-hidden rounded-md border border-border bg-[var(--mk-canvas)]"

@@ -20,6 +20,7 @@ import { formatMoney } from "@/lib/money/money";
 import { cartSaved } from "@/lib/discounts/discount";
 import { useShippingTotalSuffix } from "@/components/ui-domain/cart-shipping-row";
 import { paletteFor } from "@/lib/palettes/palettes";
+import { paletteMatchingColours } from "@/lib/configurator/save-gate";
 import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import { CartLineRow } from "@/components/ui-domain/cart-line-row";
@@ -235,9 +236,23 @@ export function Basket({
     setPaintN,
     paintNFor,
   } = useCartContext();
-  /** R5-PALETTES task 9 — which saved palette (if any) IS the config on
-   *  screen. Same read `ceramics-step.tsx` does: the URL is the truth. */
-  const activePalette = currentConfig ? paletteFor(palettes, currentConfig.code) : null;
+  /**
+   * R5-PALETTES task 9 — which saved palette (if any) IS the config on
+   * screen. Same COLOURS read `ceramics-step.tsx`'s own `activePalette` does
+   * (final-review round 3, finding 1): `currentConfig.code` carries the
+   * inscription now (task 4), so matching it exactly against a saved
+   * palette's own (inscription-free) code broke the instant a dedication
+   * was on screen — this is what `rowThumb` below borrows for an untouched
+   * row's code/name, so the row's own palette picker rang no chip either.
+   */
+  const activePalette = currentConfig
+    ? paletteMatchingColours(
+        palettes,
+        currentConfig.code,
+        currentConfig.designSlug,
+        currentConfig.snapshot.selections.length
+      )
+    : null;
   /** The basket's own element: the root `focusFirstUnpaintedRow` is scoped to. */
   const rootRef = useRef<HTMLDivElement>(null);
   const focusFirstUnpainted = useCallback(
@@ -303,6 +318,12 @@ export function Basket({
           code: explicitPalette.code,
           layers: explicitPalette.layers,
           label: explicitPalette.name,
+          // R5-TEXT-IDENTITY (TL ruling) — the explicit pick's OWN words
+          // stay silent about the palette's name (colours only, above);
+          // same source as the merged `customText` below: the customer's
+          // current on-screen words, not the palette's stored (dedication-
+          // free) snapshot.
+          dedication: currentConfig?.snapshot.customText,
           hexes: explicitPalette.snapshot.selections
             .map((s) => s.hex)
             .filter((h): h is string => Boolean(h)),
@@ -311,6 +332,11 @@ export function Basket({
             customNote: currentConfig?.snapshot.customNote,
             customText: currentConfig?.snapshot.customText,
           },
+          // Final-review round 3, finding 1: the row picker's own "which
+          // pill is active" check needs this to strip an inscription before
+          // comparing codes (`cart-line-row.tsx`) — one entry per category,
+          // same count `encodeConfigCode` walked to build either code.
+          selectionCount: explicitPalette.snapshot.selections.length,
         };
       }
       return {
@@ -321,11 +347,13 @@ export function Basket({
         // `designName` before, the same "vaguer of two names for the same
         // thing on screen" bug the header had.
         label: currentConfig?.label ?? "",
+        dedication: currentConfig?.snapshot.customText,
         hexes:
           currentConfig?.snapshot.selections
             .map((s) => s.hex)
             .filter((h): h is string => Boolean(h)) ?? [],
         snapshot: currentConfig?.snapshot ?? null,
+        selectionCount: currentConfig?.snapshot.selections.length ?? 0,
       };
     },
     [rowPaletteCode, palettes, activePalette, currentConfig]

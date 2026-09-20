@@ -11,6 +11,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { DesignRound } from "@/components/ui-domain/design-round";
+import { PaletteDedicationLine } from "@/components/ui-domain/palette-chip";
 import { Dots } from "@/components/ui-domain/cart-line-row";
 import { designLabel } from "@/lib/cart/cart";
 import type { CartLayer } from "@/lib/cart/cart";
@@ -52,7 +53,9 @@ export function PaletteSheet({
   currentDesignSlug,
   activeCode,
   draft,
+  canSaveDraft,
   draftName,
+  currentDedication,
   draftLayers,
   locale,
   onPick,
@@ -83,6 +86,12 @@ export function PaletteSheet({
    *  on-screen config matches no save, so the sheet offers "Save as
    *  palette" the same way the bar's `extra` slot does. */
   draft: boolean;
+  /** R5-TEXT-IDENTITY (card §3 guard) — withholds JUST the "Save as palette"
+   *  button inside the draft tile below; the tile itself (thumb + "Unsaved"
+   *  + name) still shows whenever `draft` is true. True unless the draft's
+   *  colours already match a saved palette of this design and only the
+   *  inscription differs (caller's `draftMatchesSavedColours`). */
+  canSaveDraft: boolean;
   /** The on-screen colours' own name/thumb (`nameFor()` or a saved match's
    *  name — the caller's single "what's painting" label, e.g. `paintingLabel`
    *  in ceramics-step.tsx / `activePaletteName` in configurator-client.tsx).
@@ -90,6 +99,18 @@ export function PaletteSheet({
    *  lead chip SHOWED the draft, not just a save button, and this sheet
    *  didn't; now it does, at both steps. */
   draftName: string;
+  /**
+   * TL correction (round after "the name is noise") — the field's live
+   * value, ALWAYS, never a saved match's own stored words: this is what's
+   * on screen right now, so it's what the draft tile shows below, AND
+   * what the ACTIVE saved tile in the grid shows when its colours happen
+   * to match (that tile is also, at that moment, the canvas — same
+   * reasoning `PaletteChip`'s own lead chip follows). Every OTHER
+   * (non-active) tile in the grid keeps reading its own stored
+   * `palette.snapshot.customText` — those describe a different saved
+   * configuration, not the canvas.
+   */
+  currentDedication?: string;
   draftLayers: CartLayer[];
   locale: "no" | "en";
   /** Picking a tile has the same effect as picking a chip on the desktop bar
@@ -160,7 +181,12 @@ export function PaletteSheet({
               its sheet equivalent. Same `draft` condition as the bar's
               `extra` slot (task 9's follow-up): only while the on-screen
               config matches no save — once it's saved, `draft` goes false
-              and this whole block goes with it. */}
+              and this whole block goes with it.
+
+              R5-TEXT-IDENTITY (card §3 guard): the SAVE BUTTON alone is
+              additionally gated on `canSaveDraft` — the tile (thumb +
+              "Unsaved" + name) stays even when the offer is withheld, so the
+              customer still sees exactly what's on screen. */}
           {draft && (
             <div
               data-testid="palette-sheet-draft"
@@ -172,15 +198,18 @@ export function PaletteSheet({
                   {tChip("unsaved")}
                 </span>
                 <span className="block truncate text-xs font-medium">{draftName}</span>
+                <PaletteDedicationLine text={currentDedication} className="max-w-none" />
               </span>
-              <button
-                type="button"
-                data-testid="palette-sheet-save"
-                onClick={onSaveDraft}
-                className="flex h-11 shrink-0 items-center justify-center rounded-sm border-2 border-primary bg-primary/10 px-3 text-xs font-semibold hover:bg-primary/20"
-              >
-                {tBar("save")}
-              </button>
+              {canSaveDraft && (
+                <button
+                  type="button"
+                  data-testid="palette-sheet-save"
+                  onClick={onSaveDraft}
+                  className="flex h-11 shrink-0 items-center justify-center rounded-sm border-2 border-primary bg-primary/10 px-3 text-xs font-semibold hover:bg-primary/20"
+                >
+                  {tBar("save")}
+                </button>
+              )}
             </div>
           )}
 
@@ -192,6 +221,11 @@ export function PaletteSheet({
                 <PaletteTile
                   key={p.code}
                   palette={p}
+                  // TL correction: the ACTIVE tile IS the canvas right now
+                  // when its colours match — it shows what's in the field
+                  // (`currentDedication`), not this palette's own stored
+                  // words. Every other tile keeps its own (below).
+                  dedication={active ? currentDedication : p.snapshot.customText}
                   active={active}
                   dim={dim}
                   dimDesignName={dim ? (designLabel(p.snapshot, locale) ?? p.designSlug) : undefined}
@@ -237,6 +271,7 @@ export function PaletteSheet({
  */
 function PaletteTile({
   palette,
+  dedication,
   active,
   dim,
   dimDesignName,
@@ -248,6 +283,10 @@ function PaletteTile({
   onDelete,
 }: {
   palette: Palette;
+  /** The caller already resolved WHOSE words this is — this palette's own
+   *  stored `snapshot.customText`, or (only while `active`) the canvas's
+   *  live one. This component just renders it; it does not decide. */
+  dedication?: string;
   active: boolean;
   dim: boolean;
   /** The OTHER design's name — only meaningful (and only passed) when `dim`. */
@@ -355,6 +394,12 @@ function PaletteTile({
           <DesignRound layers={palette.layers} className={cn("size-8", dim && "grayscale-[.3]")} />
           <span className="min-w-0 leading-tight">
             <span className="block truncate font-medium">{palette.name}</span>
+            {/* R5-TEXT-IDENTITY (TL ruling) — the caller already resolved
+                whose words this is (this palette's own, or the canvas's
+                while active); nothing decoded from `palette.code` here. */}
+            {/* `!dim` for the same reason the chip trades it away: a tile for
+                another design gives its second line to that design's name. */}
+            {!dim && <PaletteDedicationLine text={dedication} className="max-w-none" />}
             <span className="block truncate text-[10px] text-muted-foreground">
               {/* Fix wave PR3 finding 6: was its own near-copy of `cart-line-row.tsx`'s
                   `Dots` (the mockup's `Dots(code)`) that had drifted off ADR 0008's

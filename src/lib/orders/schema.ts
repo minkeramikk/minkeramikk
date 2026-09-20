@@ -5,8 +5,17 @@
 import { z } from "zod";
 import { CURRENCIES } from "@/lib/money/money";
 
-/** R2-2b AC7: hard cap on the customer's free-text colour note. */
-export const MAX_CUSTOM_NOTE = 250;
+/** R2-2b AC7: hard cap on the customer's free-text colour note.
+ *  R5-TEXT-IDENTITY final-review round 2 (finding 5b, TL ruling recorded
+ *  but not shipped until now): 250 → 50. The wish only ever enters the
+ *  config code as a 4-char hash now (`hashNote`, text-segment.ts) — the
+ *  code itself never needed a length cap for that — but the field is still
+ *  a free-text input reaching the order payload and the lab PDF, and an
+ *  uncapped (or wrongly-capped) field just meant an 80-character wish met a
+ *  400 at checkout with no earlier warning. 50 matches the field's own
+ *  `maxLength` (configurator-client.tsx) — same constant, not two numbers
+ *  that can drift apart again. */
+export const MAX_CUSTOM_NOTE = 50;
 
 /** F38: hard cap on the customer's inscription on the ceramic.
  *  R4-FIX Ⓑ: 100 → 25 chars, spaces included (client request, 2/9). Existing
@@ -17,9 +26,17 @@ export const MAX_CUSTOM_TEXT = 25;
 /** F38 — sanitise for the UNTRUSTED read path (URL → snapshot): same cleaner as
  *  the note (trim + strip control chars), then TRUNCATE to the cap. A URL can't
  *  be rejected gracefully, so we truncate rather than 400. Whitespace-only → ""
- *  (the cleaner trims first), which every present-check then treats as absent. */
+ *  (the cleaner trims first), which every present-check then treats as absent.
+ *
+ *  Truncate by CODE POINT, not by UTF-16 code unit: `.slice(0, N)` can cut a
+ *  surrogate pair in half (e.g. an emoji sitting right at the boundary),
+ *  leaving a lone surrogate in the string. That dangling surrogate then
+ *  reaches the order payload, the mail and the lab PDF, and re-encodes as
+ *  U+FFFD wherever something (like TextEncoder, in text-segment.ts) turns it
+ *  into UTF-8 bytes — a value that no longer matches what this function
+ *  itself returns for the same input. `Array.from` iterates by code point. */
 export function cleanCustomText(input: string): string {
-  return cleanCustomNote(input).slice(0, MAX_CUSTOM_TEXT);
+  return Array.from(cleanCustomNote(input)).slice(0, MAX_CUSTOM_TEXT).join("");
 }
 
 /** Strip ASCII/Unicode control chars (except newline) and trim. The XSS escape
@@ -30,18 +47,31 @@ export function cleanCustomNote(input: string): string {
 }
 
 /** A note value: cleaned, then capped. Over the cap → the payload is rejected
- *  (a gentle 400 at the route, never a crash). Client caps at 250 too (UX). */
+ *  (a gentle 400 at the route, never a crash). The field's own `maxLength`
+ *  reads `MAX_CUSTOM_NOTE` directly (configurator-client.tsx) — one
+ *  constant, not a second number here that can drift from it again. */
 const customNoteSchema = z
   .string()
   .transform(cleanCustomNote)
   .refine((s) => s.length <= MAX_CUSTOM_NOTE, { message: "custom note too long" });
 
 /** F38: the inscription on the form path — same cleaner as the note, tighter
- *  cap. Over-cap → payload rejected (400), like customNoteSchema. */
+ *  cap. Over-cap → payload rejected (400), like customNoteSchema.
+ *
+ *  Final-review round 2, finding 4: counts CODE POINTS
+ *  (`Array.from(s).length`), not `s.length` (UTF-16 code units) — the same
+ *  unit `cleanCustomText` above truncates by. A value that already went
+ *  through `cleanCustomText` (the untrusted `?text=` read path) is
+ *  guaranteed to be at most `MAX_CUSTOM_TEXT` CODE POINTS, but an astral
+ *  character (an emoji, say) is 2 UTF-16 units — so 25 code points of
+ *  emoji is 50 UTF-16 units, and the old `s.length <= 25` check rejected a
+ *  value `cleanCustomText` itself had already deemed exactly at the cap.
+ *  That mismatch turned a legitimate checkout into a 400 ("custom text too
+ *  long") for no reason the customer could see or fix. */
 const customTextSchema = z
   .string()
   .transform(cleanCustomNote)
-  .refine((s) => s.length <= MAX_CUSTOM_TEXT, { message: "custom text too long" });
+  .refine((s) => Array.from(s).length <= MAX_CUSTOM_TEXT, { message: "custom text too long" });
 
 /** One cart line as it travels to the server (snapshots are rebuilt server-side
  *  from these trusted-by-shape fields; prices stay cents+currency, never float). */

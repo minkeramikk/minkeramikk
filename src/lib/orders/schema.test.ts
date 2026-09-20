@@ -55,6 +55,17 @@ describe("orderPayloadSchema — customNote sanitisation (AC7)", () => {
     expect(result.success).toBe(false);
   });
 
+  // Final-review round 2, finding 5b (TL ruling recorded, not shipped until
+  // now): 250 → 50. The wish only ever enters the config code as a hash
+  // (never its length), but the field itself still reaches the order
+  // payload uncapped-in-practice before this — pin the new boundary so it
+  // can't silently drift back.
+  it("the cap is 50, and exactly 50 is still accepted", () => {
+    expect(MAX_CUSTOM_NOTE).toBe(50);
+    expect(orderPayloadSchema.safeParse(payload("x".repeat(50))).success).toBe(true);
+    expect(orderPayloadSchema.safeParse(payload("x".repeat(51))).success).toBe(false);
+  });
+
   it("accepts a snapshot without a customNote (back-compatible)", () => {
     const result = orderPayloadSchema.safeParse({
       ...payload(undefined),
@@ -110,6 +121,13 @@ describe("cleanCustomText (untrusted read path — TL mandate 1+2)", () => {
   it("keeps æøå/accents intact", () => {
     expect(cleanCustomText("  Gratulerer Åse  ")).toBe("Gratulerer Åse");
   });
+  it("truncates by code point, not UTF-16 code unit: an emoji at the cap boundary is never split into a dangling surrogate", () => {
+    const input = "A".repeat(24) + "😀"; // 24 BMP chars + 1 surrogate-pair emoji = 25 code points
+    const out = cleanCustomText(input);
+    expect(out).toBe("A".repeat(24) + "😀"); // whole emoji kept, not a lone surrogate
+    expect([...out]).toHaveLength(MAX_CUSTOM_TEXT); // 25 code points
+    expect(out.codePointAt(out.length - 2)).toBeGreaterThan(0xffff); // the emoji is intact, not split
+  });
 });
 
 function payloadWithText(customText: unknown) {
@@ -162,6 +180,25 @@ describe("orderPayloadSchema — customText sanitisation (F38 AC3/AC5)", () => {
   it("accepts a snapshot without customText", () => {
     const result = orderPayloadSchema.safeParse(payloadWithText(undefined));
     expect(result.success).toBe(true);
+  });
+
+  // Final-review round 2, finding 4: cleanCustomText truncates by CODE
+  // POINT (25 of them, however many UTF-16 units that takes), but this
+  // schema's own refine used to count UTF-16 units instead — so a value
+  // cleanCustomText itself had already capped at exactly 25 code points of
+  // astral characters (50 UTF-16 units) got rejected here as "too long",
+  // a checkout that could never complete for no reason visible to the
+  // customer.
+  it("accepts 25 CODE POINTS of astral (surrogate-pair) characters, not 25 UTF-16 units (R5-TEXT-IDENTITY final review)", () => {
+    const twentyFiveEmoji = "😀".repeat(25); // 25 code points, 50 UTF-16 units
+    expect(twentyFiveEmoji.length).toBe(50);
+    expect(Array.from(twentyFiveEmoji)).toHaveLength(25);
+    expect(orderPayloadSchema.safeParse(payloadWithText(twentyFiveEmoji)).success).toBe(
+      true
+    );
+    expect(
+      orderPayloadSchema.safeParse(payloadWithText("😀".repeat(26))).success
+    ).toBe(false);
   });
 });
 

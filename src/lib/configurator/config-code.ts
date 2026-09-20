@@ -13,11 +13,14 @@
  */
 
 import { pickDefaultOption } from "./default-option";
+import { decodeTextSegment, encodeTextSegment, hashNote } from "./text-segment";
+import { CODE_ALPHABET, CODE_PREFIX } from "./code-alphabet";
 
-/** Safe alphabet (ADR 0011): A–Z minus O,I,L, plus 2–9. 31 symbols. */
-export const CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
-
-export const CODE_PREFIX = "MK";
+// Re-exported so today's importers (assign-codes.ts, assign-codes.test.ts,
+// set-code.test.ts) keep reading the alphabet from here, unchanged. The
+// canonical definition lives in ./code-alphabet, which text-segment.ts also
+// imports directly — see that module's doc comment for why it had to move.
+export { CODE_ALPHABET, CODE_PREFIX };
 
 /** Minimal catalog shape the codec needs (from the DB, no UI types). */
 export interface CodecCategory {
@@ -39,6 +42,15 @@ export interface CodecDesign {
 export interface DecodedSelection {
   designSlug: string;
   selections: Record<string, string>; // categorySlug → optionId
+  /**
+   * R5-TEXT-IDENTITY (task 2): the customer's inscription, when the code
+   * carries one. Absent (not `""`) when there is none, or when the
+   * inscription segment was missing/unreadable — decode degrades to "no
+   * inscription" rather than throwing (see decodeConfigCode). The colour
+   * WISH hash that travels alongside it in the same segment is identity
+   * only: it is never surfaced here, so nothing downstream can act on it.
+   */
+  customText?: string;
 }
 
 export class ConfigCodeError extends Error {}
@@ -81,10 +93,18 @@ export function toCodecDesign(detail: {
  * Build the canonical code from the current selections.
  * @param design the chosen design (with its categories + code maps)
  * @param selections categorySlug → optionId (missing → category default)
+ * @param extras R5-TEXT-IDENTITY (task 2): the customer's own words. Optional
+ *   and additive — `line-payload.ts`'s only caller doesn't pass it yet.
+ *   `customNote` (the colour wish) is hashed HERE, via `hashNote`, and never
+ *   accepted pre-hashed: one place decides how a wish becomes identity, so
+ *   no caller can smuggle in a differently-derived hash. The segment is
+ *   appended only when there is something to say (an inscription and/or a
+ *   wish); otherwise the code is byte-identical to today's shape.
  */
 export function encodeConfigCode(
   design: CodecDesign,
-  selections: Record<string, string>
+  selections: Record<string, string>,
+  extras?: { customText?: string; customNote?: string }
 ): string {
   const idToCode = (cat: CodecCategory): Record<string, string> => {
     const out: Record<string, string> = {};
@@ -101,7 +121,13 @@ export function encodeConfigCode(
     return def;
   });
 
-  return [CODE_PREFIX, design.code, ...segments].join("-");
+  const parts = [CODE_PREFIX, design.code, ...segments];
+
+  const noteHash = extras?.customNote ? hashNote(extras.customNote) : undefined;
+  const textSegment = encodeTextSegment({ text: extras?.customText, noteHash });
+  if (textSegment) parts.push(textSegment); // nothing to say → no segment at all
+
+  return parts.join("-");
 }
 
 /** Normalize raw user input: uppercase, strip noise, collapse separators. */
@@ -115,9 +141,14 @@ export function normalizeConfigCode(raw: string): string {
 
 /**
  * Decode a code into a design slug + per-category selections.
- * Tolerant (ADR 0011): missing segment → category default; extra segments →
- * ignored; unknown option code → default; unknown design or malformed → throws
- * ConfigCodeError (callers show a gentle message, never crash).
+ * Tolerant (ADR 0011): missing segment → category default; unknown option
+ * code → default; unknown design or malformed → throws ConfigCodeError
+ * (callers show a gentle message, never crash). Segments past the colour
+ * segments are inspected, not blindly "ignored": `parts[cats.length]` is
+ * read as a CANDIDATE inscription segment (checksum-gated, see below and
+ * ADR 0011's amendment) — accepted only when its checksum confirms it,
+ * otherwise it degrades to ignored exactly as this ADR always said. Any
+ * part beyond that single candidate slot is ignored outright, no exceptions.
  *
  * @param findDesignByCode resolves `<D>` → the design (or null)
  */
@@ -146,7 +177,48 @@ export function decodeConfigCode(
     const id = fromCode ?? cat.defaultOptionId;
     if (id) selections[cat.slug] = id;
   });
-  // extra segments (parts beyond cats.length) are simply ignored
 
-  return { designSlug: design.slug, selections };
+  // R5-TEXT-IDENTITY (task 2): the inscription segment is POSITIONAL, one
+  // slot past the colour segments — `parts[cats.length]`. No sentinel char
+  // is needed to find it: `encodeConfigCode` always emits exactly one
+  // segment per category (defaults included), so for a GIVEN design this
+  // index is stable. It's undefined on any code encoded before this task
+  // shipped (the backward-compatibility contract), and on any code with
+  // fewer segments than categories — both read as "no inscription".
+  //
+  // Fragility to flag for whoever touches the catalog next, BOTH directions
+  // (ADR 0011 amendment, round 2 of the final review — the first version of
+  // this comment only covered one of them):
+  //
+  // - Design GAINS a category: `cats.length` grows by one, and an OLD code
+  //   (saved before that category existed) has its inscription segment
+  //   sitting exactly where the new category's segment is now expected. It
+  //   gets read as that category's option code, matches nothing, falls back
+  //   to the category default — the inscription is silently lost.
+  // - Design LOSES a category: `cats.length` shrinks by one, and an OLD
+  //   code's LAST COLOUR segment now sits in the inscription slot instead.
+  //   Measured: an ordinary 1-2 character option code lands on
+  //   `decodeTextSegment`'s checksum by pure coincidence for roughly 1 in
+  //   961 tries at best (0/961 and 0/29791 measured directly for the option
+  //   code lengths this catalog actually produces) — not the ~1-in-4 it was
+  //   before the checksum existed. When it DOES pass, the "inscription"
+  //   read off it is whatever that checksum-matching option code happens to
+  //   decode to, not a real customer's words.
+  //
+  // Both directions degrade — a wrong-but-checksum-tolerant default colour,
+  // or a lost/wrongly-recovered inscription — they never throw, same as a
+  // plain colour segment shifting slots has always done in this positional
+  // grammar (ADR 0011). The checksum makes the SECOND direction rare instead
+  // of common; it does not (and structurally cannot) make either direction
+  // impossible, because the grammar still has no sentinel marking the slot.
+  const textSeg = parts[cats.length];
+  const decodedText = textSeg !== undefined ? decodeTextSegment(textSeg) : null;
+  const customText = decodedText?.text || undefined; // "" (nothing/garbage) → no field
+
+  return {
+    designSlug: design.slug,
+    selections,
+    ...(customText !== undefined ? { customText } : {}),
+  };
+  // any remaining extra segments (parts beyond cats.length + 1) are ignored
 }
