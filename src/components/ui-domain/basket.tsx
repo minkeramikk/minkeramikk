@@ -21,7 +21,7 @@ import { formatMoney } from "@/lib/money/money";
 import { cartSaved } from "@/lib/discounts/discount";
 import { useShippingTotalSuffix } from "@/components/ui-domain/cart-shipping-row";
 import { paletteFor } from "@/lib/palettes/palettes";
-import { paletteMatchingColours } from "@/lib/configurator/save-gate";
+import { paletteMatchingCode } from "@/lib/configurator/save-gate";
 import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import { CartLineRow } from "@/components/ui-domain/cart-line-row";
@@ -239,21 +239,16 @@ export function Basket({
     paintNFor,
   } = useCartContext();
   /**
-   * R5-PALETTES task 9 — which saved palette (if any) IS the config on
-   * screen. Same COLOURS read `ceramics-step.tsx`'s own `activePalette` does
-   * (final-review round 3, finding 1): `currentConfig.code` carries the
-   * inscription now (task 4), so matching it exactly against a saved
-   * palette's own (inscription-free) code broke the instant a dedication
-   * was on screen — this is what `rowThumb` below borrows for an untouched
-   * row's code/name, so the row's own palette picker rang no chip either.
+   * R5-TEXT-CARRY — which saved palette (if any) IS the config on screen:
+   * an EXACT code match (`paletteMatchingCode`), the same read step 2's own
+   * `matchedPalette` and step 3's `activePalette` do. The dedication is
+   * identity now, so a different dedication is simply not this save — this
+   * is what `rowThumb` below borrows for an untouched row's code/name, so
+   * the row's own palette picker rings a chip only for the palette that is
+   * really on screen.
    */
   const activePalette = currentConfig
-    ? paletteMatchingColours(
-        palettes,
-        currentConfig.code,
-        currentConfig.designSlug,
-        currentConfig.snapshot.selections.length
-      )
+    ? paletteMatchingCode(palettes, currentConfig.code, currentConfig.designSlug)
     : null;
   /** The basket's own element: the root `focusFirstUnpaintedRow` is scoped to. */
   const rootRef = useRef<HTMLDivElement>(null);

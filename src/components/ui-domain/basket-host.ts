@@ -83,8 +83,7 @@ export function paintTargetFor(
  *
  * `hexes`/`selectionCount` derive from `snapshot.selections` exactly as the
  * old inline branch did (`hexes` skips hex-less selections; `selectionCount`
- * counts them — one entry per category, the same count
- * `stripCustomSegment` needs before comparing codes in `cart-line-row.tsx`).
+ * counts them — one entry per category).
  * `label` is the palette's own name. The snapshot is passed by reference —
  * `paintLines` (`cart.ts`) stores it on the new line without mutating it.
  */
