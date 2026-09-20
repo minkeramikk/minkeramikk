@@ -13,6 +13,10 @@ import {
   findTextGroup,
   isCustomTextOffered,
 } from "@/lib/configurator/text-option";
+import {
+  inscriptionIsLayered,
+  showsLiveInscription,
+} from "@/lib/configurator/inscription";
 import { useLaneFades } from "@/lib/configurator/use-lane-fades";
 import {
   ARROW_SAFE_PX,
@@ -53,7 +57,7 @@ import { keyboardUp } from "@/lib/cart/basket-open";
 import { hoverCapable } from "@/lib/pointer";
 import { designLabel } from "@/lib/cart/cart";
 import { buildConfigLinePayload } from "@/lib/configurator/line-payload";
-import { draftMatchesSavedColours, paletteMatchingColours } from "@/lib/configurator/save-gate";
+import { paletteMatchingCode } from "@/lib/configurator/save-gate";
 import { stripCustomSegment } from "@/lib/cart/set-code";
 import { nameFor, sortCurrentDesignFirst } from "@/lib/palettes/palettes";
 import type { PaletteWords } from "@/lib/palettes/name-lists";
@@ -368,6 +372,17 @@ export function ConfiguratorClient({
     selectedOptionId: textCategory ? selections[textCategory.slug] : undefined,
   });
 
+  /* R5-TEXT-LIVE: la scritta viva. La regola sta tutta nel modulo puro — in
+     particolare il «dove c'è il layer non si disegna» dell'AC 2. */
+  const liveInscription = showsLiveInscription({
+    acceptsCustomText: detail.acceptsCustomText,
+    textGroup: textCategory,
+    selectedOptionId: textCategory ? selections[textCategory.slug] : undefined,
+    text: customText,
+  })
+    ? customText
+    : undefined;
+
   /* R4-COPY Ⓒ (chiusa) + R4-FIX 7: la didascalia col link alla
      inspirasjonsside. `t.rich` rende il tag <link> del dizionario — nessun HTML
      crudo nei JSON, nessun testo duplicato: lo stesso nodo va sotto il canvas
@@ -427,7 +442,17 @@ export function ConfiguratorClient({
           data-testid="custom-text-helper"
           className="text-xs text-muted-foreground"
         >
-          {t("customText.helper")}
+          {/* TODO:nb-review — configurator.customText.helper*, riscritte dalla
+              card 6a. Due stringhe e non una: su un design che porta la parola
+              come layer (Krabbe con «Tekst 1») la scritta viva NON si disegna,
+              quindi promettergli che «l'anteprima mostra le tue parole» sarebbe
+              falso proprio lì. La condizione è la stessa che spegne la scritta,
+              chiesta allo stesso posto. */}
+          {t(
+            inscriptionIsLayered(textCategory)
+              ? "customText.helperLayered"
+              : "customText.helper"
+          )}
         </p>
         <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
           {t("customText.counter", { count: customText.length, max: MAX_CUSTOM_TEXT })}
@@ -659,16 +684,9 @@ export function ConfiguratorClient({
   // wish now (R5-TEXT-IDENTITY task 4-follow-up) — this is the SAME call
   // page.tsx makes for step 3, so a config painted from THIS step and one
   // painted from step 3 get the identical code for the identical visible
-  // configuration. Before this, the draft was built colours-only on
-  // purpose; that silently dropped a dedication typed here and Painted
-  // straight from the drawer (`text=` no longer carries it either, task 4),
-  // and it made the SAME on-screen configuration have two different
-  // identities depending only on which step happened to add it — worse
-  // than the bug this card set out to fix, because it was silent. Card §3's
-  // OWN consequence of the code now moving with the words — the "Save as
-  // palette" offer must not treat a mere inscription change as a new
-  // palette — is handled separately below (`canSaveDraft`), not here: the
-  // identity itself has to be correct first.
+  // configuration. Only the identity belongs here — the offer rule moved
+  // with the guard to `canSaveDraft` below (R5-TEXT-CARRY: offer the Save
+  // for every draft except the already-saved exact one).
   const draftPayload = useMemo(
     () =>
       buildConfigLinePayload(
@@ -685,19 +703,16 @@ export function ConfiguratorClient({
   // both: showing the same colours twice in the lane would be noise, not
   // information (card §3/§4-bis).
   //
-  // Final-review round 3, finding 1: matched on COLOURS
-  // (`paletteMatchingColours`, the same helper `ceramics-step.tsx`'s own
-  // `activePalette` uses), not the exact code. `draftCode` carries the
-  // inscription now (task 4) — an exact match against a saved palette's own
-  // (inscription-free) code broke the instant a dedication was typed, which
-  // is exactly what made this chip and step 3's disagree one click apart:
-  // dial in a saved palette, type a dedication, this said "Unsaved" while
-  // step 3 (already fixed) said the palette's name.
-  const matchedPalette = paletteMatchingColours(
+  // R5-TEXT-CARRY — matched on EXACT CODE (same design), not the colours:
+  // the inscription rides inside `draftCode` (`config-code.ts`), so two
+  // saved palettes with the same colours and different dedications are two
+  // different identities — only a byte-identical code is "already saved".
+  // A colours-only lookalike with another dedication is unsaved, and Save is
+  // offered (see `canSaveDraft` below).
+  const matchedPalette = paletteMatchingCode(
     palettes,
     draftCode,
-    selected.slug,
-    detail.categories.length
+    selected.slug
   );
   const [renamingPaletteCode, setRenamingPaletteCode] = useState<string | null>(
     null
@@ -728,11 +743,17 @@ export function ConfiguratorClient({
    * saved entry) differs; only the deterministic WORD stopped being one of
    * the things that differs with it.
    */
-  // Round 4 (TL-reported duplicate «Zaffera»): `nameFor()` needs every
+  // R5-TEXT-CARRY — the draft name NEVER inherits `matchedPalette?.name`
+  // unless the match is exact (`matchedPalette` above already is one: the
+  // same code carries the same dedication, so the same words are also the
+  // field's — `currentDedication` just below). Same colours with another
+  // dedication is no match at all, and it gets a fresh `nameFor()` label —
+  // no borrowed name from a palette whose words it doesn't share.
+  // (Round 4, TL-reported duplicate «Zaffera»: `nameFor()` also gets every
   // name already saved so it can pick a FREE word instead of repeating one
   // — the same `palettes` list this bar already reads, so the chip below
   // and `saveDraftAsPalette` (which reuses `activePaletteName`, never
-  // calls `nameFor()` again) can't disagree with what actually gets saved.
+  // calls `nameFor()` again) can't disagree with what actually gets saved.)
   const activePaletteName =
     matchedPalette?.name ??
     nameFor(
@@ -749,19 +770,13 @@ export function ConfiguratorClient({
     );
   const activePaletteLayers = matchedPalette?.layers ?? draftPayload.designLayers;
   /**
-   * TL correction (round after "the name is noise") — NOT `matchedPalette?.
-   * snapshot.customText ?? draftPayload...` the way `activePaletteName`
-   * reads `matchedPalette?.name ?? nameFor(...)`. The name and the
-   * dedication are NOT the same kind of question: the name asks "which
-   * colours is this", and colours are exactly what matched, so inheriting
-   * the saved palette's name is right. The dedication asks "what did the
-   * customer write", and that is the one thing NOT shared with the saved
-   * palette — matching colours with a different inscription is the whole
-   * reason this second line exists. A tile that shows what's painting
-   * RIGHT NOW must show the field the customer is looking at while they
-   * type, always `draftPayload.snapshot.customText`, whether or not the
-   * colours happen to match something already saved. (A saved palette's
-   * OWN chip, elsewhere in this file, still reads its own stored
+   * R5-TEXT-CARRY — the draft tile shows the field's own words, ALWAYS:
+   * the draft branch renders only while `matchedPalette` is null, i.e.
+   * while no saved palette shares this code — there is no saved palette
+   * whose words these could borrow. (The old colours-match could show the
+   * field over a saved palette's stored words; that state no longer exists:
+   * a different dedication is simply not the matched palette. A saved
+   * palette's OWN chip, elsewhere in this file, still reads its own stored
    * `p.snapshot.customText` — that tile describes THAT palette, not the
    * canvas.)
    */
@@ -771,25 +786,15 @@ export function ConfiguratorClient({
    *  (`designLabel()` on the snapshot), just this step's own snapshot. */
   const activeDesignName = designLabel(draftPayload.snapshot, locale as "no" | "en") ?? "";
   /**
-   * Card §3 guard (TL ruling) — «Save as palette» is withheld when the
-   * draft's COLOURS already match a saved palette of this design, however
-   * many dedications away. `matchedPalette` alone (an EXACT code match,
-   * inscription included) is no longer enough to gate the offer: once the
-   * code carries the words, typing any new dedication makes `matchedPalette`
-   * null even though the colours are identical to something already saved
-   * — exactly the "six names, six near-duplicate palettes" case §3 warns
-   * about. `draftMatchesSavedColours` reuses `stripCustomSegment` (the SAME
-   * function `set-code.ts` strips a shared link's inscription with, task 3)
-   * rather than a second idea of where the colours end.
-   *
-   * Only the OFFER is affected: `matchedPalette`/`activePaletteName`/the
-   * "Unsaved" draft tile are untouched, so the customer still sees exactly
-   * what's on screen and its (possibly dedication-specific) name — they
-   * just aren't invited to save a near-duplicate of something already kept.
+   * R5-TEXT-CARRY — the old card §3 guard (TL ruling: withhold the Save while
+   * the draft's COLOURS already matched a save, dedication aside) is gone,
+   * and with it `draftMatchesSavedColours`: the dedication is identity now,
+   * so a different dedication IS a different palette, unsaved, and Save is
+   * offered. The only already-saved draft is the exact one (`matchedPalette`
+   * above matches on the full code) — saving there is a no-op anyway,
+   * `savePalette` dedups by exact code, LRU 10 unchanged.
    */
-  const canSaveDraft =
-    !matchedPalette &&
-    !draftMatchesSavedColours(palettes, draftCode, selected.slug, detail.categories.length);
+  const canSaveDraft = !matchedPalette;
 
   /**
    * R5-BASKET-HOST task 1 — step 2 publishes the same `CurrentConfig` shape
@@ -839,6 +844,18 @@ export function ConfiguratorClient({
   // effect above is the one and only place that turns a code into `opt_*`
   // params. Setting local state here would be a second, competing source of
   // truth for the same thing.
+  // R5-TEXT-CARRY — a saved chip of THIS design loads by NAVIGATING, and
+  // the recall must start from the SNAPSHOT, not the field: the `?code=`
+  // decode effect above re-seeds `customText` from the tapped chip's code,
+  // but only when `text=` is ABSENT (`explicitText === null`). A `text=`
+  // left over from typing would win outright as the "live edit" and cover
+  // the recalled palette's own words with the stale ones — so it is dropped
+  // here, exactly like the T2 drawer CTA drops it (`basket-host.ts`).
+  //
+  // `note=` is a different story and stays: the wish enters the code only
+  // as a 4-char hash (`hashNote`, never reversible), so its WORDS still
+  // need the URL to reach the rebuilt snapshot — same reason the decode
+  // effect never touches it.
   function loadPalette(code: string) {
     // Fix wave A finding 1: same bug as step 3's `paintWith` — a from-scratch
     // URL was dropping every other param, `design=` included. The `?code=`
@@ -850,6 +867,7 @@ export function ConfiguratorClient({
     // the current params (like `goToStep` does) keeps `design=` in place.
     const params = new URLSearchParams(searchParams.toString());
     params.set("code", code);
+    params.delete("text");
     params.set("step", "2");
     // Fix wave PR3 finding 3: `resetPaletteDraft` a few lines below already
     // passes this — a phone picks a chip mid-page (the mobile tab lane sits
@@ -1060,12 +1078,14 @@ export function ConfiguratorClient({
       key={matchedPalette.code}
       code={matchedPalette.code}
       name={matchedPalette.name}
-      // TL correction: this chip is the LEAD one — it IS the canvas right
-      // now, just happening to share its colours with a save. It shows
-      // what's in the field (`currentDedication`), not `matchedPalette`'s
-      // own stored words, which may belong to a different dedication of
-      // these same colours than the one on screen right now.
-      dedication={currentDedication}
+    // R5-TEXT-CARRY — `matchedPalette` is an exact-code match now, so the
+    // lead chip IS the saved palette it names: it shows THAT palette's own
+    // stored words (`matchedPalette.snapshot.customText`), the same way
+    // every other saved chip shows its own — no canvas-words override any
+    // more. While the field still holds a stale value (the tick before the
+    // `?code=` effect re-seeds it) the lead tile already names the recalled
+    // palette, and the field follows.
+    dedication={matchedPalette.snapshot.customText}
       layers={matchedPalette.layers}
       active
       renaming={renamingPaletteCode === matchedPalette.code}
@@ -1470,6 +1490,7 @@ export function ConfiguratorClient({
               caption={previewNote}
               className={cn(step === 2 && "max-md:contents")}
               layers={previewLayers}
+              inscription={liveInscription}
             />
           </div>
           {/* R4-FOLLOWUPS Ⓓ: qui stava la riga-riassunto (mockup .sum), una

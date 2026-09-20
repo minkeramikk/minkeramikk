@@ -6,6 +6,7 @@ import { Truck, Brush } from "lucide-react";
 import { useCartContext, type CurrentConfig } from "@/lib/cart/cart-context";
 import {
   basketCta,
+  explicitPickThumb,
   paintTargetFor,
   type BasketHost,
 } from "@/components/ui-domain/basket-host";
@@ -20,7 +21,7 @@ import { formatMoney } from "@/lib/money/money";
 import { cartSaved } from "@/lib/discounts/discount";
 import { useShippingTotalSuffix } from "@/components/ui-domain/cart-shipping-row";
 import { paletteFor } from "@/lib/palettes/palettes";
-import { paletteMatchingColours } from "@/lib/configurator/save-gate";
+import { paletteMatchingCode } from "@/lib/configurator/save-gate";
 import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import { CartLineRow } from "@/components/ui-domain/cart-line-row";
@@ -73,8 +74,9 @@ export function focusFirstUnpaintedRow(root: ParentNode): boolean {
   return true;
 }
 
-export {
+  export {
   basketCta,
+  explicitPickThumb,
   paintTargetFor,
   type BasketHost,
 } from "@/components/ui-domain/basket-host";
@@ -237,21 +239,16 @@ export function Basket({
     paintNFor,
   } = useCartContext();
   /**
-   * R5-PALETTES task 9 — which saved palette (if any) IS the config on
-   * screen. Same COLOURS read `ceramics-step.tsx`'s own `activePalette` does
-   * (final-review round 3, finding 1): `currentConfig.code` carries the
-   * inscription now (task 4), so matching it exactly against a saved
-   * palette's own (inscription-free) code broke the instant a dedication
-   * was on screen — this is what `rowThumb` below borrows for an untouched
-   * row's code/name, so the row's own palette picker rang no chip either.
+   * R5-TEXT-CARRY — which saved palette (if any) IS the config on screen:
+   * an EXACT code match (`paletteMatchingCode`), the same read step 2's own
+   * `matchedPalette` and step 3's `activePalette` do. The dedication is
+   * identity now, so a different dedication is simply not this save — this
+   * is what `rowThumb` below borrows for an untouched row's code/name, so
+   * the row's own palette picker rings a chip only for the palette that is
+   * really on screen.
    */
   const activePalette = currentConfig
-    ? paletteMatchingColours(
-        palettes,
-        currentConfig.code,
-        currentConfig.designSlug,
-        currentConfig.snapshot.selections.length
-      )
+    ? paletteMatchingCode(palettes, currentConfig.code, currentConfig.designSlug)
     : null;
   /** The basket's own element: the root `focusFirstUnpaintedRow` is scoped to. */
   const rootRef = useRef<HTMLDivElement>(null);
@@ -303,41 +300,17 @@ export function Basket({
    * is now only ever borrowed for its code/name (display), never its
    * snapshot/layers, on the untouched path.
    *
-   * An EXPLICIT pick (TL ruling) takes the palette's COLOURS but keeps the
-   * customer's own words: `customNote`/`customText` are carried from the
-   * current on-screen `snapshot` into the palette snapshot this row paints
-   * with — the palette is a set of colours, not a replacement for what the
-   * customer wrote.
-   */
+    * An EXPLICIT pick (R5-TEXT-CARRY: the dedication travels WITH the
+    * palette) paints the saved palette's snapshot whole — colours AND
+    * dedication — via `explicitPickThumb` (`basket-host.ts`, unit-tested in
+    * `basket.test.ts`). The untouched path below is unchanged.
+    */
   const rowThumb = useCallback(
     (line: { id: string }) => {
       const explicitCode = rowPaletteCode[line.id];
       const explicitPalette = explicitCode ? paletteFor(palettes, explicitCode) : null;
       if (explicitPalette) {
-        return {
-          code: explicitPalette.code,
-          layers: explicitPalette.layers,
-          label: explicitPalette.name,
-          // R5-TEXT-IDENTITY (TL ruling) — the explicit pick's OWN words
-          // stay silent about the palette's name (colours only, above);
-          // same source as the merged `customText` below: the customer's
-          // current on-screen words, not the palette's stored (dedication-
-          // free) snapshot.
-          dedication: currentConfig?.snapshot.customText,
-          hexes: explicitPalette.snapshot.selections
-            .map((s) => s.hex)
-            .filter((h): h is string => Boolean(h)),
-          snapshot: {
-            ...explicitPalette.snapshot,
-            customNote: currentConfig?.snapshot.customNote,
-            customText: currentConfig?.snapshot.customText,
-          },
-          // Final-review round 3, finding 1: the row picker's own "which
-          // pill is active" check needs this to strip an inscription before
-          // comparing codes (`cart-line-row.tsx`) — one entry per category,
-          // same count `encodeConfigCode` walked to build either code.
-          selectionCount: explicitPalette.snapshot.selections.length,
-        };
+        return explicitPickThumb(explicitPalette);
       }
       return {
         code: activePalette?.code ?? currentConfig?.code ?? "",

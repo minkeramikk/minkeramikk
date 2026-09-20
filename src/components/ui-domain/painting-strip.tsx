@@ -35,15 +35,13 @@ export interface PaintingStripProps {
    *  `draftLayers` (below) — same reuse rule, one value in, not two. */
   paintingLabel: string;
   /**
-   * TL correction (round after "the name is noise") — the CURRENT field
-   * value, always: this strip describes the canvas, so this is never a
-   * saved match's own stored words, even when `paintingLabel` above came
-   * from one (the name is about colours, this is about words — the one
-   * thing NOT shared with a colour-match). The caller's own
-   * `ConfigSnapshot.customText`, never decoded here. Forwarded to the
-   * sheet as `currentDedication` (below) — same reuse as `paintingLabel`/
-   * `draftName`, renamed there because the sheet also uses it to override
-   * its OWN active tile, not only the draft one.
+   * R5-TEXT-CARRY — the CURRENT field value: this strip describes the
+   * canvas, so this is never a saved match's own stored words. (Under
+   * exact-code identity it couldn't be anyway: when a match IS showing,
+   * the field holds that same palette's words — the decode effect re-seeds
+   * it from the recalled code.) Forwarded to the sheet as
+   * `currentDedication` (below) — same reuse as `paintingLabel`/`draftName`,
+   * renamed there because the sheet only renders it on the draft tile.
    */
   dedication?: string;
   /** The design pattern's own name, shown as the "· design" suffix. */
@@ -57,15 +55,13 @@ export interface PaintingStripProps {
    *  No separate copy needed here: this prop alone is what makes that read
    *  true at either step. */
   draft: boolean;
-  /** R5-TEXT-IDENTITY (card §3 guard) — whether the draft TILE's own "Save
-   *  as palette" button renders. Separate from `draft`: the tile itself
-   *  (thumb + "Unsaved" + name) still shows whenever `draft` is true — the
-   *  customer should always see what's actually on screen — but the SAVE
-   *  offer is withheld when the draft's colours already match a saved
-   *  palette of this design and only the inscription differs (the caller's
-   *  `draftMatchesSavedColours` check). Meaningless while `!draft` (there is
-   *  no tile to put a button on), so callers just always pass their own
-   *  `canSaveDraft`. */
+  /** R5-TEXT-CARRY — whether the draft TILE's own "Save as palette"
+   *  button renders. Separate from `draft`: the tile itself (thumb +
+   *  "Unsaved" + name) still shows whenever `draft` is true — the customer
+   *  should always see what's actually on screen — but the SAVE offer only
+   *  renders while the draft is unsaved. Under exact-code identity the
+   *  caller's `canSaveDraft` is just `!exactMatch`, so callers pass their
+   *  own value through. */
   canSaveDraft: boolean;
   locale: "no" | "en";
   onPick: (code: string) => void;

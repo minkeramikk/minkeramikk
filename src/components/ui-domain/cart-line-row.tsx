@@ -11,8 +11,7 @@ import { formatMoney, money } from "@/lib/money/money";
 import { designLabel, type CartLayer, type CartLine } from "@/lib/cart/cart";
 import { formatSelections } from "@/lib/configurator/readable-selections";
 import { sortCurrentDesignFirst, type Palette } from "@/lib/palettes/palettes";
-import { paletteMatchingColours } from "@/lib/configurator/save-gate";
-import { stripCustomSegment } from "@/lib/cart/set-code";
+import { paletteMatchingCode } from "@/lib/configurator/save-gate";
 import type { LineDiscount } from "@/lib/discounts/discount";
 import { cn } from "@/lib/utils";
 
@@ -125,24 +124,20 @@ export function CartLineRow({
     layers: CartLayer[];
     label: string;
     /**
-     * TL correction (round after "the name is noise") — checked, already
-     * correct: THIS ROW's own words, not the canvas's borrowed for the
-     * moment. `basket.tsx`'s `rowThumb()` sets this from `currentConfig.
-     * snapshot.customText` in both branches, which — by the pre-existing
-     * explicit-pick rule ("takes the palette's colours but keeps the
-     * customer's own words") — genuinely IS this row's own value in
-     * either case: untouched, the row's configuration simply IS the
-     * canvas's; explicitly picked, the row keeps the canvas's words on
-     * purpose. Never a saved pick's own stored dedication (see the picker
-     * pills below, which correctly show that for every OTHER pill).
+     * R5-TEXT-CARRY — THIS ROW's own words, never borrowed from anywhere
+     * else. `basket.tsx`'s `rowThumb()` sets this from the row's own
+     * `snapshot.customText` in both branches: untouched, the row's
+     * configuration simply IS the canvas's; explicitly picked, the row
+     * paints the picked palette's whole snapshot — colours AND dedication
+     * (`explicitPickThumb`, `basket-host.ts`). Never the canvas's words in
+     * the explicit case (see the picker pills below, which show the row's
+     * own pick for the active pill).
      */
     dedication?: string;
     hexes: string[];
     code: string;
-    /** Final-review round 3, finding 1: how many colour segments `code`
-     *  has — needed to strip its inscription (`stripCustomSegment`) before
-     *  the picker's "which pill is active" check compares it to a saved
-     *  palette's own (inscription-free) code. */
+    /** R5-TEXT-CARRY: how many colour segments `code` has — carried for the
+     *  picker's thumb contract (`explicitPickThumb`), not for matching. */
     selectionCount: number;
   };
   /** Every saved palette (R5-PALETTES store) — this row does its own pure
@@ -219,26 +214,20 @@ export function CartLineRow({
   // The rule predates this row and outlived the recap it came from.
   const note = line.configSnapshot?.customNote;
   const colourVariant = note === undefined ? null : note.trim() ? "custom" : "studio";
-  // R5-PALETTES task 10 — a painted row is named by the palette it was
+  // R5-TEXT-CARRY — a painted row is named by the palette it was
   // painted WITH (read from the store by the line's own frozen `configCode`),
   // not the design: two rows of the same design can carry different
   // palettes, and the design name no longer disambiguates them. Falls back
   // to the design name when the code isn't (or is no longer, LRU eviction)
   // a saved palette — e.g. every line painted before R5-PALETTES existed.
   //
-  // Final-review round 3, finding 1: matched on COLOURS
-  // (`paletteMatchingColours`), not the exact code — `line.configCode`
-  // carries the inscription now (task 4), so an exact match against a
-  // saved palette's own (inscription-free) code broke the instant a
-  // dedication was on the line: AC 5 going backwards, two rows of the same
-  // design looking identical again the moment either has one.
+  // An EXACT code match (`paletteMatchingCode`): the dedication is identity
+  // now, so a line carrying "Mons" is simply not the saved "Trude" palette —
+  // it falls back to the design name instead of borrowing another
+  // dedication's name.
   const paletteName = !unpainted && line.configCode && line.configSnapshot
-    ? (paletteMatchingColours(
-        palettes,
-        line.configCode,
-        line.configSnapshot.designSlug,
-        line.configSnapshot.selections.length
-      )?.name ?? designLabel(line.configSnapshot, locale) ?? null)
+    ? (paletteMatchingCode(palettes, line.configCode, line.configSnapshot.designSlug)?.name
+        ?? designLabel(line.configSnapshot, locale) ?? null)
     : null;
 
   // Task 2 — the design square of the big thumb: the row's OWN colours once
@@ -735,17 +724,11 @@ export function CartLineRow({
               chips, not a filter (a dim pill stays reachable, just inert). */}
           {sortCurrentDesignFirst(palettes, currentDesignSlug).map((p) => {
             const dim = p.designSlug !== currentDesignSlug;
-            // Final-review round 3, finding 1: stripped, not exact — the
-            // SAME `stripCustomSegment` `paletteMatchingColours` calls
-            // (no second stripping helper). `currentThumb.code` carries the
-            // inscription once the row's own on-screen config does (task
-            // 4), so an exact match against a saved pill's own
-            // (inscription-free) code rang no pill the instant a dedication
-            // was typed.
-            const active =
-              !dim &&
-              stripCustomSegment(p.code, currentThumb.selectionCount) ===
-                stripCustomSegment(currentThumb.code, currentThumb.selectionCount);
+            // R5-TEXT-CARRY: exact, not stripped — the row's own thumb code
+            // IS a saved code (or nothing matches): picking a pill adopts
+            // that pill's whole saved snapshot, so the ring belongs to the
+            // palette the row will really paint with, dedication included.
+            const active = !dim && p.code === currentThumb.code;
             return (
               <button
                 key={p.code}
@@ -774,15 +757,14 @@ export function CartLineRow({
                   {/* A dim pill (another design's) carries that design's own
                       name too, same as the palette bar's chips. The ACTIVE
                       pill is this ROW's own words right now (`currentThumb.
-                      dedication` — an explicit pick keeps the customer's
-                      current text over this palette's colours, see
-                      `rowThumb` in basket.tsx), NOT this palette's stored
-                      ones: picking a pill never actually adopts its saved
-                      dedication, so showing it here would promise words the
-                      row won't paint with. Every other (selectable, non-
-                      active) pill is purely "a saved palette in a list" and
-                      keeps its own — TL correction, same fix as the bar/
-                      sheet's active chip/tile. */}
+                      dedication` — an explicit pick paints the picked
+                      palette's whole snapshot, colours AND dedication, see
+                      `explicitPickThumb` in basket-host.ts via `rowThumb`
+                      in basket.tsx), NOT some other pill's stored ones:
+                      picking a pill adopts its saved dedication, so the
+                      active pill shows exactly what the row will paint with.
+                      Every other (selectable, non-active) pill is purely
+                      "a saved palette in a list" and keeps its own. */}
                   {dim ? (
                     <span className="max-w-[108px] truncate text-[10px] text-muted-foreground">
                       · {designLabel(p.snapshot, locale) ?? p.designSlug}

@@ -155,7 +155,8 @@
     },
     "customText": {
       "title": "Text on the ceramic",
-      "helper": "The workshop confirms the final wording before production — it doesn't change the preview.",
+      "helper": "The preview shows the words and where they sit. The workshop confirms the wording and paints it by hand.",
+      "helperLayered": "The workshop confirms the final wording before production — it doesn't change the preview.",
       "counter": "{count}/{max}"
     },
     "yourSelection": {

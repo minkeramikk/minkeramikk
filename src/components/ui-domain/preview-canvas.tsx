@@ -1,6 +1,14 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import {
+  INSCRIPTION_CENTER_Y,
+  INSCRIPTION_FIT_PASSES,
+  INSCRIPTION_FONT_SIZE,
+  INSCRIPTION_MAX_WIDTH,
+  scaleForLength,
+  shrinkStep,
+} from "@/lib/configurator/inscription";
 
 export interface PreviewLayer {
   src: string;
@@ -20,6 +28,21 @@ export interface PreviewLayer {
  */
 
 const FADE_MS = 200;
+
+/**
+ * Il riquadro dell'arte dentro il frame. Era un letterale dentro `LayerStack`;
+ * ora lo usano in due (lo stack e la scritta viva) e devono restare la STESSA
+ * scatola, altrimenti la scritta scivola rispetto al piatto.
+ */
+const ART_BOX = "h-[84%] w-[84%]";
+
+/**
+ * `useLayoutEffect` avvisa in SSR, e questo componente renderizza anche lì
+ * (un `?text=` nell'URL arriva già pieno dal server). Il misuratore serve solo
+ * nel browser: in SSR non c'è niente da misurare.
+ */
+const useIsoLayoutEffect =
+  typeof window === "undefined" ? useEffect : useLayoutEffect;
 
 const keyOf = (layers: PreviewLayer[]) => layers.map((l) => l.src).join("|");
 
@@ -48,7 +71,7 @@ function LayerStack({
 }) {
   return (
     <div
-      className="relative h-[84%] w-[84%]"
+      className={`relative ${ART_BOX}`}
       style={{
         // R4-CANVAS-WHITE AC7: era 18%. Su fondo caldo leggeva morbida; su
         // `--mk-canvas` (bianco pieno) la stessa ombra diventa un alone grigio
@@ -74,16 +97,176 @@ function LayerStack({
   );
 }
 
+/**
+ * R5-TEXT-LIVE — le parole del cliente sul piatto, mentre le scrive.
+ *
+ * `aria-hidden`: le stesse parole sono nel campo che ha appena scritto, uno
+ * screen reader le direbbe due volte. `pointer-events-none`: è un'anteprima,
+ * non un bersaglio.
+ */
+function Inscription({ text }: { text: string }) {
+  const ref = useRef<HTMLSpanElement>(null);
+  // La rampa sulla lunghezza non ha bisogno del DOM, quindi entra già nel
+  // render: senza, il primo disegno (SSR o idratazione, quando la pagina
+  // arriva con un `?text=`) uscirebbe a corpo pieno e TAGLIATO, per saltare
+  // subito dopo alla misura giusta. La misura la raffina l'effetto, e la
+  // raffina solo in basso.
+  const scale = scaleForLength(Array.from(text).length);
+
+  useIsoLayoutEffect(() => {
+    const el = ref.current;
+    const box = el?.parentElement;
+    // Il quadrato del piatto. Si osserva LUI e non la scatola del testo: la sua
+    // larghezza non dipende dal corpo, quindi la misura non rincorre sé stessa.
+    const square = box?.parentElement;
+    if (!el || !box || !square) return;
+
+    const measure = () => {
+      // Il taglio si accende SOLO da qui. Nell'HTML del server `--fit` non è
+      // ancora stato scritto da nessuno e il blocco può venire più alto del
+      // dovuto: con `overflow:hidden` in classe, quel primo fotogramma
+      // uscirebbe con tre puntini per poi saltare alla misura giusta.
+      el.style.overflow = "hidden";
+
+      let fit = scale;
+      el.style.setProperty("--fit", String(fit));
+
+      // Il blocco deve stare in `INSCRIPTION_MAX_LINES` righe, e una parola
+      // sola non deve mai essere più larga della scatola. Non si calcola: si
+      // guarda com'è venuto e si stringe di un passo, al massimo
+      // `INSCRIPTION_FIT_PASSES` volte. Una formula non c'è, perché quante
+      // righe servano dipende da DOVE cadono gli spazi, e quello lo sa solo il
+      // browser che ha appena mandato il testo a capo.
+      for (let pass = 0; pass < INSCRIPTION_FIT_PASSES; pass++) {
+        const lineHeight = parseFloat(getComputedStyle(el).lineHeight);
+        // Zero = il riquadro è chiuso (`display:none`, vedi sotto); NaN = il
+        // line-height è tornato `normal` e non so quanto è alta una riga. In
+        // entrambi i casi «non so» deve voler dire «non tocco»: con un ripiego
+        // a 1 il conto delle righe direbbe ~20 e il ciclo inchioderebbe ogni
+        // scritta al pavimento, in silenzio.
+        if (!(lineHeight > 0)) break;
+        const next = shrinkStep(fit, {
+          tooWide: el.scrollWidth > el.clientWidth,
+          lines: Math.round(el.scrollHeight / lineHeight),
+        });
+        if (next === null) break;
+        fit = next;
+        el.style.setProperty("--fit", String(fit));
+      }
+    };
+    measure();
+
+    // Il riquadro può valere **zero**: a step 1 su telefono la colonna
+    // dell'anteprima resta montata e solo `display:none` (F14, mai un
+    // rimontaggio). Lì la misura non dice niente di utile, e senza questo
+    // osservatore ci si resterebbe anche dopo, con una dedica lunga troncata
+    // invece che mandata a capo.
+    const ro = new ResizeObserver(measure);
+    ro.observe(square);
+
+    // Il font arriva DOPO. `next/font` serve Lora con `display: swap`, quindi
+    // la prima misura può cadere sul ripiego, che ha le metriche di Times e non
+    // di Lora: il fattore resterebbe cablato su larghezze di glifo sbagliate, e
+    // quando Lora atterra il blocco si riflowa senza che nessuno rimisuri.
+    // Peggio ancora perché il ciclo si ferma al PRIMO fattore che sta: atterra
+    // sempre sul filo delle due righe, cioè nel punto peggiore in cui farsi
+    // cambiare le metriche sotto i piedi. Il riquadro non cambia dimensione
+    // quando cambia un font, quindi il `ResizeObserver` qui non aiuta.
+    let alive = true;
+    document.fonts?.ready.then(() => {
+      if (alive) measure();
+    });
+
+    return () => {
+      alive = false;
+      ro.disconnect();
+    };
+  }, [text, scale]);
+
+  return (
+    <div
+      aria-hidden="true"
+      data-testid="preview-inscription"
+      className="pointer-events-none absolute left-1/2 -translate-x-1/2 -translate-y-1/2 text-center"
+      style={{
+        top: `${INSCRIPTION_CENTER_Y}%`,
+        // Larghezza FISSA, non `max-width`: con un massimo la scatola si
+        // stringe sul testo, quindi «quanto spazio c'è» e «quanto testo c'è»
+        // diventano lo stesso numero — la misura non ha più un muro contro cui
+        // confrontarsi e la riga finisce sempre larga quanto la sua scatola, al
+        // decimo di pixel. Da lì i tre puntini: basta un arrotondamento e il
+        // browser si mangia le ultime lettere. Fissa, il muro è il muro, e
+        // l'aria viene dal ciclo, che stringe di un passo intero (10%) e quindi
+        // non atterra mai sul confine.
+        width: `${INSCRIPTION_MAX_WIDTH}cqmin`,
+      }}
+    >
+      <span
+        ref={ref}
+        // Va a capo, ma solo negli spazi: una parola non si spezza mai a metà
+        // (ruling TL 20/9). Se una parola sola è più larga della scatola, a
+        // rimpicciolirla ci pensa il ciclo di misura, e sotto il pavimento
+        // arrivano i puntini. Attenzione a cosa promette questa riga: i puntini
+        // sono orizzontali, quindi valgono SOLO per una parola sola più larga
+        // della scatola. Un blocco che al pavimento vuole ancora tre righe le
+        // disegna — `INSCRIPTION_MAX_LINES` è un obiettivo del ciclo, non una
+        // garanzia del ritaglio. A quel corpo il blocco resta comunque dentro
+        // la campitura vuota: è una promessa imprecisa, non un pixel fuori.
+        className="block text-ellipsis"
+        style={{
+          // Corsivo vero, non l'italico di un font da interfaccia: quello che
+          // lo studio dipinge è calligrafia. La famiglia è dichiarata una volta
+          // sola, in `layout.tsx`, col perché di quella scelta e non di un'altra.
+          // Il ripiego è Times e non Georgia: a parità di corpo Georgia ha aste
+          // più spesse e occhio più grande, e sul piatto sembrava scritta in
+          // grassetto accanto ai tratti sottili dell'arte.
+          fontFamily: 'var(--font-inscription), "Times New Roman", Times, serif',
+          fontStyle: "italic",
+          fontWeight: 500,
+          color: "var(--mk-dark)",
+          opacity: 0.78,
+          // Il primo fotogramma servito dal server non è misurato: la rampa
+          // conosce la lunghezza, non DOVE cadono gli spazi, che è ciò che
+          // decide quante righe vengono. Una dedica lunga può quindi uscire su
+          // tre righe per un fotogramma, e all'idratazione tornare a due.
+          // Scelta voluta: l'alternativa è partire tutti da
+          // `INSCRIPTION_SCALE_LONG`, che farebbe saltare ANCHE le dediche
+          // corte — il caso comune — per proteggere quello raro. Il blocco a
+          // tre righe resta comunque dentro la campitura vuota (angoli a
+          // ±6,6cqmin, mezza corda 8,79cqmin).
+          // Il fallback è la rampa sulla lunghezza, non 1: al primo disegno `--fit` non è
+          // ancora stato scritto da nessuno, e senza questo una pagina che
+          // arriva con un `?text=` uscirebbe a corpo pieno e TAGLIATA prima
+          // dell'idratazione. La rampa dipende solo dalla lunghezza, quindi il
+          // server la sa già. NON va messo `--fit` dentro `style`: React lo
+          // riapplicherebbe a ogni render del padre, cancellando la misura che
+          // l'effetto (deps `[text]`) non rifarebbe.
+          fontSize: `calc(var(--fit, ${scale}) * ${INSCRIPTION_FONT_SIZE}cqmin)`,
+          lineHeight: 1.2,
+        }}
+      >
+        {text}
+      </span>
+    </div>
+  );
+}
+
 export function PreviewCanvas({
   layers,
   caption,
   alt,
+  inscription,
   className,
 }: {
   layers: PreviewLayer[];
   /** Rich node, not just text: the configurator caption carries a link. */
   caption?: React.ReactNode;
   alt: string;
+  /**
+   * R5-TEXT-LIVE: la scritta del cliente, già decisa dal chiamante (vedi
+   * `showsLiveInscription`). Assente = anteprima di sempre.
+   */
+  inscription?: string;
   className?: string;
 }) {
   const targetKey = keyOf(layers);
@@ -180,6 +363,32 @@ export function PreviewCanvas({
             data-testid="preview-incoming"
           >
             <LayerStack layers={incoming.layers} alt={alt} />
+          </div>
+        )}
+
+        {/* R5-TEXT-LIVE — sopra gli strati, mai sopra lo scheletro. Il
+            quadrato è l'arte CONTENUTA (`100cqmin` del riquadro), non il
+            riquadro: sotto `md` il frame è rettangolare e il piatto ci sta in
+            `object-contain`, quindi la scritta segue il piatto invece che la
+            scatola (AC 4). Contenitore NOMINATO, così un `@container` annidato
+            più avanti non se lo prende. */}
+        {inscription && !nothingToShow && (
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+            <div
+              className={`flex items-center justify-center ${ART_BOX}`}
+              // `container-type: size`, NON `inline-size` (che è ciò che
+              // emette `@container/plate`): con `inline-size` l'asse di blocco
+              // non è contenuto e `cqmin` ripiega sull'altezza del VIEWPORT,
+              // cioè vale la larghezza del riquadro. Sul desktop non si vede —
+              // il frame è quadrato — ma nell'editor mobile il riquadro è
+              // 281×244 e la scritta veniva il 15% troppo grande e cadeva al
+              // 70,9% invece che al 68%: l'AC 4 in pieno. Misurato in pagina.
+              style={{ containerType: "size", containerName: "plate" }}
+            >
+              <div className="relative aspect-square w-[100cqmin]">
+                <Inscription text={inscription} />
+              </div>
+            </div>
           </div>
         )}
       </div>
