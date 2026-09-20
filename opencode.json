@@ -1,0 +1,12 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "provider": {
+    "openrouter": {
+      "models": {
+        "meta/muse-spark-1.3": {},
+        "deepseek/deepseek-r1": {}
+      }
+    }
+  },
+  "model": "openrouter/meta/muse-spark-1.3"
+}
