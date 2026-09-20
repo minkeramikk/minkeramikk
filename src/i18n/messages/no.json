@@ -155,6 +155,7 @@
     "customText": {
       "title": "Tekst på keramikken",
       "helper": "Forhåndsvisningen viser ordene og hvor de står. Verkstedet bekrefter teksten og maler den for hånd.",
+      "helperLayered": "Verkstedet bekrefter den endelige teksten før produksjon — endrer ikke forhåndsvisningen.",
       "counter": "{count}/{max}"
     },
     "yourSelection": {

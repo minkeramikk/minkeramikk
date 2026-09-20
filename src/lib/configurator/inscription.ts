@@ -3,8 +3,9 @@
  *
  * Due decisioni, entrambe della card:
  *
- * 1. UNA sola convenzione di posizione, non un dato per design: terzo
- *    inferiore, centrata, dentro l'area interna. Se un design vorrà un punto
+ * 1. UNA sola convenzione di posizione, non un dato per design. La card la
+ *    chiedeva nel terzo inferiore; a schermo il TL l'ha spostata al centro
+ *    (ruling 20/9, motivato dove sta la costante). Se un design vorrà un punto
  *    suo, è roba della 6b o dell'admin.
  * 2. Dove lo studio ha già disegnato la parola — il gruppo «Tekst», un layer
  *    per posizione — la scritta viva NON si disegna: se ne vedrebbero due.
@@ -16,21 +17,21 @@ import { isCustomTextOffered, type TextGroupCandidate } from "./text-option";
 /**
  * Geometria, in percentuale del QUADRATO che contiene l'arte del piatto — non
  * del frame: sotto `md` il frame è rettangolare (l'editor mobile) e il piatto
- * ci sta dentro in `object-contain`. In CSS il quadrato è `cqmin` del
- * contenitore `@container/plate`, così la scritta segue il piatto a ogni
- * ridimensionamento senza un ResizeObserver (AC 4).
+ * ci sta dentro in `object-contain`. In CSS il quadrato è `cqmin` di un
+ * contenitore con `container-type: size` (non `inline-size`: con quello
+ * `cqmin` ripiega sul viewport e vale la larghezza), così la scritta segue il
+ * piatto a ogni ridimensionamento senza doverla rimisurare (AC 4).
  *
- * I numeri sono misurati sull'arte di catalogo (PNG 1500², compositi di tutti
- * i layer), non scelti a occhio:
- * - il piatto occupa il 94,3% del lato (bbox alpha 48..1462);
- * - la fascia decorata esterna comincia a r = 0,79 del raggio del piatto (il
- *   profilo radiale dell'inchiostro dà la stessa banda su `amalfi-dyr` e su
- *   `krabbe`: è l'arte del bordo, condivisa);
- * - con la riga centrata al 68% dell'altezza, il suo bordo inferiore cade a
- *   dy = 0,47 R, dove la corda dentro r = 0,79 R vale il 59,8% del lato.
- * 52% lascia quasi 8 punti di margine: è l'AC 3.
+ * Le misure vive sono queste, prese sull'arte di catalogo (PNG 1500², compositi
+ * di tutti i layer) e non scelte a occhio:
+ * - il piatto occupa il **94,3%** del lato (bbox alpha 48..1462);
+ * - la campitura vuota al centro arriva a **r = 0,233 R** su `blomster-2` e a
+ *   **r = 0,318 R** su `amalfi-dyr`: è il vincolo vero da quando la riga sta al
+ *   centro, ed è molto più dentro della fascia decorata esterna (r = 0,79 R),
+ *   su cui era tarata la larghezza quando la riga stava in basso.
  *
- * Se cambia l'arte del bordo, questi tre numeri vanno rimisurati insieme.
+ * Se cambia l'arte, sono questi tre numeri che vanno rimisurati insieme — e con
+ * loro le due costanti che ne discendono, larghezza massima e corpo.
  */
 /**
  * Centro verticale della riga, in % dell'altezza del quadrato.
@@ -44,27 +45,41 @@ import { isCustomTextOffered, type TextGroupCandidate } from "./text-option";
  */
 export const INSCRIPTION_CENTER_Y = 50;
 /**
- * Larghezza massima della riga, in `cqmin`. Era 52 quando il vincolo era solo
- * la fascia decorata esterna (r = 0,79 R). Al centro del piatto il vincolo vero
- * è un altro e sta molto più dentro: l'anello interno del disegno, che su
- * `blomster-2` comincia a r = 0,233 R e su `amalfi-dyr` a r = 0,318 R. 40%
- * è la rete di sicurezza — nell'uso normale non la tocca nessuno, perché a
- * decidere il corpo è la rampa sulla lunghezza.
+ * Larghezza massima della riga, in `cqmin`. Non è più una rete di sicurezza: è
+ * IL vincolo. 52 era tarato sulla fascia decorata esterna (r = 0,79 R), giusto
+ * finché la riga stava in basso; al centro del piatto conta l'anello interno del
+ * disegno, che comincia a r = 0,233 R su `blomster-2` — il più stretto dei due
+ * design che accettano la scritta. La corda dentro quell'anello, all'altezza
+ * della riga, vale il 22% del lato, e 22 è questo numero: la riga non esce dalla
+ * campitura vuota, mai, perché se non ci sta rimpicciolisce (ruling TL 20/9,
+ * «prendiamoci un margine più sicuro»).
+ *
+ * Una convenzione sola per tutti i design, come vuole la card: su `amalfi-dyr`
+ * la campitura arriva a 0,318 R e ci starebbe il 30%, ma un numero per design è
+ * roba della 6b.
  */
-export const INSCRIPTION_MAX_WIDTH = 40;
+export const INSCRIPTION_MAX_WIDTH = 22;
 /**
  * Corpo del testo prima del fit, in `cqmin`. Era 7: sul piatto vero leggeva
  * grosso e pesante accanto a un'arte fatta di tratti sottili (ruling TL 20/9,
- * a schermo). Poi da 5 a 4,25, perché a 5 una dedica di 14 caratteri occupava
- * il 31,8% del lato e appoggiava sull'anello interno del disegno.
+ * a schermo). Poi 5 → 4,25 → 3,5: a ogni giro la riga appoggiava ancora
+ * sull'anello interno del disegno. 3,5 è il corpo che tiene una dedica di 14
+ * caratteri dentro il 22% del lato senza doverla rimpicciolire.
  *
- * Non ci entra comunque del tutto: per stare dentro l'anello di `blomster-2`
- * una riga di 14 caratteri vorrebbe il 21% del lato, cioè ~12,7px sul desktop
- * e ~7px sul telefono — illeggibile. Qui la scritta appoggia sul disegno come
- * farebbe una scritta dipinta, e resta comunque lontana dalla fascia esterna.
+ * Il prezzo, che è bene sia scritto e non scoperto dopo: sul telefono il piatto
+ * è 244px, quindi questo corpo vale ~8,5px, e una dedica da 25 caratteri —
+ * schiacciata anche dalla rampa e poi dalla larghezza — scende intorno ai 5px.
+ * Dentro l'anello e leggibile sul telefono, alla lunghezza massima, non si può
+ * stare insieme: l'anello è il 22% del piatto.
  */
-export const INSCRIPTION_FONT_SIZE = 4.25;
-/** Sotto questo fattore non si rimpicciolisce più: si tronca (AC 3). */
+export const INSCRIPTION_FONT_SIZE = 3.5;
+/**
+ * Sotto questo fattore non si rimpicciolisce più: si tronca (AC 3).
+ *
+ * Va tenuto **sotto** `INSCRIPTION_TAPER_TO`: è un pavimento applicato dopo la
+ * rampa, quindi se salisse sopra di essa rialzerebbe il corpo delle dediche
+ * lunghe invece di limitarsi a fermarne la discesa — in silenzio.
+ */
 export const INSCRIPTION_MIN_FIT = 0.45;
 
 /**
@@ -112,6 +127,18 @@ export function fitRatio(
   return Math.max(INSCRIPTION_MIN_FIT, Math.min(taper, boxWidth / textWidth));
 }
 
+/**
+ * Il design porta la parola come layer (il gruppo «Tekst» di Alessio, uno per
+ * posizione)? Allora la scritta viva non si disegna, e non è solo un fatto di
+ * pixel: è anche ciò che il testo di aiuto sotto al campo può promettere.
+ * Un posto solo, così le due cose non possono divergere.
+ */
+export function inscriptionIsLayered(
+  textGroup: TextGroupCandidate | null
+): boolean {
+  return textGroup !== null;
+}
+
 /** La scritta viva si disegna? */
 export function showsLiveInscription({
   acceptsCustomText,
@@ -131,6 +158,6 @@ export function showsLiveInscription({
     return false;
   // Il design modella le posizioni da sé (gruppo «Tekst»): la parola è già
   // dipinta nel layer che il cliente ha scelto. Le posizioni sono la 6b.
-  if (textGroup) return false;
+  if (inscriptionIsLayered(textGroup)) return false;
   return text.trim().length > 0;
 }

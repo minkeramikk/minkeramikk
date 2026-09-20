@@ -115,18 +115,35 @@ function Inscription({ text }: { text: string }) {
   useIsoLayoutEffect(() => {
     const el = ref.current;
     const box = el?.parentElement;
-    if (!el || !box) return;
-    // Misura a corpo pieno e applica il rapporto nella stessa passata di
-    // layout: nessun lampo a corpo sbagliato, nessun secondo giro. Sul
-    // ridimensionamento non serve rimisurare — `cqmin` scala scatola e testo
-    // insieme, quindi il rapporto resta valido (AC 4).
-    el.style.setProperty("--fit", "1");
-    el.style.setProperty(
-      "--fit",
-      // La lunghezza si conta in code point, come il cap del campo: una emoji
-      // è un carattere per chi scrive, due per `String.length`.
-      String(fitRatio(el.scrollWidth, box.clientWidth, Array.from(text).length))
-    );
+    // Il quadrato del piatto. Si misura LUI e non la scatola del testo, la cui
+    // larghezza dipende dal corpo: osservare quella farebbe rincorrere la
+    // misura a sé stessa.
+    const square = box?.parentElement;
+    if (!el || !box || !square) return;
+
+    const measure = () => {
+      // Misura a corpo pieno e applica il rapporto nella stessa passata di
+      // layout: nessun lampo a corpo sbagliato, nessun secondo giro.
+      el.style.setProperty("--fit", "1");
+      el.style.setProperty(
+        "--fit",
+        // La lunghezza si conta in code point, come il cap del campo: una
+        // emoji è un carattere per chi scrive, due per `String.length`.
+        String(fitRatio(el.scrollWidth, box.clientWidth, Array.from(text).length))
+      );
+    };
+    measure();
+
+    // Un ridimensionamento normale non avrebbe bisogno di rimisurare — `cqmin`
+    // scala scatola e testo insieme, quindi il rapporto resta valido (AC 4) —
+    // ma il riquadro può valere **zero**: a step 1 su telefono la colonna
+    // dell'anteprima resta montata e solo `display:none` (F14, mai un
+    // rimontaggio). Lì la misura dice «non so», si resta sulla sola rampa, e
+    // senza questo osservatore ci si resterebbe anche dopo, con una dedica
+    // lunga troncata invece che rimpicciolita.
+    const ro = new ResizeObserver(measure);
+    ro.observe(square);
+    return () => ro.disconnect();
   }, [text]);
 
   return (
@@ -153,7 +170,14 @@ function Inscription({ text }: { text: string }) {
           fontStyle: "italic",
           color: "var(--mk-dark)",
           opacity: 0.78,
-          fontSize: `calc(var(--fit, 1) * ${INSCRIPTION_FONT_SIZE}cqmin)`,
+          // Il fallback è la rampa, non 1: al primo disegno `--fit` non è
+          // ancora stato scritto da nessuno, e senza questo una pagina che
+          // arriva con un `?text=` uscirebbe a corpo pieno e TAGLIATA prima
+          // dell'idratazione. La rampa dipende solo dalla lunghezza, quindi il
+          // server la sa già. NON va messo `--fit` dentro `style`: React lo
+          // riapplicherebbe a ogni render del padre, cancellando la misura che
+          // l'effetto (deps `[text]`) non rifarebbe.
+          fontSize: `calc(var(--fit, ${taper}) * ${INSCRIPTION_FONT_SIZE}cqmin)`,
           lineHeight: 1.2,
         }}
       >

@@ -13,7 +13,10 @@ import {
   findTextGroup,
   isCustomTextOffered,
 } from "@/lib/configurator/text-option";
-import { showsLiveInscription } from "@/lib/configurator/inscription";
+import {
+  inscriptionIsLayered,
+  showsLiveInscription,
+} from "@/lib/configurator/inscription";
 import { useLaneFades } from "@/lib/configurator/use-lane-fades";
 import {
   ARROW_SAFE_PX,
@@ -439,8 +442,17 @@ export function ConfiguratorClient({
           data-testid="custom-text-helper"
           className="text-xs text-muted-foreground"
         >
-          {/* TODO:nb-review — configurator.customText.helper, riscritta dalla card 6a */}
-          {t("customText.helper")}
+          {/* TODO:nb-review — configurator.customText.helper*, riscritte dalla
+              card 6a. Due stringhe e non una: su un design che porta la parola
+              come layer (Krabbe con «Tekst 1») la scritta viva NON si disegna,
+              quindi promettergli che «l'anteprima mostra le tue parole» sarebbe
+              falso proprio lì. La condizione è la stessa che spegne la scritta,
+              chiesta allo stesso posto. */}
+          {t(
+            inscriptionIsLayered(textCategory)
+              ? "customText.helperLayered"
+              : "customText.helper"
+          )}
         </p>
         <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
           {t("customText.counter", { count: customText.length, max: MAX_CUSTOM_TEXT })}
