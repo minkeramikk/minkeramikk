@@ -6,6 +6,7 @@ import {
   INSCRIPTION_CENTER_Y,
   INSCRIPTION_FONT_SIZE,
   INSCRIPTION_MAX_WIDTH,
+  taperForLength,
 } from "@/lib/configurator/inscription";
 
 export interface PreviewLayer {
@@ -104,6 +105,12 @@ function LayerStack({
  */
 function Inscription({ text }: { text: string }) {
   const ref = useRef<HTMLSpanElement>(null);
+  // La rampa sulla lunghezza non ha bisogno del DOM, quindi entra già nel
+  // render: senza, il primo disegno (SSR o idratazione, quando la pagina
+  // arriva con un `?text=`) uscirebbe a corpo pieno e TAGLIATO, per saltare
+  // subito dopo alla misura giusta. La misura la raffina l'effetto, e la
+  // raffina solo in basso.
+  const taper = taperForLength(Array.from(text).length);
 
   useIsoLayoutEffect(() => {
     const el = ref.current;

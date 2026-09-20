@@ -44,21 +44,26 @@ import { isCustomTextOffered, type TextGroupCandidate } from "./text-option";
  */
 export const INSCRIPTION_CENTER_Y = 50;
 /**
- * Larghezza massima della riga, in `cqmin`. Al centro del piatto la corda è
- * l'intero diametro, quindi 52% sta larghissima dentro la fascia decorata (che
- * comincia a r = 0,79 R): il numero regge anche se la riga tornasse più in
- * basso, dove era stato calcolato — al bordo inferiore della riga al 68% la
- * corda valeva comunque il 59,8% del lato.
+ * Larghezza massima della riga, in `cqmin`. Era 52 quando il vincolo era solo
+ * la fascia decorata esterna (r = 0,79 R). Al centro del piatto il vincolo vero
+ * è un altro e sta molto più dentro: l'anello interno del disegno, che su
+ * `blomster-2` comincia a r = 0,233 R e su `amalfi-dyr` a r = 0,318 R. 40%
+ * è la rete di sicurezza — nell'uso normale non la tocca nessuno, perché a
+ * decidere il corpo è la rampa sulla lunghezza.
  */
-export const INSCRIPTION_MAX_WIDTH = 52;
+export const INSCRIPTION_MAX_WIDTH = 40;
 /**
  * Corpo del testo prima del fit, in `cqmin`. Era 7: sul piatto vero leggeva
  * grosso e pesante accanto a un'arte fatta di tratti sottili (ruling TL 20/9,
- * a schermo). Sui testi lunghi non cambia niente — lì il corpo lo decide la
- * larghezza massima, non questo numero — cambia sulle dediche corte, che
- * smettono di gridare.
+ * a schermo). Poi da 5 a 4,25, perché a 5 una dedica di 14 caratteri occupava
+ * il 31,8% del lato e appoggiava sull'anello interno del disegno.
+ *
+ * Non ci entra comunque del tutto: per stare dentro l'anello di `blomster-2`
+ * una riga di 14 caratteri vorrebbe il 21% del lato, cioè ~12,7px sul desktop
+ * e ~7px sul telefono — illeggibile. Qui la scritta appoggia sul disegno come
+ * farebbe una scritta dipinta, e resta comunque lontana dalla fascia esterna.
  */
-export const INSCRIPTION_FONT_SIZE = 5;
+export const INSCRIPTION_FONT_SIZE = 4.25;
 /** Sotto questo fattore non si rimpicciolisce più: si tronca (AC 3). */
 export const INSCRIPTION_MIN_FIT = 0.45;
 
