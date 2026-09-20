@@ -12,7 +12,13 @@
  * mail.
  */
 import { describe, expect, it } from "vitest";
-import { basketCta, paintFirstHref, paintTargetFor } from "@/components/ui-domain/basket-host";
+import {
+  basketCta,
+  explicitPickThumb,
+  paintFirstHref,
+  paintTargetFor,
+} from "@/components/ui-domain/basket-host";
+import type { Palette } from "@/lib/palettes/palettes";
 import {
   decodeConfigCode,
   encodeConfigCode,
@@ -85,6 +91,78 @@ describe("paintTargetFor", () => {
       kind: "none",
       href: "/configurator?design=a%20b%26c&step=2",
     });
+  });
+});
+
+/**
+ * R5-TEXT-CARRY task 2 (AC3) — the explicit pick carries the SAVED palette's
+ * snapshot whole (colours AND dedication). The words on screen are ignored BY
+ * CONSTRUCTION: `explicitPickThumb` takes only the palette, there is no
+ * parameter the on-screen words could even arrive through — so "Trude" can
+ * never come out as "Mons".
+ */
+describe("explicitPickThumb", () => {
+  const selections = [
+    { label: "Hovedfarge", option: "Blå", hex: "#1d4ed8" },
+    { label: "Kant", option: "Hvit", hex: "#ffffff" },
+  ];
+  const layers = [{ src: "/layer.png", recolor: true as const }];
+  const palette = (
+    name: string,
+    extra?: { customText?: string; customNote?: string },
+    sels: { label: string; option: string; hex: string | null }[] = selections
+  ): Palette => ({
+    code: "T-BLAA-WITH-TRUDE",
+    name,
+    designSlug: "striper",
+    snapshot: {
+      designSlug: "striper",
+      designName: "Striper",
+      selections: sels,
+      ...extra,
+    },
+    layers,
+    createdAt: 1,
+    usedAt: 2,
+  });
+
+  it("paints the palette's own dedication, never the words on screen", () => {
+    // Same colours, palette says "Trude", the screen says "Mons".
+    const out = explicitPickThumb(
+      palette("Trude", { customText: "Trude", customNote: "mørkere blå" })
+    );
+    expect(out.code).toBe("T-BLAA-WITH-TRUDE");
+    expect(out.layers).toEqual(layers);
+    expect(out.label).toBe("Trude");
+    expect(out.dedication).toBe("Trude");
+    expect(out.snapshot.customText).toBe("Trude");
+    expect(out.snapshot.customNote).toBe("mørkere blå");
+    expect(out.hexes).toEqual(["#1d4ed8", "#ffffff"]);
+    expect(out.selectionCount).toBe(2);
+  });
+
+  it("a palette without a dedication paints no words at all", () => {
+    const out = explicitPickThumb(palette("Zaffera"));
+    expect(out.dedication).toBeUndefined();
+    expect("customText" in out.snapshot).toBe(false);
+    expect(out.code).toBe("T-BLAA-WITH-TRUDE");
+    expect(out.hexes).toEqual(["#1d4ed8", "#ffffff"]);
+    expect(out.selectionCount).toBe(2);
+  });
+
+  it("drops selections without a hex from hexes, like rowThumb always did", () => {
+    const out = explicitPickThumb(
+      palette(
+        "Trude",
+        { customText: "Trude" },
+        [
+          { label: "Hovedfarge", option: "Blå", hex: "#1d4ed8" },
+          { label: "Kant", option: "Ingen", hex: null },
+        ]
+      )
+    );
+    expect(out.hexes).toEqual(["#1d4ed8"]);
+    expect(out.selectionCount).toBe(2);
   });
 });
 

@@ -7,6 +7,8 @@
  *
  * `basket.tsx` re-exports both, so nothing else has to know they live here.
  */
+import type { CartLayer, ConfigSnapshot } from "@/lib/cart/cart";
+import type { Palette } from "@/lib/palettes/palettes";
 /** Where this basket is mounted: the header drawer, or step 3's right column
  *  — which from PR 2 exists only from `lg` (its mobile in-flow twin, also a
  *  `"column"`, was deleted there). */
@@ -63,6 +65,48 @@ export function paintTargetFor(
     href: slug
       ? `/configurator?design=${encodeURIComponent(slug)}&step=2`
       : "/configurator",
+  };
+}
+
+/**
+ * R5-TEXT-CARRY task 2 (AC3) — what an EXPLICITLY picked row paints with.
+ *
+ * A paint through a saved palette carries that palette's snapshot WHOLE —
+ * colours AND dedication (`snapshot.customText`/`customNote`), untouched.
+ * The words on screen are ignored BY CONSTRUCTION: this function takes only
+ * the palette, so there is no parameter the on-screen words could even
+ * arrive through. That reverses the old TL ruling the explicit branch of
+ * `rowThumb` (`basket.tsx`) encoded — "takes the palette's colours but keeps
+ * the customer's own words": since R5-TEXT-IDENTITY the inscription is part
+ * of the palette's identity (dedup by exact code in `savePalette`), so
+ * painting "Trude" while "Mons" is on screen must paint "Trude".
+ *
+ * `hexes`/`selectionCount` derive from `snapshot.selections` exactly as the
+ * old inline branch did (`hexes` skips hex-less selections; `selectionCount`
+ * counts them — one entry per category, the same count
+ * `stripCustomSegment` needs before comparing codes in `cart-line-row.tsx`).
+ * `label` is the palette's own name. The snapshot is passed by reference —
+ * `paintLines` (`cart.ts`) stores it on the new line without mutating it.
+ */
+export function explicitPickThumb(palette: Palette): {
+  code: string;
+  layers: CartLayer[];
+  label: string;
+  dedication: string | undefined;
+  hexes: string[];
+  snapshot: ConfigSnapshot;
+  selectionCount: number;
+} {
+  return {
+    code: palette.code,
+    layers: palette.layers,
+    label: palette.name,
+    dedication: palette.snapshot.customText,
+    hexes: palette.snapshot.selections
+      .map((s) => s.hex)
+      .filter((h): h is string => Boolean(h)),
+    snapshot: palette.snapshot,
+    selectionCount: palette.snapshot.selections.length,
   };
 }
 
