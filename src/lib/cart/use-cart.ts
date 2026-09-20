@@ -4,13 +4,9 @@ import { useCallback, useEffect, useState } from "react";
 import {
   addManyToCart,
   addToCart,
-  paintLines,
   removeLine,
-  unpaintLines,
   updateQuantity,
   type Cart,
-  type CartLayer,
-  type ConfigSnapshot,
   type NewCartLine,
 } from "./cart";
 
@@ -80,22 +76,6 @@ export function useCart() {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify([]));
     }
   }, []);
-  /** R5-UNPAINTED: paint n pieces of an unpainted line with the config on screen. */
-  const paint = useCallback(
-    (
-      lineId: string,
-      n: number,
-      configCode: string,
-      configSnapshot: ConfigSnapshot | null,
-      layers?: CartLayer[]
-    ) => {
-      setCart((c) => paintLines(c, lineId, n, configCode, configSnapshot, layers));
-    },
-    []
-  );
-  const unpaint = useCallback((lineId: string, n: number) => {
-    setCart((c) => unpaintLines(c, lineId, n));
-  }, []);
 
-  return { cart, hydrated, add, addMany, setQuantity, remove, clear, paint, unpaint };
+  return { cart, hydrated, add, addMany, setQuantity, remove, clear };
 }

@@ -33,10 +33,7 @@ export function buildSuggestionLine(
   fromLine: SuggestionDonor
 ): NewCartLine | null {
   const p = suggestion.rule.suggested;
-  // R5-UNPAINTED: an offer inherits the donor's design. A donor with no colours
-  // has none to lend, and an offer must never quietly add a second unpainted
-  // line — no design, no offer.
-  if (!p || fromLine.configCode === null) return null;
+  if (!p) return null;
   return {
     productId: p.id,
     productNameNo: p.nameNo,

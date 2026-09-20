@@ -9,7 +9,7 @@ import { getVippsSettings } from "./vipps.server";
 import { statusEmail, type MailKind } from "./status-email";
 import { customMessageEmail } from "./custom-email";
 import type { OrderStatus } from "./order-status";
-import type { PaintedOrderItem } from "./schema";
+import type { OrderItemInput } from "./schema";
 import type { CartDiscount } from "@/lib/discounts/discount";
 
 /**
@@ -155,7 +155,7 @@ export async function sendCustomMessage(
 // R4-SCONTI: keyed by array index as String(idx), same convention create.ts
 // uses to compute `discount` and to snapshot it onto the order lines — the
 // email must draw from the very same CartDiscount, never recompute one.
-const toMailItem = (i: PaintedOrderItem, idx: number, d: CartDiscount): MailItem => ({
+const toMailItem = (i: OrderItemInput, idx: number, d: CartDiscount): MailItem => ({
   productName: i.productName,
   quantity: i.quantity,
   unitPriceCents: i.unitPriceCents,
@@ -172,7 +172,7 @@ const toMailItem = (i: PaintedOrderItem, idx: number, d: CartDiscount): MailItem
  * at configurator step 3, ready to re-price/re-order. Codes/slugs/qty only (no
  * prices, like CA-3). Null when no line is replicable.
  */
-function replicaSetUrl(items: PaintedOrderItem[], locale: "no" | "en"): string | null {
+function replicaSetUrl(items: OrderItemInput[], locale: "no" | "en"): string | null {
   const param = encodeSetParam(
     items.map((i) => ({
       configCode: i.configCode,
@@ -190,7 +190,7 @@ export async function sendOrderEmails(
     customerName: string;
     customerEmail: string;
     locale: "no" | "en";
-    items: PaintedOrderItem[];
+    items: OrderItemInput[];
     /** R4-SCONTI: the SAME CartDiscount create.ts computed before the RPC. */
     discount: CartDiscount;
     /** R4-PDF-CLIENTE: the customer summary, already rendered by the deferred

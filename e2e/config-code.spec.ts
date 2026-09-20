@@ -12,24 +12,18 @@ import { designWithCode, addFirstCeramic } from "./helpers";
 
 test("AC5: a ?code= deep link reconstructs the configuration on step 2", async ({
   page,
-}) => {
+}, testInfo) => {
   const design = await designWithCode();
 
   // Build a cart line so a real config code is rendered in the recap.
   await page.goto(`/no/configurator?design=${design.slug}&step=3`);
   await addFirstCeramic(page);
 
-  // Task 18 — the step-3 docked/mobile row's own details panel dropped the
-  // code (TL: that affordance belongs to the drawer, not the docked row).
-  // The drawer's CartLineRecap is the one surface left that renders it, and
-  // it's a header-level Sheet at every viewport (same idiom as cart.spec.ts's
-  // "R2-D" test), so this reads the same on desktop and mobile alike.
-  await page.getByTestId("cart-button").click();
-  const drawer = page.getByTestId("cart-drawer");
-  const row = drawer.getByTestId("cart-line").first();
-  await row.getByTestId("cart-expand").click();
-  const recap = drawer.getByTestId("cart-line-detail");
-  const code = (await recap.locator("code").first().innerText()).trim();
+  const panelId =
+    testInfo.project.name === "mobile" ? "mobile-cart-section" : "docked-cart-panel";
+  const line = page.getByTestId(panelId).getByTestId("cart-line").first();
+  await line.getByTestId("cart-expand").click();
+  const code = (await line.locator("code").first().innerText()).trim();
   expect(code).toMatch(/^MK-/);
 
   // The deep link alone (clean navigation) must rebuild design + options.

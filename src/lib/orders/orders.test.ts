@@ -1,12 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { orderItemSchema, orderPayloadSchema, type PaintedOrderItem } from "./schema";
+import { orderItemSchema, orderPayloadSchema, type OrderItemInput } from "./schema";
 import { buildOrderItemRows, orderTotal, splitBySupplier } from "./build";
 import { computeCartDiscount, EMPTY_CONFIG } from "@/lib/discounts/discount";
 
-// R5-UNPAINTED: buildOrderItemRows now takes PaintedOrderItem (configCode
-// settled, same as createOrder hands it after the refusal gate) — this
-// fixture always carries a real code, so it types as one.
-const item = (over: Partial<PaintedOrderItem> = {}): PaintedOrderItem => ({
+const item = (over: Partial<OrderItemInput> = {}): OrderItemInput => ({
   supplierId: "30a18ecc-0b97-4df4-a51d-aae79ee9c674",
   supplierName: "Vietri",
   productId: "11111111-1111-4111-8111-111111111111",
@@ -20,7 +17,7 @@ const item = (over: Partial<PaintedOrderItem> = {}): PaintedOrderItem => ({
 });
 
 const noDiscount = computeCartDiscount([], EMPTY_CONFIG);
-const keyByIndex = (_i: PaintedOrderItem, idx: number) => String(idx);
+const keyByIndex = (_i: OrderItemInput, idx: number) => String(idx);
 
 describe("buildOrderItemRows — complete snapshots", () => {
   it("maps every cart line to a full snapshot row (cents+currency, supplier, config)", () => {

@@ -10,7 +10,6 @@ import {
   type ReactNode,
 } from "react";
 import { useCart } from "./use-cart";
-import { usePalettes } from "@/lib/palettes/use-palettes";
 import {
   computeCartDiscount,
   activeSuggestions,
@@ -32,36 +31,35 @@ import { designProductIds } from "@/lib/catalog/design-products-action";
  * so every cart surface (badge, drawer, step 3) reads the same CartDiscount
  * object instead of each recomputing it.
  */
-type CartApi = ReturnType<typeof useCart> &
-  ReturnType<typeof usePalettes> & {
-    open: boolean;
-    setOpen: (open: boolean) => void;
-    openCart: () => void;
-    closeCart: () => void;
-    /** R4-SCONTI: the discount config as read on the server this render. */
-    discountConfig: DiscountConfig;
-    /** R4-SCONTI: computed ONCE here — every surface reads the same object. */
-    discount: CartDiscount;
-    /**
-     * Part ②: the offers the cart can show right now, in the admin's order and
-     * capped (MAX_SUGGESTIONS). Empty once the visitor closes the block.
-     */
-    suggestions: ActiveSuggestion[];
-    /** The ✕ closes the WHOLE block, not one offer — closing a card to reveal the
-     *  next is the behaviour the list replaced. Session-only, never persisted. */
-    dismissSuggestions: () => void;
-    /** Step 3 tells the cart which configuration is on screen, so an offer can
-     *  borrow the design the customer is actually looking at. Null elsewhere. */
-    setCurrentConfigCode: (code: string | null) => void;
-    /** Part ②: add the suggested ceramic wearing the trigger line's design. */
-    acceptSuggestion: (suggestion: ActiveSuggestion) => void;
-    /**
-     * R4-FIX Ⓔ — D3 for every surface: may the line `fromLineId` lend its design
-     * to `productId`? False while the whitelists are still loading, and false for
-     * a line this cart does not hold (step 3 answers for its own projected line).
-     */
-    allowedProduct: (fromLineId: string, productId: string) => boolean;
-  };
+type CartApi = ReturnType<typeof useCart> & {
+  open: boolean;
+  setOpen: (open: boolean) => void;
+  openCart: () => void;
+  closeCart: () => void;
+  /** R4-SCONTI: the discount config as read on the server this render. */
+  discountConfig: DiscountConfig;
+  /** R4-SCONTI: computed ONCE here — every surface reads the same object. */
+  discount: CartDiscount;
+  /**
+   * Part ②: the offers the cart can show right now, in the admin's order and
+   * capped (MAX_SUGGESTIONS). Empty once the visitor closes the block.
+   */
+  suggestions: ActiveSuggestion[];
+  /** The ✕ closes the WHOLE block, not one offer — closing a card to reveal the
+   *  next is the behaviour the list replaced. Session-only, never persisted. */
+  dismissSuggestions: () => void;
+  /** Step 3 tells the cart which configuration is on screen, so an offer can
+   *  borrow the design the customer is actually looking at. Null elsewhere. */
+  setCurrentConfigCode: (code: string | null) => void;
+  /** Part ②: add the suggested ceramic wearing the trigger line's design. */
+  acceptSuggestion: (suggestion: ActiveSuggestion) => void;
+  /**
+   * R4-FIX Ⓔ — D3 for every surface: may the line `fromLineId` lend its design
+   * to `productId`? False while the whitelists are still loading, and false for
+   * a line this cart does not hold (step 3 answers for its own projected line).
+   */
+  allowedProduct: (fromLineId: string, productId: string) => boolean;
+};
 
 const CartContext = createContext<CartApi | null>(null);
 
@@ -73,7 +71,6 @@ export function CartProvider({
   config: DiscountConfig;
 }) {
   const cart = useCart();
-  const palettes = usePalettes();
   const [open, setOpen] = useState(false);
   const [suggestionsDismissed, setSuggestionsDismissed] = useState(false);
   const [currentConfigCode, setCurrentConfigCode] = useState<string | null>(null);
@@ -164,10 +161,7 @@ export function CartProvider({
               currency: l.currency,
               quantity: l.quantity,
               dealRuleId: l.dealRuleId,
-              // R5-UNPAINTED: DiscountLineInput.configCode is string|undefined,
-              // never null — an unpainted line still counts for its quantity
-              // tier, it just has no design to match a suggestion donor on.
-              configCode: l.configCode ?? undefined,
+              configCode: l.configCode,
             })),
             config,
             { supplierOf, supplierOfProduct, allowedProduct, currentConfigCode }
@@ -201,14 +195,7 @@ export function CartProvider({
       const from =
         cart.cart.find((l) => l.id === suggestion.fromLineId) ??
         cart.cart.find(
-          (l) =>
-            l.productId &&
-            suggestion.rule.triggerProductIds.includes(l.productId) &&
-            // R5-UNPAINTED: an offer inherits the donor's design — a line with
-            // no design cannot donate. Without this the engine's own donor
-            // pick (which already skips unpainted lines) would be silently
-            // undone by this fallback landing on one anyway.
-            l.configCode !== null
+          (l) => l.productId && suggestion.rule.triggerProductIds.includes(l.productId)
         );
       if (!from) return;
       const line = buildSuggestionLine(suggestion, from);
@@ -223,7 +210,6 @@ export function CartProvider({
   const value = useMemo<CartApi>(
     () => ({
       ...cart,
-      ...palettes,
       open,
       setOpen,
       openCart: () => setOpen(true),
@@ -238,7 +224,6 @@ export function CartProvider({
     }),
     [
       cart,
-      palettes,
       open,
       config,
       discount,

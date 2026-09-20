@@ -20,8 +20,7 @@ import { cn } from "@/lib/utils";
  * orderForm.optional («(valgfritt)») + orderForm.acceptTerms («Jeg har lest og
  * godtar salgsvilkårene og personvernerklæringen») — the consent is the one
  * sentence a customer is legally taken to have read, so Alessio should own its
- * exact wording. R5-UNPAINTED adds order.unpaintedError («Noen deler i
- * handlekurven er fortsatt umalte — mal dem før du bestiller.»), also new copy.
+ * exact wording.
  *
  * Order form (F05): client-validated with the SAME zod schema as the server,
  * Turnstile token attached. Success → clear cart + redirect to confirmation;
@@ -56,12 +55,7 @@ export function OrderForm({
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [token, setToken] = useState("");
   const [errors, setErrors] = useState<Record<string, boolean>>({});
-  const [status, setStatus] = useState<"idle" | "sending" | "error" | "unpainted">("idle");
-
-  // R5-UNPAINTED: the form is not the place that explains this — step 3's CTA
-  // does («Paint N pieces first»). Here we only make sure it cannot be
-  // submitted: unreachable in the UI, still refused if it is reached.
-  const hasUnpainted = cart.some((l) => l.configCode === null);
+  const [status, setStatus] = useState<"idle" | "sending" | "error">("idle");
 
   function set<K extends keyof typeof form>(k: K, v: string) {
     setForm((f) => ({ ...f, [k]: v }));
@@ -69,10 +63,6 @@ export function OrderForm({
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (hasUnpainted) {
-      setStatus("unpainted");
-      return;
-    }
     const parsed = orderFormSchema.safeParse({ ...form, acceptTerms });
     if (!parsed.success) {
       const errs: Record<string, boolean> = {};
@@ -107,10 +97,7 @@ export function OrderForm({
         }),
       });
       if (!res.ok) {
-        // R5-UNPAINTED: the server's machine code decides which sentence we
-        // show — the sentence itself lives only in the dictionaries.
-        const body = await res.json().catch(() => null);
-        setStatus(body?.error === "unpainted" ? "unpainted" : "error");
+        setStatus("error");
         return; // cart preserved
       }
       const { code, total } = (await res.json()) as {
@@ -296,9 +283,9 @@ export function OrderForm({
 
       <Turnstile onToken={setToken} />
 
-      {(status === "error" || status === "unpainted") && (
+      {status === "error" && (
         <p data-testid="order-error" className="text-sm text-destructive">
-          {status === "unpainted" ? to("unpaintedError") : to("error")}
+          {to("error")}
         </p>
       )}
 

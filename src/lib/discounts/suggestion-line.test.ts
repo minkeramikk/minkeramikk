@@ -105,10 +105,4 @@ describe("buildSuggestionLine", () => {
       Object.keys(line ?? {}).some((k) => /pct|percent|discount|saved|amount/i.test(k))
     ).toBe(false);
   });
-
-  // R5-UNPAINTED: an offer inherits the donor's design — a donor with no
-  // colours has none to lend, and must never quietly add a second unpainted line.
-  it("never builds an offer line from an unpainted donor", () => {
-    expect(buildSuggestionLine(SUGGESTION, { ...FROM_LINE, configCode: null })).toBeNull();
-  });
 });
