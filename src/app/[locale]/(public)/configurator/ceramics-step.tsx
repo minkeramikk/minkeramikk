@@ -6,13 +6,9 @@ import { useLocale, useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
 import { usePathname, useRouter } from "@/i18n/navigation";
 import { Stepper } from "@/components/ui-domain/stepper";
+import { DesignRound } from "@/components/ui-domain/design-round";
+import { CartLineThumb } from "@/components/ui-domain/cart-line-thumb";
 import { OrderForm } from "@/components/ui-domain/order-form";
-import { PaletteBar } from "@/components/ui-domain/palette-bar";
-import { PaletteChip } from "@/components/ui-domain/palette-chip";
-import { PaintingStrip } from "@/components/ui-domain/painting-strip";
-import { nameFor, paletteFor, sortCurrentDesignFirst } from "@/lib/palettes/palettes";
-import type { PaletteWords } from "@/lib/palettes/name-lists";
-import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { assetUrl } from "@/lib/storage";
 import { PRODUCT_CARD_WIDTH, PRODUCT_THUMB_WIDTH } from "@/lib/asset-variants";
@@ -24,7 +20,7 @@ import {
   designLabel,
   itemCount,
   lineKey,
-  unpaintedPieces,
+  type CartLine,
   type CartLayer,
   type ConfigSnapshot,
   type NewCartLine,
@@ -39,8 +35,9 @@ import {
 } from "@/lib/discounts/discount";
 import { ladderFor } from "@/lib/discounts/ladder";
 import { SetBadge } from "@/components/ui-domain/set-badge";
-import { CartLineRow } from "@/components/ui-domain/cart-line-row";
+import { CartLineRecap } from "@/components/ui-domain/cart-line-recap";
 import { useShippingTotalSuffix } from "@/components/ui-domain/cart-shipping-row";
+import { CartLinePrice, CartDiscountNudge } from "@/components/ui-domain/cart-discount-row";
 import { CartSuggestion } from "@/components/ui-domain/cart-suggestion";
 import { CartTotals } from "@/components/ui-domain/cart-totals";
 import {
@@ -49,11 +46,11 @@ import {
   type TypedAttribute,
 } from "@/lib/catalog/product-attributes";
 import { groupBySeries } from "@/lib/configurator/product-series";
-import { Truck, Plus, ArrowUpRight, Brush } from "lucide-react";
+import { formatSelections } from "@/lib/configurator/readable-selections";
+import { Truck, Plus, ArrowUpRight } from "lucide-react";
 import type { ResolvedSharedSet } from "./resolve-shared-set";
 import { ProductSheet } from "@/components/ui-domain/product-sheet";
 import { AddedSheet } from "@/components/ui-domain/added-sheet";
-import { UnpaintDialog } from "@/components/ui-domain/unpaint-dialog";
 import { NextStepPill, PillIcon } from "@/components/ui-domain/next-step-pill";
 
 export interface CeramicProduct {
@@ -81,6 +78,11 @@ export interface DesignRef {
   name: string;
   supplierId: string;
   supplierName: string | null;
+}
+
+/** First selection colour of a cart line → colour chip fallback. */
+function thumbHex(line: CartLine): string | undefined {
+  return line.configSnapshot?.selections.find((s) => s.hex)?.hex ?? undefined;
 }
 
 /**
@@ -159,54 +161,6 @@ function CeramicCard({
 }
 
 /**
- * Task 13 — the docked order pill's "go paint it" action, and the mobile
- * bar's own paint-first pill in the next PR (R5-UNPAINTED PR 3): same target,
- * same behaviour, so it is written ONCE here rather than twice. Pure DOM
- * query, no React state: `CartLineRow` already stamps `data-unpainted` on the
- * first unpainted row and a `data-testid="paint-line"` on its Paint button
- * (mockup's CTA scrolls to the row then "focuses the chip" — the chip is a
- * static `<span>` in this card, so the Paint button is the actionable focus
- * target instead, per the card's own note).
- *
- * NOT a bare `document.querySelector` (the card's own snippet, and the
- * mockup's single-page demo, both get away with one): `cartPanel` above is
- * rendered TWICE, mobile section + desktop rail (`md:hidden`/`hidden
- * md:block`), so BOTH copies of every row are always in the DOM and an
- * unscoped query can resolve to the `display:none` half — exactly the
- * failure mode the sticky bar's own click handler already scopes around a
- * few hundred lines down. `offsetParent !== null` is the cheap "not
- * display:none" check; it skips straight to whichever copy is actually on
- * screen at the current breakpoint.
- */
-export function focusFirstUnpaintedRow() {
-  const rows = document.querySelectorAll<HTMLElement>(
-    '[data-testid="cart-line"][data-unpainted]'
-  );
-  const row = Array.from(rows).find((r) => r.offsetParent !== null);
-  row?.scrollIntoView({ behavior: "smooth", block: "center" });
-  row?.querySelector<HTMLElement>('[data-testid="paint-line"]')?.focus({ preventScroll: true });
-}
-
-/**
- * R5-UNPAINTED/R5-PALETTES — every per-row map on this step (`paintN`, and
- * task 10's `rowPaletteCode`/`pickerOpenId`) is keyed by cart line id, and a
- * line id RECURS (`cart.ts`'s `${productId}::${code}`, and `::unpainted`):
- * paint a row in full and its id can be reborn as a brand-new, untouched
- * lot of the same product. Left alone, a stale entry would hand that new
- * lot someone else's leftover choice. One shared pruner, called from the
- * ONE effect below that owns every such map — not a second cleanup per map.
- */
-function pruneToLive<T>(m: Record<string, T>, liveIds: Set<string>): Record<string, T> {
-  let changed = false;
-  const next: Record<string, T> = {};
-  for (const [id, v] of Object.entries(m)) {
-    if (liveIds.has(id)) next[id] = v;
-    else changed = true;
-  }
-  return changed ? next : m;
-}
-
-/**
  * Step 3 — two-panel layout (F21).
  *
  * Desktop (≥768): left = ceramic selector; right = docked inline cart always
@@ -230,7 +184,6 @@ export function CeramicsStep({
   hasExplicitDesign,
   selections = {},
   sharedSet = null,
-  paletteWords,
 }: {
   products: CeramicProduct[];
   design: DesignRef;
@@ -253,18 +206,12 @@ export function CeramicsStep({
   selections?: Record<string, string>;
   /** CA-3: server-resolved `?set=` lines (live prices), or null when no set. */
   sharedSet?: ResolvedSharedSet | null;
-  /** Resolved server-side once (page.tsx) — a `"use client"` file can't read
-   *  `MK_PALETTE_WORDS` itself (fix wave finding, task 8/9). Only needed for
-   *  `nameFor()` on the draft chip below; every SAVED palette already
-   *  carries its own name. */
-  paletteWords: PaletteWords;
 }) {
   const t = useTranslations("cart");
   // TODO:nb-review NO copy: step3.seriesCount · stickyBar.title · stickyBar.pieces
   const tc = useTranslations("configurator");
   const to = useTranslations("order");
   const ta = useTranslations("actions");
-  const tPaletteBar = useTranslations("palettes.bar");
   const locale = useLocale() as "no" | "en";
   const router = useRouter();
   const pathname = usePathname();
@@ -277,21 +224,11 @@ export function CeramicsStep({
     setQuantity,
     remove,
     clear,
-    paint,
-    unpaint,
     discount,
     discountConfig,
     setCurrentConfigCode,
     acceptSuggestion,
     allowedProduct: cartAllowedProduct,
-    palettes,
-    palettesHydrated,
-    activeCode,
-    setActiveCode,
-    save: savePalette,
-    touch: touchPalette,
-    rename: renamePalette,
-    remove: deletePalette,
   } = useCartContext();
 
   /**
@@ -305,243 +242,6 @@ export function CeramicsStep({
     setCurrentConfigCode(configCode);
     return () => setCurrentConfigCode(null);
   }, [configCode, setCurrentConfigCode]);
-
-  /**
-   * R5-PALETTES task 9 — which palette is painting. Same rule as step 2's own
-   * `matchedPalette` (card §4-bis: the active palette IS the URL): `configCode`
-   * is a server prop derived from the URL, so whichever saved palette shares
-   * its code is the one actually in use, full stop — no separate "current
-   * palette" state to drift out of sync with what a ceramic will be painted
-   * with when added.
-   */
-  // Moved up from further below (task 10): `rowThumb`'s default fallback
-  // (nothing chosen yet on a row) needs it, and that's declared well before
-  // its own original spot — it only ever needed `snapshot`/`locale`, both
-  // already in scope this early.
-  const designName = designLabel(snapshot, locale) ?? "";
-  const activePalette = paletteFor(palettes, configCode);
-  /**
-   * TL follow-up (post-task-12): the ONE name for "what's painting right
-   * now" — the draft chip below and the basket header both used to compute
-   * this themselves, and the header's own fallback (`designName`) was wrong
-   * for the unsaved-draft case: a saved palette names it, an unsaved draft
-   * IS still a real configuration and gets the same deterministic label
-   * `nameFor()`/the draft chip already give it (`nameFor` never returns
-   * empty, even with zero colours — see its own test), and `designName` is
-   * the true last resort, for when there's no configuration to name at all.
-   * Computed ONCE here so the two call sites can never drift apart again.
-   */
-  // Round 4 (TL-reported duplicate «Zaffera»): pass every already-saved
-  // name so `nameFor()` picks a FREE word instead of repeating one — same
-  // `palettes` list this step already reads, so this label (chip, basket
-  // header, `saveDraftAsPalette` below) can't disagree with what gets saved.
-  const paintingLabel =
-    activePalette?.name ??
-    nameFor(
-      configCode,
-      snapshot,
-      paletteWords,
-      palettes.map((p) => p.name)
-    ) ??
-    designName;
-
-  /**
-   * `activeCode` (persisted, cross-tab) is a DIFFERENT thing: a "last chosen"
-   * pointer for surfaces that have no URL to read (the next PR's header/mobile
-   * strip). Task 8 only ever WROTE it (on save); this is the first task that
-   * READS it, which is also the first chance to hit the bug its own review
-   * flagged — it can point at a palette that no longer exists (evicted by the
-   * LRU when an 11th palette is saved, or wiped because another tab wrote a
-   * different list). So: never trust the raw pointer, always resolve through
-   * `paletteFor`, and reconcile in both directions — follow the URL forward
-   * when it names a save, clear the pointer when it names nothing.
-   */
-  /** The one chip currently in rename mode (only one at a time — task 8's own rule). */
-  const [renamingPaletteCode, setRenamingPaletteCode] = useState<string | null>(
-    null
-  );
-  /** R5-PALETTES task 13 — the mobile strip's own "Palettes ▾" sheet, the
-   *  `md:hidden` stand-in for the desktop bar's always-visible chip lane. */
-  const [paletteSheetOpen, setPaletteSheetOpen] = useState(false);
-  useEffect(() => {
-    if (!palettesHydrated) return;
-    if (activePalette) {
-      if (activeCode !== activePalette.code) setActiveCode(activePalette.code);
-    } else if (activeCode && !paletteFor(palettes, activeCode)) {
-      setActiveCode(null);
-    }
-    // Fix wave A finding 4: a palette's code is a deterministic function of
-    // its colours, so it RECURS — evict it via the LRU (or another tab
-    // rewrites the list, the `storage` listener makes that routine), then
-    // re-create the same colours, and the chip would mount already in
-    // rename mode with `autoFocus` stealing focus. Same reconciliation this
-    // effect already does for `activeCode`, same reason: never trust a
-    // stale code-keyed pointer without checking it still resolves.
-    if (renamingPaletteCode && !paletteFor(palettes, renamingPaletteCode)) {
-      setRenamingPaletteCode(null);
-    }
-  }, [palettesHydrated, activePalette, activeCode, palettes, setActiveCode, renamingPaletteCode]);
-
-  /**
-   * Picking a chip: it becomes the active palette by becoming the URL (§4-bis)
-   * — `configCode`/`snapshot`/`designLayers` are server props derived from it,
-   * so this one navigation is also what repaints the canvas/thumbnails and
-   * what the next "Add to basket" will use (built from those same props).
-   * `touch()` bumps the LRU key so this save doesn't look unused next time the
-   * list is trimmed.
-   */
-  function paintWith(code: string) {
-    touchPalette(code, Date.now());
-    setActiveCode(code);
-    // Fix wave A finding 1: build from the CURRENT params, the way `goToStep`
-    // below already does — a from-scratch URL was dropping note=/text=
-    // (R2-2b/F38, the ONLY carrier for both at step 3) and set=/origin=set
-    // (the shared-set banner), silently losing the customer's own words and
-    // the shared basket on every chip tap.
-    const params = new URLSearchParams(searchParams.toString());
-    // Fix wave B finding 5 (minor) — `code=` already wins over stale `opt_*`
-    // (page.tsx gives it priority, nothing breaks), but there's no reason to
-    // carry both: a chip tap is a full colour pick, same as `selectDesign` in
-    // configurator-client.tsx dropping `opt_*` on a design change.
-    for (const key of [...params.keys()]) {
-      if (key.startsWith("opt_")) params.delete(key);
-    }
-    params.set("code", code);
-    params.set("step", "3");
-    // Fix wave PR3 finding 3: the sheet is the phone's ONLY way to pick a
-    // palette here, opened mid-page from the sticky strip — without
-    // `scroll: false` every tap threw the customer back to the top of step
-    // 3, same bug `loadPalette` (configurator-client.tsx) had. The sticky
-    // desktop bar hid it there too; `resetPaletteDraft` already got this right.
-    router.push(`${pathname}?${params.toString()}`, { scroll: false });
-  }
-
-  /** The sheet's own tile pick: same effect as a chip tap (`paintWith`), plus
-   *  closing the sheet — same rule the row picker already follows ("Mockup
-   *  `selPal`: choosing one closes the picker", a few hundred lines below). */
-  function paintWithFromSheet(code: string) {
-    paintWith(code);
-    setPaletteSheetOpen(false);
-  }
-
-  /**
-   * The lane's chips: every saved palette, dim (and inert — card §6, switching
-   * design from here is a later card) when it belongs to a different design,
-   * else selectable and — if it's the one painting — carrying the brush badge.
-   * Card §4-bis (added mid-PR): the CURRENT design's own palettes lead, the
-   * rest follow dimmed — a stable sort, not a filter, so nothing drops out.
-   */
-  const paletteChips = sortCurrentDesignFirst(palettes, design.slug).map((p) => {
-    const dim = p.designSlug !== design.slug;
-    if (dim) {
-      return (
-        <PaletteChip
-          key={p.code}
-          code={p.code}
-          name={p.name}
-          layers={p.layers}
-          dim
-          dimDesignName={designLabel(p.snapshot, locale) ?? p.designSlug}
-          onDelete={() => deletePalette(p.code)}
-        />
-      );
-    }
-    const isActive = activePalette?.code === p.code;
-    return (
-      <PaletteChip
-        key={p.code}
-        code={p.code}
-        name={p.name}
-        layers={p.layers}
-        active={isActive}
-        brush={isActive}
-        renaming={renamingPaletteCode === p.code}
-        onSelect={() => paintWith(p.code)}
-        onRenameStart={() => setRenamingPaletteCode(p.code)}
-        onRenameConfirm={(next) => {
-          renamePalette(p.code, next);
-          setRenamingPaletteCode(null);
-        }}
-        onRenameCancel={() => setRenamingPaletteCode(null)}
-        onDelete={() => deletePalette(p.code)}
-      />
-    );
-  });
-
-  /**
-   * R5-PALETTES follow-up (TL, after PR 2) — step 3's whole job is naming
-   * what's painting, and it said NOTHING when the on-screen config matched
-   * no save: every ceramic added right then IS painted with those colours,
-   * the bar just didn't say so. `activePalette` null means exactly "nothing
-   * saved matches `configCode`" (same read as step 2's own `matchedPalette`
-   * — card §4-bis, the URL is the one source of truth), so this chip covers
-   * that gap with two states `PaletteChip` already has: `draft` (dashed,
-   * "Unsaved", the colours' own label) because it isn't saved, `brush`
-   * because it's what will paint. NOT `active` — that skin is a solid
-   * `bg-card` + ring, and the ternary in palette-chip.tsx checks `active`
-   * FIRST, so passing both would silently drop the dashed "unsaved" look
-   * this chip exists to show. Deliberately NOT auto-saved on arrival (TL
-   * ruling): the 10-slot LRU would burn a slot, and the name, on a palette
-   * the customer never chose to keep — "Save as palette" below is the one
-   * way this becomes a real entry.
-   */
-  const draftChip = !activePalette && (
-    <PaletteChip
-      key="draft"
-      code={configCode}
-      name={paintingLabel}
-      layers={designLayers}
-      draft
-      brush
-    />
-  );
-
-  /** Mirrors step 2's `saveDraftAsPalette` (configurator-client.tsx) — same
-   *  builder inputs (`configCode`/`snapshot`/`designLayers` are this step's
-   *  own server props, already the exact shape `buildConfigLinePayload`
-   *  would produce), just no note/text ever enters a palette. `setActiveCode`
-   *  here is a courtesy for immediacy; the reconciliation effect above would
-   *  land on the same value a tick later regardless, once `activePalette`
-   *  starts resolving through the freshly-saved code. */
-  function saveDraftAsPalette() {
-    const now = Date.now();
-    savePalette({
-      code: configCode,
-      // `paintingLabel` at this call site IS `nameFor(...)` — this button
-      // only renders when `!activePalette` (the same condition the draft
-      // chip renders on), so the two never disagree.
-      name: paintingLabel,
-      designSlug: design.slug,
-      snapshot,
-      layers: designLayers,
-      createdAt: now,
-      usedAt: now,
-    });
-    setActiveCode(configCode);
-  }
-
-  /**
-   * «+ New palette»: step 2 of the CURRENT design (`goToStep`, defined below,
-   * keeps every other param — colours included, so this opens on what's on
-   * screen right now, ready to tweak into something new rather than starting
-   * from the design's own defaults).
-   */
-  const newPaletteChip = (
-    <button
-      type="button"
-      data-testid="palette-chip-new"
-      onClick={() => goToStep(2)}
-      className="flex h-12 shrink-0 items-center gap-2.5 rounded-full border border-dashed border-primary/50 pl-1.5 pr-4 text-[13.5px] text-primary hover:bg-muted"
-    >
-      <span
-        aria-hidden
-        className="grid size-9 place-items-center rounded-full border border-dashed border-primary/60 text-lg leading-none"
-      >
-        +
-      </span>
-      {tPaletteBar("new")}
-    </button>
-  );
 
   /**
    * R4-STEP3: id of the product whose `ProductSheet` is OPEN — no preselection
@@ -578,126 +278,6 @@ export function CeramicsStep({
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   /** CA-3 E: id of the one expanded cart row (one at a time), or null. */
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  /**
-   * R5-UNPAINTED task 10: "how many to paint" per unpainted line — the row
-   * owns none of this (mirrors the mockup's `S3.n[id]`). Read through
-   * `paintNFor` below, which clamps to the line's current quantity, so a
-   * stale stored value (from before a partial paint shrank the line) never
-   * renders or submits out of range — the row never has to know.
-   */
-  const [paintN, setPaintN] = useState<Record<string, number>>({});
-  const paintNFor = useCallback(
-    (line: { id: string; quantity: number }) =>
-      Math.min(Math.max(1, paintN[line.id] ?? line.quantity), line.quantity),
-    [paintN]
-  );
-  /** R5-UNPAINTED task 11: id of the line the `UnpaintDialog` is open for, or
-   *  null. The dialog itself keeps rendering its last line through the exit
-   *  animation (see its own comment) — this id only drives whether it's open. */
-  const [unpaintId, setUnpaintId] = useState<string | null>(null);
-  const unpaintLine = cart.find((l) => l.id === unpaintId) ?? null;
-  /**
-   * R5-PALETTES task 10 — an unpainted row's OWN palette pick, distinct from
-   * the active/on-screen one (card §4-bis: a row can paint with a DIFFERENT
-   * palette). Untouched (no entry) → defaults to whatever's on screen, same
-   * as every row painted before this task; `rowThumb` below resolves it.
-   * Same recurring-id trap as `paintN`/`unpaintId`/`expandedId` — pruned by
-   * the same effect, not a second one (see `pruneToLive`).
-   */
-  const [rowPaletteCode, setRowPaletteCode] = useState<Record<string, string>>({});
-  /** Which row's picker panel is open — mirrors the mockup's `S3.pick[id]`
-   *  (a map, so more than one COULD be open; in practice only the row the
-   *  customer is touching ever is). Same prune as the map above. */
-  const [pickerOpenId, setPickerOpenId] = useState<Record<string, boolean>>({});
-  /**
-   * The palette a given unpainted row will Paint with right now: the
-   * customer's own pick from that row's picker, else whatever's on screen —
-   * the exact `configCode`/`snapshot`/`designLayers` `paint()` already used
-   * before this task, so an untouched row's behaviour doesn't change.
-   * `code` doubles as which picker pill gets the ring (`currentThumb.code`
-   * in `CartLineRow`), so this is the ONE place that resolves it.
-   *
-   * Fix wave A finding 2: an untouched row (no entry in `rowPaletteCode`)
-   * used to resolve `configCode` through `paletteFor` too, which — right
-   * after "Save as palette", when the on-screen config IS a saved palette —
-   * swapped in that palette's own STORED snapshot instead of the props one.
-   * That stored snapshot has no `customNote`/`customText` (a palette is
-   * colours only, F38/R2-2b never travel in the code), so painting an
-   * untouched row silently dropped the customer's words while "Legg i
-   * handlekurv" a few hundred lines below kept them — same design, same
-   * colours, two different inscriptions in the same basket. `activePalette`
-   * is now only ever borrowed for its code/name (display), never its
-   * snapshot/layers, on the untouched path.
-   *
-   * An EXPLICIT pick (TL ruling) takes the palette's COLOURS but keeps the
-   * customer's own words: `customNote`/`customText` are carried from the
-   * current on-screen `snapshot` into the palette snapshot this row paints
-   * with — the palette is a set of colours, not a replacement for what the
-   * customer wrote.
-   */
-  const rowThumb = useCallback(
-    (line: { id: string }) => {
-      const explicitCode = rowPaletteCode[line.id];
-      const explicitPalette = explicitCode ? paletteFor(palettes, explicitCode) : null;
-      if (explicitPalette) {
-        return {
-          code: explicitPalette.code,
-          layers: explicitPalette.layers,
-          label: explicitPalette.name,
-          hexes: explicitPalette.snapshot.selections
-            .map((s) => s.hex)
-            .filter((h): h is string => Boolean(h)),
-          snapshot: {
-            ...explicitPalette.snapshot,
-            customNote: snapshot.customNote,
-            customText: snapshot.customText,
-          },
-        };
-      }
-      return {
-        code: activePalette?.code ?? configCode,
-        layers: designLayers,
-        // TL follow-up (post-task-12): same `paintingLabel` the bar's chip
-        // and the basket header now share — this fell back straight to
-        // `designName` before, the same "vaguer of two names for the same
-        // thing on screen" bug the header had.
-        label: paintingLabel,
-        hexes: snapshot.selections.map((s) => s.hex).filter((h): h is string => Boolean(h)),
-        snapshot,
-      };
-    },
-    [rowPaletteCode, palettes, activePalette, configCode, designLayers, paintingLabel, snapshot]
-  );
-  /**
-   * Bug fix (task 11 review): a cart line id RECURS — `cart.ts` gives every
-   * unpainted lot of a product (and every painted lot of one config) the SAME
-   * id, because there is only ever one such line at a time. `paintNFor` above
-   * clamps a stored number DOWN when its line shrinks, but nothing dropped
-   * the entry — or `unpaintId` itself — when a line disappeared entirely
-   * (paint in full, «Remove all», a cross-tab sync). Left alone, a number (or
-   * an OPEN dialog) meant for one lot survives to land on the NEXT lot of the
-   * same product, which should start untouched. Root cause lives here, in the
-   * one place that owns both `paintN` and `unpaintId`, not in each caller that
-   * can make a line disappear: whenever the cart no longer has a line for some
-   * id, that id's entry — and a dialog pinned to it — is stale by definition.
-   *
-   * Fix round 2 (finding 2): `expandedId` (declared above) is a THIRD state
-   * keyed the same recurring way — pruned here too, so a removed-then-
-   * recreated line never mounts already expanded.
-   *
-   * Task 10: `rowPaletteCode`/`pickerOpenId` join the same one effect —
-   * `pruneToLive` (module scope, above) is the shared pruning logic every
-   * one of these five maps/pointers needs, computed against the SAME
-   * `liveIds` set rather than each map recomputing its own.
-   */
-  useEffect(() => {
-    const liveIds = new Set(cart.map((l) => l.id));
-    setPaintN((m) => pruneToLive(m, liveIds));
-    setRowPaletteCode((m) => pruneToLive(m, liveIds));
-    setPickerOpenId((m) => pruneToLive(m, liveIds));
-    setUnpaintId((id) => (id && !liveIds.has(id) ? null : id));
-    setExpandedId((id) => (id && !liveIds.has(id) ? null : id));
-  }, [cart]);
   /** CA-3 C: share feedback under the panel header (aria-live). */
   const [shareState, setShareState] = useState<
     | null
@@ -769,10 +349,7 @@ export function CeramicsStep({
         currency: l.currency,
         quantity: l.quantity,
         dealRuleId: l.dealRuleId,
-        // R5-UNPAINTED: DiscountLineInput.configCode is string|undefined,
-        // never null — an unpainted line still counts for its quantity tier,
-        // it just has no design to match a suggestion donor on.
-        configCode: l.configCode ?? undefined,
+        configCode: l.configCode,
       })),
     [cart]
   );
@@ -861,27 +438,11 @@ export function CeramicsStep({
   // choice — no explicit design ⇒ no box, not an empty one. The grid below
   // still works off the fallback design, which is fine as a catalog view.
   const hasConfig = hasExplicitDesign && designLayers.length > 0;
+  const designName = designLabel(snapshot, locale) ?? "";
 
   const count = hydrated ? itemCount(cart) : 0;
   /** R4-CTA-STICKY: the bar counts PIECES, not lines — a set is N deler. */
   const pieces = hydrated ? cartPieces(cart) : 0;
-  /** R5-UNPAINTED task 9: the basket's own explanation box, mirroring the
-   *  header marker (cart-menu.tsx) — pieces, not lines. */
-  const unpaintedInBasket = hydrated ? unpaintedPieces(cart) : 0;
-  /** Task 13: the order CTA and the checkout form both gate on this. */
-  const hasUnpainted = unpaintedInBasket > 0;
-  /**
-   * Fix round 2 (finding 3) — task 13's render gate (`!hasUnpainted &&
-   * checkoutOpen` below) only stops the form from being SHOWN; it never
-   * flips `checkoutOpen` back to false, and both `setCheckoutOpen(false)`
-   * call sites live inside the branch this state can no longer reach once a
-   * line goes unpainted mid-checkout. Left alone, the mobile sticky bar
-   * (gated on `!checkoutOpen`) hides itself with nothing to show for it, and
-   * the form pops back open unprompted the moment the last piece is painted.
-   */
-  useEffect(() => {
-    if (hasUnpainted) setCheckoutOpen(false);
-  }, [hasUnpainted]);
   /** The mobile order block — the sticky bar's CTA queries the form inside it. */
   const orderBlockRef = useRef<HTMLDivElement>(null);
   /**
@@ -935,10 +496,6 @@ export function CeramicsStep({
    * would silently give the two buttons different lines.
    */
   function buildBaseLine(selected: CeramicProduct, quantity: number = qty): NewCartLine {
-    // R5-PALETTES §4-bis: same dimensional attribute `CeramicCard` reads for
-    // its own meta line — not re-derived, just formatted in both locales so
-    // the cart row (read in either) never freezes into the add-time language.
-    const size = publicAttributes(selected.attributes).find((a) => a.key !== "custom");
     return {
       productId: selected.id,
       productNameNo: selected.nameNo,
@@ -956,8 +513,6 @@ export function CeramicsStep({
         : undefined,
       productSlug: selected.slug,
       pieces: selected.pieces,
-      sizeLabelNo: size ? formatAttributeValue(size, "no") : undefined,
-      sizeLabelEn: size ? formatAttributeValue(size, "en") : undefined,
     };
   }
 
@@ -1200,110 +755,127 @@ export function CeramicsStep({
   // ── Docked cart panel (shared by desktop right column + mobile inline section) ──
   const cartPanel = (
     <div className="flex flex-col gap-0" data-testid="docked-cart">
-      <div className="mb-1 flex items-baseline justify-between gap-2">
-        <h2 className="text-base font-semibold">{t("cartTitle")}</h2>
-        {/* Fix wave B finding 3 — mockup `#s3a`'s header line, the
-            replacement for the removed "Ditt valg" box (task 9): says what a
-            NEW ceramic added right now gets painted with. TL follow-up
-            (post-task-12): this used to fall back straight to `designName`
-            for an unsaved draft, while the bar's OWN chip (a few hundred
-            lines up) named the exact same configuration with its
-            deterministic colour label — two names for one thing on one
-            screen, and the vaguer one is the one this header showed. Both
-            now read `paintingLabel`, computed ONCE above, so they can't
-            drift apart again; `designName` only survives inside that
-            variable's own fallback chain, for when there's no configuration
-            to name at all. Hidden with the box's own rule (AC4) when
-            there's no config at all yet (a bare `?set=` landing).
-            TODO:nb-review — cart.paintedWith NO copy is new, unreviewed. */}
-        {hasConfig && (
-          <span className="text-xs text-muted-foreground">
-            {t.rich("paintedWith", {
-              name: paintingLabel,
-              b: (chunks) => <b className="font-semibold text-foreground">{chunks}</b>,
-            })}
-          </span>
-        )}
-      </div>
-
-      {/* R5-UNPAINTED task 9: explicit, no button inside — Paint lives on the
-          row itself (task 10). Pieces, not lines, like the header marker.
-          Task 10: copy reworded "choose a palette" (was "choose the
-          colours") now that the row actually has a picker to open.
-          TODO:nb-review — cart.unpainted.note NO copy is new, unreviewed. */}
-      {unpaintedInBasket > 0 && (
-        <p
-          data-testid="basket-unpainted-note"
-          className="mb-1 rounded-sm bg-muted px-3 py-2 text-xs text-foreground/80"
-        >
-          <span className="text-warn">○</span>{" "}
-          {t("unpainted.note", { count: unpaintedInBasket })}
-        </p>
-      )}
+      <h2 className="mb-3 text-base font-semibold">{t("cartTitle")}</h2>
 
       {count === 0 ? (
         <p className="py-6 text-sm text-muted-foreground">{t("empty")}</p>
       ) : (
         <>
           <div data-testid="cart-list" className="flex flex-col">
-            {/* R5-UNPAINTED task 8: unpainted lines float to the top, exactly
-                as the mockup sorts them (renderS3: (a.code?1:0)-(b.code?1:0)). */}
-            {[...cart]
-              .sort((a, b) => Number(a.configCode !== null) - Number(b.configCode !== null))
-              .map((line) => {
-                // Task 10: resolved ONCE per row — `currentThumb` (what the
-                // chip/picker shows) and `onPaint` (what Paint applies) must
-                // agree on the exact same palette, or the button could paint
-                // something other than what the row just showed.
-                const thumb = rowThumb(line);
-                return (
-                  <CartLineRow
-                    key={line.id}
-                    line={line}
-                    locale={locale}
-                    d={discount.perLine[line.id]}
-                    open={expandedId === line.id}
-                    onToggleDetails={() =>
+            {cart.map((line) => (
+              <div
+                key={line.id}
+                data-testid="cart-line"
+                className="border-b border-border/60 py-3 last:border-0"
+              >
+                <div className="flex gap-3">
+                <CartLineThumb
+                  layers={line.layers}
+                  hex={thumbHex(line)}
+                  plateImage={line.plateImage}
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="flex items-center gap-1.5 text-sm font-medium">
+                    <span className="truncate">
+                      {locale === "no" ? line.productNameNo : line.productNameEn}
+                    </span>
+                    {/* F29: set marker on the cart row (legacy lines lack
+                        `pieces` → SetBadge renders nothing) */}
+                    <SetBadge count={line.pieces ?? 1} className="shrink-0" />
+                  </p>
+                  <p className="truncate text-xs text-muted-foreground">
+                    {designLabel(line.configSnapshot, locale) ?? "—"}
+                  </p>
+                  <div className="mt-1.5 flex items-center gap-2">
+                    <div className="flex items-center rounded-sm border border-border">
+                      <button
+                        type="button"
+                        aria-label="-"
+                        data-testid="docked-qty-dec"
+                        onClick={() => setQuantity(line.id, line.quantity - 1)}
+                        className="flex size-11 items-center justify-center sm:size-9"
+                      >
+                        −
+                      </button>
+                      <span className="w-7 text-center text-sm tabular-nums">
+                        {line.quantity}
+                      </span>
+                      <button
+                        type="button"
+                        aria-label="+"
+                        data-testid="docked-qty-inc"
+                        onClick={() => setQuantity(line.id, line.quantity + 1)}
+                        className="flex size-11 items-center justify-center sm:size-9"
+                      >
+                        +
+                      </button>
+                    </div>
+                    <button
+                      type="button"
+                      data-testid="docked-remove"
+                      onClick={() => remove(line.id)}
+                      className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+                    >
+                      {t("remove")}
+                    </button>
+                  </div>
+                  <CartDiscountNudge
+                    productQty={
+                      line.productId ? discount.qtyByProduct[line.productId] ?? 0 : 0
+                    }
+                    tiers={discountConfig.tiers}
+                    pct={discount.perLine[line.id]?.pct ?? 0}
+                    eligible={discount.perLine[line.id]?.tierEligible ?? false}
+                    pendingDeal={discount.perLine[line.id]?.pendingDeal}
+                  />
+                </div>
+                <div className="flex shrink-0 flex-col items-end justify-between self-stretch">
+                  <CartLinePrice d={discount.perLine[line.id]} locale={locale} />
+                  {/* CA-3 E: expansion as a LABELLED action (the bare ▾ icon
+                      read as decoration) — price top-right, toggle BOTTOM
+                      right on the qty/Remove baseline (mb compensates the
+                      qty box centring); one row open at a time */}
+                  <button
+                    type="button"
+                    data-testid="cart-expand"
+                    aria-expanded={expandedId === line.id}
+                    onClick={() =>
                       setExpandedId((id) => (id === line.id ? null : line.id))
                     }
-                    onQty={(q) => setQuantity(line.id, q)}
-                    onRemove={() => remove(line.id)}
-                    // Task 10: paint n pieces with the ROW's own chosen
-                    // palette (`thumb`, above) — NOT the URL/active config,
-                    // so this never navigates and `activeCode` never moves
-                    // (AC 2). Task 11: open the dialog, keyed by line id — it
-                    // reads the live line itself, so it always shows current
-                    // quantity even if the cart changes while it's open.
-                    onPaint={(n) => paint(line.id, n, thumb.code, thumb.snapshot, thumb.layers)}
-                    onUnpaint={() => setUnpaintId(line.id)}
-                    n={paintNFor(line)}
-                    onN={(next) =>
-                      setPaintN((m) => ({
-                        ...m,
-                        [line.id]: Math.min(Math.max(1, next), line.quantity),
-                      }))
+                    className="mb-2.5 text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground max-sm:mb-3.5"
+                  >
+                    {expandedId === line.id
+                      ? `${t("line.collapse")} ▴`
+                      : `${t("line.expand")} ▾`}
+                  </button>
+                </div>
+                </div>
+
+                {/* CA-3 E: inline detail (frame 2) — big composition from the
+                    line's stored F19 layers (zero fetch), readable selections
+                    from the snapshot (R1-FB1 extended to the cart), edit+remove. */}
+                {expandedId === line.id && (
+                  <CartLineRecap
+                    line={line}
+                    locale={locale}
+                    editSlot={
+                      <button
+                        type="button"
+                        data-testid="cart-edit-design"
+                        onClick={() =>
+                          router.push(
+                            `/configurator?code=${encodeURIComponent(line.configCode)}&step=2`
+                          )
+                        }
+                        className="shrink-0 text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+                      >
+                        ✎ {t("line.edit")}
+                      </button>
                     }
-                    currentThumb={thumb}
-                    palettes={palettes}
-                    currentDesignSlug={design.slug}
-                    pickerOpen={!!pickerOpenId[line.id]}
-                    onTogglePicker={() =>
-                      setPickerOpenId((m) => ({ ...m, [line.id]: !m[line.id] }))
-                    }
-                    onPickPalette={(code) => {
-                      setRowPaletteCode((m) => ({ ...m, [line.id]: code }));
-                      // Mockup `selPal`: choosing one closes the picker.
-                      setPickerOpenId((m) => ({ ...m, [line.id]: false }));
-                      // Fix wave A finding 5: ADR 0028 is LEAST-RECENTLY-
-                      // USED — a palette picked here IS a use, same as
-                      // `paintWith` touching it. Without this a palette
-                      // used on rows all afternoon keeps its old `usedAt`
-                      // and is first out of the LRU.
-                      touchPalette(code, Date.now());
-                    }}
                   />
-                );
-              })}
+                )}
+              </div>
+            ))}
           </div>
 
           <CartSuggestion />
@@ -1318,22 +890,10 @@ export function CeramicsStep({
           <div className="mt-3 flex flex-col gap-3 border-t border-border pt-3">
             <CartTotals totalTestId="docked-total" />
 
-            {/* Task 13: `!hasUnpainted` gates the form shut even if it was
-                already open when the basket picked up a new unpainted line
-                (e.g. adding a ceramic mid-checkout) — the order can never
-                leave with colourless pieces, so the form can never be on
-                screen with one either (Task 4's client half). */}
-            {!hasUnpainted && checkoutOpen ? (
+            {checkoutOpen ? (
               // scroll-mt: the mobile header is sticky and 56px tall, so a
               // bare scrollIntoView would park the form's first rows under it.
-              // Fix wave PR3 finding 2: `md:scroll-mt-[4.5rem]` is that
-              // desktop-header-only value, unchanged — but below `md` the
-              // header now stacks with `paintingStrip`'s own `sticky top-14`
-              // (task 13), ~111-117px combined, not 72px. Measured value below.
-              <div
-                data-testid="docked-checkout-form"
-                className="scroll-mt-[7.5rem] md:scroll-mt-[4.5rem]"
-              >
+              <div data-testid="docked-checkout-form" className="scroll-mt-[4.5rem]">
                 <button
                   type="button"
                   data-testid="docked-back-to-cart"
@@ -1360,45 +920,19 @@ export function CeramicsStep({
                     cui si ricomincia, e tiene il carrello (F03/F16). */}
                 {/* Camioncino, non freccia: l'ordine parte: non c'è uno step
                     successivo nel wizard (nota-step3-cart.md). */}
-                {/* Task 13 (mockup: bottom of `renderS3`) — while anything is
-                    unpainted, the pill that would open checkout is replaced,
-                    not merely disabled: it becomes a tertiary "go paint it"
-                    CTA that scrolls to and focuses the first unpainted row's
-                    Paint button (`focusFirstUnpaintedRow`, shared with the
-                    mobile bar in the next PR). No `arrow`: unlike "Bestill"
-                    this click doesn't advance the funnel, matching the other
-                    non-advancing pills in this stack (`new-design-cta`,
-                    `share-set`) that also render arrow-less.
-                    TODO:nb-review — cart.unpainted.cta NO copy is new,
-                    unreviewed. */}
-                {hasUnpainted ? (
-                  <NextStepPill
-                    variant="tertiary"
-                    data-testid="docked-paint-first"
-                    className="w-full"
-                    label={t("unpainted.cta", { count: unpaintedInBasket })}
-                    icon={
-                      <PillIcon variant="tertiary">
-                        <Brush className="size-5 text-muted-foreground" />
-                      </PillIcon>
-                    }
-                    onClick={focusFirstUnpaintedRow}
-                  />
-                ) : (
-                  <NextStepPill
-                    data-testid="docked-checkout"
-                    className="w-full"
-                    caption={t("checkoutKicker")}
-                    label={to("title")}
-                    arrow
-                    icon={
-                      <PillIcon>
-                        <Truck className="size-5 text-primary" />
-                      </PillIcon>
-                    }
-                    onClick={() => setCheckoutOpen(true)}
-                  />
-                )}
+                <NextStepPill
+                  data-testid="docked-checkout"
+                  className="w-full"
+                  caption={t("checkoutKicker")}
+                  label={to("title")}
+                  arrow
+                  icon={
+                    <PillIcon>
+                      <Truck className="size-5 text-primary" />
+                    </PillIcon>
+                  }
+                  onClick={() => setCheckoutOpen(true)}
+                />
                 {/* R4-BTN-SCALE AC4: le due azioni basse sono un GRUPPO, non
                     due pari del primario. Wrapper `gap-2` dentro il `gap-3`
                     dello stack → ritmo a due livelli: 12px staccano «Bestill»,
@@ -1482,67 +1016,58 @@ export function CeramicsStep({
     </div>
   );
 
-  // R5-PALETTES task 9: the desktop "Ditt valg" box is GONE — the PaletteBar
-  // above the step now says which palette is painting (mockup `#s3a`'s option
-  // A carries no such card in the basket column; the bar replaces it).
-  //
-  // R5-PALETTES task 13: the mobile strip below WAS that box's phone twin
-  // (design + selected options, an "Edit" shortcut) — it becomes the
-  // mockup's `MobStrip` instead: the bar's own job (name what's painting),
-  // not the design's.
-  //
-  // Fix wave PR3 finding 4: no `hasConfig` gate any more. That gate made
-  // sense while this was a recap of an explicit choice (AC4); now it's the
-  // ONLY mobile way to see what's painting and reach the sheet, and the
-  // desktop `PaletteBar` a few hundred lines down carries no such gate
-  // either — it always renders, just `hidden` below `md`. A bare `?step=3`
-  // or a `?set=` landing still has SOME palette painting (`paintingLabel`
-  // already falls back to `designName`), and the phone customer deserves to
-  // be told, and given the sheet, same as desktop.
-  //
-  // TL "menu sopra come step3" (PR3 round 3): step 2 grew this exact same
-  // strip, so the markup/behaviour now lives once in `<PaintingStrip>`
-  // (components/ui-domain/painting-strip.tsx) — this call site only supplies
-  // step 3's own values (`design.slug`, `activePalette`, `paintWithFromSheet`
-  // …); the strip's own WHY (the full-bleed trick, `sticky top-14`, the
-  // `SheetTrigger` reasoning) lives in that file now, not duplicated here.
-  const paintingStrip = (
-    <PaintingStrip
-      testId="step3-your-selection-strip"
-      designLayers={designLayers}
-      paintingLabel={paintingLabel}
-      designName={designName}
-      palettes={palettes}
-      currentDesignSlug={design.slug}
-      activeCode={activePalette?.code ?? null}
-      draft={!activePalette}
-      locale={locale}
-      onPick={paintWithFromSheet}
-      onNewPalette={() => {
-        setPaletteSheetOpen(false);
-        goToStep(2);
-      }}
-      onSaveDraft={() => {
-        saveDraftAsPalette();
-        setPaletteSheetOpen(false);
-      }}
-      // PR3 round 2: the sheet gained rename/delete (it had neither) so it
-      // can do what the removed step-2 tab's chips did, now that step 2
-      // opens this SAME sheet too. `renamingPaletteCode`/`renamePalette`/
-      // `deletePalette` already exist in this file — the desktop bar's own
-      // `paletteChips` a few hundred lines down already wire them the same
-      // way, this is the sheet's equivalent, not a new mechanism.
-      renamingCode={renamingPaletteCode}
-      onRenameStart={(code) => setRenamingPaletteCode(code)}
-      onRenameConfirm={(code, name) => {
-        renamePalette(code, name);
-        setRenamingPaletteCode(null);
-      }}
-      onRenameCancel={() => setRenamingPaletteCode(null)}
-      onDelete={(code) => deletePalette(code)}
-      open={paletteSheetOpen}
-      onOpenChange={setPaletteSheetOpen}
-    />
+  // F37 ①: desktop "Ditt valg" — sits ABOVE the cart in the sticky column,
+  // visually SEPARATE from it (accent left border). Present even with an empty
+  // basket. "Endre farger" returns to step 2 keeping the config (goToStep).
+  const yourSelectionBox = hasConfig && (
+    <div
+      data-testid="step3-your-selection"
+      className="mb-4 flex items-center gap-3.5 rounded-sm border border-border border-l-4 border-l-primary bg-card p-4"
+    >
+      <DesignRound layers={designLayers} className="size-14" />
+      <div className="min-w-0">
+        <p className="text-[10.5px] uppercase tracking-[0.06em] text-muted-foreground">
+          {tc("yourSelection.kicker")}
+        </p>
+        <p className="truncate text-sm font-semibold">{designName}</p>
+        <p className="text-xs text-muted-foreground">
+          {formatSelections(snapshot.selections, locale, { withLabels: true })}
+        </p>
+      </div>
+      <button
+        type="button"
+        data-testid="your-selection-edit"
+        onClick={() => goToStep(2)}
+        className="ml-auto flex min-h-11 shrink-0 items-center text-xs font-semibold text-primary hover:underline"
+      >
+        {tc("yourSelection.edit")} ›
+      </button>
+    </div>
+  );
+
+  // F37 ①: mobile strip — compact, IN-FLOW (never fixed), an entry-point anchor
+  // under the title. Options abbreviated (no labels). Scrolls away with content.
+  const yourSelectionStrip = hasConfig && (
+    <div
+      data-testid="step3-your-selection-strip"
+      className="mb-3.5 flex items-center gap-2.5 rounded-sm border border-border border-l-[3px] border-l-primary bg-card px-3 py-1.5 md:hidden"
+    >
+      <DesignRound layers={designLayers} className="size-9" />
+      <div className="min-w-0">
+        <p className="truncate text-xs font-semibold">{designName}</p>
+        <p className="truncate text-[10.5px] text-muted-foreground">
+          {formatSelections(snapshot.selections, locale)}
+        </p>
+      </div>
+      <button
+        type="button"
+        data-testid="your-selection-edit-mobile"
+        onClick={() => goToStep(2)}
+        className="ml-auto flex min-h-11 shrink-0 items-center text-[11.5px] font-semibold text-primary hover:underline"
+      >
+        {tc("yourSelection.editShort")} ›
+      </button>
+    </div>
   );
 
   // ── R4-CTA-STICKY: mobile order bar ──────────────────────────────────────
@@ -1554,12 +1079,7 @@ export function CeramicsStep({
   // never a second order CTA on screen: the form is open (the bar's own
   // destination, and a fixed bar sitting on the fields while the keyboard is up
   // is worse than useless), or the panel's CTA has scrolled into view.
-  //
-  // Fix wave PR3 finding 10: `!paletteSheetOpen` joins `!sheetOpen` for the
-  // exact same reason stated above (the file's own rule) — the palette
-  // sheet is a second fixed bottom layer just like the product sheet, and
-  // was the one case this line forgot to name.
-  const showStickyBar = count > 0 && !sheetOpen && !paletteSheetOpen;
+  const showStickyBar = count > 0 && !sheetOpen;
   const stickyBar = showStickyBar && !checkoutOpen && !orderCtaInView && (
     <div
       data-testid="step3-sticky-bar"
@@ -1607,30 +1127,13 @@ export function CeramicsStep({
       </div>
       {/* Same pill as the cart panel's CTA (§3.16) and the same label key, so
           R-PAY reskins both from one place. It carries the arrow because it
-          DOES advance the funnel — see the e2e note in r-extra-pill.
-          Fix round 1: `hasUnpainted` reskins it exactly like the panel's own
-          primary pill (tertiary, `unpainted.cta`, no arrow — this tap does
-          NOT send the order) and its `onClick` stops touching `checkoutOpen`
-          entirely. Before this fix, tapping it while unpainted did
-          `flushSync(() => setCheckoutOpen(true))`, which the panel's own
-          `!hasUnpainted && checkoutOpen` gate stops from ever mounting the
-          form — but `stickyBar` below is gated on `!checkoutOpen`, so the
-          bar hid itself with nothing to show for it, AND `checkoutOpen`
-          stayed stuck `true` forever (both `setCheckoutOpen(false)` call
-          sites live inside the branch this state can never reach), so the
-          form popped open unprompted the moment the last piece got
-          painted. */}
+          DOES advance the funnel — see the e2e note in r-extra-pill. */}
       <NextStepPill
         data-testid="sticky-bar-checkout"
         className="shrink-0"
-        variant={hasUnpainted ? "tertiary" : "primary"}
-        label={hasUnpainted ? t("unpainted.cta", { count: unpaintedInBasket }) : to("title")}
-        arrow={!hasUnpainted}
+        label={to("title")}
+        arrow
         onClick={() => {
-          if (hasUnpainted) {
-            focusFirstUnpaintedRow();
-            return;
-          }
           // Giro garanzia: one tap must land the customer IN the form with the
           // keyboard already up — scrolling to a collapsed cart and making them
           // hunt for a second CTA was the complaint. `flushSync` renders the
@@ -1651,15 +1154,9 @@ export function CeramicsStep({
             ?.focus({ preventScroll: true });
         }}
         icon={
-          hasUnpainted ? (
-            <PillIcon variant="tertiary">
-              <Brush className="size-5 text-muted-foreground" />
-            </PillIcon>
-          ) : (
-            <PillIcon>
-              <Truck className="size-5 text-primary" />
-            </PillIcon>
-          )
+          <PillIcon>
+            <Truck className="size-5 text-primary" />
+          </PillIcon>
         }
       />
     </div>
@@ -1668,70 +1165,10 @@ export function CeramicsStep({
   return (
     <div
       data-testid="ceramics-step"
-      className={cn(
-        // The bar is `fixed`, so it sits ON the page: without this the last rows
-        // of the order block stay under it and the CTA is unreachable.
-        showStickyBar && "pb-24 md:pb-0",
-        // Fix wave B finding 5 (minor) — same gap as step 2's own
-        // `data-testid="configurator"`: no `scroll-margin-top` anywhere, so a
-        // keyboard-focused control lands under this step's own sticky
-        // `PaletteBar` (69px, desktop only).
-        "md:[&_*:focus-visible]:scroll-mt-[69px]"
-      )}
+      // The bar is `fixed`, so it sits ON the page: without this the last rows
+      // of the order block stay under it and the CTA is unreachable.
+      className={showStickyBar ? "pb-24 md:pb-0" : undefined}
     >
-      {/* R5-PALETTES task 9: the paint-mode bar, desktop only — mobile gets
-          its own "Painting with" strip + sheet, same split step 2 makes
-          (task 8). `-mt-7` cancels `main`'s own top padding (public-shell.tsx)
-          so the bar sits flush under the header before any scroll, and
-          `sticky top-0` (not `top-14` — see palette-bar.tsx) pins it once
-          scrolled, because the desktop site header isn't sticky at all
-          (site-header.tsx:15). The HORIZONTAL full-bleed (PR3 fix — the bar
-          used to stop short of the viewport edges, capped at `main`'s own
-          `max-w-[1060px]`) is now owned by `PaletteBar` itself
-          (`md:w-screen md:ml-[calc(50%-50vw)]`) — no `-mx-5` needed here,
-          it only ever cancelled `main`'s padding, not its width cap. The
-          classes land on `PaletteBar` itself via `className`, not a wrapper:
-          a sticky element only stays pinned as long as its OWN parent is
-          taller than it is, and that parent here is this whole step
-          (`data-testid="ceramics-step"`), not a div sized to just the bar. */}
-      <PaletteBar
-        mode="paint"
-        draft={!activePalette}
-        sticky
-        className="hidden md:-mt-7 md:mb-6 md:block"
-        chips={
-          <>
-            {draftChip}
-            {paletteChips}
-            {newPaletteChip}
-          </>
-        }
-        extra={
-          // Same rule as step 2's own "Save as palette" (configurator-client.tsx):
-          // only when the draft matches no save — once it's saved, `activePalette`
-          // resolves and the draft chip (and this button) both go away together.
-          !activePalette && (
-            <button
-              type="button"
-              onClick={saveDraftAsPalette}
-              className="ml-auto flex h-12 shrink-0 items-center gap-2 rounded-full border-2 border-primary bg-primary/10 px-5 text-[13.5px] font-semibold hover:bg-primary/20"
-            >
-              {tPaletteBar("save")}
-            </button>
-          )
-        }
-      />
-
-      {/* Fix wave PR3 finding 7: the mockup (`Phone3`) puts `MobStrip`
-          directly under the header, above the "Step 3 of 3" kicker — this
-          used to render inside the left column, below both the stepper and
-          the `<h2>`. For a `sticky` element DOM order IS scroll order, so
-          that wasn't cosmetic: it mirrors the desktop `PaletteBar` right
-          above (also ahead of the nav cluster), and doesn't fight anything
-          here — the nav cluster and shared-set banner below are ordinary
-          in-flow siblings, no sticky/z-index of their own to collide with. */}
-      {paintingStrip}
-
       {/* F21: nav cluster — stepper always; Back active; Next disabled at step 3 */}
       <div className="mb-4 flex items-center gap-2" data-testid="step-nav">
         <Button
@@ -1849,6 +1286,8 @@ export function CeramicsStep({
           </p>
           <h2 className="mb-4 mt-1 text-xl font-semibold">{t("title")}</h2>
 
+          {yourSelectionStrip}
+
           {/* §3.18: one section per series, 22px apart; 2 cols / gap-2.5 under
               960px, 3 cols / gap-3 from 960px. */}
           <div className="flex flex-col gap-[22px]" data-testid="ceramics-grid">
@@ -1895,18 +1334,12 @@ export function CeramicsStep({
             kicker + <h2> above the grid, so the rail is nudged down by their
             combined height (measured 64.5px at md and above — both are
             fixed-size text blocks, so one constant covers every breakpoint).
-            Update this if that heading block changes.
-            R5-PALETTES task 9: `top-4` (1rem) is now BELOW the sticky
-            PaletteBar's own pinned height — without the offset this
-            panel would slide up under the bar instead of stopping clear of
-            it, the same "second sticky bug" task 8's report fixed for step
-            2's canvas. `calc(69px+1rem)` keeps the original 1rem breathing
-            room, just measured from the bar's bottom edge (68px content +
-            1px `border-b`, fix-wave finding 5), not the viewport top. */}
+            Update this if that heading block changes. */}
         <div
-          className="hidden min-w-0 rounded-sm border border-border bg-card p-5 md:mt-16 md:block md:sticky md:top-[calc(69px+1rem)] md:self-start"
+          className="hidden min-w-0 rounded-sm border border-border bg-card p-5 md:mt-16 md:block md:sticky md:top-4 md:self-start"
           data-testid="docked-cart-panel"
         >
+          {yourSelectionBox}
           {cartPanel}
         </div>
       </div>
@@ -1943,32 +1376,6 @@ export function CeramicsStep({
           locale={locale}
         />
       )}
-
-      {/* R5-PALETTES task 13's `PaletteSheet` moved into `paintingStrip`
-          itself (fix wave PR3 finding 9) — it now renders its own trigger
-          via `SheetTrigger`, which only wires focus-restore correctly when
-          `Trigger` and `Content` share one `<Sheet>` root positioned where
-          the trigger button actually lives, not down here as a second,
-          disconnected instance. */}
-
-      {/* R5-UNPAINTED task 11: the inverse of Paint. Rendered once, at the end
-          of the step, driven by `unpaintId` — same pattern as `ProductSheet`
-          above. `unpaint()` is the pure primitive's context wrapper
-          (use-cart.ts); this component only decides WHEN and with WHAT n. */}
-      <UnpaintDialog
-        line={unpaintLine}
-        locale={locale}
-        onOpenChange={(open) => !open && setUnpaintId(null)}
-        onConfirm={(n) => {
-          if (unpaintLine) unpaint(unpaintLine.id, n);
-          setUnpaintId(null);
-        }}
-        // Fix round 2 (finding 4): confirming removes the row that opened
-        // this dialog (the painted line becomes/joins the unpainted one), so
-        // the dialog's own default focus-return (the row's «Unpaint…»
-        // button) is a silent no-op. Hand focus to the survivor instead.
-        onConfirmed={focusFirstUnpaintedRow}
-      />
 
       {/* §3.20: visible confirmation, replacing the old sr-only announcement.
           The live region is mounted for good and only its content toggles — a

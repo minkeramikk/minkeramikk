@@ -82,8 +82,6 @@
       "tabsLabel": "Categories",
       "tabCount": "{name} ({count})",
       "wishesTab": "Colour wishes",
-      "paletteStripUnsaved": "· unsaved",
-      "paletteStripSaved": "· saved · this palette paints new ceramics",
       "inspirationPhotos": "Inspiration photos",
       "configureHeading": "Configure your design",
       "scrollTabsBack": "Scroll categories back",
@@ -159,6 +157,9 @@
       "counter": "{count}/{max}"
     },
     "yourSelection": {
+      "kicker": "Your selection",
+      "edit": "Edit colours",
+      "editShort": "Edit",
       "pairCaption": "This ceramic + your design"
     },
     "ladder": {
@@ -209,7 +210,6 @@
       "continue": "Keep shopping"
     },
     "cartTitle": "Basket",
-    "paintedWith": "new ceramics come painted with <b>{name}</b>",
     "empty": "Your basket is empty",
     "emptyCta": "Back to the configurator",
     "remove": "Remove",
@@ -217,7 +217,6 @@
     "total": "Total price",
     "design": "Design",
     "button": "{count, plural, =0 {Cart, empty} one {Cart, # item} other {Cart, # items}}",
-    "buttonUnpainted": "{count, plural, =0 {Cart, empty} one {Cart, # item} other {Cart, # items}}, {unpainted} unpainted",
     "description": "Review your items and send your order.",
     "viewBasket": "View basket",
     "backToCart": "Back to basket",
@@ -255,35 +254,7 @@
       "collapse": "Hide details",
       "edit": "Edit design",
       "ceramic": "Ceramic",
-      "customText": "Inscription",
-      "config": "Config",
-      "palette": "Palette",
-      "price": "Price",
-      "code": "Code",
-      "pieces": "{count, plural, one {# piece} other {# pieces}}"
-    },
-    "unpainted": {
-      "label": "Unpainted",
-      "note": "{count, plural, one {# piece is} other {# pieces are}} still unpainted — choose a palette on the row, then Paint.",
-      "removeAll": "Remove all",
-      "paint": "Paint",
-      "cta": "Paint {count, plural, one {# piece} other {# pieces}} first",
-      "paintCount": "How many to paint",
-      "pickerLabel": "Choose a palette"
-    },
-    "unpaint": {
-      "action": "Unpaint…"
-    },
-    "unpaintDialog": {
-      "eyebrow": "Unpaint",
-      "title": "Take the colours off — keep the ceramic.",
-      "body": "The {unit} go back to <b>unpainted</b> in your basket, same price and discount. Paint them again later.",
-      "unitPiece": "{count, plural, one {piece} other {pieces}}",
-      "unitSet": "{count, plural, one {set} other {sets}}",
-      "howMany": "How many?",
-      "all": "All {n}",
-      "confirm": "Unpaint {n} {unit}",
-      "keepPainted": "Keep them painted"
+      "customText": "Inscription"
     },
     "colourBadge": {
       "custom": "Custom colours",
@@ -317,7 +288,6 @@
     "title": "Order",
     "sending": "Sending…",
     "error": "Something went wrong. Please try again.",
-    "unpaintedError": "Some pieces in your basket are still unpainted — paint them before you order.",
     "success": "Order sent!",
     "confirmTitle": "Thank you for your order!",
     "confirmLead": "We have received your order. You will get an email shortly with your receipt and payment details.",
@@ -352,27 +322,5 @@
     "shareCta": "Share your set",
     "shareCopied": "Link copied!",
     "pieceCount": "{count, plural, one {# piece} other {# pieces}}"
-  },
-  "palettes": {
-    "chip": {
-      "unsaved": "Unsaved",
-      "rename": "Rename",
-      "renameLabel": "Palette name",
-      "delete": "Delete palette"
-    },
-    "bar": {
-      "eyebrowManage": "Your palettes",
-      "eyebrowPaint": "Painting with",
-      "manageCount": "{count} of {max} saved",
-      "paintHintDraft": "These colours aren't saved yet",
-      "paintHintSaved": "Tap a chip to switch",
-      "save": "Save as palette",
-      "new": "New palette"
-    },
-    "sheet": {
-      "trigger": "Palettes",
-      "newHint": "opens step 2",
-      "hintSaved": "Tap a tile to switch"
-    }
   }
 }
