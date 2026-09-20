@@ -529,7 +529,9 @@ export function CeramicsStep({
    * «+ New palette»: step 2 of the CURRENT design (`goToStep`, defined below,
    * keeps every other param — colours included, so this opens on what's on
    * screen right now, ready to tweak into something new rather than starting
-   * from the design's own defaults).
+   * from the design's own defaults). R5-TEXT-CARRY T4: lives in `PaletteBar`'s
+   * `extra` cluster with Save, NOT in the scrolling `chips` lane — with N
+   * palettes a chip inside the lane scrolls off-screen, an action must not.
    */
   const newPaletteChip = (
     <button
@@ -1421,22 +1423,27 @@ export function CeramicsStep({
           <>
             {draftChip}
             {paletteChips}
-            {newPaletteChip}
           </>
         }
         extra={
-          // Same rule as step 2's own "Save as palette"
-          // (configurator-client.tsx): offered for every draft except the
-          // already-saved exact one (`canSaveDraft = !activePalette`).
-          canSaveDraft && (
-            <button
-              type="button"
-              onClick={saveDraftAsPalette}
-              className="ml-auto flex h-12 shrink-0 items-center gap-2 rounded-full border-2 border-primary bg-primary/10 px-5 text-[13.5px] font-semibold hover:bg-primary/20"
-            >
-              {tPaletteBar("save")}
-            </button>
-          )
+          // R5-TEXT-CARRY T4: + New joins Save in this anchored cluster —
+          // only the chips above scroll, the actions stay visible at N
+          // palettes. Same rule as before for Save (`canSaveDraft =
+          // !activePalette`); + New is always offered. The cluster takes
+          // `ml-auto` once (not per button) so it hugs the right edge while
+          // the lane keeps the rest.
+          <div className="ml-auto flex shrink-0 items-center gap-2">
+            {newPaletteChip}
+            {canSaveDraft && (
+              <button
+                type="button"
+                onClick={saveDraftAsPalette}
+                className="flex h-12 shrink-0 items-center gap-2 rounded-full border-2 border-primary bg-primary/10 px-5 text-[13.5px] font-semibold hover:bg-primary/20"
+              >
+                {tPaletteBar("save")}
+              </button>
+            )}
+          </div>
         }
       />
 
