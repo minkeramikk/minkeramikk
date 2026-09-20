@@ -116,7 +116,9 @@ function Inscription({ text }: { text: string }) {
     el.style.setProperty("--fit", "1");
     el.style.setProperty(
       "--fit",
-      String(fitRatio(el.scrollWidth, box.clientWidth))
+      // La lunghezza si conta in code point, come il cap del campo: una emoji
+      // è un carattere per chi scrive, due per `String.length`.
+      String(fitRatio(el.scrollWidth, box.clientWidth, Array.from(text).length))
     );
   }, [text]);
 

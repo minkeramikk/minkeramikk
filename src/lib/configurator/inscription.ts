@@ -10,6 +10,7 @@
  *    per posizione — la scritta viva NON si disegna: se ne vedrebbero due.
  *    Lì l'anteprima resta identica a prima, pixel per pixel (AC 2).
  */
+import { MAX_CUSTOM_TEXT } from "@/lib/orders/schema";
 import { isCustomTextOffered, type TextGroupCandidate } from "./text-option";
 
 /**
@@ -31,9 +32,24 @@ import { isCustomTextOffered, type TextGroupCandidate } from "./text-option";
  *
  * Se cambia l'arte del bordo, questi tre numeri vanno rimisurati insieme.
  */
-/** Centro verticale della riga, in % dell'altezza del quadrato. */
-export const INSCRIPTION_CENTER_Y = 68;
-/** Larghezza massima della riga, in `cqmin`. */
+/**
+ * Centro verticale della riga, in % dell'altezza del quadrato.
+ *
+ * Era 68 — il terzo inferiore della card, preso dal «Tekst» che lo studio
+ * disegna su Krabbe. A schermo cadeva **sopra il disegno**: su Amalfi il terzo
+ * inferiore è pieno di foglie e di puntini, mentre il centro del piatto è
+ * l'unica campitura vuota (inchiostro 0% per r < 0,30 R, misurato). Ruling TL
+ * 20/9: la riga si centra sull'asse Y. Deviazione consapevole dalla §2 della
+ * card, decisa guardando il piatto vero.
+ */
+export const INSCRIPTION_CENTER_Y = 50;
+/**
+ * Larghezza massima della riga, in `cqmin`. Al centro del piatto la corda è
+ * l'intero diametro, quindi 52% sta larghissima dentro la fascia decorata (che
+ * comincia a r = 0,79 R): il numero regge anche se la riga tornasse più in
+ * basso, dove era stato calcolato — al bordo inferiore della riga al 68% la
+ * corda valeva comunque il 59,8% del lato.
+ */
 export const INSCRIPTION_MAX_WIDTH = 52;
 /**
  * Corpo del testo prima del fit, in `cqmin`. Era 7: sul piatto vero leggeva
@@ -47,14 +63,48 @@ export const INSCRIPTION_FONT_SIZE = 5;
 export const INSCRIPTION_MIN_FIT = 0.45;
 
 /**
- * Quanto rimpicciolire la riga perché stia nella sua scatola. La larghezza di
- * una riga è lineare nel corpo, quindi una passata basta: niente ciclo, niente
- * seconda misura. Una misura presa prima del layout (0 o NaN) vale «non so»,
- * e in dubbio si lascia il corpo pieno.
+ * Fin qui la dedica è scritta a corpo pieno: una parola o due sul piatto stanno
+ * bene grandi.
  */
-export function fitRatio(textWidth: number, boxWidth: number): number {
-  if (!(textWidth > 0) || !(boxWidth > 0)) return 1;
-  return Math.max(INSCRIPTION_MIN_FIT, Math.min(1, boxWidth / textWidth));
+export const INSCRIPTION_TAPER_FROM = 10;
+/**
+ * …e alla lunghezza massima del campo vale questa frazione del corpo. La riga
+ * cala con i caratteri invece di restare grande fino a sbattere contro il muro
+ * della larghezza: una dedica lunga dev'essere una scritta fine, non un titolo
+ * (ruling TL 20/9, a schermo).
+ */
+export const INSCRIPTION_TAPER_TO = 0.7;
+
+/**
+ * Quanto vale il corpo alla lunghezza data: 1 fino a `INSCRIPTION_TAPER_FROM`,
+ * poi giù in linea retta fino a `INSCRIPTION_TAPER_TO` alla lunghezza massima
+ * del campo. Legato a `MAX_CUSTOM_TEXT` e non a un 25 scritto qui, così se il
+ * cap cambia la rampa lo segue invece di finire fuori scala.
+ */
+export function taperForLength(length: number): number {
+  if (!(length > INSCRIPTION_TAPER_FROM)) return 1;
+  const span = MAX_CUSTOM_TEXT - INSCRIPTION_TAPER_FROM;
+  if (span <= 0) return INSCRIPTION_TAPER_TO;
+  const over = Math.min(length, MAX_CUSTOM_TEXT) - INSCRIPTION_TAPER_FROM;
+  return 1 - (over / span) * (1 - INSCRIPTION_TAPER_TO);
+}
+
+/**
+ * Quanto rimpicciolire la riga. Due vincoli, e vince il più stretto:
+ * la rampa sulla lunghezza (`taperForLength`, che è estetica) e la larghezza
+ * disponibile (che è l'AC 3, e non è negoziabile). La larghezza di una riga è
+ * lineare nel corpo, quindi una passata basta: niente ciclo, niente seconda
+ * misura. Una misura presa prima del layout (0 o NaN) vale «non so», e in
+ * dubbio si resta sulla rampa invece di inventare un rimpicciolimento.
+ */
+export function fitRatio(
+  textWidth: number,
+  boxWidth: number,
+  length: number
+): number {
+  const taper = taperForLength(length);
+  if (!(textWidth > 0) || !(boxWidth > 0)) return taper;
+  return Math.max(INSCRIPTION_MIN_FIT, Math.min(taper, boxWidth / textWidth));
 }
 
 /** La scritta viva si disegna? */
