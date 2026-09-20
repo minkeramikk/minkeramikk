@@ -86,11 +86,13 @@ export function PaletteSheet({
    *  on-screen config matches no save, so the sheet offers "Save as
    *  palette" the same way the bar's `extra` slot does. */
   draft: boolean;
-  /** R5-TEXT-IDENTITY (card §3 guard) — withholds JUST the "Save as palette"
-   *  button inside the draft tile below; the tile itself (thumb + "Unsaved"
-   *  + name) still shows whenever `draft` is true. True unless the draft's
-   *  colours already match a saved palette of this design and only the
-   *  inscription differs (caller's `draftMatchesSavedColours`). */
+  /** R5-TEXT-CARRY — whether the draft tile's own "Save as palette"
+   *  button renders. Separate from `draft`: the tile itself (thumb +
+   *  "Unsaved" + name) still shows whenever `draft` is true — the customer
+   *  should always see what's actually on screen — but the SAVE offer only
+   *  renders while the draft is unsaved. Under exact-code identity
+   *  (`paletteMatchingCode`) `draft` already IS that: the button is withheld
+   *  exactly when the on-screen config matches a save byte-for-byte. */
   canSaveDraft: boolean;
   /** The on-screen colours' own name/thumb (`nameFor()` or a saved match's
    *  name — the caller's single "what's painting" label, e.g. `paintingLabel`
@@ -100,15 +102,13 @@ export function PaletteSheet({
    *  didn't; now it does, at both steps. */
   draftName: string;
   /**
-   * TL correction (round after "the name is noise") — the field's live
-   * value, ALWAYS, never a saved match's own stored words: this is what's
-   * on screen right now, so it's what the draft tile shows below, AND
-   * what the ACTIVE saved tile in the grid shows when its colours happen
-   * to match (that tile is also, at that moment, the canvas — same
-   * reasoning `PaletteChip`'s own lead chip follows). Every OTHER
-   * (non-active) tile in the grid keeps reading its own stored
-   * `palette.snapshot.customText` — those describe a different saved
-   * configuration, not the canvas.
+   * R5-TEXT-CARRY — the field's live value, shown ONLY by the draft tile
+   * below (what's on screen right now, unsaved). The ACTIVE saved tile in
+   * the grid reads its own stored `palette.snapshot.customText` like every
+   * other tile: under exact-code identity (`paletteMatchingCode`) the active
+   * tile already IS the on-screen config, so its own words ARE the field's
+   * — no canvas-words override any more (there is nothing to override
+   * with: a different dedication is simply not active).
    */
   currentDedication?: string;
   draftLayers: CartLayer[];
@@ -183,10 +183,11 @@ export function PaletteSheet({
               config matches no save — once it's saved, `draft` goes false
               and this whole block goes with it.
 
-              R5-TEXT-IDENTITY (card §3 guard): the SAVE BUTTON alone is
-              additionally gated on `canSaveDraft` — the tile (thumb +
-              "Unsaved" + name) stays even when the offer is withheld, so the
-              customer still sees exactly what's on screen. */}
+              R5-TEXT-CARRY: the SAVE BUTTON alone is additionally gated on
+              `canSaveDraft` (which under exact-code identity is just `draft`
+              again, passed through) — the tile (thumb + "Unsaved" + name)
+              stays even when the offer is withheld, so the customer still
+              sees exactly what's on screen. */}
           {draft && (
             <div
               data-testid="palette-sheet-draft"
@@ -221,11 +222,11 @@ export function PaletteSheet({
                 <PaletteTile
                   key={p.code}
                   palette={p}
-                  // TL correction: the ACTIVE tile IS the canvas right now
-                  // when its colours match — it shows what's in the field
-                  // (`currentDedication`), not this palette's own stored
-                  // words. Every other tile keeps its own (below).
-                  dedication={active ? currentDedication : p.snapshot.customText}
+                  // R5-TEXT-CARRY — every tile shows its own stored words.
+                  // The `active ? currentDedication` override is gone: under
+                  // exact-code identity the active tile already IS the
+                  // on-screen config, so its own words are the field's.
+                  dedication={p.snapshot.customText}
                   active={active}
                   dim={dim}
                   dimDesignName={dim ? (designLabel(p.snapshot, locale) ?? p.designSlug) : undefined}

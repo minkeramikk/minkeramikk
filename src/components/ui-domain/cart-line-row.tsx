@@ -125,16 +125,14 @@ export function CartLineRow({
     layers: CartLayer[];
     label: string;
     /**
-     * TL correction (round after "the name is noise") — checked, already
-     * correct: THIS ROW's own words, not the canvas's borrowed for the
-     * moment. `basket.tsx`'s `rowThumb()` sets this from `currentConfig.
-     * snapshot.customText` in both branches, which — by the pre-existing
-     * explicit-pick rule ("takes the palette's colours but keeps the
-     * customer's own words") — genuinely IS this row's own value in
-     * either case: untouched, the row's configuration simply IS the
-     * canvas's; explicitly picked, the row keeps the canvas's words on
-     * purpose. Never a saved pick's own stored dedication (see the picker
-     * pills below, which correctly show that for every OTHER pill).
+     * R5-TEXT-CARRY — THIS ROW's own words, never borrowed from anywhere
+     * else. `basket.tsx`'s `rowThumb()` sets this from the row's own
+     * `snapshot.customText` in both branches: untouched, the row's
+     * configuration simply IS the canvas's; explicitly picked, the row
+     * paints the picked palette's whole snapshot — colours AND dedication
+     * (`explicitPickThumb`, `basket-host.ts`). Never the canvas's words in
+     * the explicit case (see the picker pills below, which show the row's
+     * own pick for the active pill).
      */
     dedication?: string;
     hexes: string[];
@@ -774,15 +772,14 @@ export function CartLineRow({
                   {/* A dim pill (another design's) carries that design's own
                       name too, same as the palette bar's chips. The ACTIVE
                       pill is this ROW's own words right now (`currentThumb.
-                      dedication` — an explicit pick keeps the customer's
-                      current text over this palette's colours, see
-                      `rowThumb` in basket.tsx), NOT this palette's stored
-                      ones: picking a pill never actually adopts its saved
-                      dedication, so showing it here would promise words the
-                      row won't paint with. Every other (selectable, non-
-                      active) pill is purely "a saved palette in a list" and
-                      keeps its own — TL correction, same fix as the bar/
-                      sheet's active chip/tile. */}
+                      dedication` — an explicit pick paints the picked
+                      palette's whole snapshot, colours AND dedication, see
+                      `explicitPickThumb` in basket-host.ts via `rowThumb`
+                      in basket.tsx), NOT some other pill's stored ones:
+                      picking a pill adopts its saved dedication, so the
+                      active pill shows exactly what the row will paint with.
+                      Every other (selectable, non-active) pill is purely
+                      "a saved palette in a list" and keeps its own. */}
                   {dim ? (
                     <span className="max-w-[108px] truncate text-[10px] text-muted-foreground">
                       · {designLabel(p.snapshot, locale) ?? p.designSlug}

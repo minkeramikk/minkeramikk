@@ -9,7 +9,7 @@ import { PaletteBar } from "@/components/ui-domain/palette-bar";
 import { PaletteChip } from "@/components/ui-domain/palette-chip";
 import { PaintingStrip } from "@/components/ui-domain/painting-strip";
 import { nameFor, paletteFor, sortCurrentDesignFirst } from "@/lib/palettes/palettes";
-import { draftMatchesSavedColours, paletteMatchingColours } from "@/lib/configurator/save-gate";
+import { paletteMatchingCode } from "@/lib/configurator/save-gate";
 import type { PaletteWords } from "@/lib/palettes/name-lists";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -246,22 +246,12 @@ export function CeramicsStep({
   } = useCartContext();
 
   /**
-   * R5-PALETTES task 9 — which palette is painting. Same rule as step 2's own
-   * `matchedPalette` (card §4-bis: the active palette IS the URL): `configCode`
-   * is a server prop derived from the URL, so whichever saved palette shares
-   * its COLOURS is the one actually in use, full stop — no separate "current
-   * palette" state to drift out of sync with what a ceramic will be painted
-   * with when added.
-   *
-   * Final-review round 2, finding 3: matched on COLOURS
-   * (`paletteMatchingColours`, stripping any inscription/wish segment), not
-   * on the exact code any more. `configCode` carries the inscription now
-   * (task 4), so an exact-code match stopped working the instant a
-   * dedication was typed — a saved palette's own stored code never has that
-   * customer's current words in it. "Which palette is painting" is a
-   * question about colours; that a dedication makes SAVING see a new
-   * identity (the §3 guard, `canSaveDraft` below) is a different question
-   * with a different answer on purpose.
+   * R5-TEXT-CARRY — which palette is painting: the saved palette whose CODE
+   * (`configCode`, a server prop derived from the URL) matches EXACTLY, same
+   * rule as step 2's own `matchedPalette` (card §4-bis: the active palette
+   * IS the URL). The dedication rides inside the code (`config-code.ts`),
+   * so a different dedication IS a different identity — an unsaved draft —
+   * and Save is offered (see `canSaveDraft` below).
    */
   // Declared this early because `paintingLabel` right below needs it as its
   // last-resort fallback, and the `PaletteBar`/`PaintingStrip` further down
@@ -269,11 +259,10 @@ export function CeramicsStep({
   // (It used to be `rowThumb` that forced it up here; that moved to
   // `basket.tsx` in task 4 and these two kept it where it is.)
   const designName = designLabel(snapshot, locale) ?? "";
-  const activePalette = paletteMatchingColours(
+  const activePalette = paletteMatchingCode(
     palettes,
     configCode,
-    design.slug,
-    snapshot.selections.length
+    design.slug
   );
   /**
    * TL follow-up (post-task-12): the ONE name for "what's painting right
@@ -290,6 +279,12 @@ export function CeramicsStep({
   // name so `nameFor()` picks a FREE word instead of repeating one — same
   // `palettes` list this step already reads, so this label (chip, basket
   // header, `saveDraftAsPalette` below) can't disagree with what gets saved.
+  // R5-TEXT-CARRY — `activePalette` above is already an exact-code match,
+  // so inheriting its name is inheriting the name of the palette whose
+  // words these also are: no other dedication of the same colours can reach
+  // this branch. The fallback still names a fresh unsaved draft from the
+  // colours alone (`stripCustomSegment` — the name is noise, TL ruling —
+  // same colours, same name, whatever is typed).
   const paintingLabel =
     activePalette?.name ??
     nameFor(
@@ -307,42 +302,28 @@ export function CeramicsStep({
     ) ??
     designName;
   /**
-   * TL correction (round after "the name is noise") — NOT `activePalette?.
-   * snapshot.customText ?? snapshot.customText` the way `paintingLabel`
-   * reads `activePalette?.name ?? nameFor(...)`. The name asks "which
-   * colours", and colours are what matched, so inheriting the saved
-   * palette's name is right; the dedication asks "what did the customer
-   * write", which is the one thing NOT shared with the saved palette —
-   * two dedications of the same colours is the whole reason this second
-   * line exists. `snapshot` (this step's own prop) already IS what's on
-   * screen right now, always — this tile shows exactly that, never a
-   * saved match's own stored words. (A saved palette's OWN chip, in the
-   * lane below, still reads its own stored `p.snapshot.customText` — that
-   * tile describes THAT palette, not the canvas.)
+   * R5-TEXT-CARRY — the draft tile shows the on-screen snapshot's own
+   * words, ALWAYS: the draft branch renders only while `activePalette` is
+   * null, i.e. while no saved palette shares this code — there is no saved
+   * palette whose words these could borrow. (The old colours-match could
+   * show the field over a saved palette's stored words; that state no
+   * longer exists.) `snapshot` (this step's own prop) already IS what's on
+   * screen right now, always. (A saved palette's OWN chip, in the lane
+   * below, still reads its own stored `p.snapshot.customText` — that tile
+   * describes THAT palette, not the canvas.)
    */
   const currentDedication = snapshot.customText;
 
   /**
-   * Card §3 guard (TL ruling), same rule as step 2's own `canSaveDraft`
-   * (configurator-client.tsx) — this step's `configCode` has carried the
-   * inscription since the ORIGINAL R5-TEXT-IDENTITY task 4 landed (this
-   * step always called `buildConfigLinePayload` with the real
-   * `customNote`/`customText`), so it has had the exact same "six
-   * dedications, six near-duplicate palettes" exposure the whole time; the
-   * guard belongs here too, not only on step 2's draft flow. `snapshot.
-   * selections.length` stands in for `detail.categories.length` (step 2's
-   * source) — this step only receives a `DesignRef`, not the full
-   * `DesignDetail`, but `selections` is built ONE ENTRY PER CATEGORY
-   * (`buildConfigLinePayload`), so it's the same number.
+   * R5-TEXT-CARRY — same rule as step 2's own `canSaveDraft`
+   * (configurator-client.tsx): the old card §3 guard (withhold the Save
+   * while the draft's COLOURS already matched a save, dedication aside) is
+   * gone with `draftMatchesSavedColours`. A different dedication IS a
+   * different palette, unsaved, so Save is offered; the only already-saved
+   * draft is the exact one, where saving is a no-op anyway (`savePalette`
+   * dedups by exact code, LRU 10 unchanged).
    */
-  const canSaveDraft =
-    !activePalette &&
-    !draftMatchesSavedColours(
-      palettes,
-      configCode,
-      design.slug,
-      snapshot.selections.length
-    );
+  const canSaveDraft = !activePalette;
 
   /**
    * `activeCode` (persisted, cross-tab) is a DIFFERENT thing: a "last chosen"
@@ -403,6 +384,14 @@ export function CeramicsStep({
     // decoded `?code=` when `?text=` is absent). `note=` is still the ONLY
     // carrier for the colour wish — the code only ever holds a non-reversible
     // hash of it, never the words themselves.
+    //
+    // R5-TEXT-CARRY — the recall must start from the SNAPSHOT, not the
+    // field: `page.tsx` seeds the field from the tapped chip's code, but
+    // only when `text=` is ABSENT. A `text=` left over from an earlier edit
+    // would win outright as the "live edit" and cover the recalled
+    // palette's own words with the stale ones — so it is dropped here,
+    // exactly like step 2's `loadPalette` drops it. `note=` stays for the
+    // reason above (the wish's words travel no other way).
     const params = new URLSearchParams(searchParams.toString());
     // Fix wave B finding 5 (minor) — `code=` already wins over stale `opt_*`
     // (page.tsx gives it priority, nothing breaks), but there's no reason to
@@ -412,6 +401,7 @@ export function CeramicsStep({
       if (key.startsWith("opt_")) params.delete(key);
     }
     params.set("code", code);
+    params.delete("text");
     params.set("step", "3");
     // Fix wave PR3 finding 3: the sheet is the phone's ONLY way to pick a
     // palette here, opened mid-page from the sticky strip — without
@@ -458,13 +448,14 @@ export function CeramicsStep({
         key={p.code}
         code={p.code}
         name={p.name}
-        // TL correction: the ACTIVE one of these IS the canvas right now
-        // (same colours, `brush` badge) — it shows what's in the field
-        // (`currentDedication`), not this palette's own stored words,
-        // which may be a different dedication of these same colours than
-        // the one on screen. Every other (non-active) chip here is purely
-        // "a saved palette in a list" and keeps its own.
-        dedication={isActive ? currentDedication : p.snapshot.customText}
+        // R5-TEXT-CARRY — `activePalette` is an exact-code match now, so
+        // the active chip IS the saved palette it names: it shows THAT
+        // palette's own stored words, the same as every other chip — the
+        // `isActive ? currentDedication` override is gone. (With the old
+        // colours-match it could borrow the field's words for a different
+        // dedication of the same colours; that state no longer exists: a
+        // different dedication is simply not the active palette.)
+        dedication={p.snapshot.customText}
         layers={p.layers}
         active={isActive}
         brush={isActive}
@@ -1434,11 +1425,9 @@ export function CeramicsStep({
           </>
         }
         extra={
-          // Same rule as step 2's own "Save as palette" (configurator-client.tsx),
-          // now including the card §3 guard: withheld not only once the
-          // draft IS saved (`activePalette`), but also while its colours
-          // already match a saved palette of this design and only the
-          // inscription differs (`canSaveDraft`).
+          // Same rule as step 2's own "Save as palette"
+          // (configurator-client.tsx): offered for every draft except the
+          // already-saved exact one (`canSaveDraft = !activePalette`).
           canSaveDraft && (
             <button
               type="button"
