@@ -1,12 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
-  fitRatio,
-  INSCRIPTION_FIT_SLACK,
+  INSCRIPTION_MAX_LINES,
   INSCRIPTION_MIN_FIT,
-  INSCRIPTION_TAPER_FROM,
-  INSCRIPTION_TAPER_TO,
+  INSCRIPTION_SCALE_LONG,
+  INSCRIPTION_SCALE_SHORT,
+  INSCRIPTION_SHORT,
+  INSCRIPTION_SHRINK_STEP,
+  scaleForLength,
   showsLiveInscription,
-  taperForLength,
+  shrinkStep,
 } from "./inscription";
 import { MAX_CUSTOM_TEXT } from "@/lib/orders/schema";
 
@@ -52,76 +54,81 @@ describe("showsLiveInscription", () => {
   });
 });
 
-describe("taperForLength", () => {
-  it("leaves a short dedication at full size", () => {
-    expect(taperForLength(1)).toBe(1);
-    expect(taperForLength(INSCRIPTION_TAPER_FROM)).toBe(1);
+describe("scaleForLength", () => {
+  it("gives a short dedication the bonus — poche lettere, carattere più grande", () => {
+    expect(scaleForLength(1)).toBe(INSCRIPTION_SCALE_SHORT);
+    expect(scaleForLength(INSCRIPTION_SHORT)).toBe(INSCRIPTION_SCALE_SHORT);
+    expect(INSCRIPTION_SCALE_SHORT).toBeGreaterThan(1);
   });
 
   it("comes down in a straight line to the floor at the field's cap", () => {
-    expect(taperForLength(MAX_CUSTOM_TEXT)).toBeCloseTo(INSCRIPTION_TAPER_TO, 10);
-    const mid = (INSCRIPTION_TAPER_FROM + MAX_CUSTOM_TEXT) / 2;
-    expect(taperForLength(mid)).toBeCloseTo((1 + INSCRIPTION_TAPER_TO) / 2, 10);
+    expect(scaleForLength(MAX_CUSTOM_TEXT)).toBeCloseTo(INSCRIPTION_SCALE_LONG, 10);
+    const mid = (INSCRIPTION_SHORT + MAX_CUSTOM_TEXT) / 2;
+    expect(scaleForLength(mid)).toBeCloseTo(
+      (INSCRIPTION_SCALE_SHORT + INSCRIPTION_SCALE_LONG) / 2,
+      10
+    );
   });
 
   it("never goes below the floor, whatever arrives", () => {
-    expect(taperForLength(MAX_CUSTOM_TEXT + 100)).toBeCloseTo(
-      INSCRIPTION_TAPER_TO,
+    expect(scaleForLength(MAX_CUSTOM_TEXT + 100)).toBeCloseTo(
+      INSCRIPTION_SCALE_LONG,
       10
     );
   });
 
   it("only ever shrinks as the text grows", () => {
     for (let n = 1; n < MAX_CUSTOM_TEXT; n++) {
-      expect(taperForLength(n + 1)).toBeLessThanOrEqual(taperForLength(n));
+      expect(scaleForLength(n + 1)).toBeLessThanOrEqual(scaleForLength(n));
     }
+  });
+
+  it("stays above the fit floor, or the loop could never take a step", () => {
+    expect(INSCRIPTION_MIN_FIT).toBeLessThan(INSCRIPTION_SCALE_LONG);
   });
 });
 
-describe("fitRatio", () => {
-  it("leaves a short line that already fits at full size", () => {
-    expect(fitRatio(100, 200, 8)).toBe(1);
+describe("shrinkStep", () => {
+  it("stops as soon as the block fits", () => {
+    expect(shrinkStep(1, { tooWide: false, lines: INSCRIPTION_MAX_LINES })).toBeNull();
+    expect(shrinkStep(1, { tooWide: false, lines: 1 })).toBeNull();
   });
 
-  it("backs off a line that fills the box exactly", () => {
-    // è il caso che produce i tre puntini: largo quanto la scatola al decimo
-    // di pixel, e un arrotondamento altrove se ne mangia le ultime lettere
-    expect(fitRatio(200, 200, 8)).toBeCloseTo(INSCRIPTION_FIT_SLACK, 10);
+  it("takes a step when the block runs to one line too many", () => {
+    expect(
+      shrinkStep(1, { tooWide: false, lines: INSCRIPTION_MAX_LINES + 1 })
+    ).toBeCloseTo(INSCRIPTION_SHRINK_STEP, 10);
   });
 
-  it("shrinks proportionally when the line hits the wall, minus the slack", () => {
-    // 8 caratteri: la rampa non è ancora partita, decide solo la larghezza
-    expect(fitRatio(400, 200, 8)).toBeCloseTo(0.5 * INSCRIPTION_FIT_SLACK, 10);
-  });
-
-  it("never lands EXACTLY on the wall — è lì che nascono i tre puntini", () => {
-    expect(fitRatio(400, 200, 8)).toBeLessThan(0.5);
-  });
-
-  it("takes the length ramp when it is stricter than the wall", () => {
-    // una riga che nella scatola ci starebbe, ma è lunga: scende comunque
-    expect(fitRatio(100, 200, MAX_CUSTOM_TEXT)).toBeCloseTo(
-      INSCRIPTION_TAPER_TO,
+  it("takes a step for a single word wider than the box, however few the lines", () => {
+    expect(shrinkStep(1, { tooWide: true, lines: 1 })).toBeCloseTo(
+      INSCRIPTION_SHRINK_STEP,
       10
     );
   });
 
-  it("takes the wall when IT is the stricter of the two", () => {
-    // rampa a 0,7 ma la scatola ne concede 0,5: comanda la scatola (AC 3)
-    expect(fitRatio(400, 200, MAX_CUSTOM_TEXT)).toBeCloseTo(
-      0.5 * INSCRIPTION_FIT_SLACK,
-      10
+  it("lands exactly on the floor instead of going under it", () => {
+    const justAbove = INSCRIPTION_MIN_FIT / INSCRIPTION_SHRINK_STEP;
+    expect(shrinkStep(justAbove, { tooWide: true, lines: 9 })).toBe(
+      INSCRIPTION_MIN_FIT
     );
   });
 
-  it("stops shrinking at the floor — below it the line truncates (AC 3)", () => {
-    expect(fitRatio(4000, 200, 8)).toBe(INSCRIPTION_MIN_FIT);
+  it("gives up at the floor — da lì in giù si tronca (AC 3)", () => {
+    expect(shrinkStep(INSCRIPTION_MIN_FIT, { tooWide: true, lines: 9 })).toBeNull();
   });
 
-  it("survives a measurement taken before layout (0, NaN): stays on the ramp", () => {
-    expect(fitRatio(0, 200, 8)).toBe(1);
-    expect(fitRatio(100, 0, 8)).toBe(1);
-    expect(fitRatio(Number.NaN, 200, 8)).toBe(1);
-    expect(fitRatio(0, 200, MAX_CUSTOM_TEXT)).toBeCloseTo(INSCRIPTION_TAPER_TO, 10);
+  it("always terminates: from the top it reaches the floor in a bounded walk", () => {
+    let fit = INSCRIPTION_SCALE_SHORT;
+    let steps = 0;
+    for (;;) {
+      const next = shrinkStep(fit, { tooWide: true, lines: 9 });
+      if (next === null) break;
+      expect(next).toBeLessThan(fit);
+      fit = next;
+      steps++;
+      expect(steps).toBeLessThan(100);
+    }
+    expect(fit).toBe(INSCRIPTION_MIN_FIT);
   });
 });

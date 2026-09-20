@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import ReactDOM from "react-dom";
-import { Poppins } from "next/font/google";
+import { Lora, Poppins } from "next/font/google";
 import { getLocale } from "next-intl/server";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
@@ -12,6 +12,27 @@ import "./globals.css";
 const poppins = Poppins({
   variable: "--font-poppins",
   weight: ["400", "500", "600", "700"],
+  subsets: ["latin"],
+});
+
+/**
+ * R5-TEXT-LIVE — la scritta del cliente sull'anteprima del piatto, e nient'altro
+ * su questo sito. Serve un corsivo vero, con la mano dentro, non l'italico
+ * inclinato di un font da interfaccia: quello che lo studio dipinge è calligrafia
+ * (ruling TL 20/9, «un font che sembri più italic che un'incisione»).
+ *
+ * Lora e non un corsivo più decorato: sul piatto quella riga vive fra i 10 e i
+ * 20px, e i corsivi eleganti ad alto contrasto (Cormorant, Tangerine) a quelle
+ * misure perdono le aste sottili. Lora è disegnata per il testo e regge.
+ *
+ * Un peso, uno stile, sottoinsieme latino (che porta å ø æ): ~25kB, e
+ * `next/font` la ospita in casa come Poppins — nessuna chiamata a Google, nessun
+ * salto di layout.
+ */
+const lora = Lora({
+  variable: "--font-inscription",
+  weight: ["500"],
+  style: ["italic"],
   subsets: ["latin"],
 });
 
@@ -82,7 +103,7 @@ export default async function RootLayout({
   return (
     <html
       lang={locale}
-      className={`${poppins.variable} h-full antialiased`}
+      className={`${poppins.variable} ${lora.variable} h-full antialiased`}
       style={{
         ["--mk-light" as string]: theme.light,
         ["--mk-dark" as string]: theme.dark,

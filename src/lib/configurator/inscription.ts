@@ -49,94 +49,101 @@ export const INSCRIPTION_CENTER_Y = 50;
  * IL vincolo. 52 era tarato sulla fascia decorata esterna (r = 0,79 R), giusto
  * finché la riga stava in basso; al centro del piatto conta l'anello interno del
  * disegno, che comincia a r = 0,233 R su `blomster-2` — il più stretto dei due
- * design che accettano la scritta. La corda dentro quell'anello, all'altezza
- * della riga, vale il 22% del lato, e 22 è questo numero: la riga non esce dalla
- * campitura vuota, mai, perché se non ci sta rimpicciolisce (ruling TL 20/9,
- * «prendiamoci un margine più sicuro»).
+ * design che accettano la scritta. La corda dentro quell'anello, all'altezza di
+ * un blocco di DUE righe, vale il 19% del lato — ed è questo numero: il blocco
+ * non esce dalla campitura vuota, mai, perché se non ci sta va a capo e poi
+ * rimpicciolisce (ruling TL 20/9, «prendiamoci un margine più sicuro»).
  *
  * Una convenzione sola per tutti i design, come vuole la card: su `amalfi-dyr`
  * la campitura arriva a 0,318 R e ci starebbe il 30%, ma un numero per design è
  * roba della 6b.
  */
-export const INSCRIPTION_MAX_WIDTH = 22;
+export const INSCRIPTION_MAX_WIDTH = 19;
 /**
  * Corpo del testo prima del fit, in `cqmin`. Era 7: sul piatto vero leggeva
  * grosso e pesante accanto a un'arte fatta di tratti sottili (ruling TL 20/9,
- * a schermo). Poi 5 → 4,25 → 3,5: a ogni giro la riga appoggiava ancora
- * sull'anello interno del disegno. 3,5 è il corpo che tiene una dedica di 14
- * caratteri dentro il 22% del lato senza doverla rimpicciolire.
- *
- * Il prezzo, che è bene sia scritto e non scoperto dopo: sul telefono il piatto
- * è 244px, quindi questo corpo vale ~8,5px, e una dedica da 25 caratteri —
- * schiacciata anche dalla rampa e poi dalla larghezza — scende intorno ai 5px.
- * Dentro l'anello e leggibile sul telefono, alla lunghezza massima, non si può
- * stare insieme: l'anello è il 22% del piatto.
+ * a schermo). Poi 5 → 4,25 → 3,5, a inseguire la larghezza — e infine 4, quando
+ * la riga ha imparato ad andare a capo: da lì la lunghezza non si paga più tutta
+ * in corpo, si paga in righe, e una dedica lunga resta leggibile invece di
+ * scendere sotto i 5px sul telefono.
  */
-export const INSCRIPTION_FONT_SIZE = 3.5;
-/**
- * Un filo d'aria fra la riga e il suo muro. Un fit ESATTO è il caso peggiore per
- * `text-overflow: ellipsis`: la riga finisce larga quanto la scatola al decimo
- * di pixel, e basta un arrotondamento nell'altro verso — un altro schermo, un
- * altro rapporto di pixel, un altro font caricato — perché il browser decida che
- * non ci sta e si mangi le ultime lettere con tre puntini. Misurato: 53,88px di
- * testo in 54px di scatola, 0,12px di margine. Il 3% è invisibile a occhio e
- * toglie i puntini da tutti gli schermi.
- */
-export const INSCRIPTION_FIT_SLACK = 0.97;
-
+export const INSCRIPTION_FONT_SIZE = 4;
 /**
  * Sotto questo fattore non si rimpicciolisce più: si tronca (AC 3).
  *
- * Va tenuto **sotto** `INSCRIPTION_TAPER_TO`: è un pavimento applicato dopo la
- * rampa, quindi se salisse sopra di essa rialzerebbe il corpo delle dediche
- * lunghe invece di limitarsi a fermarne la discesa — in silenzio.
+ * Va tenuto **sotto** `INSCRIPTION_SCALE_LONG`: è il pavimento del ciclo di
+ * misura, quindi se salisse sopra la rampa il blocco partirebbe già sotto al
+ * pavimento e il ciclo non potrebbe stringere di un passo — in silenzio.
  */
 export const INSCRIPTION_MIN_FIT = 0.45;
 
 /**
- * Fin qui la dedica è scritta a corpo pieno: una parola o due sul piatto stanno
- * bene grandi.
+ * Fin qui la dedica è «corta», e prende il corpo pieno più il bonus: una parola
+ * o due sul piatto stanno bene grandi, ed è il caso più comune.
  */
-export const INSCRIPTION_TAPER_FROM = 10;
+export const INSCRIPTION_SHORT = 8;
 /**
- * …e alla lunghezza massima del campo vale questa frazione del corpo. La riga
- * cala con i caratteri invece di restare grande fino a sbattere contro il muro
- * della larghezza: una dedica lunga dev'essere una scritta fine, non un titolo
- * (ruling TL 20/9, a schermo).
+ * Quanto è più grande una dedica corta. Ruling TL 20/9: «se ho poche lettere
+ * prendiamo un carattere leggermente più grande, migliora l'esperienza».
  */
-export const INSCRIPTION_TAPER_TO = 0.7;
+export const INSCRIPTION_SCALE_SHORT = 1.25;
+/**
+ * …e quanto vale alla lunghezza massima del campo. Da quando la riga può andare
+ * a capo questa rampa non deve più fare tutto il lavoro: è un gusto, non un
+ * vincolo — a far stare il blocco dentro il piatto ci pensa il ciclo di misura.
+ */
+export const INSCRIPTION_SCALE_LONG = 0.9;
 
 /**
- * Quanto vale il corpo alla lunghezza data: 1 fino a `INSCRIPTION_TAPER_FROM`,
- * poi giù in linea retta fino a `INSCRIPTION_TAPER_TO` alla lunghezza massima
+ * Quante righe può occupare il blocco. Due: una dedica su un piatto è una o due
+ * righe, e la scatola è larga quanto la corda della campitura vuota misurata
+ * all'altezza di DUE righe — con tre il blocco sarebbe più alto e la corda
+ * disponibile più stretta, cioè si rincorrerebbe.
+ */
+export const INSCRIPTION_MAX_LINES = 2;
+
+/** Di quanto stringe ogni passata del ciclo di misura, quando non ci sta. */
+export const INSCRIPTION_SHRINK_STEP = 0.9;
+/**
+ * E quante passate al massimo. Da `INSCRIPTION_SCALE_SHORT` al pavimento con
+ * passi del 10% ce ne vogliono 10: il ciclo si ferma prima da solo, questo è il
+ * fermo di sicurezza perché una misura storta non diventi un ciclo infinito.
+ */
+export const INSCRIPTION_FIT_PASSES = 10;
+
+/**
+ * Quanto vale il corpo alla lunghezza data: il bonus fino a `INSCRIPTION_SHORT`,
+ * poi giù in linea retta fino a `INSCRIPTION_SCALE_LONG` alla lunghezza massima
  * del campo. Legato a `MAX_CUSTOM_TEXT` e non a un 25 scritto qui, così se il
  * cap cambia la rampa lo segue invece di finire fuori scala.
  */
-export function taperForLength(length: number): number {
-  if (!(length > INSCRIPTION_TAPER_FROM)) return 1;
-  const span = MAX_CUSTOM_TEXT - INSCRIPTION_TAPER_FROM;
-  if (span <= 0) return INSCRIPTION_TAPER_TO;
-  const over = Math.min(length, MAX_CUSTOM_TEXT) - INSCRIPTION_TAPER_FROM;
-  return 1 - (over / span) * (1 - INSCRIPTION_TAPER_TO);
+export function scaleForLength(length: number): number {
+  if (!(length > INSCRIPTION_SHORT)) return INSCRIPTION_SCALE_SHORT;
+  const span = MAX_CUSTOM_TEXT - INSCRIPTION_SHORT;
+  if (span <= 0) return INSCRIPTION_SCALE_LONG;
+  const over = Math.min(length, MAX_CUSTOM_TEXT) - INSCRIPTION_SHORT;
+  return (
+    INSCRIPTION_SCALE_SHORT -
+    (over / span) * (INSCRIPTION_SCALE_SHORT - INSCRIPTION_SCALE_LONG)
+  );
 }
 
 /**
- * Quanto rimpicciolire la riga. Due vincoli, e vince il più stretto:
- * la rampa sulla lunghezza (`taperForLength`, che è estetica) e la larghezza
- * disponibile (che è l'AC 3, e non è negoziabile). La larghezza di una riga è
- * lineare nel corpo, quindi una passata basta: niente ciclo, niente seconda
- * misura. Una misura presa prima del layout (0 o NaN) vale «non so», e in
- * dubbio si resta sulla rampa invece di inventare un rimpicciolimento.
+ * Una passata del ciclo di misura: dato il fattore corrente e come è venuto il
+ * blocco, il fattore successivo — o `null` quando non c'è più niente da fare,
+ * perché il blocco sta o perché si è arrivati al pavimento (sotto il quale si
+ * tronca, AC 3).
+ *
+ * `tooWide` è vero solo per una parola sola più larga della scatola: tutto il
+ * resto va a capo. Le parole non si spezzano mai a metà (ruling TL 20/9).
  */
-export function fitRatio(
-  textWidth: number,
-  boxWidth: number,
-  length: number
-): number {
-  const taper = taperForLength(length);
-  if (!(textWidth > 0) || !(boxWidth > 0)) return taper;
-  const wall = (boxWidth / textWidth) * INSCRIPTION_FIT_SLACK;
-  return Math.max(INSCRIPTION_MIN_FIT, Math.min(taper, wall));
+export function shrinkStep(
+  fit: number,
+  { tooWide, lines }: { tooWide: boolean; lines: number }
+): number | null {
+  if (!tooWide && lines <= INSCRIPTION_MAX_LINES) return null;
+  const next = Math.max(INSCRIPTION_MIN_FIT, fit * INSCRIPTION_SHRINK_STEP);
+  return next < fit ? next : null;
 }
 
 /**
