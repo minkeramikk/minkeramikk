@@ -35,8 +35,14 @@ import { isCustomTextOffered, type TextGroupCandidate } from "./text-option";
 export const INSCRIPTION_CENTER_Y = 68;
 /** Larghezza massima della riga, in `cqmin`. */
 export const INSCRIPTION_MAX_WIDTH = 52;
-/** Corpo del testo prima del fit, in `cqmin`. */
-export const INSCRIPTION_FONT_SIZE = 7;
+/**
+ * Corpo del testo prima del fit, in `cqmin`. Era 7: sul piatto vero leggeva
+ * grosso e pesante accanto a un'arte fatta di tratti sottili (ruling TL 20/9,
+ * a schermo). Sui testi lunghi non cambia niente — lì il corpo lo decide la
+ * larghezza massima, non questo numero — cambia sulle dediche corte, che
+ * smettono di gridare.
+ */
+export const INSCRIPTION_FONT_SIZE = 5;
 /** Sotto questo fattore non si rimpicciolisce più: si tronca (AC 3). */
 export const INSCRIPTION_MIN_FIT = 0.45;
 

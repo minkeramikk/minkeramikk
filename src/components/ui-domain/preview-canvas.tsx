@@ -137,10 +137,13 @@ function Inscription({ text }: { text: string }) {
           // Serif corsivo scuro: la veste della parola che lo studio disegna
           // già a mano. Nessun font nuovo — stack di sistema (la card: «non si
           // inventa un font»).
-          fontFamily: 'Georgia, "Times New Roman", serif',
+          // Times, non Georgia: a parità di corpo Georgia ha aste più spesse
+          // e occhio più grande, e sul piatto sembrava scritta in grassetto
+          // accanto ai tratti sottili dell'arte (ruling TL 20/9).
+          fontFamily: '"Times New Roman", Times, serif',
           fontStyle: "italic",
           color: "var(--mk-dark)",
-          opacity: 0.88,
+          opacity: 0.78,
           fontSize: `calc(var(--fit, 1) * ${INSCRIPTION_FONT_SIZE}cqmin)`,
           lineHeight: 1.2,
         }}
@@ -275,7 +278,15 @@ export function PreviewCanvas({
         {inscription && !nothingToShow && (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
             <div
-              className={`@container/plate flex items-center justify-center ${ART_BOX}`}
+              className={`flex items-center justify-center ${ART_BOX}`}
+              // `container-type: size`, NON `inline-size` (che è ciò che
+              // emette `@container/plate`): con `inline-size` l'asse di blocco
+              // non è contenuto e `cqmin` ripiega sull'altezza del VIEWPORT,
+              // cioè vale la larghezza del riquadro. Sul desktop non si vede —
+              // il frame è quadrato — ma nell'editor mobile il riquadro è
+              // 281×244 e la scritta veniva il 15% troppo grande e cadeva al
+              // 70,9% invece che al 68%: l'AC 4 in pieno. Misurato in pagina.
+              style={{ containerType: "size", containerName: "plate" }}
             >
               <div className="relative aspect-square w-[100cqmin]">
                 <Inscription text={inscription} />
