@@ -28,12 +28,20 @@ const poppins = Poppins({
  * Un peso, uno stile, sottoinsieme latino (che porta å ø æ): ~25kB, e
  * `next/font` la ospita in casa come Poppins — nessuna chiamata a Google, nessun
  * salto di layout.
+ *
+ * `preload: false` NON è una svista. Questa chiamata sta nel layout radice,
+ * quindi senza di esso ogni pagina del sito — home, catalogo, checkout, admin —
+ * emetterebbe un `<link rel="preload" as="font">` e scaricherebbe quei kB per un
+ * font che può servire solo allo step 2 del configuratore, solo sui design che
+ * accettano la scritta, e solo dopo che il cliente ha scritto qualcosa. La
+ * variabile CSS arriva lo stesso: il font si carica quando serve davvero.
  */
 const lora = Lora({
   variable: "--font-inscription",
   weight: ["500"],
   style: ["italic"],
   subsets: ["latin"],
+  preload: false,
 });
 
 export const metadata: Metadata = {

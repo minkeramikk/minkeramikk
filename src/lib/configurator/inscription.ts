@@ -99,6 +99,10 @@ export const INSCRIPTION_SCALE_LONG = 0.9;
  * righe, e la scatola è larga quanto la corda della campitura vuota misurata
  * all'altezza di DUE righe — con tre il blocco sarebbe più alto e la corda
  * disponibile più stretta, cioè si rincorrerebbe.
+ *
+ * È l'obiettivo del ciclo, non una garanzia: il ritaglio è orizzontale, quindi
+ * un blocco che al pavimento vuole ancora tre righe le disegna. Succede solo
+ * con parole tutte lunghissime, e a quel corpo resta dentro la campitura.
  */
 export const INSCRIPTION_MAX_LINES = 2;
 

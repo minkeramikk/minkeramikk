@@ -138,7 +138,13 @@ function Inscription({ text }: { text: string }) {
       // righe servano dipende da DOVE cadono gli spazi, e quello lo sa solo il
       // browser che ha appena mandato il testo a capo.
       for (let pass = 0; pass < INSCRIPTION_FIT_PASSES; pass++) {
-        const lineHeight = parseFloat(getComputedStyle(el).lineHeight) || 1;
+        const lineHeight = parseFloat(getComputedStyle(el).lineHeight);
+        // Zero = il riquadro è chiuso (`display:none`, vedi sotto); NaN = il
+        // line-height è tornato `normal` e non so quanto è alta una riga. In
+        // entrambi i casi «non so» deve voler dire «non tocco»: con un ripiego
+        // a 1 il conto delle righe direbbe ~20 e il ciclo inchioderebbe ogni
+        // scritta al pavimento, in silenzio.
+        if (!(lineHeight > 0)) break;
         const next = shrinkStep(fit, {
           tooWide: el.scrollWidth > el.clientWidth,
           lines: Math.round(el.scrollHeight / lineHeight),
@@ -157,7 +163,24 @@ function Inscription({ text }: { text: string }) {
     // invece che mandata a capo.
     const ro = new ResizeObserver(measure);
     ro.observe(square);
-    return () => ro.disconnect();
+
+    // Il font arriva DOPO. `next/font` serve Lora con `display: swap`, quindi
+    // la prima misura può cadere sul ripiego, che ha le metriche di Times e non
+    // di Lora: il fattore resterebbe cablato su larghezze di glifo sbagliate, e
+    // quando Lora atterra il blocco si riflowa senza che nessuno rimisuri.
+    // Peggio ancora perché il ciclo si ferma al PRIMO fattore che sta: atterra
+    // sempre sul filo delle due righe, cioè nel punto peggiore in cui farsi
+    // cambiare le metriche sotto i piedi. Il riquadro non cambia dimensione
+    // quando cambia un font, quindi il `ResizeObserver` qui non aiuta.
+    let alive = true;
+    document.fonts?.ready.then(() => {
+      if (alive) measure();
+    });
+
+    return () => {
+      alive = false;
+      ro.disconnect();
+    };
   }, [text, scale]);
 
   return (
@@ -172,8 +195,9 @@ function Inscription({ text }: { text: string }) {
         // diventano lo stesso numero — la misura non ha più un muro contro cui
         // confrontarsi e la riga finisce sempre larga quanto la sua scatola, al
         // decimo di pixel. Da lì i tre puntini: basta un arrotondamento e il
-        // browser si mangia le ultime lettere. Fissa, il muro è il muro e dopo
-        // il fit restano tre punti percentuali di aria veri.
+        // browser si mangia le ultime lettere. Fissa, il muro è il muro, e
+        // l'aria viene dal ciclo, che stringe di un passo intero (10%) e quindi
+        // non atterra mai sul confine.
         width: `${INSCRIPTION_MAX_WIDTH}cqmin`,
       }}
     >
@@ -181,8 +205,13 @@ function Inscription({ text }: { text: string }) {
         ref={ref}
         // Va a capo, ma solo negli spazi: una parola non si spezza mai a metà
         // (ruling TL 20/9). Se una parola sola è più larga della scatola, a
-        // rimpicciolirla ci pensa il ciclo di misura, e solo sotto il pavimento
-        // arrivano i puntini.
+        // rimpicciolirla ci pensa il ciclo di misura, e sotto il pavimento
+        // arrivano i puntini. Attenzione a cosa promette questa riga: i puntini
+        // sono orizzontali, quindi valgono SOLO per una parola sola più larga
+        // della scatola. Un blocco che al pavimento vuole ancora tre righe le
+        // disegna — `INSCRIPTION_MAX_LINES` è un obiettivo del ciclo, non una
+        // garanzia del ritaglio. A quel corpo il blocco resta comunque dentro
+        // la campitura vuota: è una promessa imprecisa, non un pixel fuori.
         className="block text-ellipsis"
         style={{
           // Corsivo vero, non l'italico di un font da interfaccia: quello che
@@ -196,6 +225,15 @@ function Inscription({ text }: { text: string }) {
           fontWeight: 500,
           color: "var(--mk-dark)",
           opacity: 0.78,
+          // Il primo fotogramma servito dal server non è misurato: la rampa
+          // conosce la lunghezza, non DOVE cadono gli spazi, che è ciò che
+          // decide quante righe vengono. Una dedica lunga può quindi uscire su
+          // tre righe per un fotogramma, e all'idratazione tornare a due.
+          // Scelta voluta: l'alternativa è partire tutti da
+          // `INSCRIPTION_SCALE_LONG`, che farebbe saltare ANCHE le dediche
+          // corte — il caso comune — per proteggere quello raro. Il blocco a
+          // tre righe resta comunque dentro la campitura vuota (angoli a
+          // ±6,6cqmin, mezza corda 8,79cqmin).
           // Il fallback è la rampa sulla lunghezza, non 1: al primo disegno `--fit` non è
           // ancora stato scritto da nessuno, e senza questo una pagina che
           // arriva con un `?text=` uscirebbe a corpo pieno e TAGLIATA prima
