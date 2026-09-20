@@ -51,7 +51,10 @@ scripts/.variants-failed.log
 docs/evidence/
 
 # agent worktrees / local state (machine-specific, not source)
-.claude/
+# Gli agenti e le skill di progetto SI committano; le impostazioni locali no
+!.claude/
+.claude/settings.local.json
+.claude/worktrees/
 # planning scratch (superpowers)
 docs/superpowers/
 
@@ -66,3 +69,13 @@ vercel-preview
 scripts/__pycache__/
 # e2e discount-seed crash recovery (local run state, see e2e/helpers.ts)
 .e2e-discount-restore.json
+
+# GitHub token per l'org minkeramikk (mai committare; sessioni dev: GH_TOKEN=$(cat .gh-token))
+.gh-token
+
+# Processo Varco: repo sua annidata, ignorata dal prodotto. Senza slash finale:
+# nei worktree .varco può essere un symlink e un symlink non è una directory.
+.varco
+# Artefatti del piano: locali, mai committati
+.superpowers/
+.plans/
