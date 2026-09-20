@@ -13,6 +13,7 @@ import {
   findTextGroup,
   isCustomTextOffered,
 } from "@/lib/configurator/text-option";
+import { showsLiveInscription } from "@/lib/configurator/inscription";
 import { useLaneFades } from "@/lib/configurator/use-lane-fades";
 import {
   ARROW_SAFE_PX,
@@ -368,6 +369,17 @@ export function ConfiguratorClient({
     selectedOptionId: textCategory ? selections[textCategory.slug] : undefined,
   });
 
+  /* R5-TEXT-LIVE: la scritta viva. La regola sta tutta nel modulo puro — in
+     particolare il «dove c'è il layer non si disegna» dell'AC 2. */
+  const liveInscription = showsLiveInscription({
+    acceptsCustomText: detail.acceptsCustomText,
+    textGroup: textCategory,
+    selectedOptionId: textCategory ? selections[textCategory.slug] : undefined,
+    text: customText,
+  })
+    ? customText
+    : undefined;
+
   /* R4-COPY Ⓒ (chiusa) + R4-FIX 7: la didascalia col link alla
      inspirasjonsside. `t.rich` rende il tag <link> del dizionario — nessun HTML
      crudo nei JSON, nessun testo duplicato: lo stesso nodo va sotto il canvas
@@ -427,6 +439,7 @@ export function ConfiguratorClient({
           data-testid="custom-text-helper"
           className="text-xs text-muted-foreground"
         >
+          {/* TODO:nb-review — configurator.customText.helper, riscritta dalla card 6a */}
           {t("customText.helper")}
         </p>
         <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
@@ -1470,6 +1483,7 @@ export function ConfiguratorClient({
               caption={previewNote}
               className={cn(step === 2 && "max-md:contents")}
               layers={previewLayers}
+              inscription={liveInscription}
             />
           </div>
           {/* R4-FOLLOWUPS Ⓓ: qui stava la riga-riassunto (mockup .sum), una

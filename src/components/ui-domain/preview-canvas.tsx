@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import {
+  fitRatio,
+  INSCRIPTION_CENTER_Y,
+  INSCRIPTION_FONT_SIZE,
+  INSCRIPTION_MAX_WIDTH,
+} from "@/lib/configurator/inscription";
 
 export interface PreviewLayer {
   src: string;
@@ -20,6 +26,21 @@ export interface PreviewLayer {
  */
 
 const FADE_MS = 200;
+
+/**
+ * Il riquadro dell'arte dentro il frame. Era un letterale dentro `LayerStack`;
+ * ora lo usano in due (lo stack e la scritta viva) e devono restare la STESSA
+ * scatola, altrimenti la scritta scivola rispetto al piatto.
+ */
+const ART_BOX = "h-[84%] w-[84%]";
+
+/**
+ * `useLayoutEffect` avvisa in SSR, e questo componente renderizza anche lì
+ * (un `?text=` nell'URL arriva già pieno dal server). Il misuratore serve solo
+ * nel browser: in SSR non c'è niente da misurare.
+ */
+const useIsoLayoutEffect =
+  typeof window === "undefined" ? useEffect : useLayoutEffect;
 
 const keyOf = (layers: PreviewLayer[]) => layers.map((l) => l.src).join("|");
 
@@ -48,7 +69,7 @@ function LayerStack({
 }) {
   return (
     <div
-      className="relative h-[84%] w-[84%]"
+      className={`relative ${ART_BOX}`}
       style={{
         // R4-CANVAS-WHITE AC7: era 18%. Su fondo caldo leggeva morbida; su
         // `--mk-canvas` (bianco pieno) la stessa ombra diventa un alone grigio
@@ -74,16 +95,78 @@ function LayerStack({
   );
 }
 
+/**
+ * R5-TEXT-LIVE — le parole del cliente sul piatto, mentre le scrive.
+ *
+ * `aria-hidden`: le stesse parole sono nel campo che ha appena scritto, uno
+ * screen reader le direbbe due volte. `pointer-events-none`: è un'anteprima,
+ * non un bersaglio.
+ */
+function Inscription({ text }: { text: string }) {
+  const ref = useRef<HTMLSpanElement>(null);
+
+  useIsoLayoutEffect(() => {
+    const el = ref.current;
+    const box = el?.parentElement;
+    if (!el || !box) return;
+    // Misura a corpo pieno e applica il rapporto nella stessa passata di
+    // layout: nessun lampo a corpo sbagliato, nessun secondo giro. Sul
+    // ridimensionamento non serve rimisurare — `cqmin` scala scatola e testo
+    // insieme, quindi il rapporto resta valido (AC 4).
+    el.style.setProperty("--fit", "1");
+    el.style.setProperty(
+      "--fit",
+      String(fitRatio(el.scrollWidth, box.clientWidth))
+    );
+  }, [text]);
+
+  return (
+    <div
+      aria-hidden="true"
+      data-testid="preview-inscription"
+      className="pointer-events-none absolute left-1/2 -translate-x-1/2 -translate-y-1/2 text-center"
+      style={{
+        top: `${INSCRIPTION_CENTER_Y}%`,
+        maxWidth: `${INSCRIPTION_MAX_WIDTH}cqmin`,
+      }}
+    >
+      <span
+        ref={ref}
+        className="block overflow-hidden text-ellipsis whitespace-nowrap"
+        style={{
+          // Serif corsivo scuro: la veste della parola che lo studio disegna
+          // già a mano. Nessun font nuovo — stack di sistema (la card: «non si
+          // inventa un font»).
+          fontFamily: 'Georgia, "Times New Roman", serif',
+          fontStyle: "italic",
+          color: "var(--mk-dark)",
+          opacity: 0.88,
+          fontSize: `calc(var(--fit, 1) * ${INSCRIPTION_FONT_SIZE}cqmin)`,
+          lineHeight: 1.2,
+        }}
+      >
+        {text}
+      </span>
+    </div>
+  );
+}
+
 export function PreviewCanvas({
   layers,
   caption,
   alt,
+  inscription,
   className,
 }: {
   layers: PreviewLayer[];
   /** Rich node, not just text: the configurator caption carries a link. */
   caption?: React.ReactNode;
   alt: string;
+  /**
+   * R5-TEXT-LIVE: la scritta del cliente, già decisa dal chiamante (vedi
+   * `showsLiveInscription`). Assente = anteprima di sempre.
+   */
+  inscription?: string;
   className?: string;
 }) {
   const targetKey = keyOf(layers);
@@ -180,6 +263,24 @@ export function PreviewCanvas({
             data-testid="preview-incoming"
           >
             <LayerStack layers={incoming.layers} alt={alt} />
+          </div>
+        )}
+
+        {/* R5-TEXT-LIVE — sopra gli strati, mai sopra lo scheletro. Il
+            quadrato è l'arte CONTENUTA (`100cqmin` del riquadro), non il
+            riquadro: sotto `md` il frame è rettangolare e il piatto ci sta in
+            `object-contain`, quindi la scritta segue il piatto invece che la
+            scatola (AC 4). Contenitore NOMINATO, così un `@container` annidato
+            più avanti non se lo prende. */}
+        {inscription && !nothingToShow && (
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+            <div
+              className={`@container/plate flex items-center justify-center ${ART_BOX}`}
+            >
+              <div className="relative aspect-square w-[100cqmin]">
+                <Inscription text={inscription} />
+              </div>
+            </div>
           </div>
         )}
       </div>
