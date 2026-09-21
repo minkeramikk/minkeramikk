@@ -33,7 +33,6 @@ Rifacimento di minkeramikk.no: configuratore di ceramica personalizzata + finto 
 - Sessioni **dev** dalla root del prodotto (OpenCode). Sessioni **PM** da dentro `.varco/`.
 - Agenti di progetto in `.opencode/agents/`: `backend` (dominio, contratti, dati, test) · `frontend` (UI sui contratti + design system) · `reviewer` (diff, mai chi ha scritto) · `pm-reviewer` (piano COLD al posto del PM). In COLD ogni task del piano è assegnato per nome a `backend` o `frontend`.
 - Piano COLD: agent `plan` (read-only) scrive `.plans/fNN-nome.md` con la testata Varco (`varco-plan`), review `pm-reviewer`, poi esecuzione a subagent. YAGNI sempre; scorciatoie deliberate marcate `ponytail:` e raccolte dal PM alla chiusura.
-- Niente Superpowers/Ponytail/Caveman/Conductor in questo repo (deviazione registrata in `.varco/docs/LOG.md`): le regole restano, cambiano solo gli strumenti.
 
 ## Auth GitHub a due identità
 
