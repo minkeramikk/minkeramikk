@@ -65,7 +65,10 @@ import { PaletteCard } from "@/components/ui-domain/palette-card";
 import { PaletteChip } from "@/components/ui-domain/palette-chip";
 import { PaintingStrip } from "@/components/ui-domain/painting-strip";
 import { DesignRound } from "@/components/ui-domain/design-round";
-import { DesignSwitch } from "@/components/ui-domain/design-switch";
+import {
+  DesignSwitch,
+  type DesignSwitchChoice,
+} from "@/components/ui-domain/design-switch";
 
 /** Pagina di ispirazione del cliente (fuori sito, apre in nuova scheda). */
 const INSPIRATION_URL = "https://www.minkeramikk.no/inspirasjon";
@@ -904,7 +907,7 @@ export function ConfiguratorClient({
     router.push(`${pathname}?${params.toString()}`, { scroll: false });
   }
 
-  function selectDesign(d: DesignChoice) {
+  function selectDesign(d: DesignChoice | DesignSwitchChoice) {
     if (d.slug === selected.slug) return;
     const params = new URLSearchParams(searchParams.toString());
     params.set("design", d.slug);

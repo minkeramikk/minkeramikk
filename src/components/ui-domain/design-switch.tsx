@@ -11,7 +11,18 @@ import {
 } from "@/components/ui/sheet";
 import { assetUrl } from "@/lib/storage";
 import { cn } from "@/lib/utils";
-import type { DesignChoice } from "@/app/[locale]/(public)/configurator/configurator-client";
+import type { PreviewLayer } from "@/lib/configurator/preview";
+
+/** Scelta design minima servita dallo switch (ui-domain → lib, mai route). */
+export interface DesignSwitchChoice {
+  id: string;
+  slug: string;
+  /** Legacy single-language name (fallback). */
+  name: string;
+  nameNo: string;
+  nameEn: string;
+  defaultLayers: PreviewLayer[];
+}
 
 /**
  * R5-DESIGN-SWITCH T1 — design switch allo step 2 (mockup-palettebar.html).
@@ -28,18 +39,18 @@ export function DesignSwitch({
   productCounts = {},
   onSelect,
 }: {
-  designs: DesignChoice[];
+  designs: DesignSwitchChoice[];
   currentSlug: string;
   /** slug → n. ceramiche whitelistate (server, `getDesignProducts`). */
   productCounts?: Record<string, number>;
-  onSelect: (d: DesignChoice) => void;
+  onSelect: (d: DesignSwitchChoice) => void;
 }) {
   // TODO:nb-review — configurator.designSwitch.* NO copy is new, unreviewed.
   const t = useTranslations("configurator.designSwitch");
   const locale = useLocale();
-  const nameOf = (d: DesignChoice) =>
+  const nameOf = (d: DesignSwitchChoice) =>
     (locale === "no" ? d.nameNo : d.nameEn) || d.nameNo || d.name;
-  const current: DesignChoice =
+  const current: DesignSwitchChoice =
     designs.find((d) => d.slug === currentSlug) ?? designs[0];
   const [listOpen, setListOpen] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -63,13 +74,13 @@ export function DesignSwitch({
     };
   }, [listOpen]);
 
-  const pick = (d: DesignChoice) => {
+  const pick = (d: DesignSwitchChoice) => {
     setListOpen(false);
     setSheetOpen(false);
     onSelect(d);
   };
 
-  const layersOf = (d: DesignChoice) =>
+  const layersOf = (d: DesignSwitchChoice) =>
     d.defaultLayers.map((l) => ({
       src: assetUrl(l.src),
       recolor: l.blend === "multiply",
