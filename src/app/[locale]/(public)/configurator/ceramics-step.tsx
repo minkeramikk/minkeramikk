@@ -5,7 +5,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
 import { usePathname, useRouter } from "@/i18n/navigation";
 import { Stepper } from "@/components/ui-domain/stepper";
-import { PaletteBar } from "@/components/ui-domain/palette-bar";
+import { PaletteCard } from "@/components/ui-domain/palette-card";
 import { PaletteChip } from "@/components/ui-domain/palette-chip";
 import { PaintingStrip } from "@/components/ui-domain/painting-strip";
 import { nameFor, paletteFor, sortCurrentDesignFirst } from "@/lib/palettes/palettes";
@@ -214,6 +214,7 @@ export function CeramicsStep({
   const to = useTranslations("order");
   const ta = useTranslations("actions");
   const tPaletteBar = useTranslations("palettes.bar");
+  const tPaletteCard = useTranslations("palettes.card");
   const locale = useLocale() as "no" | "en";
   const router = useRouter();
   const pathname = usePathname();
@@ -253,9 +254,6 @@ export function CeramicsStep({
    * so a different dedication IS a different identity — an unsaved draft —
    * and Save is offered (see `canSaveDraft` below).
    */
-  // Declared this early because `paintingLabel` right below needs it as its
-  // last-resort fallback, and the `PaletteBar`/`PaintingStrip` further down
-  // print it as the design's own name beside whatever palette is painting.
   // (It used to be `rowThumb` that forced it up here; that moved to
   // `basket.tsx` in task 4 and these two kept it where it is.)
   const designName = designLabel(snapshot, locale) ?? "";
@@ -529,21 +527,20 @@ export function CeramicsStep({
    * «+ New palette»: step 2 of the CURRENT design (`goToStep`, defined below,
    * keeps every other param — colours included, so this opens on what's on
    * screen right now, ready to tweak into something new rather than starting
-   * from the design's own defaults). R5-TEXT-CARRY T4: lives in `PaletteBar`'s
-   * `extra` cluster with Save, NOT in the scrolling `chips` lane — with N
-   * palettes a chip inside the lane scrolls off-screen, an action must not.
+   * from the design's own defaults). R5-PALETTE-IN-ACTION T2: the card owns
+   * its own anchored header slot, so this becomes a bare button again —
+   * mockup F1's reduced `h-9`/`text-[12.5px]` skin, no lane, no `ml-auto`
+   * cluster (the card does that). Step 3 offers ONLY +New; Save left step 3
+   * with the global bar (card §Cosa cambia punto 1).
    */
   const newPaletteChip = (
     <button
       type="button"
       data-testid="palette-chip-new"
       onClick={() => goToStep(2)}
-      className="flex h-12 shrink-0 items-center gap-2.5 rounded-full border border-dashed border-primary/50 pl-1.5 pr-4 text-[13.5px] text-primary hover:bg-muted"
+      className="flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-dashed border-primary/50 px-3 text-[12.5px] font-medium text-primary hover:bg-muted"
     >
-      <span
-        aria-hidden
-        className="grid size-9 place-items-center rounded-full border border-dashed border-primary/60 text-lg leading-none"
-      >
+      <span aria-hidden className="text-base leading-none">
         +
       </span>
       {tPaletteBar("new")}
@@ -1188,7 +1185,7 @@ export function CeramicsStep({
 
   // R5-PALETTES task 9: the desktop "Ditt valg" box is GONE — the PaletteBar
   // above the step now says which palette is painting (mockup `#s3a`'s option
-  // A carries no such card in the basket column; the bar replaces it).
+  // A carries no such card in the basket column; the card replaces it).
   //
   // R5-PALETTES task 13: the mobile strip below WAS that box's phone twin
   // (design + selected options, an "Edit" shortcut) — it becomes the
@@ -1198,8 +1195,8 @@ export function CeramicsStep({
   // Fix wave PR3 finding 4: no `hasConfig` gate any more. That gate made
   // sense while this was a recap of an explicit choice (AC4); now it's the
   // ONLY mobile way to see what's painting and reach the sheet, and the
-  // desktop `PaletteBar` a few hundred lines down carries no such gate
-  // either — it always renders, just `hidden` below `md`. A bare `?step=3`
+  // desktop card further down carries no such gate either — it always
+  // renders, just `hidden` below `md`. A bare `?step=3`
   // or a `?set=` landing still has SOME palette painting (`paintingLabel`
   // already falls back to `designName`), and the phone customer deserves to
   // be told, and given the sheet, same as desktop.
@@ -1392,66 +1389,18 @@ export function CeramicsStep({
         // The bar is `fixed`, so it sits ON the page: without this the last
         // rows of the catalog stay under it. Same breakpoint as the bar.
         showStickyBar && "pb-24 lg:pb-0",
-        // Fix wave B finding 5 (minor) — same gap as step 2's own
-        // `data-testid="configurator"`: no `scroll-margin-top` anywhere, so a
-        // keyboard-focused control lands under this step's own sticky
-        // `PaletteBar` (69px, desktop only).
-        "md:[&_*:focus-visible]:scroll-mt-[69px]"
+        // R5-PALETTE-IN-ACTION T2: the card pins itself (`sticky top-4`,
+        // scoped to the catalogue column) instead of the old global bar. A
+        // focused control now lands under the pinned card (~110px tall) —
+        // keep clear of it.
+        "md:[&_*:focus-visible]:scroll-mt-24"
       )}
     >
-      {/* R5-PALETTES task 9: the paint-mode bar, desktop only — mobile gets
-          its own "Painting with" strip + sheet, same split step 2 makes
-          (task 8). `-mt-7` cancels `main`'s own top padding (public-shell.tsx)
-          so the bar sits flush under the header before any scroll, and
-          `sticky top-0` (not `top-14` — see palette-bar.tsx) pins it once
-          scrolled, because the desktop site header isn't sticky at all
-          (site-header.tsx:15). The HORIZONTAL full-bleed (PR3 fix — the bar
-          used to stop short of the viewport edges, capped at `main`'s own
-          `max-w-[1060px]`) is now owned by `PaletteBar` itself
-          (`md:w-screen md:ml-[calc(50%-50vw)]`) — no `-mx-5` needed here,
-          it only ever cancelled `main`'s padding, not its width cap. The
-          classes land on `PaletteBar` itself via `className`, not a wrapper:
-          a sticky element only stays pinned as long as its OWN parent is
-          taller than it is, and that parent here is this whole step
-          (`data-testid="ceramics-step"`), not a div sized to just the bar. */}
-      <PaletteBar
-        mode="paint"
-        draft={!activePalette}
-        sticky
-        className="hidden md:-mt-7 md:mb-6 md:block"
-        chips={
-          <>
-            {draftChip}
-            {paletteChips}
-          </>
-        }
-        extra={
-          // R5-TEXT-CARRY T4: + New joins Save in this anchored cluster —
-          // only the chips above scroll, the actions stay visible at N
-          // palettes. Same rule as before for Save (`canSaveDraft =
-          // !activePalette`); + New is always offered. The cluster takes
-          // `ml-auto` once (not per button) so it hugs the right edge while
-          // the lane keeps the rest.
-          <div className="ml-auto flex shrink-0 items-center gap-2">
-            {newPaletteChip}
-            {canSaveDraft && (
-              <button
-                type="button"
-                onClick={saveDraftAsPalette}
-                className="flex h-12 shrink-0 items-center gap-2 rounded-full border-2 border-primary bg-primary/10 px-5 text-[13.5px] font-semibold hover:bg-primary/20"
-              >
-                {tPaletteBar("save")}
-              </button>
-            )}
-          </div>
-        }
-      />
-
       {/* Fix wave PR3 finding 7: the mockup (`Phone3`) puts `MobStrip`
           directly under the header, above the "Step 3 of 3" kicker — this
           used to render inside the left column, below both the stepper and
           the `<h2>`. For a `sticky` element DOM order IS scroll order, so
-          that wasn't cosmetic: it mirrors the desktop `PaletteBar` right
+          that wasn't cosmetic: it mirrors the desktop card right
           above (also ahead of the nav cluster), and doesn't fight anything
           here — the nav cluster and shared-set banner below are ordinary
           in-flow siblings, no sticky/z-index of their own to collide with. */}
@@ -1575,7 +1524,40 @@ export function CeramicsStep({
           <p className="text-[11px] uppercase tracking-[0.06em] text-muted-foreground">
             {tc("stepIndicator", { step: 3 })}
           </p>
-          <h2 className="mb-4 mt-1 text-xl font-semibold">{t("title")}</h2>
+          <h2 className="mb-4 mt-1 text-xl font-semibold">
+            {t("title")}{" "}
+            <span className="text-sm font-normal text-muted-foreground">
+              {/* TODO:nb-review — `cart.tapOnePieceIn` (T4 adds the json):
+                  EN "tap = one piece in {name}" / NO "trykk = én del i {name}". */}
+              — {t("tapOnePieceIn", { name: paintingLabel })}
+            </span>
+          </h2>
+
+          {/* R5-PALETTE-IN-ACTION T2: the paint-mode palette is a card scoped
+              to the catalogue column (mockup F1, pinned `sticky top-4`), not
+              a global full-bleed bar — the old `PaletteBar` mount lived
+              further up, ahead of the nav cluster. Desktop-only
+              (`hidden md:contents`: `display:contents` adds no box, so the
+              card's sticky still sees the column as its parent); mobile keeps
+              its own `paintingStrip` below, untouched. Chips and handlers
+              (`draftChip`/`paletteChips`, `paintWith`) unchanged; step 3
+              keeps ONLY +New — Save left with the global bar (card §Cosa
+              cambia 1). */}
+          <div className="hidden md:contents">
+            <PaletteCard
+              pinned
+              // TODO:nb-review — `palettes.card.paintingNow` (T4 adds the
+              // json): EN "Painting now: {name}" / NO "Maler nå: {name}".
+              activeName={tPaletteCard("paintingNow", { name: paintingLabel })}
+              chips={
+                <>
+                  {draftChip}
+                  {paletteChips}
+                </>
+              }
+              actions={newPaletteChip}
+            />
+          </div>
 
           {/* §3.18: one section per series, 22px apart; 2 cols / gap-2.5 under
               960px, 3 cols / gap-3 from 960px. */}
@@ -1612,15 +1594,13 @@ export function CeramicsStep({
             combined height (measured 64.5px at md and above — both are
             fixed-size text blocks, so one constant covers every breakpoint).
             Update this if that heading block changes.
-            R5-PALETTES task 9: `top-4` (1rem) is now BELOW the sticky
-            PaletteBar's own pinned height — without the offset this
-            panel would slide up under the bar instead of stopping clear of
-            it, the same "second sticky bug" task 8's report fixed for step
-            2's canvas. `calc(69px+1rem)` keeps the original 1rem breathing
-            room, just measured from the bar's bottom edge (68px content +
-            1px `border-b`, fix-wave finding 5), not the viewport top. */}
+            R5-PALETTE-IN-ACTION T2: the global bar is gone, so the second
+            sticky has nothing to slide under — the card pins in the LEFT
+            column (`top-4`), the rail in the RIGHT, and the two columns never
+            overlap. Back to plain `top-4` with the original 1rem breathing
+            room. */}
         <div
-          className="hidden min-w-0 rounded-sm border border-border bg-card p-5 lg:mt-16 lg:block lg:sticky lg:top-[calc(69px+1rem)] lg:self-start"
+          className="hidden min-w-0 rounded-sm border border-border bg-card p-5 lg:mt-16 lg:block lg:sticky lg:top-4 lg:self-start"
           data-testid="docked-cart-panel"
         >
           {cartPanel}

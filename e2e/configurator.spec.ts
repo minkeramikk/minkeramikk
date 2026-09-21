@@ -416,11 +416,11 @@ test.describe("R2-3+R2-4 expandable card", () => {
       // Absent recap = the AC4 degrade path: layer-less design → none of the
       // three blocks render, gracefully (nothing to assert beyond that).
       //
-      // R5-PALETTES task 9 broke the desktop half of this: the desktop
-      // "Ditt valg" box (`step3-your-selection`) is gone, replaced by the
-      // sticky PaletteBar — that's what now says which palette is painting
-      // (card's rule: specs get touched only when they break, and this one
-      // breaks). Assert the bar instead; the mobile branch is untouched.
+      // R5-PALETTE-IN-ACTION: the sticky PaletteBar is gone, replaced by
+      // the PaletteCard pinned in the catalogue column — that's what now
+      // says which palette is painting (card's rule: specs get touched only
+      // when they break, and this one breaks). Assert the card instead; the
+      // mobile branch is untouched.
       const isMobile = testInfo.project.name === "mobile";
       const hasRecap = (await sheet.getByTestId("expanded-composed-preview").count()) > 0;
       if (hasRecap) {
@@ -428,7 +428,7 @@ test.describe("R2-3+R2-4 expandable card", () => {
         if (isMobile) {
           await expect(page.getByTestId("step3-your-selection-strip")).toBeVisible();
         } else {
-          await expect(page.getByTestId("palette-bar")).toBeVisible();
+          await expect(page.getByTestId("palette-card")).toBeVisible();
         }
       } else {
         const description =

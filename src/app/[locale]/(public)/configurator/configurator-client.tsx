@@ -61,7 +61,7 @@ import { paletteMatchingCode } from "@/lib/configurator/save-gate";
 import { stripCustomSegment } from "@/lib/cart/set-code";
 import { nameFor, sortCurrentDesignFirst } from "@/lib/palettes/palettes";
 import type { PaletteWords } from "@/lib/palettes/name-lists";
-import { PaletteBar } from "@/components/ui-domain/palette-bar";
+import { PaletteCard } from "@/components/ui-domain/palette-card";
 import { PaletteChip } from "@/components/ui-domain/palette-chip";
 import { PaintingStrip } from "@/components/ui-domain/painting-strip";
 import { DesignRound } from "@/components/ui-domain/design-round";
@@ -1115,8 +1115,10 @@ export function ConfiguratorClient({
       data-testid="configurator"
       // Fix wave B finding 5 (minor) — nothing on this page carried
       // `scroll-margin-top`, so a keyboard-focused control that scrolls
-      // itself into view lands right under the 69px sticky `PaletteBar`
-      // (step 2 only — the bar only mounts then). `*:focus-visible`, not a
+      // itself into view lands clear of the in-flow card below
+      // (R5-PALETTE-IN-ACTION T3: the global bar is gone — no 69px sticky
+      // offset any more, same `scroll-mt-24` as T2's step 3).
+      // (step 2 only — the card only mounts then). `*:focus-visible`, not a
       // fixed id list: any control in the step-2 column can be the one Tab
       // lands on next.
       //
@@ -1132,57 +1134,15 @@ export function ConfiguratorClient({
       // already binds to the grid's inner one — nearest named-group
       // ancestor wins, no conflict between the two.
       className={cn(
-        step === 2 && "md:[&_*:focus-visible]:scroll-mt-[69px]",
+        step === 2 && "md:[&_*:focus-visible]:scroll-mt-24",
         step === 2 && "group/step2"
       )}
       data-typing={step === 2 && typing ? "1" : undefined}
     >
-      {/* R5-PALETTES task 8: desktop only (mobile gets its own top palette
-          control — PR3 round 2, replacing the removed «Palettes» tab).
-          `main` (public-shell.tsx) wraps every page in `px-5 py-7`; `-mt-7`
-          cancels the top half of that so the bar sits flush under the
-          header before any scroll. The HORIZONTAL full-bleed (PR3 fix —
-          the bar used to stop short of the viewport edges, capped at
-          `main`'s own `max-w-[1060px]`) is now owned by `PaletteBar` itself
-          (`md:w-screen md:ml-[calc(50%-50vw)]`, see that component) — no
-          `-mx-5` needed here any more, it would only have cancelled
-          `main`'s padding, not its width cap. `sticky top-0` (not `top-14`,
-          see palette-bar.tsx) is what then pins it once scrolled: the
-          desktop site header is NOT sticky (site-header.tsx:15,
-          `max-md:sticky` — R2-6 C, desktop chrome unchanged), so `top-14`
-          would park the bar 56px below the viewport top with page content
-          showing above it.
-          The classes go on `PaletteBar` itself via `className`, NOT a
-          wrapper div around it: a sticky element only stays pinned for as
-          long as its OWN parent is taller than it is, and this component's
-          parent here is `data-testid="configurator"` — the whole step's
-          height — not a div sized to just the bar. Wrapping it would give it
-          zero scroll room and unstick it the instant it reached `top-0`. */}
-      {step === 2 && (
-        <PaletteBar
-          mode="manage"
-          count={palettes.length}
-          sticky
-          className="hidden md:-mt-7 md:mb-6 md:block"
-          chips={
-            <>
-              {leadPaletteChip}
-              {otherPaletteChips}
-            </>
-          }
-          extra={
-            canSaveDraft && (
-              <button
-                type="button"
-                onClick={saveDraftAsPalette}
-                className="ml-auto flex h-12 shrink-0 items-center gap-2 rounded-full border-2 border-primary bg-primary/10 px-5 text-[13.5px] font-semibold hover:bg-primary/20"
-              >
-                {tPaletteBar("save")}
-              </button>
-            )
-          }
-        />
-      )}
+      {/* R5-PALETTE-IN-ACTION T3: the global `PaletteBar` mount is gone —
+          the SAME `PaletteCard` now lives in-flow in the options column
+          (below, between the Text field and the nav row). Mobile keeps its
+          own strip further down, untouched. */}
 
       {/* TL "menu sopra come step3" (PR3 round 3): step 2's mobile opener
           moves from floating above the option lane (inside the editor card)
@@ -1395,24 +1355,11 @@ export function ConfiguratorClient({
         <div
           data-preview-column
           className={cn(
-            // R5-PALETTES task 8: the PaletteBar above (68px + 1px bottom
-            // border = 69px) is now wired in and, on desktop, sticks at
-            // `top-0` — NOT `top-14` — because the desktop site header isn't
-            // sticky at all (site-header.tsx:15, `max-md:sticky` only —
-            // R2-6 C). So there is no header height to add here: the offset
-            // is just the bar's own rendered height plus the original 1rem
-            // gap. (Tasks 6/7 shipped `calc(3.5rem+68px+1rem)`, assuming a
-            // sticky header like the mockup patches in — wrong on this site;
-            // see progress.md's PR-2 ruling.)
-            //
-            // Fix-wave finding 2: the bar only mounts at step === 2 (below),
-            // but this offset used to apply unconditionally — step 1 shares
-            // this same column and got 68px of empty space above the canvas
-            // for no bar. Gate it: `top-4` (the pre-palette-bar 1rem gap,
-            // card §5.6 — step 1 stays untouched) everywhere the bar isn't
-            // actually above the canvas.
+            // R5-PALETTE-IN-ACTION T3: the global bar is gone, so the canvas
+            // has nothing to park under — back to plain `top-4` like step 1
+            // (same fix as T2's `docked-cart-panel` rail).
             "z-30 flex min-w-0 flex-col gap-3 md:sticky md:self-start",
-            step === 2 ? "md:top-[calc(69px+1rem)]" : "md:top-4",
+            "md:top-4",
             // CA-7 (variant B): design-first on mobile step 1 — the hero is
             // hidden entirely (the design cards double as the preview). It stays
             // MOUNTED (display:none only) so the same PreviewCanvas instance
@@ -2037,6 +1984,39 @@ export function ConfiguratorClient({
               )}
             </div>
 
+            {/* R5-PALETTE-IN-ACTION T3: the SAME `PaletteCard` as step 3,
+                in-flow in the options column (mockup F3, NOT sticky) —
+                after colours + the Text field, before the nav row.
+                Desktop-only (`hidden md:block`); mobile keeps its own
+                `step2-palette-strip` below, untouched. Header: the card's
+                own eyebrow title + ONLY the de-emphasised `h-8` Save
+                (mockup r.88), gated on `canSaveDraft = !matchedPalette` —
+                no +New (card §Cosa cambia punto 2: every option change is
+                already a new draft). Chips (`leadPaletteChip` +
+                `otherPaletteChips`) and handlers
+                (`loadPalette`/`saveDraftAsPalette`) unchanged. */}
+            <div className="hidden md:block">
+              <PaletteCard
+                chips={
+                  <>
+                    {leadPaletteChip}
+                    {otherPaletteChips}
+                  </>
+                }
+                actions={
+                  canSaveDraft && (
+                    <button
+                      type="button"
+                      onClick={saveDraftAsPalette}
+                      className="flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-primary/40 px-3 text-[12px] font-medium text-primary hover:bg-primary/10"
+                    >
+                      {tPaletteBar("save")}
+                    </button>
+                  )
+                }
+              />
+            </div>
+
 
             {/* CA-2: Back + advance close the options column (last in DOM →
                 natural tab order: options → CTA).
@@ -2084,7 +2064,7 @@ export function ConfiguratorClient({
                 fold, so it would sit on top of the option lane at first
                 paint. This strip goes in normal flow, directly above the nav
                 row — same fix, same place, one paragraph up. Mobile only:
-                desktop's equivalent is the bar's own `extra` button (task 8).
+                desktop's equivalent is the card's own Save action above.
                 `activePaletteName`/`activePaletteLayers` are the SAME values
                 the Palettes tab's dot and draft chip already use — computed
                 once, above.
