@@ -65,6 +65,7 @@ import { PaletteCard } from "@/components/ui-domain/palette-card";
 import { PaletteChip } from "@/components/ui-domain/palette-chip";
 import { PaintingStrip } from "@/components/ui-domain/painting-strip";
 import { DesignRound } from "@/components/ui-domain/design-round";
+import { DesignSwitch } from "@/components/ui-domain/design-switch";
 
 /** Pagina di ispirazione del cliente (fuori sito, apre in nuova scheda). */
 const INSPIRATION_URL = "https://www.minkeramikk.no/inspirasjon";
@@ -168,6 +169,7 @@ export function ConfiguratorClient({
   ceramicThumbs = {},
   featuredSlot = null,
   paletteWords,
+  productCounts = {},
 }: {
   designs: DesignChoice[];
   detailsBySlug: Record<string, DesignDetail>;
@@ -175,6 +177,12 @@ export function ConfiguratorClient({
   ceramicThumbs?: Record<string, string[]>;
   /** F28: server-rendered featured strip — step 1 only, between stepper and grid. */
   featuredSlot?: React.ReactNode;
+  /**
+   * R5-DESIGN-SWITCH T1: slug → n. ceramiche whitelistate (page.tsx via
+   * `getDesignProducts` per design, cache `catalog`) — la riga desktop mostra
+   * «covers N ceramics» (mockup `:149`).
+   */
+  productCounts?: Record<string, number>;
   /**
    * Fix-wave finding 3: `nameFor()`'s default parameter calls `paletteWords()`,
    * which reads `process.env.MK_PALETTE_WORDS` — fine on the server, always
@@ -904,6 +912,11 @@ export function ConfiguratorClient({
     for (const key of [...params.keys()]) {
       if (key.startsWith("opt_")) params.delete(key);
     }
+    // R5-DESIGN-SWITCH: a new design starts clean — stale saved-palette code
+    // (`code=`), inscription (`text=`) and the color lock belong to the old
+    // design's categories, so they drop with the options above.
+    params.delete("code");
+    params.delete("text");
     params.delete("lock");
     params.delete("note"); // R2-2b: a new design starts without a note
     router.push(`${pathname}?${params.toString()}`, { scroll: false });
@@ -1412,6 +1425,7 @@ export function ConfiguratorClient({
             data-testid="preview-sticky"
             className={cn(
               "max-md:mx-auto max-md:w-full",
+              step === 2 && "relative",
               // R4-STEP2: in the editor the height is the constraint, so the
               // PreviewCanvas box (aspect-square card by default) becomes a
               // transparent full-size area and the plate — already object-contain
@@ -1445,6 +1459,18 @@ export function ConfiguratorClient({
               a 390px si troncava quasi subito, e ciò che restava leggibile lo
               dicono già i dot e il conteggio delle tab qui sotto. Solo mobile —
               era `max-md:block`, quindi il desktop non cambia di un pixel. */}
+          {/* R5-DESIGN-SWITCH T1: il badge mobile vive dentro la colonna canvas
+              (sticky su mobile) per potersi posizionare assoluto sul canvas
+              (mockup `:275`); visibile solo sotto md, desktop usa la riga
+              sotto. */}
+          {step === 2 && (
+            <DesignSwitch
+              designs={designs}
+              currentSlug={selected.slug}
+              productCounts={productCounts}
+              onSelect={selectDesign}
+            />
+          )}
         </div>
 
         {/* R4-RESTYLE (c): la didascalia col link alla inspirasjonsside — sotto

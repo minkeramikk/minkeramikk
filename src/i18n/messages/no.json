@@ -161,6 +161,11 @@
     "yourSelection": {
       "pairCaption": "Denne keramikken + ditt design"
     },
+    "designSwitch": {
+      "label": "Design",
+      "covers": "dekker {count} keramikk",
+      "sheetTitle": "Velg design"
+    },
     "ladder": {
       "title": "Kjøp flere – spar mer",
       "stepQty": "{qty} stk",

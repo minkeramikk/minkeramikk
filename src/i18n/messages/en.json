@@ -162,6 +162,11 @@
     "yourSelection": {
       "pairCaption": "This ceramic + your design"
     },
+    "designSwitch": {
+      "label": "Design",
+      "covers": "{count, plural, one {covers # ceramic} other {covers # ceramics}}",
+      "sheetTitle": "Choose design"
+    },
     "ladder": {
       "title": "Buy more – save more",
       "stepQty": "{qty, plural, one {# pc} other {# pcs}}",

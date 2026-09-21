@@ -248,6 +248,17 @@ export default async function ConfiguratorPage({
       .slice(0, 3);
   });
 
+  // R5-DESIGN-SWITCH T1: conteggio ceramiche per design (mockup `:149`
+  // «covers N ceramics») — stessa `getDesignProducts` (whitelist, cache
+  // `catalog`: su hit ~0 query in più).
+  const designProducts = await Promise.all(
+    designs.map((d) => getDesignProducts(d.id, d.supplierId))
+  );
+  const productCounts: Record<string, number> = {};
+  designs.forEach((d, i) => {
+    productCounts[d.slug] = designProducts[i].length;
+  });
+
   // Preload the default design's composed layers so the first paint is the
   // composed plate, not a hole/skeleton (F14 AC1).
   // F26.1 invariant: preload URL === render URL (both class-derived @512),
@@ -277,6 +288,7 @@ export default async function ConfiguratorPage({
         designs={designs}
         detailsBySlug={detailsBySlug}
         ceramicThumbs={ceramicThumbs}
+        productCounts={productCounts}
         // Fix-wave finding 3: resolved HERE, server-side, so
         // `MK_PALETTE_WORDS` (not `NEXT_PUBLIC_*`, deliberately — card
         // §2/§4-bis says it must not become public) actually reaches the
