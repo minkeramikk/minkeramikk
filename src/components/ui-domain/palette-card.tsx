@@ -27,7 +27,10 @@ interface PaletteCardProps {
   activeName?: string;
   /**
    * Step 3: pins the card to the top of its own catalogue column
-   * (`sticky top-4`); step 2 renders the same card in-flow (`pinned=false`).
+   * (`sticky top-4`). DEPRECATED for the step-3 mount (the kicker + heading
+   * + card now stick as ONE opaque block, so the catalogue can't slide
+   * through the gap — TL review 21/9); kept for any future standalone use.
+   * Step 2 renders the same card in-flow (`pinned=false`).
    */
   pinned?: boolean;
 }

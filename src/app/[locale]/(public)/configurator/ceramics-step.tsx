@@ -1521,42 +1521,49 @@ export function CeramicsStep({
       <div className="grid grid-cols-1 items-start gap-7 lg:grid-cols-2">
         {/* LEFT: ceramic selector */}
         <div className="flex min-w-0 flex-col">
-          <p className="text-[11px] uppercase tracking-[0.06em] text-muted-foreground">
-            {tc("stepIndicator", { step: 3 })}
-          </p>
-          <h2 className="mb-4 mt-1 text-xl font-semibold">
-            {t("title")}{" "}
-            <span className="text-sm font-normal text-muted-foreground">
-              {/* TODO:nb-review — `cart.tapOnePieceIn` (T4 adds the json):
-                  EN "tap = one piece in {name}" / NO "trykk = én del i {name}". */}
-              — {t("tapOnePieceIn", { name: paintingLabel })}
-            </span>
-          </h2>
+          {/* R5-PALETTE-IN-ACTION T2 (TL review 21/9, fix overlap): kicker +
+              heading + palette card form ONE sticky block on desktop
+              (`md:sticky md:top-0`, opaque `bg-background`). Before, only the
+              card was sticky (`top-4`): the catalog slid through the 16px gap
+              above it and reappeared "on top", and the heading scrolled away.
+              Now the plates slide UNDER one solid surface and the heading
+              stays visible. On mobile the block is static in flow and the
+              card stays hidden (mobile keeps its own `paintingStrip`). */}
+          <div className="md:sticky md:top-0 md:z-20 md:bg-background md:pb-3">
+            <p className="text-[11px] uppercase tracking-[0.06em] text-muted-foreground">
+              {tc("stepIndicator", { step: 3 })}
+            </p>
+            <h2 className="mb-4 mt-1 text-xl font-semibold">
+              {t("title")}{" "}
+              <span className="text-sm font-normal text-muted-foreground">
+                {/* TODO:nb-review — `cart.tapOnePieceIn` (T4 adds the json):
+                    EN "tap = one piece in {name}" / NO "trykk = én del i {name}". */}
+                — {t("tapOnePieceIn", { name: paintingLabel })}
+              </span>
+            </h2>
 
-          {/* R5-PALETTE-IN-ACTION T2: the paint-mode palette is a card scoped
-              to the catalogue column (mockup F1, pinned `sticky top-4`), not
-              a global full-bleed bar — the old `PaletteBar` mount lived
-              further up, ahead of the nav cluster. Desktop-only
-              (`hidden md:contents`: `display:contents` adds no box, so the
-              card's sticky still sees the column as its parent); mobile keeps
-              its own `paintingStrip` below, untouched. Chips and handlers
-              (`draftChip`/`paletteChips`, `paintWith`) unchanged; step 3
-              keeps ONLY +New — Save left with the global bar (card §Cosa
-              cambia 1). */}
-          <div className="hidden md:contents">
-            <PaletteCard
-              pinned
-              // TODO:nb-review — `palettes.card.paintingNow` (T4 adds the
-              // json): EN "Painting now: {name}" / NO "Maler nå: {name}".
-              activeName={tPaletteCard("paintingNow", { name: paintingLabel })}
-              chips={
-                <>
-                  {draftChip}
-                  {paletteChips}
-                </>
-              }
-              actions={newPaletteChip}
-            />
+            {/* The paint-mode palette is a card scoped to the catalogue
+                column (mockup F1), not a global full-bleed bar — the old
+                `PaletteBar` mount lived further up, ahead of the nav cluster.
+                Desktop-only (`hidden md:block`); the stickiness lives on the
+                block above, so the card itself is static here. Chips and
+                handlers (`draftChip`/`paletteChips`, `paintWith`) unchanged;
+                step 3 keeps ONLY +New — Save left with the global bar
+                (card §Cosa cambia 1). */}
+            <div className="hidden md:block">
+              <PaletteCard
+                // TODO:nb-review — `palettes.card.paintingNow` (T4 adds the
+                // json): EN "Painting now: {name}" / NO "Maler nå: {name}".
+                activeName={tPaletteCard("paintingNow", { name: paintingLabel })}
+                chips={
+                  <>
+                    {draftChip}
+                    {paletteChips}
+                  </>
+                }
+                actions={newPaletteChip}
+              />
+            </div>
           </div>
 
           {/* §3.18: one section per series, 22px apart; 2 cols / gap-2.5 under
