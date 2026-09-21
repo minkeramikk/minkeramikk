@@ -1,5 +1,9 @@
-import type { ReactNode } from "react";
+"use client";
+
+import { useRef, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
+import { useLaneFades } from "@/lib/configurator/use-lane-fades";
+import { arrowStep } from "@/lib/configurator/lane-scroll";
 import { cn } from "@/lib/utils";
 
 /**
@@ -32,8 +36,27 @@ export function PaletteCard({ chips, actions, activeName, pinned = false }: Pale
   // TODO:nb-review — `palettes.card.paintingNow` NO copy is new ("Maler nå"),
   // unreviewed (no live-site source: R5-PALETTE-IN-ACTION). Title still reuses
   // `palettes.bar.eyebrowManage` ("Your palettes"/"Dine paletter", reviewed).
+  // TODO:nb-review — lane arrows reuse `step2.scrollOptionsBack/Forward`.
   const tBar = useTranslations("palettes.bar");
+  const tStep2 = useTranslations("configurator");
   const title = tBar("eyebrowManage");
+
+  // TL review 21/9: ‹ › lane arrows (same pattern as the step-2 option lanes
+  // and the design photo strip — `useLaneFades` + `scrollBy`, lit only while
+  // there is road left in that direction, `hidden` = untabbable).
+  const laneRef = useRef<HTMLDivElement>(null);
+  const fades = useLaneFades(laneRef, chips);
+  const scrollLane = (dir: -1 | 1) => {
+    const lane = laneRef.current;
+    if (lane) lane.scrollBy({ left: arrowStep(lane.clientWidth, dir), behavior: "smooth" });
+  };
+  // 36px disc + `after:-inset-1` = 44px touch target (§5), same skin as the
+  // step-2 option-lane arrows (canvas surface, sits above the lane).
+  // `flex` (not `hidden … flex` toggling: `hidden` attr wins when no road,
+  // otherwise the disc shows) — the option lanes use `hidden max-md:flex`
+  // because they are mobile-only; this lane is desktop-only, plain `flex`.
+  const arrow =
+    "absolute top-1/2 z-[3] size-9 -translate-y-1/2 items-center justify-center rounded-full bg-[var(--mk-canvas)] text-sm ring-1 ring-border transition-opacity after:absolute after:-inset-1 after:content-[''] outline-none focus-visible:ring-3 focus-visible:ring-ring/50";
 
   return (
     <div
@@ -58,14 +81,41 @@ export function PaletteCard({ chips, actions, activeName, pinned = false }: Pale
         )}
         <span className="ml-auto flex shrink-0 items-center gap-2">{actions}</span>
       </div>
-      <div
-        role="group"
-        aria-label={title}
-        data-testid="palette-card-lane"
-        data-scroll
-        className="flex items-center gap-3 overflow-x-auto py-1 pr-2"
-      >
-        {chips}
+      {/* TL review 21/9: the active chip's 2px ring was clipping at the
+          lane's left edge (box-shadow draws OUTSIDE the border box, and the
+          lane had no breathing room) — `px-1` insets the chips so the ring
+          never touches the card edge. */}
+      <div className="relative">
+        <div
+          ref={laneRef}
+          role="group"
+          aria-label={title}
+          data-testid="palette-card-lane"
+          data-scroll
+          className="flex items-center gap-3 overflow-x-auto px-1 py-1 pr-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        >
+          {chips}
+        </div>
+        <button
+          type="button"
+          onClick={() => scrollLane(-1)}
+          aria-label={tStep2("step2.scrollOptionsBack")}
+          data-testid="palette-card-lane-prev"
+          hidden={!fades.left}
+          className={cn(arrow, "left-0 flex")}
+        >
+          ‹
+        </button>
+        <button
+          type="button"
+          onClick={() => scrollLane(1)}
+          aria-label={tStep2("step2.scrollOptionsForward")}
+          data-testid="palette-card-lane-next"
+          hidden={!fades.right}
+          className={cn(arrow, "right-0 flex")}
+        >
+          ›
+        </button>
       </div>
     </div>
   );
