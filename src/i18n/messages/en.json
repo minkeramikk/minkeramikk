@@ -199,6 +199,7 @@
   },
   "cart": {
     "title": "Choose ceramics",
+    "tapOnePieceIn": "tap = one piece in {name}",
     "quantity": "Quantity",
     "decreaseQty": "Fewer",
     "increaseQty": "More",
@@ -377,6 +378,9 @@
       "paintHintSaved": "Tap a chip to switch",
       "save": "Save as palette",
       "new": "New palette"
+    },
+    "card": {
+      "paintingNow": "Painting now: {name}"
     },
     "sheet": {
       "trigger": "Palettes",

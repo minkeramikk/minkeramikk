@@ -94,6 +94,22 @@ export function sortCurrentDesignFirst(list: Palette[], currentSlug: string): Pa
 }
 
 /**
+ * R5-PALETTE-IN-ACTION (TL review 21/9): step 3's lane shows the current
+ * design's own palettes newest-first — the last created is leftmost —
+ * every other design's dimmed chips trailing in their existing order.
+ * Stable within ties (`createdAt` equal keeps list order); never mutates.
+ * Presentation order only: the store keeps insertion order (card §Vincoli:
+ * store/LRU zero tocchi), step 2 and the sheet keep theirs.
+ */
+export function sortLaneNewestFirst(list: Palette[], currentSlug: string): Palette[] {
+  const mine = list
+    .filter((p) => p.designSlug === currentSlug)
+    .sort((a, b) => b.createdAt - a.createdAt);
+  const others = list.filter((p) => p.designSlug !== currentSlug);
+  return [...mine, ...others];
+}
+
+/**
  * Bucket a hex colour into a pigment family by hue, with a `neutral`
  * catch-all for anything with too little saturation to have a real hue
  * (greys, near-black, near-white — the "no saturation ⇒ no hue" case).
