@@ -39,7 +39,11 @@ export function PaletteCard({ chips, actions, activeName, pinned = false }: Pale
     <div
       data-testid="palette-card"
       className={cn(
-        "rounded-lg border border-primary/20 bg-secondary/60 p-4",
+        // TL override 21/9 (review manuale): superficie canvas bianca come la
+        // vecchia PaletteBar — mockup F1/F3, card §Origine e DS :56 dicono
+        // fondo tinta `secondary/60`, mai bianco. Se il PM rivuole la tinta,
+        // una riga qui.
+        "rounded-lg border border-primary/20 bg-[var(--mk-canvas)] p-4",
         pinned && "sticky top-4 z-20"
       )}
     >
