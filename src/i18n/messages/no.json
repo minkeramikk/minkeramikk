@@ -163,7 +163,7 @@
     },
     "designSwitch": {
       "label": "Design",
-      "covers": "dekker {count} keramikk",
+      "covers": "{count, plural, one {dekker # keramikk} other {dekker # keramikk}}",
       "sheetTitle": "Velg design"
     },
     "ladder": {

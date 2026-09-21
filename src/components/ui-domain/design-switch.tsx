@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { DesignRound } from "@/components/ui-domain/design-round";
 import {
@@ -11,17 +11,7 @@ import {
 } from "@/components/ui/sheet";
 import { assetUrl } from "@/lib/storage";
 import { cn } from "@/lib/utils";
-import type { PreviewLayer } from "@/lib/configurator/preview";
-
-/** Minimal design fields this switch needs (mirrors `DesignChoice`). */
-export interface DesignSwitchChoice {
-  id: string;
-  slug: string;
-  name: string;
-  nameNo: string;
-  nameEn: string;
-  defaultLayers: PreviewLayer[];
-}
+import type { DesignChoice } from "@/app/[locale]/(public)/configurator/configurator-client";
 
 /**
  * R5-DESIGN-SWITCH T1 — design switch allo step 2 (mockup-palettebar.html).
@@ -29,37 +19,57 @@ export interface DesignSwitchChoice {
  * badge mobile `:275` («{nome} ▾» sul canvas → Sheet solo nomi). La scelta
  * naviga via `onSelect` (il `selectDesign` fixato del caller): zero
  * navigazione propria. Thumb = `DesignRound` sui defaultLayers (stessa
- * tecnica di step 1, zero nuovi asset).
+ * tecnica di step 1, zero nuovi asset) — solo riga/listbox desktop; la
+ * Sheet mobile è solo nomi da spec.
  */
-export function DesignSwitch<T extends DesignSwitchChoice>({
+export function DesignSwitch({
   designs,
   currentSlug,
   productCounts = {},
   onSelect,
 }: {
-  designs: T[];
+  designs: DesignChoice[];
   currentSlug: string;
   /** slug → n. ceramiche whitelistate (server, `getDesignProducts`). */
   productCounts?: Record<string, number>;
-  onSelect: (d: T) => void;
+  onSelect: (d: DesignChoice) => void;
 }) {
   // TODO:nb-review — configurator.designSwitch.* NO copy is new, unreviewed.
   const t = useTranslations("configurator.designSwitch");
   const locale = useLocale();
-  const nameOf = (d: DesignSwitchChoice) =>
+  const nameOf = (d: DesignChoice) =>
     (locale === "no" ? d.nameNo : d.nameEn) || d.nameNo || d.name;
-  const current: T =
+  const current: DesignChoice =
     designs.find((d) => d.slug === currentSlug) ?? designs[0];
   const [listOpen, setListOpen] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const listRef = useRef<HTMLDivElement>(null);
 
-  const pick = (d: T) => {
+  // Listbox inline: chiusura Escape + click fuori.
+  useEffect(() => {
+    if (!listOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setListOpen(false);
+    };
+    const onDown = (e: PointerEvent) => {
+      if (listRef.current && !listRef.current.contains(e.target as Node))
+        setListOpen(false);
+    };
+    document.addEventListener("keydown", onKey);
+    document.addEventListener("pointerdown", onDown);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.removeEventListener("pointerdown", onDown);
+    };
+  }, [listOpen]);
+
+  const pick = (d: DesignChoice) => {
     setListOpen(false);
     setSheetOpen(false);
     onSelect(d);
   };
 
-  const layersOf = (d: DesignSwitchChoice) =>
+  const layersOf = (d: DesignChoice) =>
     d.defaultLayers.map((l) => ({
       src: assetUrl(l.src),
       recolor: l.blend === "multiply",
@@ -70,12 +80,12 @@ export function DesignSwitch<T extends DesignSwitchChoice>({
       {/* Desktop `:149` — riga sotto il canvas, lista inline. */}
       <div
         data-testid="design-switch-row"
-        className="mt-3 hidden items-center gap-3 max-md:hidden md:flex"
+        className="mt-3 hidden items-center gap-3 md:flex"
       >
         <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
           {t("label")}
         </span>
-        <div className="relative">
+        <div ref={listRef} className="relative">
           <button
             type="button"
             onClick={() => setListOpen((v) => !v)}
@@ -150,13 +160,12 @@ export function DesignSwitch<T extends DesignSwitchChoice>({
                   onClick={() => pick(d)}
                   aria-current={d.slug === current.slug ? "true" : undefined}
                   className={cn(
-                    "flex w-full items-center gap-3 rounded-sm border px-3 py-2.5 text-left text-sm",
+                    "flex w-full items-center rounded-sm border px-3 py-2.5 text-left text-sm",
                     d.slug === current.slug
-                      ? "border-primary bg-card font-semibold shadow-[0_0_0_1px_var(--ring)]"
+                      ? "border-primary bg-card font-semibold ring-1 ring-ring"
                       : "border-border bg-card"
                   )}
                 >
-                  <DesignRound layers={layersOf(d)} className="size-9" />
                   {nameOf(d)}
                 </button>
               </li>

@@ -1453,24 +1453,19 @@ export function ConfiguratorClient({
               layers={previewLayers}
               inscription={liveInscription}
             />
+            {/* R5-DESIGN-SWITCH T1 fix: il badge mobile deve ancorarsi al canvas
+                (mockup `:275`), non alla colonna: mount dentro `preview-sticky`
+                (relative su step 2), accanto a `PreviewCanvas`. La riga desktop
+                resta sotto, fuori dal box relativo. */}
+            {step === 2 && (
+              <DesignSwitch
+                designs={designs}
+                currentSlug={selected.slug}
+                productCounts={productCounts}
+                onSelect={selectDesign}
+              />
+            )}
           </div>
-          {/* R4-FOLLOWUPS Ⓓ: qui stava la riga-riassunto (mockup .sum), una
-              riga sola troncata con «design · categoria: opzione · …». Rimossa:
-              a 390px si troncava quasi subito, e ciò che restava leggibile lo
-              dicono già i dot e il conteggio delle tab qui sotto. Solo mobile —
-              era `max-md:block`, quindi il desktop non cambia di un pixel. */}
-          {/* R5-DESIGN-SWITCH T1: il badge mobile vive dentro la colonna canvas
-              (sticky su mobile) per potersi posizionare assoluto sul canvas
-              (mockup `:275`); visibile solo sotto md, desktop usa la riga
-              sotto. */}
-          {step === 2 && (
-            <DesignSwitch
-              designs={designs}
-              currentSlug={selected.slug}
-              productCounts={productCounts}
-              onSelect={selectDesign}
-            />
-          )}
         </div>
 
         {/* R4-RESTYLE (c): la didascalia col link alla inspirasjonsside — sotto
