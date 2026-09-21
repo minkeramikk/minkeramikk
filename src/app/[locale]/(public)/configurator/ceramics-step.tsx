@@ -8,7 +8,7 @@ import { Stepper } from "@/components/ui-domain/stepper";
 import { PaletteCard } from "@/components/ui-domain/palette-card";
 import { PaletteChip } from "@/components/ui-domain/palette-chip";
 import { PaintingStrip } from "@/components/ui-domain/painting-strip";
-import { nameFor, paletteFor, sortCurrentDesignFirst } from "@/lib/palettes/palettes";
+import { nameFor, paletteFor, sortLaneNewestFirst } from "@/lib/palettes/palettes";
 import { paletteMatchingCode } from "@/lib/configurator/save-gate";
 import type { PaletteWords } from "@/lib/palettes/name-lists";
 import { cn } from "@/lib/utils";
@@ -421,10 +421,11 @@ export function CeramicsStep({
    * The lane's chips: every saved palette, dim (and inert — card §6, switching
    * design from here is a later card) when it belongs to a different design,
    * else selectable and — if it's the one painting — carrying the brush badge.
-   * Card §4-bis (added mid-PR): the CURRENT design's own palettes lead, the
-   * rest follow dimmed — a stable sort, not a filter, so nothing drops out.
+   * R5-PALETTE-IN-ACTION (TL review 21/9): the current design's own palettes
+   * lead NEWEST FIRST (last created leftmost), the rest follow dimmed — a
+   * filter + concat, not a stable sort, so the store order stays untouched.
    */
-  const paletteChips = sortCurrentDesignFirst(palettes, design.slug).map((p) => {
+  const paletteChips = sortLaneNewestFirst(palettes, design.slug).map((p) => {
     const dim = p.designSlug !== design.slug;
     if (dim) {
       return (
@@ -1529,7 +1530,7 @@ export function CeramicsStep({
               Now the plates slide UNDER one solid surface and the heading
               stays visible. On mobile the block is static in flow and the
               card stays hidden (mobile keeps its own `paintingStrip`). */}
-          <div className="md:sticky md:top-0 md:z-20 md:bg-background md:pb-3">
+          <div className="md:sticky md:top-0 md:z-20 md:-mx-1 md:bg-background md:px-1 md:pb-3">
             <p className="text-[11px] uppercase tracking-[0.06em] text-muted-foreground">
               {tc("stepIndicator", { step: 3 })}
             </p>
