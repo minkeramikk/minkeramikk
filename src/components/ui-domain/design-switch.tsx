@@ -127,6 +127,9 @@ export function DesignSwitch({
         >
           <SheetHeader>
             <SheetTitle>{t("sheetTitle")}</SheetTitle>
+            <p className="text-[11px] text-muted-foreground">
+              {t("sheetSubtitle")}
+            </p>
           </SheetHeader>
           <ul className="grid grid-cols-3 gap-2 px-4 pb-6">
             {designs.map((d) => (
