@@ -355,7 +355,8 @@
       "self": "I'll have a look myself"
     }
   },
-  "order": {    "title": "Order",
+  "order": {
+    "title": "Order",
     "sending": "Sending…",
     "error": "Something went wrong. Please try again.",
     "unpaintedError": "Some pieces in your basket are still unpainted — paint them before you order.",

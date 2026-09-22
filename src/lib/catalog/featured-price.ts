@@ -55,6 +55,9 @@ export function featuredPrice(
     });
   }
   const currency = lines[0].currency;
+  // a mixed-currency basket would make the discount math throw
+  // (Money sum mismatch) and take the home down with it — hide the price
+  if (!lines.every((l) => l.currency === currency)) return null;
   let grossCents = 0;
   for (const l of lines) grossCents += l.unitPriceCents * l.quantity;
   const discount = computeCartDiscount(lines, config);

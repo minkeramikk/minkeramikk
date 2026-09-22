@@ -766,6 +766,8 @@ export function ConfiguratorClient({
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot apply on arrival
   }, [kit, hydrated]);
+  const kitCounts = kitStripCounts(cart);
+  const kitThumb = cart.find((l) => l.plateImage)?.plateImage ?? null;
   /**
    * R5-BASKET-HOST task 8 (card §3) — the same `typing` that makes the canvas
    * let go of its sticky also has to keep the basket shut: with the keyboard
@@ -1351,10 +1353,10 @@ export function ConfiguratorClient({
       {step === 2 && kitMode && (
         <KitStrip
           thumb={
-            cart.find((l) => l.plateImage)?.plateImage ? (
+            kitThumb ? (
               // eslint-disable-next-line @next/next/no-img-element -- resolved catalog asset
               <img
-                src={cart.find((l) => l.plateImage)!.plateImage!}
+                src={kitThumb}
                 alt=""
                 className="size-[30px] shrink-0 rounded-full border border-border object-cover"
               />
@@ -1362,8 +1364,8 @@ export function ConfiguratorClient({
               <DesignRound layers={previewLayers} className="size-[30px]" />
             )
           }
-          total={kitStripCounts(cart).total}
-          painted={kitStripCounts(cart).painted}
+          total={kitCounts.total}
+          painted={kitCounts.painted}
         />
       )}
       <KitWelcome

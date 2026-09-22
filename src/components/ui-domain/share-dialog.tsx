@@ -86,7 +86,14 @@ export function ShareDialog({
   );
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        // fresh pick every time the dialog opens (no stale copy CTA)
+        if (!next) setPicked(null);
+        onOpenChange(next);
+      }}
+    >
       <DialogContent data-testid="share-dialog" className="max-w-[380px]">
         <DialogHeader>
           <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">

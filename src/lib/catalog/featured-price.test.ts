@@ -64,4 +64,20 @@ describe("featuredPrice", () => {
     ).toBeNull();
     expect(featuredPrice([], PRODUCTS, EMPTY_CONFIG)).toBeNull();
   });
+
+  it("returns null for mixed currencies instead of throwing", () => {
+    expect(
+      featuredPrice(
+        [
+          { productSlug: "deep-plate", qty: 1 },
+          { productSlug: "euro-cup", qty: 1 },
+        ],
+        {
+          ...PRODUCTS,
+          "euro-cup": { id: "p3", priceCents: 5000, currency: "EUR" as const },
+        },
+        EMPTY_CONFIG
+      )
+    ).toBeNull();
+  });
 });
