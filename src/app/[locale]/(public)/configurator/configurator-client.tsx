@@ -57,6 +57,7 @@ import { keyboardUp } from "@/lib/cart/basket-open";
 import { hoverCapable } from "@/lib/pointer";
 import { designLabel } from "@/lib/cart/cart";
 import { buildConfigLinePayload } from "@/lib/configurator/line-payload";
+import { buildDesignSwitchParams } from "@/lib/configurator/design-switch-params";
 import { paletteMatchingCode } from "@/lib/configurator/save-gate";
 import { stripCustomSegment } from "@/lib/cart/set-code";
 import { nameFor, sortCurrentDesignFirst } from "@/lib/palettes/palettes";
@@ -572,6 +573,20 @@ export function ConfiguratorClient({
         .filter((d): d is CodecDesign => d !== null),
     [detailsBySlug]
   );
+  // R5-DESIGN-SWITCH AC4: `loadPalette` below needs this BEFORE the F19
+  // effect runs — `buildDesignSwitchParams` resolves it through the same
+  // tolerant codec, and the effect re-resolves it identically on arrival.
+  function designSlugOfCode(code: string): string | null {
+    try {
+      const { designSlug } = decodeConfigCode(
+        code,
+        (c) => codecDesigns.find((d) => d.code === c.toUpperCase()) ?? null
+      );
+      return designSlug;
+    } catch {
+      return null;
+    }
+  }
   // F19: a ?code= deep-link (cart-row "reopen" or a shared link) is decoded once
   // on arrival into the canonical opt_* params, then dropped from the URL.
   //
@@ -868,6 +883,11 @@ export function ConfiguratorClient({
   // need the URL to reach the rebuilt snapshot — same reason the decode
   // effect never touches it.
   function loadPalette(code: string) {
+    // R5-DESIGN-SWITCH AC4: a dim chip's code belongs to ANOTHER design — the
+    // tap switches design implicitly through this same `?code=` navigation.
+    // `buildDesignSwitchParams` sets `design=` upfront from the decoded code
+    // (via the `codecDesigns` below) and drops the old design's `opt_*`/`text=`;
+    // the F19 decode effect then resolves the selections, same as before.
     // Fix wave A finding 1: same bug as step 3's `paintWith` — a from-scratch
     // URL was dropping every other param, `design=` included. The `?code=`
     // decode effect above sets `design` from the code, but only AFTER a
@@ -876,16 +896,25 @@ export function ConfiguratorClient({
     // `activeTab` through the effects keyed on the design, losing note=/text=
     // for good on any design that isn't first by sort order. Building from
     // the current params (like `goToStep` does) keeps `design=` in place.
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("code", code);
-    params.delete("text");
-    params.set("step", "2");
+    const next = buildDesignSwitchParams(
+      searchParams,
+      code,
+      designSlugOfCode(code)
+    );
+    next.set("step", "2");
     // Fix wave PR3 finding 3: `resetPaletteDraft` a few lines below already
     // passes this — a phone picks a chip mid-page (the mobile tab lane sits
     // well past the fold), and without it every tap threw the customer back
     // to the top. The sticky desktop bar hid the same bug there.
-    router.push(`${pathname}?${params.toString()}`, { scroll: false });
+    router.push(`${pathname}?${next.toString()}`, { scroll: false });
   }
+
+  /**
+   * R5-DESIGN-SWITCH AC4: which design a `?code=` belongs to, via the same
+   * tolerant codec the F19 decode effect uses. Null when it resolves to
+   * nothing — then `buildDesignSwitchParams` sets only `code=` and the effect
+   * handles it exactly like before, so a tap never breaks over bad input.
+   */
 
   /**
    * PR3 round 2 — the mobile palette sheet's «+ New»: resets the draft to
@@ -1051,11 +1080,12 @@ export function ConfiguratorClient({
 
   // R5-PALETTES task 8: the lane's chips, leading with "what's on screen"
   // (draft or, if it matches a save, that save shown active/renamable),
-  // then every OTHER saved palette — dim when it belongs to a different
-  // design (card §6: switching design from a dim chip is a later card, so
-  // it stays inert here, no onSelect). Card §4-bis (added mid-PR): among
-  // those "other" palettes, the current design's own still lead, the rest
-  // trail dimmed — a stable sort, not a filter.
+  // then every OTHER saved palette — including dim ones from another design:
+  // tapping one switches design implicitly (`?code=`, R5-DESIGN-SWITCH AC4),
+  // decoded by the F19 effect above which sets `design` from the code (the
+  // `?design=` params shape is what T1's `selectDesign` writes). Card §4-bis
+  // (added mid-PR): among those "other" palettes, the current design's own
+  // still lead, the rest trail dimmed — a stable sort, not a filter.
   const otherPaletteChips = sortCurrentDesignFirst(
     palettes.filter((p) => p.code !== matchedPalette?.code),
     selected.slug
@@ -1073,6 +1103,7 @@ export function ConfiguratorClient({
             layers={p.layers}
             dim
             dimDesignName={dimDesign ? designName(dimDesign) : p.designSlug}
+            onSelect={() => loadPalette(p.code)}
             onDelete={() => deletePalette(p.code)}
           />
         );

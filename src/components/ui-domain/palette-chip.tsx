@@ -48,7 +48,9 @@ export interface PaletteChipProps {
   active?: boolean;
   /** The current (unsaved) canvas colours — dashed border, «Unsaved» eyebrow over the name. */
   draft?: boolean;
-  /** Belongs to another design than the one on screen — faded and genuinely disabled. */
+  /** Belongs to another design than the one on screen — faded, but tappable:
+   *  the tap switches design implicitly through `?code=` (R5-DESIGN-SWITCH
+   *  AC4), the same navigation a same-design chip tap already does. */
   dim?: boolean;
   /** The OTHER design's name, shown as a subtitle — only rendered (and only meaningful) when `dim`. */
   dimDesignName?: string;
@@ -199,7 +201,10 @@ export function PaletteChip({
             ref={selectRef}
             type="button"
             onClick={onSelect}
-            disabled={dim}
+            // R5-DESIGN-SWITCH AC4: a dim chip IS tappable (the tap switches
+            // design via `?code=`) — inert only when there is no action at
+            // all (the draft chip, which passes no `onSelect`).
+            disabled={!onSelect}
             aria-current={active ? "true" : undefined}
             // R5-PALETTES task 13 (carried in, card 1's own lesson): the chip's
             // OUTER div is h-12, but only this <button> receives clicks/taps —

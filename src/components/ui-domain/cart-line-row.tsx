@@ -728,7 +728,9 @@ export function CartLineRow({
             // IS a saved code (or nothing matches): picking a pill adopts
             // that pill's whole saved snapshot, so the ring belongs to the
             // palette the row will really paint with, dedication included.
-            const active = !dim && p.code === currentThumb.code;
+            // A dim pill is another design's whole snapshot now — it can
+            // still become the row's paint, so `active` must not exclude it.
+            const active = p.code === currentThumb.code;
             return (
               <button
                 key={p.code}
@@ -736,7 +738,10 @@ export function CartLineRow({
                 data-testid="palette-pill"
                 data-code={p.code}
                 data-active={active || undefined}
-                disabled={dim}
+                // R5-DESIGN-SWITCH AC4: a dim pill stays tappable — the pick
+                // switches the row to the palette's whole saved snapshot
+                // (colours AND dedication, `explicitPickThumb`), same as any
+                // other pill.
                 aria-pressed={active}
                 onClick={() => onPickPalette(p.code)}
                 className={cn(

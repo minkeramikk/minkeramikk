@@ -418,9 +418,11 @@ export function CeramicsStep({
   }
 
   /**
-   * The lane's chips: every saved palette, dim (and inert — card §6, switching
-   * design from here is a later card) when it belongs to a different design,
-   * else selectable and — if it's the one painting — carrying the brush badge.
+   * The lane's chips: every saved palette, dim when it belongs to a different
+   * design — tappable anyway (R5-DESIGN-SWITCH AC4: the tap switches design
+   * implicitly through the same `?code=` navigation, decoded server-side in
+   * `page.tsx` which reads `currentDesign` from the code) — else selectable
+   * and — if it's the one painting — carrying the brush badge.
    * R5-PALETTE-IN-ACTION (TL review 21/9): the current design's own palettes
    * lead NEWEST FIRST (last created leftmost), the rest follow dimmed — a
    * filter + concat, not a stable sort, so the store order stays untouched.
@@ -437,6 +439,7 @@ export function CeramicsStep({
           layers={p.layers}
           dim
           dimDesignName={designLabel(p.snapshot, locale) ?? p.designSlug}
+          onSelect={() => paintWith(p.code)}
           onDelete={() => deletePalette(p.code)}
         />
       );
