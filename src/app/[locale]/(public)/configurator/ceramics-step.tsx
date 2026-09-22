@@ -182,6 +182,8 @@ export function CeramicsStep({
   selections = {},
   sharedSet = null,
   paletteWords,
+  // ponytail: optional prop so T3 compiles before T4/T6 wire it
+  isAdmin = false,
 }: {
   products: CeramicProduct[];
   design: DesignRef;
@@ -209,6 +211,8 @@ export function CeramicsStep({
    *  `nameFor()` on the draft chip below; every SAVED palette already
    *  carries its own name. */
   paletteWords: PaletteWords;
+  /** R5-KIT: real admin gate from the session (page.tsx), replaces `?admin=1`. */
+  isAdmin?: boolean;
 }) {
   const t = useTranslations("cart");
   // TODO:nb-review NO copy: step3.seriesCount · stickyBar.pieces · stickyBar.unpainted
@@ -219,7 +223,7 @@ export function CeramicsStep({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const isAdmin = searchParams.get("admin") === "1"; // T2: share-set gate, see cartFooter
+  // isAdmin comes from the session via page.tsx (R5-KIT T3); no URL gate.
 
   const {
     cart,

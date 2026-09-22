@@ -183,6 +183,8 @@ export function ConfiguratorClient({
   featuredSlot = null,
   paletteWords,
   productCounts = {},
+  // ponytail: optional prop so T3 compiles before T5 wires the landing
+  kit = null,
 }: {
   designs: DesignChoice[];
   detailsBySlug: Record<string, DesignDetail>;
@@ -204,6 +206,8 @@ export function ConfiguratorClient({
    * result down, so an operator's override still reaches the customer's save.
    */
   paletteWords: PaletteWords;
+  /** R5-KIT: server-resolved `?kit=` landing (T5 consumes it into the cart). */
+  kit?: import("./resolve-kit").ResolvedKit | null;
 }) {
   const t = useTranslations("configurator");
   const locale = useLocale();

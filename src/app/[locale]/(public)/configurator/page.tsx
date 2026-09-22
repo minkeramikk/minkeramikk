@@ -13,11 +13,14 @@ import {
   type CodecDesign,
 } from "@/lib/configurator/config-code";
 import { getFeaturedConfigs } from "@/lib/catalog/featured";
+import { getAdminUser } from "@/lib/auth/admin";
+import { shareAllowed } from "@/lib/auth/share-gate";
 import { paletteWords } from "@/lib/palettes/name-lists";
 import { FeaturedStrip } from "./featured-strip";
 import { ConfiguratorClient } from "./configurator-client";
 import { CeramicsStep } from "./ceramics-step";
 import { resolveSharedSet } from "./resolve-shared-set";
+import { resolveKit, type ResolvedKit } from "./resolve-kit";
 
 // Catalog reads go through the `catalog`-tagged data cache (PERF-1 / P-1): no
 // force-dynamic, so on a cache hit the configurator render issues ~0 catalog
@@ -61,14 +64,24 @@ export default async function ConfiguratorPage({
   const chosen = designSlug
     ? designs.find((d) => d.slug === designSlug)
     : undefined;
-  // `origin=set`: the design in the URL was pinned by a set landing when it
-  // consumed `set=` (see consumeSetParam) — current design, yes; explicit
+  // `origin=set`/`origin=kit`: the design in the URL was pinned by a set/kit
+  // landing when it consumed `set=`/`kit=` — current design, yes; explicit
   // colour choice, no. Steps 1–2 drop the param the moment the customer
   // really configures.
   const fromSetOrigin = params.origin === "set";
-  const explicitChoice = chosen !== undefined && !fromSetOrigin;
+  // R5-KIT: a `kit=` param is a curated list of PIECES (no colours) — resolve
+  // it server-side; the client adds the lines once, then consumes the param.
+  // Resolved BEFORE `selected` because it carries the landing's design.
+  const rawKit = typeof params.kit === "string" ? params.kit : "";
+  const kit: ResolvedKit | null = rawKit ? await resolveKit(rawKit) : null;
+  const kitDesign = kit?.design
+    ? designs.find((d) => d.slug === kit.design!.slug)
+    : undefined;
+  const fromKitOrigin = params.origin === "kit";
+  const explicitChoice = chosen !== undefined && !fromSetOrigin && !fromKitOrigin;
   const selected =
     chosen ??
+    kitDesign ??
     // Default to the first design that actually composes a preview, so an active
     // but layer-less design (e.g. a freshly created one) never blanks the
     // configurator's default view. Falls back to the first design (F14 AC1).
@@ -131,9 +144,10 @@ export default async function ConfiguratorPage({
     // arrives via a palette chip instead of the design grid.
     const explicitDesignChoice = explicitChoice || (decodedCode !== null && !fromSetOrigin);
 
-    const [detail, products] = await Promise.all([
+    const [detail, products, isAdmin] = await Promise.all([
       getDesignDetail(currentDesign.slug),
       getDesignProducts(currentDesign.id, currentDesign.supplierId),
+      shareAllowed(await getAdminUser()),
     ]);
     if (detail) {
       // snapshot + canonical code (ADR 0011) + F19 mini-preview layers, all
@@ -215,6 +229,7 @@ export default async function ConfiguratorPage({
               selections={selById}
               sharedSet={sharedSet}
               paletteWords={paletteWords()}
+              isAdmin={isAdmin}
             />
         </section>
       );
@@ -273,6 +288,7 @@ export default async function ConfiguratorPage({
         designs={designs}
         detailsBySlug={detailsBySlug}
         productCounts={productCounts}
+        kit={kit}
         // Fix-wave finding 3: resolved HERE, server-side, so
         // `MK_PALETTE_WORDS` (not `NEXT_PUBLIC_*`, deliberately — card
         // §2/§4-bis says it must not become public) actually reaches the
@@ -292,6 +308,7 @@ export default async function ConfiguratorPage({
                 designName: f.designName ?? "",
                 designNameEn: f.designNameEn ?? "",
                 setCount: f.setCount,
+                price: f.price ?? null,
               }))}
             />
           ) : null
