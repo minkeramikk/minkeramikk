@@ -1,6 +1,6 @@
 "use client";
 
-import { useTranslations, useLocale } from "next-intl";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -26,7 +26,6 @@ export function KitWelcome({
   total: number;
 }) {
   const t = useTranslations("kit.welcome");
-  const locale = useLocale();
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent

@@ -1371,7 +1371,7 @@ export function ConfiguratorClient({
         open={kitWelcomeOpen}
         onOpenChange={setKitWelcomeOpen}
         rows={kitWelcomeRows(kit?.lines ?? [], locale as "no" | "en")}
-        total={(kit?.lines ?? []).reduce((n, l) => n + l.quantity, 0)}
+        total={(kit?.lines ?? []).reduce((n, l) => n + l.quantity * (l.pieces ?? 1), 0)}
       />
       {/* CA-2: the top cluster holds ONLY the stepper (orientation + step
           jumps, F18). The advance/back CTAs live in-flow at the END of the

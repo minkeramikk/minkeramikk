@@ -60,7 +60,7 @@ export function FeaturedStrip({ items }: { items: FeaturedStripItem[] }) {
     f.kind === "design"
       ? `/configurator?code=${encodeURIComponent(f.payload)}&step=2`
       : f.kind === "kit"
-        ? `/configurator?step=2&kit=${f.payload}`
+        ? `/configurator?step=2&kit=${encodeURIComponent(f.payload)}`
         : `/configurator?step=3&set=${f.payload}`;
 
   return (
