@@ -20,14 +20,20 @@ export interface PreviewLayer {
  * Live design preview (DESIGN-SYSTEM §3.11) — the continuity element of the
  * configurator (F14):
  * - first paint is the composed plate (layers from SSR), never a hole;
- * - changing design cross-fades ~200ms: the OLD layers stay painted until the
- *   NEW ones have loaded, then the new ones fade in and REPLACE them (no stale
- *   layers left behind, no white flash);
+ * - changing design cross-fades gently: the OLD layers stay painted until the
+ *   NEW ones have loaded, then the new ones ease in and REPLACE them (no stale
+ *   layers left behind, no white flash); the loader itself fades out on top
+ *   of the incoming art instead of blinking away;
  * - `prefers-reduced-motion: reduce` → no fade, immediate swap once loaded;
  * - skeleton shows only when there is genuinely nothing to display yet.
  */
 
 const FADE_MS = 200;
+
+/** Loader hold once the new design is ready: the spinner has a trailing fade
+ *  so its exit is as gentle as its entrance. `ease-out` = fast start, soft
+ *  landing — the eye reads "arrived" without a blink. */
+const LOADER_EXIT_MS = 350;
 
 /**
  * Il riquadro dell'arte dentro il frame. Era un letterale dentro `LayerStack`;
@@ -58,6 +64,51 @@ function preloadAll(layers: PreviewLayer[]): Promise<void> {
         })
     )
   ).then(() => undefined);
+}
+
+/**
+ * Le alici che girano: SEMPRE questo layer fisso dal bucket vecchio
+ * (URL diretto, voluto: sul bucket live l'oggetto non esiste — 404
+ * NoSuchKey). Non il motivo corrente: quello cambia per design; le alici
+ * sono l'icona fissa dello spinner. `spinplate` verbatim dal mockup, con
+ * il suo guard reduced-motion.
+ */
+const SARDINES_SRC =
+  "https://lfphyfkuuszqazkioxlr.supabase.co/storage/v1/object/public/assets/designs/ansjos-pastatallerken/tree/1-layer@512.webp";
+function SpinnerMotif({ label }: { label?: string }) {
+  return (
+    <div aria-hidden="true" className="spinplate relative h-[62%] w-[62%]">
+      {/* eslint-disable-next-line @next/next/no-img-element -- catalog art from storage, same as LayerStack */}
+      <img
+        src={SARDINES_SRC}
+        alt=""
+        className="absolute inset-0 h-full w-full object-contain"
+        style={{ mixBlendMode: "multiply" }}
+      />
+      {/* Scritta DENTRO il giro: resta ferma al centro mentre le alici
+          ruotano attorno (il padre gira, questo contro-gira alla stessa
+          velocità — tecnica standard per testo stabile su spinner).
+          Stessa veste delle scritte sul piatto (R5-TEXT-LIVE): Lora
+          corsivo — il font che lo studio usa per dipingere. */}
+      {label ? (
+        <span className="spinplate-counter absolute inset-0 grid place-items-center">
+          <span
+            className="block max-w-[70%] text-center text-[13px] leading-snug"
+            style={{
+              fontFamily:
+                'var(--font-inscription), "Times New Roman", Times, serif',
+              fontStyle: "italic",
+              fontWeight: 500,
+              color: "var(--mk-dark)",
+              opacity: 0.78,
+            }}
+          >
+            {label}…
+          </span>
+        </span>
+      ) : null}
+    </div>
+  );
 }
 
 function LayerStack({
@@ -257,6 +308,26 @@ export function PreviewCanvas({
   alt,
   inscription,
   className,
+  /**
+   * R5-DESIGN-SWITCH T2: the design currently on screen (slug). The loader
+   * fires ONLY when THIS changes: a color tap keeps the same design, so it
+   * stays a plain fade. Absent (callers that never switch design) = never.
+   *
+   * Screen-reader copy for the loader (`role="status"`): passed through
+   * the optional `loadingDesignLabel` prop ("Loading {design}", col nome);
+   * la scritta VISIBILE al centro delle alici è `loadingLabel` (solo
+   * "Loading…", mai il nome). `alt` stays the stable design name.
+   *
+   * `pendingDesignKey`: design già scelto ma non ancora arrivato via
+   * navigazione RSC. Il `designKey` cambia solo DOPO il round-trip — troppo
+   * tardi per dare feedback — quindi il loader si accende subito su questo
+   * (stesso concetto del `S.pendingDesign` del demo kit). Solo cambio
+   * design: tap colore, palette, opzioni non lo settano mai.
+   */
+  designKey,
+  loadingLabel,
+  loadingDesignLabel,
+  pendingDesignKey,
 }: {
   layers: PreviewLayer[];
   /** Rich node, not just text: the configurator caption carries a link. */
@@ -268,6 +339,12 @@ export function PreviewCanvas({
    */
   inscription?: string;
   className?: string;
+  designKey?: string;
+  /** Visibile al centro delle alici: solo "Loading…", mai il nome design. */
+  loadingLabel?: string;
+  /** Solo screen reader (`aria-label`): "Loading {design}", col nome. */
+  loadingDesignLabel?: string;
+  pendingDesignKey?: string | null;
 }) {
   const targetKey = keyOf(layers);
 
@@ -281,12 +358,18 @@ export function PreviewCanvas({
     key: string;
     layers: PreviewLayer[];
   } | null>(null);
+  // Cross-fade interno dei layer (preload + fade): guida solo la
+  // transizione dell'arte. Il loader NON lo decide lui: solo
+  // `pendingDesignKey` (unico stato, nel client). `designKey` resta prop
+  // per coerenza futura, ma nessun confronto show/hide lo legge più.
+  const committedDesign = useRef<string | undefined>(designKey);
   const [fadeIn, setFadeIn] = useState(false);
   const commitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (targetKey === shown.key) {
       setIncoming(null); // back to current set: drop any in-flight overlay
+      if (designKey !== undefined) committedDesign.current = designKey;
       return;
     }
 
@@ -297,6 +380,7 @@ export function PreviewCanvas({
     let cancelled = false;
     preloadAll(layers).then(() => {
       if (cancelled) return;
+      if (designKey !== undefined) committedDesign.current = designKey;
       if (reduce) {
         setShown({ key: targetKey, layers }); // immediate swap (AC4)
         setIncoming(null);
@@ -330,7 +414,45 @@ export function PreviewCanvas({
     };
   }, [incoming, fadeIn]);
 
+  // The loader never blinks away: once `pending` clears upstream, it
+  // overstays one trailing fade so the spinner dissolves on top of the
+  // incoming art instead of cutting to it mid-spin. Skipped on first
+  // mount (pending never existed → no flash) via the ref below.
+  const [loaderLeaving, setLoaderLeaving] = useState(false);
+  const loaderExitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const everLoading = useRef(false);
+  const rawLoaderOn = pendingDesignKey != null;
+  if (rawLoaderOn) everLoading.current = true;
+  useEffect(() => {
+    if (rawLoaderOn) {
+      if (loaderExitTimer.current) clearTimeout(loaderExitTimer.current);
+      setLoaderLeaving(false);
+      return;
+    }
+    if (!everLoading.current) return;
+    setLoaderLeaving(true);
+    loaderExitTimer.current = setTimeout(() => {
+      setLoaderLeaving(false);
+    }, LOADER_EXIT_MS);
+    return () => {
+      if (loaderExitTimer.current) clearTimeout(loaderExitTimer.current);
+    };
+  }, [rawLoaderOn]);
+
   const nothingToShow = shown.layers.length === 0 && !incoming;
+  // Loader visibile in UN SOLO caso: `pendingDesignKey != null` — l'unico
+  // stato, settato dall'unico trigger (`startDesignTransition`: cambio
+  // design esplicito, o palette dim che risolve un altro design). Tap
+  // colore / palette stesso design non lo toccano mai. Il clear sta nel
+  // client (design arrivato + minimo visivo); qui dentro resta solo il
+  // trailing fade d'uscita. `committedDesign` serve più solo al fade
+  // interno, non al confronto show/hide. `reduced-motion` spegne tutto.
+  const reduceMotion =
+    typeof window !== "undefined" &&
+    window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+  const showLoader =
+    !reduceMotion && (rawLoaderOn || loaderLeaving);
+  const loaderFadingOut = !rawLoaderOn && loaderLeaving;
 
   return (
     <div className={className} data-testid="preview-canvas">
@@ -358,11 +480,35 @@ export function PreviewCanvas({
 
         {incoming && (
           <div
-            className="absolute inset-0 flex items-center justify-center transition-opacity"
+            className="absolute inset-0 flex items-center justify-center transition-opacity motion-reduce:transition-none"
             style={{ opacity: fadeIn ? 1 : 0, transitionDuration: `${FADE_MS}ms` }}
             data-testid="preview-incoming"
           >
             <LayerStack layers={incoming.layers} alt={alt} />
+          </div>
+        )}
+
+        {/* R5-DESIGN-SWITCH — le alici che girano, solo cambio design
+            (mockup `:57-59` `spinplate` + artifact `Loader` r5-animation).
+            Overlay OPACO (`--mk-canvas` pieno): il vecchio design non resta
+            sullo sfondo, si vedono solo le alici che girano + "Loading".
+            Visibile = solo `loadingLabel`; screen reader = `loadingDesignLabel`
+            (col nome design); `alt` resta il nome stabile. Mai su tap colore;
+            off con `reduced-motion`. Uscita in dissolvenza (`LOADER_EXIT_MS`,
+            ease-out): mai un blink. */}
+        {showLoader && (
+          <div
+            role="status"
+            data-testid="design-loader"
+            aria-label={loadingDesignLabel ?? loadingLabel ?? alt}
+            className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 rounded-lg bg-[var(--mk-canvas)] transition-opacity motion-reduce:transition-none"
+            style={{
+              opacity: loaderFadingOut ? 0 : 1,
+              transitionDuration: `${LOADER_EXIT_MS}ms`,
+              transitionTimingFunction: "ease-out",
+            }}
+          >
+            <SpinnerMotif label={loadingLabel} />
           </div>
         )}
 

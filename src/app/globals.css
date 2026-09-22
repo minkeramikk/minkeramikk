@@ -101,6 +101,32 @@
   100% { transform: scale(1); }
 }
 
+/* R5-DESIGN-SWITCH T2: spinning-plate loader on design change — keyframes
+ * from mockup-palettebar.html :57-59, slowed to one turn every 4s so the
+ * sardines read as swimming, not buzzing (explicit user request; mockup
+ * said 1.8s). Reduced-motion is ALSO JS-gated at the call site (no loader
+ * rendered), same double-guard pattern as `cart-pop` above. */
+@keyframes spinplate {
+  to { transform: rotate(360deg); }
+}
+.spinplate {
+  animation: spinplate 4s linear infinite;
+  transform-origin: 50% 50%;
+}
+/* Contro-rotazione per la scritta ferma al centro dello spinner: stesso
+   periodo del giro (4s), verso opposto — resta leggibile mentre le alici
+   ruotano attorno. */
+@keyframes spinplate-counter {
+  to { transform: rotate(-360deg); }
+}
+.spinplate-counter {
+  animation: spinplate-counter 4s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .spinplate { animation: none; }
+  .spinplate-counter { animation: none; }
+}
+
 /*
  * minkeramikk theme (ADR 0008, docs/theme/DESIGN-SYSTEM.md).
  *

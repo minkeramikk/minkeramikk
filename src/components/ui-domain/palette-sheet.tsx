@@ -216,8 +216,12 @@ export function PaletteSheet({
 
           <div className="grid grid-cols-2 gap-1.5" data-testid="palette-sheet-grid">
             {sorted.map((p) => {
-              const dim = p.designSlug !== currentDesignSlug;
-              const active = !dim && p.code === activeCode;
+            const dim = p.designSlug !== currentDesignSlug;
+            // Not `!dim && …` like the bar's chip/pill: the sheet closes
+            // on pick, so this tile never lives to show the post-nav ring —
+            // but the rule stays the same anyway (a picked dim tile IS
+            // active), so a future keep-open change can't desync it.
+            const active = p.code === activeCode;
               return (
                 <PaletteTile
                   key={p.code}
@@ -362,9 +366,7 @@ function PaletteTile({
         hasActions && "col-span-2",
         active
           ? "border-primary bg-card shadow-[0_0_0_1px_var(--ring)]"
-          : dim
-            ? "border-border/60 bg-muted/40 opacity-50"
-            : "border-border bg-card hover:border-ring"
+          : "border-border bg-card hover:border-ring"
       )}
     >
       {renaming ? (
@@ -388,24 +390,32 @@ function PaletteTile({
           ref={selectRef}
           type="button"
           onClick={onSelect}
-          disabled={dim}
+          // R5-DESIGN-SWITCH AC4: dim tiles stay tappable — the tap switches
+          // design implicitly through the same `?code=` navigation (`onPick`).
           aria-current={active ? "true" : undefined}
-          className="flex min-h-11 min-w-0 flex-1 items-center gap-2 text-left disabled:cursor-not-allowed"
+          className="flex min-h-11 min-w-0 flex-1 items-center gap-2 text-left"
         >
-          <DesignRound layers={palette.layers} className={cn("size-8", dim && "grayscale-[.3]")} />
+          <DesignRound layers={palette.layers} className="size-8" />
           <span className="min-w-0 leading-tight">
             <span className="block truncate font-medium">{palette.name}</span>
             {/* R5-TEXT-IDENTITY (TL ruling) — the caller already resolved
                 whose words this is (this palette's own, or the canvas's
                 while active); nothing decoded from `palette.code` here. */}
-            {/* `!dim` for the same reason the chip trades it away: a tile for
-                another design gives its second line to that design's name. */}
-            {!dim && <PaletteDedicationLine text={dedication} className="max-w-none" />}
+            {/* Second line: a tile for another design shows that design's
+                name first (the tap switches design too), then its own dots
+                like every other tile — no faded/unselectable state. */}
+            {dim && dimDesignName ? (
+              <span className="block truncate text-[10px] text-muted-foreground">
+                {dimDesignName}
+              </span>
+            ) : (
+              <PaletteDedicationLine text={dedication} className="max-w-none" />
+            )}
             <span className="block truncate text-[10px] text-muted-foreground">
               {/* Fix wave PR3 finding 6: was its own near-copy of `cart-line-row.tsx`'s
                   `Dots` (the mockup's `Dots(code)`) that had drifted off ADR 0008's
                   tokens-only rule — same colour swatches, now the one component. */}
-              {dim ? dimDesignName : <Dots hexes={hexes} />}
+              <Dots hexes={hexes} />
             </span>
           </span>
         </button>

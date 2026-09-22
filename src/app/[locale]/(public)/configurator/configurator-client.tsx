@@ -57,6 +57,7 @@ import { keyboardUp } from "@/lib/cart/basket-open";
 import { hoverCapable } from "@/lib/pointer";
 import { designLabel } from "@/lib/cart/cart";
 import { buildConfigLinePayload } from "@/lib/configurator/line-payload";
+import { buildDesignSwitchParams } from "@/lib/configurator/design-switch-params";
 import { paletteMatchingCode } from "@/lib/configurator/save-gate";
 import { stripCustomSegment } from "@/lib/cart/set-code";
 import { nameFor, sortCurrentDesignFirst } from "@/lib/palettes/palettes";
@@ -65,6 +66,10 @@ import { PaletteCard } from "@/components/ui-domain/palette-card";
 import { PaletteChip } from "@/components/ui-domain/palette-chip";
 import { PaintingStrip } from "@/components/ui-domain/painting-strip";
 import { DesignRound } from "@/components/ui-domain/design-round";
+import {
+  DesignSwitch,
+  type DesignSwitchChoice,
+} from "@/components/ui-domain/design-switch";
 
 /** Pagina di ispirazione del cliente (fuori sito, apre in nuova scheda). */
 const INSPIRATION_URL = "https://www.minkeramikk.no/inspirasjon";
@@ -74,6 +79,17 @@ const INSPIRATION_URL = "https://www.minkeramikk.no/inspirasjon";
  *  categoria di catalogo, quindi ha una chiave sintetica; costante di modulo,
  *  identità stabile fra i render. */
 const WISHES_TAB = "__wishes";
+
+/**
+ * R5-DESIGN-SWITCH loader: minimo visibile 500ms a ogni cambio design
+ * (richiesta esplicita 22/9: 650 era troppo lungo). Server locale
+ * risponde in ~100ms, senza minimo le alici non si vedono mai nuotare.
+ * Mai infinito: safety cap 10s (supersede sovrascrive).
+ */
+// ponytail: fisso, non tuning — se il server rallenta il loader copre comunque l'attesa reale
+const LOADER_MIN_MS = 500;
+/** Safety cap: oltre qui il loader muore comunque (con warn in console). */
+const LOADER_SAFETY_CAP_MS = 10000;
 
 export interface DesignChoice {
   id: string;
@@ -168,6 +184,7 @@ export function ConfiguratorClient({
   ceramicThumbs = {},
   featuredSlot = null,
   paletteWords,
+  productCounts = {},
 }: {
   designs: DesignChoice[];
   detailsBySlug: Record<string, DesignDetail>;
@@ -175,6 +192,12 @@ export function ConfiguratorClient({
   ceramicThumbs?: Record<string, string[]>;
   /** F28: server-rendered featured strip — step 1 only, between stepper and grid. */
   featuredSlot?: React.ReactNode;
+  /**
+   * R5-DESIGN-SWITCH T1: slug → n. ceramiche whitelistate (page.tsx via
+   * `getDesignProducts` per design, cache `catalog`) — la riga desktop mostra
+   * «covers N ceramics» (mockup `:149`).
+   */
+  productCounts?: Record<string, number>;
   /**
    * Fix-wave finding 3: `nameFor()`'s default parameter calls `paletteWords()`,
    * which reads `process.env.MK_PALETTE_WORDS` — fine on the server, always
@@ -221,6 +244,42 @@ export function ConfiguratorClient({
   const urlSlug = searchParams.get("design");
   const selected =
     designs.find((d) => d.slug === urlSlug) ?? designs[0]; // sort_order=1 default (AC1)
+  // R5-DESIGN-SWITCH loader — UN SOLO STATO: `pending = {slug, startedAt} |
+  // null`. Il canvas mostra il loader se e solo se `pending != null`
+  // (+ `reduced-motion` off). Un solo trigger (`startDesignTransition`,
+  // sotto): `selectDesign` sempre, `loadPalette` solo se il code risolve
+  // un ALTRO design. Stesso design / tap colore → mai loader. Clear unico
+  // nell'effect sotto: design arrivato + minimo visivo passato. Supersede
+  // (nuovo tap) sovrascrive slug + clock. Safety cap 10s: mai infinito.
+  const [pending, setPending] = useState<{
+    slug: string;
+    startedAt: number;
+  } | null>(null);
+  const startDesignTransition = (slug: string) => {
+    setPending({ slug, startedAt: Date.now() });
+  };
+  useEffect(() => {
+    if (pending === null || selected.slug !== pending.slug) return;
+    const elapsed = Date.now() - pending.startedAt;
+    if (elapsed >= LOADER_MIN_MS) {
+      setPending(null);
+    } else {
+      const t = setTimeout(() => {
+        setPending(null);
+      }, LOADER_MIN_MS - elapsed);
+      return () => clearTimeout(t);
+    }
+  }, [selected.slug, pending]);
+  // Safety cap: se il design non arriva mai (navigazione fallita, decode
+  // perso), il loader muore comunque dopo 10s invece di girare all'infinito.
+  useEffect(() => {
+    if (pending === null) return;
+    const t = setTimeout(() => {
+      console.warn("[design-loader] safety cap: clearing stale pending", pending.slug);
+      setPending(null);
+    }, LOADER_SAFETY_CAP_MS);
+    return () => clearTimeout(t);
+  }, [pending]);
   const detail = detailsBySlug[selected.slug];
   /** R4-RESTYLE: la corsia tab è fatta SOLO di gruppi-opzione — «Detaljer» e
    *  «Bilder» non esistono più (i loro contenuti sono in pagina, sopra il
@@ -561,8 +620,34 @@ export function ConfiguratorClient({
         .filter((d): d is CodecDesign => d !== null),
     [detailsBySlug]
   );
+  // R5-DESIGN-SWITCH AC4: `loadPalette` below needs this BEFORE the F19
+  // effect runs — `buildDesignSwitchParams` resolves it through the same
+  // tolerant codec, and the effect re-resolves it identically on arrival.
+  /**
+   * R5-DESIGN-SWITCH AC4: which design a `?code=` belongs to, via the same
+   * tolerant codec the F19 decode effect uses. Null when it resolves to
+   * nothing — then `buildDesignSwitchParams` sets only `code=` and the effect
+   * handles it exactly like before, so a tap never breaks over bad input.
+   */
+  function designSlugOfCode(code: string): string | null {
+    try {
+      const { designSlug } = decodeConfigCode(
+        code,
+        (c) => codecDesigns.find((d) => d.code === c.toUpperCase()) ?? null
+      );
+      return designSlug;
+    } catch {
+      return null;
+    }
+  }
   // F19: a ?code= deep-link (cart-row "reopen" or a shared link) is decoded once
   // on arrival into the canonical opt_* params, then dropped from the URL.
+  // It also supersedes a stale `pending`: a `?code=` navigation resolves
+  // its own design through the decode below — if it names a DIFFERENT
+  // design than the one `pending` waits for, the old wait is over
+  // (`loadPalette` already started the right one, or the tap stayed on the
+  // same design and no loader runs at all). Same design as pending →
+  // untouched, the normal clear path handles it.
   //
   // R5-TEXT-IDENTITY final-review round 2, finding 1 (BLOCKER): this effect
   // used to destructure only `{ designSlug, selections }` and threw the
@@ -597,6 +682,20 @@ export function ConfiguratorClient({
   useEffect(() => {
     const incoming = searchParams.get("code");
     if (!incoming) return;
+    // Un `?code=` con design DIVERSO dal `pending` in volo lo supersede:
+    // la vecchia attesa non arriverà mai (l'URL ora dice un'altra cosa).
+    // `loadPalette` ha già startato il `pending` giusto; per i deep-link
+    // esterni (reopen, shared) che arrivano DURANTE uno switch, si riallinea
+    // qui decodificando — mai clear cieco, mai confronto con design fantasma.
+    try {
+      const { designSlug: decodedSlug } = decodeConfigCode(
+        incoming,
+        (c) => codecDesigns.find((d) => d.code === c.toUpperCase()) ?? null
+      );
+      if (decodedSlug !== selected.slug) startDesignTransition(decodedSlug);
+    } catch {
+      /* undecodable → pending untouched, normal clear path handles it */
+    }
     const explicitText = searchParams.get("text");
     const params = new URLSearchParams(searchParams.toString());
     params.delete("code");
@@ -620,7 +719,7 @@ export function ConfiguratorClient({
       /* invalid code → just drop the param, never crash */
     }
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
-  }, [searchParams, codecDesigns, pathname, router]);
+  }, [searchParams, codecDesigns, pathname, router, selected.slug]);
 
   // ── R5-PALETTES task 8: the manage bar (step 2, desktop) ──
   // One `usePalettes()` instance for the whole tab, shared via CartProvider
@@ -857,23 +956,26 @@ export function ConfiguratorClient({
   // need the URL to reach the rebuilt snapshot — same reason the decode
   // effect never touches it.
   function loadPalette(code: string) {
-    // Fix wave A finding 1: same bug as step 3's `paintWith` — a from-scratch
-    // URL was dropping every other param, `design=` included. The `?code=`
-    // decode effect above sets `design` from the code, but only AFTER a
-    // render with the OLD `design` param (or none) has already run, and that
-    // render falls back to `designs[0]` — resetting `noteText`/`customText`/
-    // `activeTab` through the effects keyed on the design, losing note=/text=
-    // for good on any design that isn't first by sort order. Building from
-    // the current params (like `goToStep` does) keeps `design=` in place.
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("code", code);
-    params.delete("text");
-    params.set("step", "2");
+    // R5-DESIGN-SWITCH AC4: a dim chip's code belongs to ANOTHER design — the
+    // tap switches design implicitly through this same `?code=` navigation.
+    // `buildDesignSwitchParams` sets `design=` upfront from the decoded code
+    // (via the `codecDesigns` below) and drops the old design's `opt_*`/`text=`;
+    // the F19 decode effect then resolves the selections, same as before.
+    //
+    // Switch implicito = stesso loader del cambio design esplicito: se il
+    // code risolve un ALTRO design, `startDesignTransition` — stesso stato,
+    // stesso minimo, stesso clear. Stesso design → niente loader, solo fade.
+    const targetSlug = designSlugOfCode(code);
+    if (targetSlug !== null && targetSlug !== selected.slug) {
+      startDesignTransition(targetSlug);
+    }
+    const next = buildDesignSwitchParams(searchParams, code, targetSlug);
+    next.set("step", "2");
     // Fix wave PR3 finding 3: `resetPaletteDraft` a few lines below already
     // passes this — a phone picks a chip mid-page (the mobile tab lane sits
     // well past the fold), and without it every tap threw the customer back
     // to the top. The sticky desktop bar hid the same bug there.
-    router.push(`${pathname}?${params.toString()}`, { scroll: false });
+    router.push(`${pathname}?${next.toString()}`, { scroll: false });
   }
 
   /**
@@ -896,14 +998,22 @@ export function ConfiguratorClient({
     router.push(`${pathname}?${params.toString()}`, { scroll: false });
   }
 
-  function selectDesign(d: DesignChoice) {
+  function selectDesign(d: DesignChoice | DesignSwitchChoice) {
     if (d.slug === selected.slug) return;
+    // Cambio design esplicito: navigazione RSC, il canvas cambia solo DOPO
+    // il round-trip — il loader parte subito da qui (`pending`, sopra).
+    startDesignTransition(d.slug);
     const params = new URLSearchParams(searchParams.toString());
     params.set("design", d.slug);
     // a new design resets option selections (different categories)
     for (const key of [...params.keys()]) {
       if (key.startsWith("opt_")) params.delete(key);
     }
+    // R5-DESIGN-SWITCH: a new design starts clean — stale saved-palette code
+    // (`code=`), inscription (`text=`) and the color lock belong to the old
+    // design's categories, so they drop with the options above.
+    params.delete("code");
+    params.delete("text");
     params.delete("lock");
     params.delete("note"); // R2-2b: a new design starts without a note
     router.push(`${pathname}?${params.toString()}`, { scroll: false });
@@ -1035,11 +1145,12 @@ export function ConfiguratorClient({
 
   // R5-PALETTES task 8: the lane's chips, leading with "what's on screen"
   // (draft or, if it matches a save, that save shown active/renamable),
-  // then every OTHER saved palette — dim when it belongs to a different
-  // design (card §6: switching design from a dim chip is a later card, so
-  // it stays inert here, no onSelect). Card §4-bis (added mid-PR): among
-  // those "other" palettes, the current design's own still lead, the rest
-  // trail dimmed — a stable sort, not a filter.
+  // then every OTHER saved palette — including dim ones from another design:
+  // tapping one switches design implicitly (`?code=`, R5-DESIGN-SWITCH AC4),
+  // decoded by the F19 effect above which sets `design` from the code (the
+  // `?design=` params shape is what T1's `selectDesign` writes). Card §4-bis
+  // (added mid-PR): among those "other" palettes, the current design's own
+  // still lead, the rest trail dimmed — a stable sort, not a filter.
   const otherPaletteChips = sortCurrentDesignFirst(
     palettes.filter((p) => p.code !== matchedPalette?.code),
     selected.slug
@@ -1057,6 +1168,7 @@ export function ConfiguratorClient({
             layers={p.layers}
             dim
             dimDesignName={dimDesign ? designName(dimDesign) : p.designSlug}
+            onSelect={() => loadPalette(p.code)}
             onDelete={() => deletePalette(p.code)}
           />
         );
@@ -1412,6 +1524,7 @@ export function ConfiguratorClient({
             data-testid="preview-sticky"
             className={cn(
               "max-md:mx-auto max-md:w-full",
+              step === 2 && "relative",
               // R4-STEP2: in the editor the height is the constraint, so the
               // PreviewCanvas box (aspect-square card by default) becomes a
               // transparent full-size area and the plate — already object-contain
@@ -1432,19 +1545,38 @@ export function ConfiguratorClient({
                 inspirasjonsside. `t.rich` rende il tag <link> del dizionario —
                 nessun HTML crudo nei JSON. Nuova scheda: dal configuratore non
                 si esce mai. */}
+            {/* TODO:nb-review — configurator.designSwitch.loaderAlt NO copy is
+                new, unreviewed. */}
             <PreviewCanvas
               alt={designName(selected)}
+              loadingLabel={t("designSwitch.loaderAlt")}
+              loadingDesignLabel={t("designSwitch.loaderDesignAlt", {
+                design: designName(
+                  pending
+                    ? (designs.find((d) => d.slug === pending.slug) ?? selected)
+                    : selected
+                ),
+              })}
               caption={previewNote}
               className={cn(step === 2 && "max-md:contents")}
               layers={previewLayers}
               inscription={liveInscription}
+              designKey={selected.slug}
+              pendingDesignKey={pending?.slug ?? null}
             />
+            {/* R5-DESIGN-SWITCH T1 fix: il badge mobile deve ancorarsi al canvas
+                (mockup `:275`), non alla colonna: mount dentro `preview-sticky`
+                (relative su step 2), accanto a `PreviewCanvas`. La riga desktop
+                resta sotto, fuori dal box relativo. */}
+            {step === 2 && (
+              <DesignSwitch
+                designs={designs}
+                currentSlug={selected.slug}
+                productCounts={productCounts}
+                onSelect={selectDesign}
+              />
+            )}
           </div>
-          {/* R4-FOLLOWUPS Ⓓ: qui stava la riga-riassunto (mockup .sum), una
-              riga sola troncata con «design · categoria: opzione · …». Rimossa:
-              a 390px si troncava quasi subito, e ciò che restava leggibile lo
-              dicono già i dot e il conteggio delle tab qui sotto. Solo mobile —
-              era `max-md:block`, quindi il desktop non cambia di un pixel. */}
         </div>
 
         {/* R4-RESTYLE (c): la didascalia col link alla inspirasjonsside — sotto

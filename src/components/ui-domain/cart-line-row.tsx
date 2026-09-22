@@ -721,14 +721,17 @@ export function CartLineRow({
         >
           {/* Card §4-bis (added mid-PR): current design's own palettes
               lead, the rest trail dimmed — same stable sort as the bar's
-              chips, not a filter (a dim pill stays reachable, just inert). */}
+              chips, not a filter (a dim pill stays tappable: the tap
+              switches the row to that palette's whole saved snapshot). */}
           {sortCurrentDesignFirst(palettes, currentDesignSlug).map((p) => {
             const dim = p.designSlug !== currentDesignSlug;
             // R5-TEXT-CARRY: exact, not stripped — the row's own thumb code
             // IS a saved code (or nothing matches): picking a pill adopts
             // that pill's whole saved snapshot, so the ring belongs to the
             // palette the row will really paint with, dedication included.
-            const active = !dim && p.code === currentThumb.code;
+            // A dim pill is another design's whole snapshot now — it can
+            // still become the row's paint, so `active` must not exclude it.
+            const active = p.code === currentThumb.code;
             return (
               <button
                 key={p.code}
@@ -736,7 +739,10 @@ export function CartLineRow({
                 data-testid="palette-pill"
                 data-code={p.code}
                 data-active={active || undefined}
-                disabled={dim}
+                // R5-DESIGN-SWITCH AC4: a dim pill stays tappable — the pick
+                // switches the row to the palette's whole saved snapshot
+                // (colours AND dedication, `explicitPickThumb`), same as any
+                // other pill.
                 aria-pressed={active}
                 onClick={() => onPickPalette(p.code)}
                 className={cn(
@@ -744,11 +750,12 @@ export function CartLineRow({
                   // (R5-TEXT-IDENTITY) is a genuine second line, same "let
                   // it grow" fix `PaletteChip`'s own tile needed.
                   "flex min-h-11 min-w-0 shrink-0 items-center gap-1.5 rounded-full pl-1 pr-2.5 text-xs lg:min-h-8",
-                  dim
-                    ? "bg-muted text-muted-foreground opacity-45"
-                    : active
-                      ? "bg-card font-semibold shadow-[0_0_0_1.5px_var(--ring)]"
-                      : "bg-muted hover:bg-secondary"
+                  // No faded/unselectable state: every palette is always
+                  // available, the tap just switches design too (`dim`
+                  // only decides the subtitle below).
+                  active
+                    ? "bg-card font-semibold shadow-[0_0_0_1.5px_var(--ring)]"
+                    : "bg-muted hover:bg-secondary"
                 )}
               >
                 <DesignRound layers={p.layers} className="size-6 shrink-0 rounded-sm" />
