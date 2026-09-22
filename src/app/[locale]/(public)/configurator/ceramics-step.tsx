@@ -1395,15 +1395,22 @@ export function CeramicsStep({
           R5-POLISH-STEP23 (TL, 22/9 — feedback 2 «header + choose your
           ceramics sticky»): from `md` the cluster pins FIRST and the
           heading block stops under it, so Back and the stepper stay on
-          screen for the whole step instead of scrolling away. The pinned
-          band is 51px of cluster + `pb-3` = 63px (measured at 1280), which
-          is why the block below pins at `top-16` and the rail at `top-32`
-          (63 + the 64.5px of kicker+h2). `mb-1` at `md` gives back the
-          12px the padding took, so the resting gap stays the 16px of
-          `mb-4`. Opaque `bg-background` + `z-30`: both columns slide
-          under it, never through it. */}
+          screen for the whole step instead of scrolling away.
+
+          THE BAND MATH (measured at 1280, move all three together):
+            12px `pt-3` + 51px of cluster + 12px `pb-3` = 75px of pinned band
+            → the heading block pins at `top-[74px]`: ONE PIXEL OF OVERLAP,
+              not 75. A gap of even 1px is a white hairline, because what
+              scrolls behind it is the white product cards (TL, 22/9).
+            → the rail pins at `top-[138px]` = 74 + the 64.5px of kicker+h2.
+          `-mt-3`/`mb-1` give back the 12px the paddings took, so the
+          RESTING layout is pixel-identical to before the cluster went
+          sticky — the padding only exists to keep the pill off the top
+          edge of the viewport once pinned (TL: «troppo attaccati»).
+          Opaque `bg-background` + `z-30`: both columns slide under it,
+          never through it. */}
       <div
-        className="mb-4 flex items-center gap-2 md:sticky md:top-0 md:z-30 md:mb-1 md:bg-background md:pb-3"
+        className="mb-4 flex items-center gap-2 md:sticky md:top-0 md:z-30 md:-mt-3 md:mb-1 md:bg-background md:pt-3 md:pb-3"
         data-testid="step-nav"
       >
         <NextStepPill
@@ -1530,9 +1537,18 @@ export function CeramicsStep({
               Now the plates slide UNDER one solid surface and the heading
               stays visible. On mobile the block is static in flow and the
               card stays hidden (mobile keeps its own `paintingStrip`).
-              R5-POLISH-STEP23: `top-16`, not `top-0` — the nav cluster now
-              pins above it (63px band), and this block stops right under. */}
-          <div className="md:sticky md:top-16 md:z-20 md:-mx-1 md:bg-background md:px-1 md:pb-3">
+              R5-POLISH-STEP23: `top-[74px]`, not `top-0` — the nav cluster
+              pins above it (75px band, arithmetic at the cluster) and this
+              block tucks 1px under it.
+              No `pb` any more (TL, 22/9): the padding made the opaque band
+              overshoot the card by 12px, so the plates were cut by a bare
+              rose rectangle instead of disappearing under the white card —
+              it read as a container edge. The band now ends exactly at the
+              card's bottom border; the 12px of resting air moved to the
+              catalogue's own `md:mt-3` below, where it scrolls away like
+              any other in-flow spacing. The card's rounded corners still
+              sit ON this background, so nothing peeks through them. */}
+          <div className="md:sticky md:top-[74px] md:z-20 md:-mx-1 md:bg-background md:px-1">
             <p className="text-[11px] uppercase tracking-[0.06em] text-muted-foreground">
               {tc("stepIndicator", { step: 3 })}
             </p>
@@ -1571,7 +1587,11 @@ export function CeramicsStep({
 
           {/* §3.18: one section per series, 22px apart; 2 cols / gap-2.5 under
               960px, 3 cols / gap-3 from 960px. */}
-          <div className="flex flex-col gap-[22px]" data-testid="ceramics-grid">
+          {/* R5-POLISH-STEP23: `md:mt-3` is the 12px the sticky block above
+              used to carry as `pb-3`. In flow it looks the same at rest, but
+              it scrolls: the plates now reach the card's bottom border and
+              vanish under IT, not under a bare strip of page colour. */}
+          <div className="flex flex-col gap-[22px] md:mt-3" data-testid="ceramics-grid">
             {sections.map((s) => (
               <section key={s.label ?? "__ungrouped"} data-testid="ceramics-series">
                 {s.label && (
@@ -1610,14 +1630,14 @@ export function CeramicsStep({
             overlap. Back to plain `top-4` with the original 1rem breathing
             room.
             R5-POLISH-STEP23 T2 (feedback 2+7): the rail pins level with the
-            palette card, so the two top borders line up. With the nav
-            cluster sticky (63px band, TL 22/9) the LEFT block pins at 64px
-            and its kicker+h2 measure 64.5px, so the card's top edge lands at
-            ~128px: `top-32`. Both numbers are measured at 1280 — move them
-            together if either block changes height. Surface =
-            palette-card.tsx:71 verbatim (white canvas, primary/20 border). */}
+            palette card, so the two top borders line up. The LEFT block pins
+            at 74px (band math at the nav cluster) and its kicker+h2 measure
+            64.5px, so the card's top edge lands at 138.5px: `top-[138px]`,
+            half a pixel out and invisible. Measured at 1280 — move it with
+            the other two. Surface = palette-card.tsx:71 verbatim (white
+            canvas, primary/20 border). */}
         <div
-          className="hidden min-w-0 rounded-lg border border-primary/20 bg-[var(--mk-canvas)] p-4 lg:mt-16 lg:block lg:sticky lg:top-32 lg:self-start"
+          className="hidden min-w-0 rounded-lg border border-primary/20 bg-[var(--mk-canvas)] p-4 lg:mt-16 lg:block lg:sticky lg:top-[138px] lg:self-start"
           data-testid="docked-cart-panel"
         >
           {cartPanel}
