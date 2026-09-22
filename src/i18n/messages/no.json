@@ -15,7 +15,6 @@
     "email": "bestilling@minkeramikk.no"
   },
   "actions": {
-    "copyCode": "Kopier kode",
     "copy": "Kopier",
     "copied": "Kopiert",
     "newDesign": "Bygg et nytt design"
@@ -267,7 +266,6 @@
       "seePhotos": "Se keramikken",
       "expand": "Vis detaljer",
       "collapse": "Skjul detaljer",
-      "edit": "Rediger design",
       "ceramic": "Keramikk",
       "customText": "Tekst",
       "config": "Konfigurasjon",

@@ -169,9 +169,10 @@ test("AC R2-D: drawer row reveals the shared recap (selections + ceramic + code)
   await row.getByTestId("cart-expand").click();
   const recap = drawerEl.getByTestId("cart-line-detail");
   await expect(recap).toBeVisible();
-  // recap carries the ceramic label + the MK code copy affordance
+  // recap carries the ceramic label. R5-POLISH-STEP23: the MK code + «Copy
+  // code» + «Edit design» foot is gone from the drawer (TL: the drawer IS the
+  // step-3 basket, which never had it), so there is nothing else to read here.
   await expect(recap).toContainText("Keramikk"); // cart.line.ceramic (NO)
-  await expect(recap.getByTestId("cart-copy-code")).toBeVisible();
 });
 
 test.describe("R4-SCONTI — quantity discounts", () => {

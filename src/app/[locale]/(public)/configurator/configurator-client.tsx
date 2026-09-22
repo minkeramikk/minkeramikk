@@ -25,7 +25,7 @@ import {
   nearestScrollLeft,
 } from "@/lib/configurator/lane-scroll";
 import { PreviewCanvas } from "@/components/ui-domain/preview-canvas";
-import { Stepper } from "@/components/ui-domain/stepper";
+import { Stepper, STEP_NAV_STICKY } from "@/components/ui-domain/stepper";
 import { Swatch } from "@/components/ui-domain/swatch";
 import {
   NextStepPill,
@@ -1318,7 +1318,9 @@ export function ConfiguratorClient({
           a bar floating over scrolling content; here the panel IS the surface
           and the row is its last, always-visible element (mockup .navB). */}
       <div
-        className={cn("mb-4", step === 2 && "max-md:mb-3")}
+        // R5-POLISH-STEP23 (TL, 22/9): same bar, same spacing, same scroll
+        // behaviour as step 3 — one recipe, `STEP_NAV_STICKY`.
+        className={cn(STEP_NAV_STICKY, step === 2 && "max-md:mb-3")}
         data-testid="step-nav"
       >
         <Stepper

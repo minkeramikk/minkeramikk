@@ -4,10 +4,12 @@ import { designWithCode, addFirstCeramic } from "./helpers";
 /**
  * Journey 2 — config code DECODE (ADR 0011). R3-D removed the "YOUR DESIGN
  * CODE" bar from the configurator; the encode/copy/paste UI is gone, but the
- * `?code=` deep-link decode stays. The code is now surfaced only in the cart
- * DRAWER's expanded line details (`LineCodeSlot`, basket.tsx — `CartLineRecap`
- * carried it until R5-BASKET-HOST), so we read it there and assert the deep link
- * reconstructs the configuration. Encode/decode units live in
+ * `?code=` deep-link decode stays. R5-POLISH-STEP23 took the drawer's code
+ * foot out too (TL: the drawer IS the step-3 basket, and that one never had
+ * it), so the code is no longer rendered anywhere in the configurator — this
+ * reads it off the cart a real add-to-basket wrote, and still asserts the
+ * deep link reconstructs the configuration. The affordance is gone, the
+ * contract it used to prove is not. Encode/decode units live in
  * src/lib/configurator/config-code.test.ts.
  */
 
@@ -20,18 +22,14 @@ test("AC5: a ?code= deep link reconstructs the configuration on step 2", async (
   await page.goto(`/no/configurator?design=${design.slug}&step=3`);
   await addFirstCeramic(page);
 
-  // Task 18 — the step-3 docked/mobile row's own details panel dropped the
-  // code (TL: that affordance belongs to the drawer, not the docked row).
-  // The drawer is the one surface left that renders it (`LineCodeSlot`, passed
-  // as `detailSlot` only by the drawer host), and it's a header-level Sheet at
-  // every viewport (same idiom as cart.spec.ts's
-  // "R2-D" test), so this reads the same on desktop and mobile alike.
-  await page.getByTestId("cart-button").click();
-  const drawer = page.getByTestId("cart-drawer");
-  const row = drawer.getByTestId("cart-line").first();
-  await row.getByTestId("cart-expand").click();
-  const recap = drawer.getByTestId("cart-line-detail");
-  const code = (await recap.locator("code").first().innerText()).trim();
+  // R5-POLISH-STEP23: no UI renders the code any more, so take it from the
+  // cart the add above actually wrote (`mk-cart-v1`, use-cart.ts) — the same
+  // string the removed «Copy code» button used to put on the clipboard.
+  const code = await page.evaluate(() => {
+    const raw = window.localStorage.getItem("mk-cart-v1");
+    const lines = raw ? (JSON.parse(raw) as { configCode?: string }[]) : [];
+    return lines.find((l) => l.configCode)?.configCode ?? "";
+  });
   expect(code).toMatch(/^MK-/);
 
   // The deep link alone (clean navigation) must rebuild design + options.

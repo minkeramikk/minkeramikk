@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
 import { usePathname, useRouter } from "@/i18n/navigation";
-import { Stepper } from "@/components/ui-domain/stepper";
+import { Stepper, STEP_NAV_STICKY } from "@/components/ui-domain/stepper";
 import { PaletteCard } from "@/components/ui-domain/palette-card";
 import { PaletteChip } from "@/components/ui-domain/palette-chip";
 import { PaintingStrip } from "@/components/ui-domain/painting-strip";
@@ -46,7 +46,7 @@ import {
 } from "@/lib/catalog/product-attributes";
 import { groupBySeries } from "@/lib/configurator/product-series";
 import { buildDesignSwitchParams } from "@/lib/configurator/design-switch-params";
-import { ShoppingBag, Truck, ArrowUpRight, Brush, ChevronLeft } from "lucide-react";
+import { ShoppingBag, Truck, ArrowUpRight, Brush } from "lucide-react";
 import type { ResolvedSharedSet } from "./resolve-shared-set";
 import { ProductSheet } from "@/components/ui-domain/product-sheet";
 import { AddedSheet } from "@/components/ui-domain/added-sheet";
@@ -1391,41 +1391,21 @@ export function CeramicsStep({
           in-flow siblings, no sticky/z-index of their own to collide with. */}
       {paintingStrip}
 
-      {/* F21: nav cluster — stepper always; Back active; Next disabled at step 3.
-          R5-POLISH-STEP23 (TL, 22/9 — feedback 2 «header + choose your
-          ceramics sticky»): from `md` the cluster pins FIRST and the
-          heading block stops under it, so Back and the stepper stay on
-          screen for the whole step instead of scrolling away.
+      {/* F21 nav cluster. R5-POLISH-STEP23 (TL, 22/9): the Back pill is GONE
+          and the cluster is the stepper alone, exactly like steps 1-2 — with
+          Back inline the stepper started further right and the bar visibly
+          jumped between step 2 and step 3. The way back is the stepper
+          itself (`onStepSelect`), which is the control that works at every
+          width. Wrapper recipe: `STEP_NAV_STICKY`, shared with steps 1-2.
 
-          THE BAND MATH (measured at 1280, move all three together):
-            12px `pt-3` + 51px of cluster + 12px `pb-3` = 75px of pinned band
-            → the heading block pins at `top-[74px]`: ONE PIXEL OF OVERLAP,
-              not 75. A gap of even 1px is a white hairline, because what
-              scrolls behind it is the white product cards (TL, 22/9).
-            → the rail pins at `top-[138px]` = 74 + the 64.5px of kicker+h2.
-          `-mt-3`/`mb-1` give back the 12px the paddings took, so the
-          RESTING layout is pixel-identical to before the cluster went
-          sticky — the padding only exists to keep the pill off the top
-          edge of the viewport once pinned (TL: «troppo attaccati»).
-          Opaque `bg-background` + `z-30`: both columns slide under it,
-          never through it. */}
-      <div
-        className="mb-4 flex items-center gap-2 md:sticky md:top-0 md:z-30 md:-mt-3 md:mb-1 md:bg-background md:pt-3 md:pb-3"
-        data-testid="step-nav"
-      >
-        <NextStepPill
-          variant="secondary"
-          size="sm"
-          data-testid="back-step"
-          className="shrink-0 max-md:hidden"
-          label={tc("back")}
-          icon={
-            <PillIcon variant="secondary">
-              <ChevronLeft className="size-5 text-primary/60" />
-            </PillIcon>
-          }
-          onClick={() => goToStep(2)}
-        />
+          THE BAND MATH (measured at 1280, move both together):
+            12px `pt-3` + 44px of stepper + 12px `pb-3` = 68px of pinned band
+            → the heading block pins at `top-[67px]`, one pixel INTO the band
+              rather than below it: a gap of even 1px reads as a hairline,
+              because what scrolls behind is the white product cards.
+            → the rail pins at `top-[131px]` = 67 + the 64.5px of kicker+h2.
+            Measured at 1280; the bar lost 7px when the Back pill went. */}
+      <div className={STEP_NAV_STICKY} data-testid="step-nav">
         <Stepper
           ariaLabel={tc("stepperLabel")}
           current={2}
@@ -1537,9 +1517,12 @@ export function CeramicsStep({
               Now the plates slide UNDER one solid surface and the heading
               stays visible. On mobile the block is static in flow and the
               card stays hidden (mobile keeps its own `paintingStrip`).
-              R5-POLISH-STEP23: `top-[74px]`, not `top-0` — the nav cluster
-              pins above it (75px band, arithmetic at the cluster) and this
-              block tucks 1px under it.
+              R5-POLISH-STEP23: `top-[67px]`, not `top-0` — the step bar pins
+              above it (68px band, arithmetic at the cluster) and this block
+              tucks 1px under it. No `bg-background` either (TL, 22/9): the
+              opaque surface read as a container of a slightly different
+              colour, so the block is transparent and only the palette card
+              itself covers what scrolls behind.
               No `pb` any more (TL, 22/9): the padding made the opaque band
               overshoot the card by 12px, so the plates were cut by a bare
               rose rectangle instead of disappearing under the white card —
@@ -1548,7 +1531,7 @@ export function CeramicsStep({
               catalogue's own `md:mt-3` below, where it scrolls away like
               any other in-flow spacing. The card's rounded corners still
               sit ON this background, so nothing peeks through them. */}
-          <div className="md:sticky md:top-[74px] md:z-20 md:-mx-1 md:bg-background md:px-1">
+          <div className="md:sticky md:top-[67px] md:z-20 md:-mx-1 md:px-1">
             <p className="text-[11px] uppercase tracking-[0.06em] text-muted-foreground">
               {tc("stepIndicator", { step: 3 })}
             </p>
@@ -1637,7 +1620,7 @@ export function CeramicsStep({
             the other two. Surface = palette-card.tsx:71 verbatim (white
             canvas, primary/20 border). */}
         <div
-          className="hidden min-w-0 rounded-lg border border-primary/20 bg-[var(--mk-canvas)] p-4 lg:mt-16 lg:block lg:sticky lg:top-[138px] lg:self-start"
+          className="hidden min-w-0 rounded-lg border border-primary/20 bg-[var(--mk-canvas)] p-4 lg:mt-16 lg:block lg:sticky lg:top-[131px] lg:self-start"
           data-testid="docked-cart-panel"
         >
           {cartPanel}
