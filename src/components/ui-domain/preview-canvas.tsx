@@ -9,6 +9,7 @@ import {
   scaleForLength,
   shrinkStep,
 } from "@/lib/configurator/inscription";
+import { assetUrl } from "@/lib/storage";
 
 export interface PreviewLayer {
   src: string;
@@ -61,20 +62,22 @@ function preloadAll(layers: PreviewLayer[]): Promise<void> {
 }
 
 /**
- * Le alici che girano: il PRIMO layer recolor del design (il motivo, non
- * il piatto) su fondo trasparente, dentro la stessa scatola del piatto.
- * Il piatto bianco NON gira — resta fermo sotto come nel canvas — così le
- * alici sembrano nuotare in tondo sopra la ceramica, non un disco che ruota.
- * `spinplate` verbatim dal mockup, con il suo guard reduced-motion.
+ * Le alici che girano: SEMPRE il layer delle alici di default
+ * (`designs/ansjos-pastatallerken/tree/1-layer@512.webp` — le sardine che
+ * nuotano in tondo), per ogni design e ogni piatto. Non il motivo corrente:
+ * quello cambia per design e spesso è un file diverso; le alici sono
+ * l'icona fissa dello spinner. `spinplate` verbatim dal mockup, con il suo
+ * guard reduced-motion.
  */
-function SpinnerMotif({ layers }: { layers: PreviewLayer[] }) {
-  const motif = layers.find((l) => l.recolor) ?? layers[0];
-  if (!motif) return null;
+const SARDINES_SRC = assetUrl(
+  "designs/ansjos-pastatallerken/tree/1-layer.png"
+);
+function SpinnerMotif() {
   return (
     <div aria-hidden="true" className={`spinplate relative ${ART_BOX}`}>
       {/* eslint-disable-next-line @next/next/no-img-element -- catalog art from storage, same as LayerStack */}
       <img
-        src={motif.src}
+        src={SARDINES_SRC}
         alt=""
         className="absolute inset-0 h-full w-full object-contain"
         style={{ mixBlendMode: "multiply" }}
@@ -461,7 +464,7 @@ export function PreviewCanvas({
             aria-label={loadingLabel ?? alt}
             className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 bg-[color-mix(in_oklab,var(--mk-canvas)_72%,transparent)]"
           >
-            <SpinnerMotif layers={shown.layers} />
+            <SpinnerMotif />
             <span className="text-[11px] text-muted-foreground">
               {loadingLabel ?? alt}
             </span>
