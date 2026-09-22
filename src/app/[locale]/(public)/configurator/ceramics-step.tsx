@@ -6,10 +6,10 @@ import { useSearchParams } from "next/navigation";
 import { usePathname, useRouter } from "@/i18n/navigation";
 import { Stepper, STEP_NAV_STICKY } from "@/components/ui-domain/stepper";
 import { PaletteCard } from "@/components/ui-domain/palette-card";
-import { paletteHexes } from "@/components/ui-domain/palette-card-model";
+import { paletteHexes, switchLane } from "@/components/ui-domain/palette-card-model";
 import { PaletteChip } from "@/components/ui-domain/palette-chip";
 import { PaintingStrip } from "@/components/ui-domain/painting-strip";
-import { nameFor, paletteFor, sortLaneNewestFirst } from "@/lib/palettes/palettes";
+import { nameFor, paletteFor } from "@/lib/palettes/palettes";
 import { paletteMatchingCode } from "@/lib/configurator/save-gate";
 import type { PaletteWords } from "@/lib/palettes/name-lists";
 import { cn } from "@/lib/utils";
@@ -214,7 +214,7 @@ export function CeramicsStep({
   // TODO:nb-review NO copy: step3.seriesCount · stickyBar.pieces · stickyBar.unpainted
   const tc = useTranslations("configurator");
   const to = useTranslations("order");
-  const tPaletteBar = useTranslations("palettes.bar");
+  const tPaletteCard = useTranslations("palettes.card");
   const locale = useLocale() as "no" | "en";
   const router = useRouter();
   const pathname = usePathname();
@@ -419,85 +419,19 @@ export function CeramicsStep({
     setPaletteSheetOpen(false);
   }
 
-  /**
-   * The lane's chips: every saved palette, dim when it belongs to a different
-   * design — tappable anyway (R5-DESIGN-SWITCH AC4: the tap switches design
-   * implicitly through the same `?code=` navigation, decoded server-side in
-   * `page.tsx` which reads `currentDesign` from the code) — else selectable
-   * and — if it's the one painting — carrying the brush badge.
-   * R5-PALETTE-IN-ACTION (TL review 21/9): the current design's own palettes
-   * lead NEWEST FIRST (last created leftmost), the rest follow dimmed — a
-   * filter + concat, not a stable sort, so the store order stays untouched.
-   */
-  // R5-POLISH-STEP23 T2 (feedback 3): step 3 only PAINTS — no rename, no
-  // delete on these chips; both live at step 2 (and in the mobile sheet,
-  // which keeps its own wiring below). `renamingPaletteCode` stays for it.
-  const paletteChips = sortLaneNewestFirst(palettes, design.slug).map((p) => {
+  // R5-NEW-PALETTE: pure switch targets — no active state, no badge, no
+  // aria-current; the painting palette is the NowBlock above, not a chip (DS §3.31). A dim
+  // chip IS tappable (R5-DESIGN-SWITCH: the tap switches design too via
+  // `?code=`), so the other design's name stays as its subtitle.
+  const switchChips = switchLane(palettes, activePalette?.code ?? null, design.slug).map((p) => {
     const dim = p.designSlug !== design.slug;
-    if (dim) {
-      return (
-        <PaletteChip
-          key={p.code}
-          code={p.code}
-          name={p.name}
-          dedication={p.snapshot.customText}
-          layers={p.layers}
-          dim
-          dimDesignName={designLabel(p.snapshot, locale) ?? p.designSlug}
-          onSelect={() => paintWith(p.code)}
-        />
-      );
-    }
-    const isActive = activePalette?.code === p.code;
     return (
-      <PaletteChip
-        key={p.code}
-        code={p.code}
-        name={p.name}
-        // R5-TEXT-CARRY — `activePalette` is an exact-code match now, so
-        // the active chip IS the saved palette it names: it shows THAT
-        // palette's own stored words, the same as every other chip — the
-        // `isActive ? currentDedication` override is gone. (With the old
-        // colours-match it could borrow the field's words for a different
-        // dedication of the same colours; that state no longer exists: a
-        // different dedication is simply not the active palette.)
-        dedication={p.snapshot.customText}
-        layers={p.layers}
-        active={isActive}
-        brush={isActive}
-        onSelect={() => paintWith(p.code)}
-      />
+      <PaletteChip key={p.code} code={p.code} name={p.name} compact
+        dedication={p.snapshot.customText} layers={p.layers}
+        dim={dim} dimDesignName={dim ? designLabel(p.snapshot, locale) ?? p.designSlug : undefined}
+        onSelect={() => paintWith(p.code)} />
     );
   });
-
-  /**
-   * R5-PALETTES follow-up (TL, after PR 2) — step 3's whole job is naming
-   * what's painting, and it said NOTHING when the on-screen config matched
-   * no save: every ceramic added right then IS painted with those colours,
-   * the bar just didn't say so. `activePalette` null means exactly "nothing
-   * saved matches `configCode`" (same read as step 2's own `matchedPalette`
-   * — card §4-bis, the URL is the one source of truth), so this chip covers
-   * that gap with two states `PaletteChip` already has: `draft` (dashed,
-   * "Unsaved", the colours' own label) because it isn't saved, `brush`
-   * because it's what will paint. NOT `active` — that skin is a solid
-   * `bg-card` + ring, and the ternary in palette-chip.tsx checks `active`
-   * FIRST, so passing both would silently drop the dashed "unsaved" look
-   * this chip exists to show. Deliberately NOT auto-saved on arrival (TL
-   * ruling): the 10-slot LRU would burn a slot, and the name, on a palette
-   * the customer never chose to keep — "Save as palette" below is the one
-   * way this becomes a real entry.
-   */
-  const draftChip = !activePalette && (
-    <PaletteChip
-      key="draft"
-      code={configCode}
-      name={paintingLabel}
-      dedication={currentDedication}
-      layers={designLayers}
-      draft
-      brush
-    />
-  );
 
   /** Mirrors step 2's `saveDraftAsPalette` (configurator-client.tsx) — same
    *  builder inputs (`configCode`/`snapshot`/`designLayers` are this step's
@@ -523,27 +457,12 @@ export function CeramicsStep({
     setActiveCode(configCode);
   }
 
-  /**
-   * «+ New palette»: step 2 of the CURRENT design (`goToStep`, defined below,
-   * keeps every other param — colours included, so this opens on what's on
-   * screen right now, ready to tweak into something new rather than starting
-   * from the design's own defaults). R5-PALETTE-IN-ACTION T2: the card owns
-   * its own anchored header slot, so this becomes a bare button again —
-   * mockup F1's reduced `h-9`/`text-[12.5px]` skin, no lane, no `ml-auto`
-   * cluster (the card does that). Step 3 offers ONLY +New; Save left step 3
-   * with the global bar (card §Cosa cambia punto 1).
-   */
-  const newPaletteChip = (
-    <button
-      type="button"
-      data-testid="palette-chip-new"
-      onClick={() => goToStep(2)}
-      className="flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-dashed border-primary/50 px-3 text-[12.5px] font-medium text-primary hover:bg-muted"
-    >
-      <span aria-hidden className="text-base leading-none">
-        +
-      </span>
-      {tPaletteBar("new")}
+  /** «Edit colours ›»: does not create anything — step 2 of the current design with the colours on screen (goToStep keeps params and code). DS §3.31. */
+  // TODO:nb-review — `palettes.card.editColours` NO copy is new ("Rediger farger"), unreviewed.
+  const editColoursButton = (
+    <button type="button" data-testid="palette-card-edit" onClick={() => goToStep(2)}
+      className="flex h-8 shrink-0 items-center gap-1 rounded-full border border-dashed border-primary/50 px-3 text-[12px] font-medium text-primary hover:bg-primary/10">
+      {tPaletteCard("editColours")}<span aria-hidden>›</span>
     </button>
   );
 
@@ -1216,8 +1135,8 @@ export function CeramicsStep({
       // PR3 round 2: the sheet gained rename/delete (it had neither) so it
       // can do what the removed step-2 tab's chips did, now that step 2
       // opens this SAME sheet too. `renamingPaletteCode`/`renamePalette`/
-      // `deletePalette` already exist in this file — the desktop bar's own
-      // `paletteChips` a few hundred lines down already wire them the same
+      // `deletePalette` already exist in this file — the desktop card's own
+      // `switchChips` a few hundred lines down already wire them the same
       // way, this is the sheet's equivalent, not a new mechanism.
       renamingCode={renamingPaletteCode}
       onRenameStart={(code) => setRenamingPaletteCode(code)}
@@ -1544,23 +1463,14 @@ export function CeramicsStep({
             <p className="text-[11px] uppercase tracking-[0.06em] text-muted-foreground">
               {tc("stepIndicator", { step: 3 })}
             </p>
-            <h2 className="mb-4 mt-1 text-xl font-semibold">
-              {t("title")}{" "}
-              <span className="text-sm font-normal text-muted-foreground">
-                {/* TODO:nb-review — `cart.tapOnePieceIn` (T4 adds the json):
-                    EN "tap = one piece in {name}" / NO "trykk = én del i {name}". */}
-                — {t("tapOnePieceIn", { name: paintingLabel })}
-              </span>
-            </h2>
+            <h2 className="mb-4 mt-1 text-xl font-semibold">{t("title")}</h2>
 
-            {/* The paint-mode palette is a card scoped to the catalogue
-                column (mockup F1), not a global full-bleed bar — the old
-                `PaletteBar` mount lived further up, ahead of the nav cluster.
-                Desktop-only (`hidden md:block`); the stickiness lives on the
-                block above, so the card itself is static here. Chips and
-                handlers (`draftChip`/`paletteChips`, `paintWith`) unchanged;
-                step 3 keeps ONLY +New — Save left with the global bar
-                (card §Cosa cambia 1). */}
+            {/* R5-NEW-PALETTE (DS §3.31): the card IS the switch — the
+                painting palette lives in the NowBlock above, the saved ones
+                below it as compact chips, «Edit colours ›» opens step 2 with
+                the on-screen colours. Desktop-only (`hidden md:block`); the
+                stickiness lives on the block above, so the card itself is
+                static here. */}
             <div className="hidden md:block">
               <PaletteCard
                 now={{
@@ -1570,9 +1480,9 @@ export function CeramicsStep({
                   designName,
                   hexes: paletteHexes(snapshot),
                 }}
-                chips={[draftChip, ...paletteChips]}
+                chips={switchChips}
                 saved={palettes.length}
-                actions={newPaletteChip}
+                actions={editColoursButton}
               />
             </div>
           </div>

@@ -207,7 +207,6 @@
   },
   "cart": {
     "title": "Choose ceramics",
-    "tapOnePieceIn": "tap = one piece in {name}",
     "quantity": "Quantity",
     "decreaseQty": "Fewer",
     "increaseQty": "More",
