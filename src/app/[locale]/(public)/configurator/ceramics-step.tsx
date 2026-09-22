@@ -31,6 +31,7 @@ import {
 } from "@/lib/cart/cart";
 import { encodeSetParam, selectionCountOf, SET_LINK_BUDGET, stripCustomSegment } from "@/lib/cart/set-code";
 import { designSegmentOf, encodeKitParam } from "@/lib/cart/kit-code";
+import { openOnKitArrival } from "@/lib/cart/basket-open";
 import {
   activeSuggestions,
   cartSaved,
@@ -53,6 +54,8 @@ import type { ResolvedSharedSet } from "./resolve-shared-set";
 import { ProductSheet } from "@/components/ui-domain/product-sheet";
 import { AddedSheet } from "@/components/ui-domain/added-sheet";
 import { ShareDialog, type ShareKind } from "@/components/ui-domain/share-dialog";
+import { KitStrip, kitStripCounts } from "@/components/ui-domain/kit-strip";
+import { DesignRound } from "@/components/ui-domain/design-round";
 import { Basket } from "@/components/ui-domain/basket";
 import { NextStepPill, PillIcon } from "@/components/ui-domain/next-step-pill";
 
@@ -993,6 +996,26 @@ export function CeramicsStep({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot apply on arrival
   }, [sharedSet, hydrated]);
 
+  // R5-KIT T6: kit-mode (mirror of origin=set) — survives refresh and
+  // goToStep (which copies every param), dies with selectDesign (there is no
+  // switch in kit-mode anyway). Opens the existing drawer once on arrival.
+  const kitMode = searchParams.get("origin") === "kit";
+  const kitOpenedRef = useRef(false);
+  useEffect(() => {
+    if (!kitMode || !hydrated || kitOpenedRef.current) return;
+    kitOpenedRef.current = true;
+    if (
+      openOnKitArrival({
+        kitMode,
+        unpainted: unpaintedPieces(cart),
+        wide: window.matchMedia("(min-width: 1024px)").matches,
+      })
+    ) {
+      openCart();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot open on arrival
+  }, [kitMode, hydrated]);
+
   // §3.18: sections in the admin's own order; the ungrouped bucket comes last
   // with NO heading.
   const sections = useMemo(() => groupBySeries(products, locale), [products, locale]);
@@ -1322,6 +1345,26 @@ export function CeramicsStep({
           className="mb-0 mt-0 flex-1"
         />
       </div>
+
+      {/* R5-KIT T6: the strip on a kit landing, above the nav — same props as step 2. */}
+      {kitMode && (
+        <KitStrip
+          thumb={
+            cart.find((l) => l.plateImage)?.plateImage ? (
+              // eslint-disable-next-line @next/next/no-img-element -- resolved catalog asset
+              <img
+                src={cart.find((l) => l.plateImage)!.plateImage!}
+                alt=""
+                className="size-[30px] shrink-0 rounded-full border border-border object-cover"
+              />
+            ) : (
+              <DesignRound layers={designLayers} className="size-[30px]" />
+            )
+          }
+          total={kitStripCounts(cart).total}
+          painted={kitStripCounts(cart).painted}
+        />
+      )}
 
       {/* CA-3 D: shared-set landing banner (frames 3–4). The 3-way choice
           never applies the set silently; `set=` is consumed after auto-load

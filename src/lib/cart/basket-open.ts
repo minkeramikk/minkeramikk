@@ -73,3 +73,20 @@ export function basketOpen({
 export function keyboardUp({ step, typing }: { step: number; typing: boolean }): boolean {
   return step === 2 && typing;
 }
+
+/**
+ * R5-KIT — open the basket on a kit arrival at step 3. Only below `lg`
+ * (`wide` = the lg rail is showing, already the basket) and only when there
+ * is something unpainted to paint (DS §4 «Arrivo da kit»).
+ */
+export function openOnKitArrival({
+  kitMode,
+  unpainted,
+  wide,
+}: {
+  kitMode: boolean;
+  unpainted: number;
+  wide: boolean;
+}): boolean {
+  return kitMode && unpainted > 0 && !wide;
+}
