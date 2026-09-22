@@ -81,13 +81,13 @@ const INSPIRATION_URL = "https://www.minkeramikk.no/inspirasjon";
 const WISHES_TAB = "__wishes";
 
 /**
- * R5-DESIGN-SWITCH loader: minimo visibile 650ms a ogni cambio design
- * (richiesta esplicita 22/9: 800 era troppo lungo). Server locale
+ * R5-DESIGN-SWITCH loader: minimo visibile 500ms a ogni cambio design
+ * (richiesta esplicita 22/9: 650 era troppo lungo). Server locale
  * risponde in ~100ms, senza minimo le alici non si vedono mai nuotare.
  * Mai infinito: safety cap 10s (supersede sovrascrive).
  */
 // ponytail: fisso, non tuning — se il server rallenta il loader copre comunque l'attesa reale
-const LOADER_MIN_MS = 650;
+const LOADER_MIN_MS = 500;
 /** Safety cap: oltre qui il loader muore comunque (con warn in console). */
 const LOADER_SAFETY_CAP_MS = 10000;
 

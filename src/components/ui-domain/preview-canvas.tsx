@@ -77,7 +77,7 @@ const SARDINES_SRC =
   "https://lfphyfkuuszqazkioxlr.supabase.co/storage/v1/object/public/assets/designs/ansjos-pastatallerken/tree/1-layer@512.webp";
 function SpinnerMotif() {
   return (
-    <div aria-hidden="true" className={`spinplate relative ${ART_BOX}`}>
+    <div aria-hidden="true" className="spinplate relative h-[62%] w-[62%]">
       {/* eslint-disable-next-line @next/next/no-img-element -- catalog art from storage, same as LayerStack */}
       <img
         src={SARDINES_SRC}
@@ -480,7 +480,7 @@ export function PreviewCanvas({
             }}
           >
             <SpinnerMotif />
-            <span className="text-[11px] text-muted-foreground">
+            <span className="mt-1 text-sm font-semibold text-foreground">
               {loadingLabel ?? alt}
             </span>
           </div>
