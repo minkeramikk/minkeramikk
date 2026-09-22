@@ -262,11 +262,11 @@ export function PreviewCanvas({
    * fires ONLY when THIS changes: a color tap keeps the same design, so it
    * stays a plain fade. Absent (callers that never switch design) = never.
    *
-   * Screen-reader copy for the loader (`role="status"`): the caller passes
-   * `configurator.designSwitch.loaderAlt` through `alt` already (its `alt`
-   * IS the design name — "Alici" IS the announcement), so no extra prop.
+   * Screen-reader copy for the loader (`role="status"`): passed through
+   * the optional `loadingLabel` prop; `alt` stays the stable design name.
    */
   designKey,
+  loadingLabel,
 }: {
   layers: PreviewLayer[];
   /** Rich node, not just text: the configurator caption carries a link. */
@@ -279,6 +279,7 @@ export function PreviewCanvas({
   inscription?: string;
   className?: string;
   designKey?: string;
+  loadingLabel?: string;
 }) {
   const targetKey = keyOf(layers);
 
@@ -296,7 +297,8 @@ export function PreviewCanvas({
   // loaded yet → the whole-canvas spinning-plate overlay (data-testid
   // "design-loader"). Only when the DESIGN changed (`designKey` prop), never
   // on a color tap (same design, only recolors) — the fade below covers
-  // that, unchanged.
+  // that, unchanged. Overlay is state derived from the transition, so no
+  // unmount reset: useState dies with the component.
   const [designLoading, setDesignLoading] = useState(false);
   // Committed design identity (ref, not state: updating it must not
   // re-trigger the transition effect below and re-run the preload).
@@ -306,14 +308,6 @@ export function PreviewCanvas({
   const committedDesign = useRef<string | undefined>(designKey);
   const [fadeIn, setFadeIn] = useState(false);
   const commitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // `PreviewCanvas` keeps ONE instance across steps (F14): the loading
-  // overlay is app state, so it clears on unmount — else a remount paints
-  // `designLoading` from a dead transition (stuck spinner on come-back).
-  useEffect(() => {
-    return () => setDesignLoading(false);
-    // mount/unmount only.
-  }, []);
 
   useEffect(() => {
     if (targetKey === shown.key) {
@@ -410,15 +404,16 @@ export function PreviewCanvas({
 
         {/* R5-DESIGN-SWITCH T2 — whole-canvas spinning-plate loader, only
             while a DESIGN switch preloads (mockup-palettebar.html :57-59).
-            `role="status"` announces the switch; the design name (`alt`) IS
-            the announcement — no separate copy. Gated to motion-safe:
+            `role="status"` announces the switch via `loadingLabel`
+            (falls back to `alt`); `alt` itself stays the stable design name.
+            Gated to motion-safe:
             reduced-motion never renders it (immediate swap), and color taps
             never trigger it (`designKey`, above). */}
         {designLoading && (
           <div
             role="status"
             data-testid="design-loader"
-            aria-label={alt}
+            aria-label={loadingLabel ?? alt}
             className="absolute inset-0 z-10 flex items-center justify-center bg-[color-mix(in_oklab,var(--mk-canvas)_72%,transparent)]"
           >
             {/* `spinplate` = mockup class verbatim (globals.css, from

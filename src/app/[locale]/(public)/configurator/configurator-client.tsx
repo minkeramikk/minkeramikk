@@ -1452,7 +1452,8 @@ export function ConfiguratorClient({
             {/* TODO:nb-review — configurator.designSwitch.loaderAlt NO copy is
                 new, unreviewed. */}
             <PreviewCanvas
-              alt={t("designSwitch.loaderAlt", { design: designName(selected) })}
+              alt={designName(selected)}
+              loadingLabel={t("designSwitch.loaderAlt", { design: designName(selected) })}
               caption={previewNote}
               className={cn(step === 2 && "max-md:contents")}
               layers={previewLayers}
