@@ -81,13 +81,13 @@ const INSPIRATION_URL = "https://www.minkeramikk.no/inspirasjon";
 const WISHES_TAB = "__wishes";
 
 /**
- * R5-DESIGN-SWITCH loader: due giri `spinplate` (2×4s) garantiti a ogni
- * cambio design visibile. Misura: server locale risponde in ~100ms, senza
- * minimo le alici non si vedono mai nuotare. Mai infinito: safety cap
- * 10s nell'effect (un tap supersede sovrascrive, non accoda).
+ * R5-DESIGN-SWITCH loader: minimo visibile 2000ms a ogni cambio design
+ * (mezzo giro `spinplate` 4s — richiesta esplicita 22/9: 8000 era troppo
+ * lungo). Server locale risponde in ~100ms, senza minimo le alici non si
+ * vedono mai nuotare. Mai infinito: safety cap 10s (supersede sovrascrive).
  */
-// ponytail: due giri fissi, non tuning — se il server rallenta il loader copre comunque l'attesa reale
-const LOADER_MIN_MS = 8000;
+// ponytail: fisso, non tuning — se il server rallenta il loader copre comunque l'attesa reale
+const LOADER_MIN_MS = 2000;
 /** Safety cap: oltre qui il loader muore comunque (con warn in console). */
 const LOADER_SAFETY_CAP_MS = 10000;
 
