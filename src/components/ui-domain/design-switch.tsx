@@ -4,6 +4,12 @@ import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { DesignRound } from "@/components/ui-domain/design-round";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   Sheet,
   SheetContent,
   SheetHeader,
@@ -25,14 +31,14 @@ export interface DesignSwitchChoice {
 }
 
 /**
- * R5-DESIGN-SWITCH T1 + follow-up 22/9 (card §Piano agganciato B) —
- * design switch allo step 2. Riga desktop orizzontale scrollabile
- * (artifact `DesignSwitch()` di r5-animation: pill con tondo + nome,
- * attiva evidenziata) + badge mobile («{nome} ▾» sul canvas → Sheet
- * griglia 3 col con thumb veri, artifact `DesignSheet()`). La scelta
- * naviga via `onSelect` (il `selectDesign` fixato del caller): zero
- * navigazione propria. Thumb = `DesignRound` sui defaultLayers (stessa
- * tecnica di step 1, zero nuovi asset).
+ * R5-DESIGN-SWITCH — picker condiviso desktop + mobile (stesse card,
+ * stesso gesto): riga `Design ▾ · covers N` sotto il canvas (mockup
+ * `:149`) apre Dialog centrato su desktop, badge `{nome} ▾` sul canvas
+ * (mockup `:275`) apre Sheet dal basso su mobile. Griglia compatta
+ * 3 col con thumb veri `size-14` (mai placeholder), nome troncato una
+ * riga + `{count} ceramics`. Scelta via `onSelect` (selectDesign del
+ * caller): zero navigazione propria. Thumb = `DesignRound` sui
+ * defaultLayers, zero nuovi asset.
  */
 export function DesignSwitch({
   designs,
@@ -53,12 +59,34 @@ export function DesignSwitch({
     (locale === "no" ? d.nameNo : d.nameEn) || d.nameNo || d.name;
   const current: DesignSwitchChoice =
     designs.find((d) => d.slug === currentSlug) ?? designs[0];
+  const [dialogOpen, setDialogOpen] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
 
   const pick = (d: DesignSwitchChoice) => {
+    setDialogOpen(false);
     setSheetOpen(false);
     onSelect(d);
   };
+
+  const card = (d: DesignSwitchChoice) => (
+    <button
+      type="button"
+      onClick={() => pick(d)}
+      aria-current={d.slug === current.slug ? "true" : undefined}
+      className={cn(
+        "w-full rounded-lg border p-2 text-center",
+        d.slug === current.slug
+          ? "border-primary bg-secondary"
+          : "border-border bg-card"
+      )}
+    >
+      <DesignRound layers={layersOf(d)} className="mx-auto size-14" />
+      <b className="mt-1 block truncate text-xs font-medium">{nameOf(d)}</b>
+      <span className="block text-[10px] text-muted-foreground">
+        {t("coversShort", { count: productCounts[d.slug] ?? 0 })}
+      </span>
+    </button>
+  );
 
   const layersOf = (d: DesignSwitchChoice) =>
     d.defaultLayers.map((l) => ({
@@ -68,38 +96,48 @@ export function DesignSwitch({
 
   return (
     <>
-      {/* Desktop — riga orizzontale scrollabile (artifact `DesignSwitch()`):
-          pill per design con tondo + nome, attiva evidenziata. `covers N`
-          resta fuori dalla lista, a destra. */}
-      <div
-        data-testid="design-switch-row"
-        data-scroll
-        className="mt-3 hidden items-center gap-1.5 overflow-x-auto md:flex"
-      >
-        <span className="mr-1 flex-none text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
-          {t("label")}
-        </span>
-        {designs.map((d) => (
-          <button
-            key={d.slug}
-            type="button"
-            onClick={() => pick(d)}
-            aria-pressed={d.slug === current.slug}
-            className={cn(
-              "flex min-h-9 flex-none items-center gap-1.5 rounded-full border-[1.5px] py-0.5 pl-0.5 pr-3 text-[12.5px]",
-              d.slug === current.slug
-                ? "border-primary bg-secondary font-semibold text-primary"
-                : "border-border bg-card text-muted-foreground hover:border-ring"
-            )}
-          >
-            <DesignRound layers={layersOf(d)} className="size-7" />
-            {nameOf(d)}
-          </button>
-        ))}
-        <span className="ml-1 flex-none text-[11.5px] text-muted-foreground">
-          {t("covers", { count: productCounts[current.slug] ?? 0 })}
-        </span>
+      {/* Riga sotto il canvas: apre il picker (Dialog su desktop). */}
+      <div className="mt-3 hidden md:block" data-testid="design-switch-row">
+        <button
+          type="button"
+          onClick={() => setDialogOpen(true)}
+          aria-haspopup="dialog"
+          className="flex items-center gap-3"
+        >
+          <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+            {t("label")}
+          </span>
+          <span className="flex h-10 shrink-0 items-center gap-2 rounded-full border border-border bg-card pl-1 pr-3 text-[13px] font-medium hover:border-ring">
+            <DesignRound layers={layersOf(current)} className="size-8" />
+            {nameOf(current)}{" "}
+            <span aria-hidden className="text-muted-foreground">
+              ▾
+            </span>
+          </span>
+          <span className="text-[11.5px] text-muted-foreground">
+            {t("covers", { count: productCounts[current.slug] ?? 0 })}
+          </span>
+        </button>
       </div>
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent
+          data-testid="design-switch-dialog"
+          className="max-h-[80vh] max-w-[560px] overflow-y-auto"
+        >
+          <DialogHeader>
+            <DialogTitle>{t("sheetTitle")}</DialogTitle>
+            <p className="text-[11px] text-muted-foreground">
+              {t("sheetSubtitle")}
+            </p>
+          </DialogHeader>
+          <ul className="grid grid-cols-3 gap-2">
+            {designs.map((d) => (
+              <li key={d.slug}>{card(d)}</li>
+            ))}
+          </ul>
+        </DialogContent>
+      </Dialog>
 
       {/* Mobile `:275` — badge sul canvas, apre lo Sheet. */}
       <button
@@ -115,10 +153,7 @@ export function DesignSwitch({
         </span>
       </button>
 
-      {/* Sheet mobile — griglia 3 col con thumb veri (artifact
-          `DesignSheet()`): card con tondo `size-16` da `layersOf()` (mai
-          placeholder), nome + `{count} ceramics`. Niente link
-          `all designs →`: nessuna rotta, meglio assente che morto. */}
+      {/* Sheet mobile — stesse card del Dialog, in foglio dal basso. */}
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
         <SheetContent
           side="bottom"
@@ -131,33 +166,10 @@ export function DesignSwitch({
               {t("sheetSubtitle")}
             </p>
           </SheetHeader>
-          <ul className="grid grid-cols-3 gap-2 px-4 pb-6">
+          <ul className="grid grid-cols-3 gap-1.5 px-4 pb-6">
             {designs.map((d) => (
-              <li key={d.slug}>
-                <button
-                  type="button"
-                  onClick={() => pick(d)}
-                  aria-current={d.slug === current.slug ? "true" : undefined}
-                  className={cn(
-                    "rounded-lg border p-2.5 text-center",
-                    d.slug === current.slug
-                      ? "border-primary bg-secondary"
-                      : "border-border bg-card"
-                  )}
-                >
-                  <DesignRound
-                    layers={layersOf(d)}
-                    className="mx-auto size-16"
-                  />
-                  <b className="mt-1.5 block text-xs font-medium">
-                    {nameOf(d)}
-                  </b>
-                  <span className="block text-[10px] text-muted-foreground">
-                    {t("coversShort", {
-                      count: productCounts[d.slug] ?? 0,
-                    })}
-                  </span>
-                </button>
+              <li key={d.slug} className="min-w-0">
+                {card(d)}
               </li>
             ))}
           </ul>
