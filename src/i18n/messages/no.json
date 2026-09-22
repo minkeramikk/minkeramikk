@@ -376,7 +376,8 @@
       "unsaved": "Ulagret",
       "rename": "Endre navn",
       "renameLabel": "Palettnavn",
-      "delete": "Slett palett"
+      "delete": "Slett palett",
+      "confirmDelete": "Slette? Trykk igjen"
     },
     "bar": {
       "eyebrowManage": "Dine paletter",

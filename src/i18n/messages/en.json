@@ -377,7 +377,8 @@
       "unsaved": "Unsaved",
       "rename": "Rename",
       "renameLabel": "Palette name",
-      "delete": "Delete palette"
+      "delete": "Delete palette",
+      "confirmDelete": "Delete? Tap again"
     },
     "bar": {
       "eyebrowManage": "Your palettes",
