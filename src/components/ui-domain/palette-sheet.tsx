@@ -10,6 +10,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { deleteTap, disarm } from "@/components/ui-domain/delete-confirm";
 import { DesignRound } from "@/components/ui-domain/design-round";
 import { PaletteDedicationLine } from "@/components/ui-domain/palette-chip";
 import { Dots } from "@/components/ui-domain/cart-line-row";
@@ -304,6 +305,7 @@ function PaletteTile({
   onDelete?: () => void;
 }) {
   const t = useTranslations("palettes.chip");
+  const [deleteArmed, setDeleteArmed] = useState(false);
   const inputId = useId();
   const [draftName, setDraftName] = useState(palette.name);
   // Same double-commit guard as `PaletteChip` (Enter followed by a blur in
@@ -434,12 +436,25 @@ function PaletteTile({
       {!renaming && onDelete && (
         <button
           type="button"
-          onClick={onDelete}
-          aria-label={t("delete")}
-          title={t("delete")}
-          className="grid size-11 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-secondary"
+          onClick={() => {
+            const next = deleteTap(deleteArmed);
+            setDeleteArmed(next.armed);
+            if (next.fire) onDelete();
+          }}
+          onBlur={() => setDeleteArmed(disarm().armed)}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") setDeleteArmed(disarm().armed);
+          }}
+          aria-label={deleteArmed ? t("confirmDelete") : t("delete")}
+          title={deleteArmed ? t("confirmDelete") : t("delete")}
+          data-testid="palette-tile-delete"
+          data-armed={deleteArmed ? "" : undefined}
+          className={cn(
+            "grid min-h-11 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-secondary",
+            deleteArmed ? "px-3 bg-destructive/10 text-destructive text-[12px] font-medium" : "size-11"
+          )}
         >
-          ✕
+          {deleteArmed ? t("confirmDelete") : "✕"}
         </button>
       )}
     </div>

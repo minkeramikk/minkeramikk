@@ -207,7 +207,10 @@ export function CartMenu() {
           // and the shared `Sheet` draws it `size-icon-sm` = 28px. Widened
           // from the drawer's OWN className (card §2: never touch the shared
           // component), so every other sheet keeps its 28px.
-          className="w-full! gap-0 p-0 sm:max-w-[420px]! [&>[data-slot=sheet-close]]:size-11"
+          // R5-POLISH-STEP23 (TL, 22/9): white like the step-3 basket panel —
+          // the two hosts of `Basket` now share the surface as well as the
+          // markup, so the drawer never reads as a different component.
+          className="w-full! gap-0 bg-[var(--mk-canvas)] p-0 sm:max-w-[420px]! [&>[data-slot=sheet-close]]:size-11"
           onCloseAutoFocus={() => {
             if (!paintFirstRef.current) return;
             paintFirstRef.current = false;

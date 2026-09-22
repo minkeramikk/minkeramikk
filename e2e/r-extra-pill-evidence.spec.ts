@@ -157,17 +157,10 @@ for (const locale of ["no", "en"] as const) {
         const checkout = page.locator('[data-testid="docked-checkout"]:visible').first();
         await expect(checkout).toBeVisible();
 
-        // AC3: la freccetta marca ciò che FA AVANZARE il funnel, non "un solo
-        // bottone". Le altre due pillole dello stack non avanzano — una riavvia
-        // il flusso, l'altra è collaterale — quindi restano senza.
-        for (const id of ["new-design-cta", "share-set"]) {
-          const other = page.locator(`[data-testid="${id}"]:visible`).first();
-          await expect(other).toBeVisible();
-          expect(
-            await other.evaluate((el) => el.textContent?.includes("›") ?? false),
-            `${id} non deve avere la freccetta di avanzamento`
-          ).toBe(false);
-        }
+        // AC3: la freccetta marca ciò che FA AVANZARE il funnel.
+        // R5-POLISH-STEP23: le due pillole basse non esistono più
+        // (new-design-cta rimosso, share-set solo con `?admin=1`) — resta
+        // la misura sul checkout.
         expect(
           await checkout.evaluate((el) => el.textContent?.includes("›") ?? false)
         ).toBe(true);

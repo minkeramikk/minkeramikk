@@ -4,6 +4,7 @@ import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
 import { useTranslations } from "next-intl";
 import { Brush } from "lucide-react";
 import { DesignRound } from "@/components/ui-domain/design-round";
+import { deleteTap, disarm } from "@/components/ui-domain/delete-confirm";
 import type { CartLayer } from "@/lib/cart/cart";
 import { cn } from "@/lib/utils";
 
@@ -70,8 +71,10 @@ export interface PaletteChipProps {
   /**
    * Delete affordance (✕) — only meaningful for a SAVED palette: the caller
    * simply doesn't pass this for a `draft` chip (nothing to delete yet).
-   * No confirm step on either side of this callback (deletePalette.ts's own
-   * comment has the WHY) — clicking it deletes immediately.
+   * R5-POLISH-STEP23 T1: the chip confirms IN PLACE — first tap arms
+   * (the ✕ becomes «Delete? Tap again», `// TODO:nb-review` on the NO copy),
+   * second tap calls this. Blur/Escape disarm. The store still deletes
+   * without asking (deletePalette.ts): the question lives in the UI only.
    */
   onDelete?: () => void;
 }
@@ -100,6 +103,12 @@ export function PaletteChip({
   // Guards against a stray double-commit when Enter is followed by a blur
   // in the same interaction (e.g. the confirm handler moves focus away).
   const settledRef = useRef(false);
+
+  // T1 — two-tap delete, local to this chip (see delete-confirm.ts).
+  const [deleteArmed, setDeleteArmed] = useState(false);
+  useEffect(() => {
+    if (!active) setDeleteArmed(false); // leaving the active chip drops the question
+  }, [active]);
 
   useEffect(() => {
     if (renaming) {
@@ -287,16 +296,28 @@ export function PaletteChip({
             // separate change nobody asked for here).
             <button
               type="button"
-              onClick={onDelete}
-              aria-label={t("delete")}
-              title={t("delete")}
+              onClick={() => {
+                const next = deleteTap(deleteArmed);
+                setDeleteArmed(next.armed);
+                if (next.fire) onDelete();
+              }}
+              onBlur={() => setDeleteArmed(disarm().armed)}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") setDeleteArmed(disarm().armed);
+              }}
+              aria-label={deleteArmed ? t("confirmDelete") : t("delete")}
+              title={deleteArmed ? t("confirmDelete") : t("delete")}
+              data-testid="palette-chip-delete"
+              data-armed={deleteArmed ? "" : undefined}
               className={cn(
                 "ml-1 grid shrink-0 place-items-center rounded-full text-muted-foreground transition-opacity hover:bg-secondary",
                 "sm:size-6 sm:opacity-0 sm:pointer-events-none sm:group-hover:opacity-100 sm:group-hover:pointer-events-auto sm:group-focus-within:opacity-100 sm:group-focus-within:pointer-events-auto",
-                active ? "size-11 opacity-100 pointer-events-auto" : "size-6 opacity-0 pointer-events-none"
+                active ? "size-11 opacity-100 pointer-events-auto" : "size-6 opacity-0 pointer-events-none",
+                // armed: it must stay visible while the question is open, whatever the pointer does
+                deleteArmed && "sm:w-auto sm:px-2 sm:opacity-100! sm:pointer-events-auto! bg-destructive/10 text-destructive text-[11px] font-medium"
               )}
             >
-              ✕
+              {deleteArmed ? t("confirmDelete") : "✕"}
             </button>
           )}
         </>

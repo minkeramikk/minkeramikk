@@ -16,7 +16,6 @@
     "email": "bestilling@minkeramikk.no"
   },
   "actions": {
-    "copyCode": "Copy code",
     "copy": "Copy",
     "copied": "Copied",
     "newDesign": "Build a new design"
@@ -221,7 +220,6 @@
     },
     "cartTitle": "Basket",
     "chooseColours": "Choose colours in step 2 ›",
-    "paintedWith": "new ceramics come painted with <b>{name}</b>",
     "empty": "Your basket is empty",
     "emptyCta": "Back to the configurator",
     "addCeramics": "+ Add ceramics",
@@ -268,7 +266,6 @@
       "seePhotos": "See the ceramic",
       "expand": "Show details",
       "collapse": "Hide details",
-      "edit": "Edit design",
       "ceramic": "Ceramic",
       "customText": "Inscription",
       "config": "Config",
@@ -276,10 +273,6 @@
       "price": "Price",
       "code": "Code",
       "pieces": "{count, plural, one {# piece} other {# pieces}}"
-    },
-    "lightbox": {
-      "ceramic": "The ceramic",
-      "withPalette": "With your palette"
     },
     "unpainted": {
       "label": "Unpainted",
@@ -377,7 +370,8 @@
       "unsaved": "Unsaved",
       "rename": "Rename",
       "renameLabel": "Palette name",
-      "delete": "Delete palette"
+      "delete": "Delete palette",
+      "confirmDelete": "Delete? Tap again"
     },
     "bar": {
       "eyebrowManage": "Your palettes",

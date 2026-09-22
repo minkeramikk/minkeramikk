@@ -15,7 +15,6 @@
     "email": "bestilling@minkeramikk.no"
   },
   "actions": {
-    "copyCode": "Kopier kode",
     "copy": "Kopier",
     "copied": "Kopiert",
     "newDesign": "Bygg et nytt design"
@@ -220,7 +219,6 @@
     },
     "cartTitle": "Handlekurv",
     "chooseColours": "Velg farger i steg 2 ›",
-    "paintedWith": "ny keramikk males med <b>{name}</b>",
     "empty": "Handlekurven er tom",
     "emptyCta": "Tilbake til konfiguratoren",
     "addCeramics": "+ Legg til keramikk",
@@ -267,7 +265,6 @@
       "seePhotos": "Se keramikken",
       "expand": "Vis detaljer",
       "collapse": "Skjul detaljer",
-      "edit": "Rediger design",
       "ceramic": "Keramikk",
       "customText": "Tekst",
       "config": "Konfigurasjon",
@@ -275,10 +272,6 @@
       "price": "Pris",
       "code": "Kode",
       "pieces": "{count, plural, one {# del} other {# deler}}"
-    },
-    "lightbox": {
-      "ceramic": "Keramikken",
-      "withPalette": "Med paletten din"
     },
     "unpainted": {
       "label": "Umalt",
@@ -376,7 +369,8 @@
       "unsaved": "Ulagret",
       "rename": "Endre navn",
       "renameLabel": "Palettnavn",
-      "delete": "Slett palett"
+      "delete": "Slett palett",
+      "confirmDelete": "Slette? Trykk igjen"
     },
     "bar": {
       "eyebrowManage": "Dine paletter",

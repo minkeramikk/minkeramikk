@@ -3,7 +3,7 @@ import ReactDOM from "react-dom";
 import { getTranslations } from "next-intl/server";
 import { getActiveDesigns } from "@/lib/catalog/designs";
 import { getDesignDetail, type DesignDetail } from "@/lib/catalog/design-options";
-import { getSupplierProducts, getDesignProducts } from "@/lib/catalog/products";
+import { getDesignProducts } from "@/lib/catalog/products";
 import { assetUrl } from "@/lib/storage";
 import { buildConfigLinePayload } from "@/lib/configurator/line-payload";
 import { pickDefaultOption } from "@/lib/configurator/default-option";
@@ -233,21 +233,6 @@ export default async function ConfiguratorPage({
     if (detail) detailsBySlug[d.slug] = detail;
   });
 
-  // Foto reali di ceramica per l'icona della pillola step 2 — 3 miniature per
-  // fornitore (il design selezionato cambia client-side, quindi si coprono tutti
-  // i supplier in pagina). Cache di catalogo (PERF-1) → ~0 query in più.
-  const supplierIds = [...new Set(designs.map((d) => d.supplierId))];
-  const productsPerSupplier = await Promise.all(
-    supplierIds.map((id) => getSupplierProducts(id))
-  );
-  const ceramicThumbs: Record<string, string[]> = {};
-  supplierIds.forEach((id, i) => {
-    ceramicThumbs[id] = productsPerSupplier[i]
-      .map((p) => p.image)
-      .filter((img): img is string => Boolean(img))
-      .slice(0, 3);
-  });
-
   // R5-DESIGN-SWITCH T1: conteggio ceramiche per design (mockup `:149`
   // «covers N ceramics») — stessa `getDesignProducts` (whitelist, cache
   // `catalog`: su hit ~0 query in più).
@@ -287,7 +272,6 @@ export default async function ConfiguratorPage({
       <ConfiguratorClient
         designs={designs}
         detailsBySlug={detailsBySlug}
-        ceramicThumbs={ceramicThumbs}
         productCounts={productCounts}
         // Fix-wave finding 3: resolved HERE, server-side, so
         // `MK_PALETTE_WORDS` (not `NEXT_PUBLIC_*`, deliberately — card

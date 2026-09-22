@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { CLOSE_DISC } from "@/components/ui-domain/close-disc";
 import { SetBadge } from "@/components/ui-domain/set-badge";
+import { atVariantWidth, VARIANT_WIDTHS } from "@/lib/asset-variants";
 import type { CartLayer, CartLine } from "@/lib/cart/cart";
 import { cn } from "@/lib/utils";
 
@@ -15,8 +16,10 @@ export type LineLightboxSlide = "ceramic" | "palette";
  * «The ceramic» needs `plateImage`; «With your palette» needs at least one
  * layer (an unpainted line has none — `unpaint()` clears them to `undefined`,
  * and neither does a line saved before F19). Never a slide with nothing to
- * show it (mockup-lightbox.md) — a caller renders the switcher at all only
- * when this returns 2 entries.
+ * show it (mockup-lightbox.md). R5-POLISH-STEP23: there is no switcher any
+ * more — the basket uses this to decide whether the thumb opens anything at
+ * all, and the dialog to pick WHICH single view it opens on (the photo when
+ * there is one, the composite when there is not).
  */
 export function lineLightboxSlides(
   line: Pick<CartLine, "plateImage" | "layers">
@@ -79,7 +82,6 @@ export function LineLightbox({
   locale: "no" | "en";
   onOpenChange: (open: boolean) => void;
 }) {
-  const t = useTranslations("cart.lightbox");
   const tPhotos = useTranslations("configurator.photos");
   const open = line !== null;
 
@@ -103,7 +105,6 @@ export function LineLightbox({
 
   if (!shown) return null;
 
-  const slides = lineLightboxSlides(shown);
   const title = locale === "no" ? shown.productNameNo : shown.productNameEn;
   const sizeLabel = locale === "no" ? shown.sizeLabelNo : shown.sizeLabelEn;
   const isSet = (shown.pieces ?? 1) > 1;
@@ -128,84 +129,73 @@ export function LineLightbox({
             trigger.current.focus();
           }
         }}
-        className="top-0 left-0 flex h-dvh max-w-none! translate-x-0 translate-y-0 flex-col gap-0 rounded-none bg-ink/92 px-4 py-3 ring-0 sm:max-w-none!"
+        // Same scrim as the buy sheet — one modal language on this step.
+        overlayClassName="bg-foreground/70 supports-backdrop-filter:backdrop-blur-none"
+        className={cn(
+          // R5-POLISH-STEP23 T3 round 2 (TL, 22/9: «la stessa modale con lo
+          // stesso stile di quando apriamo per comprare»): this IS the
+          // `ProductSheet` shell — bottom sheet on a phone, centred dialog
+          // from `sm`, light surface — instead of the old full-screen ink
+          // sheet. Narrower than the sheet (560 vs 860) because there is one
+          // column here, not two: a ~520px square is what the plate needs.
+          "top-auto bottom-0 left-1/2 w-full max-w-none! -translate-x-1/2 translate-y-0",
+          "max-h-[88dvh] overflow-y-auto rounded-t-lg rounded-b-none",
+          "px-4 pt-[26px] pb-[calc(14px+env(safe-area-inset-bottom))]",
+          "shadow-[0_12px_40px_color-mix(in_oklab,var(--foreground)_28%,transparent)]",
+          "sm:top-1/2 sm:bottom-auto sm:max-h-[90vh] sm:w-[min(560px,96vw)] sm:max-w-none!",
+          "sm:-translate-y-1/2 sm:rounded-lg sm:p-5"
+        )}
       >
-        <DialogTitle className="sr-only">{title}</DialogTitle>
+        <button
+          type="button"
+          onClick={() => onOpenChange(false)}
+          // Reuse — brief instruction: `configurator.photos.closePhoto`
+          // already says exactly this, no synonym needed.
+          aria-label={tPhotos("closePhoto")}
+          data-testid="line-lightbox-close"
+          className={cn("absolute top-2.5 right-3 z-2", CLOSE_DISC)}
+        >
+          ✕
+        </button>
 
-        <div className="flex items-center gap-2 text-ink-foreground">
-          <b className="min-w-0 truncate text-[14px]">{title}</b>
-          <button
-            type="button"
-            onClick={() => onOpenChange(false)}
-            // Reuse — brief instruction: `configurator.photos.closePhoto`
-            // already says exactly this, no synonym needed.
-            aria-label={tPhotos("closePhoto")}
-            data-testid="line-lightbox-close"
-            className={cn("ml-auto", CLOSE_DISC)}
-          >
-            ✕
-          </button>
-        </div>
+        {/* The dialog's accessible name IS the product name, same as the
+            buy sheet — no `sr-only` twin for the screen reader to read twice. */}
+        <DialogTitle className="pr-12 text-lg leading-snug font-semibold">{title}</DialogTitle>
+        {(sizeLabel || isSet) && (
+          <p className="mt-0.5 flex items-center gap-1.5 text-xs text-foreground">
+            {sizeLabel}
+            <SetBadge count={shown.pieces ?? 1} />
+          </p>
+        )}
 
-        <div className="my-3 grid min-h-0 flex-1 place-items-center overflow-hidden rounded-lg bg-[var(--mk-canvas)] p-4">
+        {/* The frame of the buy sheet's own photo (`product-sheet.tsx:202`):
+            square, `--muted`, hairline border. `object-contain`, not `cover`:
+            here the whole plate is the point. */}
+        <div className="relative mt-3 grid aspect-square place-items-center overflow-hidden rounded-sm border border-border bg-muted p-4">
           {active === "ceramic" && shown.plateImage && (
             // eslint-disable-next-line @next/next/no-img-element -- chosen ceramic photo from storage
-            <img src={shown.plateImage} alt="" className="max-h-full max-w-full object-contain" />
+            <img
+              // TL, 22/9: «almeno 512». The cart baked this URL at the 48px
+              // thumb width; the class width (1024) is the one the buy sheet
+              // and this dialog display, and it is pre-generated.
+              src={atVariantWidth(shown.plateImage, VARIANT_WIDTHS.products)}
+              alt=""
+              className="max-h-full max-w-full object-contain"
+            />
           )}
           {active === "palette" && shown.layers && shown.layers.length > 0 && (
-            <div className="relative aspect-square max-h-full w-full max-w-[320px]">
+            <div className="relative aspect-square size-full">
               <CompositeStack layers={shown.layers} />
             </div>
           )}
         </div>
 
-        {slides.length > 1 && (
-          <div className="flex shrink-0 gap-2">
-            {slides.map((slide) => (
-              <button
-                key={slide}
-                type="button"
-                data-testid={`line-lightbox-slide-${slide}`}
-                onClick={() => setActive(slide)}
-                aria-pressed={active === slide}
-                className={cn(
-                  "flex-1 rounded-md border-2 p-1",
-                  active === slide ? "border-ink-foreground/80" : "border-ink-foreground/25"
-                )}
-              >
-                <span className="relative block h-12 overflow-hidden rounded bg-muted">
-                  {slide === "ceramic"
-                    ? shown.plateImage && (
-                        // eslint-disable-next-line @next/next/no-img-element -- chosen ceramic photo from storage
-                        <img
-                          src={shown.plateImage}
-                          alt=""
-                          className="absolute inset-[6%] size-[88%] object-contain"
-                        />
-                      )
-                    : shown.layers && <CompositeStack layers={shown.layers} className="inset-[6%] size-[88%]" />}
-                </span>
-                <span
-                  className={cn(
-                    "mt-0.5 block text-[10.5px]",
-                    active === slide ? "text-ink-foreground" : "text-ink-foreground/70"
-                  )}
-                >
-                  {/* TODO:nb-review — cart.lightbox.ceramic / .withPalette NO
-                      copy is new, unreviewed. */}
-                  {slide === "ceramic" ? t("ceramic") : t("withPalette")}
-                </span>
-              </button>
-            ))}
-          </div>
-        )}
-
-        {(sizeLabel || isSet) && (
-          <p className="mt-2 flex shrink-0 items-center justify-center gap-1.5 text-center text-[11.5px] text-ink-foreground/70">
-            {sizeLabel}
-            <SetBadge count={shown.pieces ?? 1} />
-          </p>
-        )}
+        {/* R5-POLISH-STEP23 (TL, 22/9): nothing under the photo. The slide
+            switcher went first, then the buy sheet's «This ceramic + your
+            design» strip that had replaced it — «si vede solo il piatto e
+            l'header, bottom pulito». A line with no photo still opens on its
+            composite above: that is the `slides` fallback, not a second view.
+            The design a line carries is on the basket row itself. */}
       </DialogContent>
     </Dialog>
   );

@@ -15,7 +15,7 @@ import { designWithCode, ceramicCards } from "./helpers";
 let step3 = "";
 test.beforeAll(async () => {
   const design = await designWithCode();
-  step3 = `/no/configurator?design=${design.slug}&step=3`;
+  step3 = `/no/configurator?design=${design.slug}&step=3&admin=1`;
 });
 
 const ceramics = (page: Page) => ceramicCards(page);
@@ -108,12 +108,10 @@ test("AC1/AC2/AC5: share 2 rows → clean context lands at step 3 → expand →
   );
   expect(await detail.locator("img").count()).toBeGreaterThan(0);
 
-  // Task 18 — «Edit design» now lives on the drawer's recap only; reopen the
-  // design from there instead (same idiom as cart.spec.ts's "R2-D" test).
-  await page.getByTestId("cart-button").click();
-  const drawer = page.getByTestId("cart-drawer");
-  await drawer.getByTestId("cart-expand").first().click();
-  await drawer.getByTestId("cart-line-detail").getByTestId("cart-edit-design").click();
+  // R5-POLISH-STEP23: «Edit design» is gone with the drawer's code foot, and
+  // the Back pill is gone from step 3's bar — the stepper is THE way back to
+  // step 2 now, at every width (same control configurator.spec.ts uses).
+  await page.getByTestId("step-2").click();
   await page.getByTestId("details-step").waitFor();
   // R3-D: the code bar is gone — the round-trip is verified via the URL the
   // ?code= decode rebuilds (design slug + opt_ params), not a rendered code.

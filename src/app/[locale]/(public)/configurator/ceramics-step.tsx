@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
 import { usePathname, useRouter } from "@/i18n/navigation";
-import { Stepper } from "@/components/ui-domain/stepper";
+import { Stepper, STEP_NAV_STICKY } from "@/components/ui-domain/stepper";
 import { PaletteCard } from "@/components/ui-domain/palette-card";
 import { PaletteChip } from "@/components/ui-domain/palette-chip";
 import { PaintingStrip } from "@/components/ui-domain/painting-strip";
@@ -46,7 +46,7 @@ import {
 } from "@/lib/catalog/product-attributes";
 import { groupBySeries } from "@/lib/configurator/product-series";
 import { buildDesignSwitchParams } from "@/lib/configurator/design-switch-params";
-import { ShoppingBag, Truck, Plus, ArrowUpRight, Brush } from "lucide-react";
+import { ShoppingBag, Truck, ArrowUpRight, Brush } from "lucide-react";
 import type { ResolvedSharedSet } from "./resolve-shared-set";
 import { ProductSheet } from "@/components/ui-domain/product-sheet";
 import { AddedSheet } from "@/components/ui-domain/added-sheet";
@@ -213,13 +213,13 @@ export function CeramicsStep({
   // TODO:nb-review NO copy: step3.seriesCount · stickyBar.pieces · stickyBar.unpainted
   const tc = useTranslations("configurator");
   const to = useTranslations("order");
-  const ta = useTranslations("actions");
   const tPaletteBar = useTranslations("palettes.bar");
   const tPaletteCard = useTranslations("palettes.card");
   const locale = useLocale() as "no" | "en";
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const isAdmin = searchParams.get("admin") === "1"; // T2: share-set gate, see cartFooter
 
   const {
     cart,
@@ -429,6 +429,9 @@ export function CeramicsStep({
    * lead NEWEST FIRST (last created leftmost), the rest follow dimmed — a
    * filter + concat, not a stable sort, so the store order stays untouched.
    */
+  // R5-POLISH-STEP23 T2 (feedback 3): step 3 only PAINTS — no rename, no
+  // delete on these chips; both live at step 2 (and in the mobile sheet,
+  // which keeps its own wiring below). `renamingPaletteCode` stays for it.
   const paletteChips = sortLaneNewestFirst(palettes, design.slug).map((p) => {
     const dim = p.designSlug !== design.slug;
     if (dim) {
@@ -442,7 +445,6 @@ export function CeramicsStep({
           dim
           dimDesignName={designLabel(p.snapshot, locale) ?? p.designSlug}
           onSelect={() => paintWith(p.code)}
-          onDelete={() => deletePalette(p.code)}
         />
       );
     }
@@ -463,15 +465,7 @@ export function CeramicsStep({
         layers={p.layers}
         active={isActive}
         brush={isActive}
-        renaming={renamingPaletteCode === p.code}
         onSelect={() => paintWith(p.code)}
-        onRenameStart={() => setRenamingPaletteCode(p.code)}
-        onRenameConfirm={(next) => {
-          renamePalette(p.code, next);
-          setRenamingPaletteCode(null);
-        }}
-        onRenameCancel={() => setRenamingPaletteCode(null)}
-        onDelete={() => deletePalette(p.code)}
       />
     );
   });
@@ -1090,42 +1084,26 @@ export function CeramicsStep({
   // are handed to `<Basket>` as a slot rather than moved into it.
   const cartFooter = (
     <>
-      {/* R4-BTN-SCALE AC4: le due azioni basse sono un GRUPPO, non
-          due pari del primario. Wrapper `gap-2` dentro il `gap-3`
-          dello stack → ritmo a due livelli: 12px staccano «Bestill»,
-          8px tengono insieme queste due. Taglia `sm` (mockup
-          vincolante): il primario resta 72px contro i loro ~51, cioè
-          1,4× — la gerarchia si legge anche in bianco e nero, non
-          solo dal colore. */}
       <div className="flex flex-col gap-2">
-        <NextStepPill
-          variant="secondary"
-          size="sm"
-          data-testid="new-design-cta"
-          className="w-full"
-          label={ta("newDesign")}
-          icon={
-            <PillIcon variant="secondary">
-              <Plus className="size-5 text-primary/60" />
-            </PillIcon>
-          }
-          onClick={() => goToStep(1)}
-        />
-        {/* CA-3: share in coda — gesto leggero, quindi la variante
-            più tenue della scala. */}
-        <NextStepPill
-          variant="tertiary"
-          size="sm"
-          data-testid="share-set"
-          className="w-full"
-          label={t("share.button")}
-          icon={
-            <PillIcon variant="tertiary">
-              <ArrowUpRight className="size-5 text-muted-foreground" />
-            </PillIcon>
-          }
-          onClick={() => shareSet(false)}
-        />
+        {/* R5-POLISH-STEP23 T2 (feedback 5): share is an ADMIN tool until
+            R5-KIT-SHARE gives it its own dialog. `?admin=1` is the gate the
+            R5 plan names for that card (§3 #4); it adds sessionStorage
+            persistence, this only reads the URL. ACCEPTANCE §8 stays green
+            through `share-set.spec.ts` (`&admin=1`). */}
+        {isAdmin && (
+          <NextStepPill
+            variant="tertiary"
+            data-testid="share-set"
+            className="w-full"
+            label={t("share.button")}
+            icon={
+              <PillIcon variant="tertiary">
+                <ArrowUpRight className="size-5 text-muted-foreground" />
+              </PillIcon>
+            }
+            onClick={() => shareSet(false)}
+          />
+        )}
       </div>
       {/* share feedback: announced, link visible (frame 1) */}
       <div aria-live="polite">
@@ -1380,7 +1358,7 @@ export function CeramicsStep({
             </PillIcon>
           ) : (
             <PillIcon>
-              <Truck className="size-5 text-primary" />
+              <Truck className="size-5 text-primary-foreground" />
             </PillIcon>
           )
         }
@@ -1412,18 +1390,21 @@ export function CeramicsStep({
           in-flow siblings, no sticky/z-index of their own to collide with. */}
       {paintingStrip}
 
-      {/* F21: nav cluster — stepper always; Back active; Next disabled at step 3 */}
-      <div className="mb-4 flex items-center gap-2" data-testid="step-nav">
-        <Button
-          variant="outline"
-          size="lg"
-          data-testid="back-step"
-          className="min-h-11 shrink-0 max-md:hidden"
-          onClick={() => goToStep(2)}
-          aria-label={tc("back")}
-        >
-          ‹ {tc("back")}
-        </Button>
+      {/* F21 nav cluster. R5-POLISH-STEP23 (TL, 22/9): the Back pill is GONE
+          and the cluster is the stepper alone, exactly like steps 1-2 — with
+          Back inline the stepper started further right and the bar visibly
+          jumped between step 2 and step 3. The way back is the stepper
+          itself (`onStepSelect`), which is the control that works at every
+          width. Wrapper recipe: `STEP_NAV_STICKY`, shared with steps 1-2.
+
+          THE BAND MATH (measured at 1280, move both together):
+            12px `pt-3` + 44px of stepper + 12px `pb-3` = 68px of pinned band
+            → the heading block pins at `top-[67px]`, one pixel INTO the band
+              rather than below it: a gap of even 1px reads as a hairline,
+              because what scrolls behind is the white product cards.
+            → the rail pins at `top-[131px]` = 67 + the 64.5px of kicker+h2.
+            Measured at 1280; the bar lost 7px when the Back pill went. */}
+      <div className={STEP_NAV_STICKY} data-testid="step-nav">
         <Stepper
           ariaLabel={tc("stepperLabel")}
           current={2}
@@ -1529,13 +1510,37 @@ export function CeramicsStep({
         <div className="flex min-w-0 flex-col">
           {/* R5-PALETTE-IN-ACTION T2 (TL review 21/9, fix overlap): kicker +
               heading + palette card form ONE sticky block on desktop
-              (`md:sticky md:top-0`, opaque `bg-background`). Before, only the
+              (`md:sticky`, opaque `bg-background`). Before, only the
               card was sticky (`top-4`): the catalog slid through the 16px gap
               above it and reappeared "on top", and the heading scrolled away.
               Now the plates slide UNDER one solid surface and the heading
               stays visible. On mobile the block is static in flow and the
-              card stays hidden (mobile keeps its own `paintingStrip`). */}
-          <div className="md:sticky md:top-0 md:z-20 md:-mx-1 md:bg-background md:px-1 md:pb-3">
+              card stays hidden (mobile keeps its own `paintingStrip`).
+              R5-POLISH-STEP23: `top-[67px]`, not `top-0` — the step bar pins
+              above it (68px band, arithmetic at the cluster) and this block
+              tucks 1px under it.
+              `bg-background` came off on the TL's word and went straight back
+              on (TL, 22/9: «attenzione step3 non sparisce sotto sticky ma si
+              vede»): transparent, the plates scroll OVER the heading.
+
+              `-mx-3/px-3`, was `-mx-1/px-1` — and THIS is the faint vertical
+              edge the TL kept seeing on both sides of the block («è un
+              discorso di bordi?»). It never was a colour: the band is the
+              same `--background` token `body` is painted with. The product
+              cards carry `--shadow-card` (`0 2px 10px`), which bleeds ~5px
+              PAST the column on each side; the band only overhung 4px, so a
+              1-2px ribbon of that shadow stayed visible beside the band for
+              its whole height and read as a container edge. 12px of overhang
+              swallows the bleed and still clears the 28px column gap.
+              No `pb` any more (TL, 22/9): the padding made the opaque band
+              overshoot the card by 12px, so the plates were cut by a bare
+              rose rectangle instead of disappearing under the white card —
+              it read as a container edge. The band now ends exactly at the
+              card's bottom border; the 12px of resting air moved to the
+              catalogue's own `md:mt-3` below, where it scrolls away like
+              any other in-flow spacing. The card's rounded corners still
+              sit ON this background, so nothing peeks through them. */}
+          <div className="md:sticky md:top-[67px] md:z-20 md:-mx-3 md:bg-background md:px-3">
             <p className="text-[11px] uppercase tracking-[0.06em] text-muted-foreground">
               {tc("stepIndicator", { step: 3 })}
             </p>
@@ -1574,7 +1579,11 @@ export function CeramicsStep({
 
           {/* §3.18: one section per series, 22px apart; 2 cols / gap-2.5 under
               960px, 3 cols / gap-3 from 960px. */}
-          <div className="flex flex-col gap-[22px]" data-testid="ceramics-grid">
+          {/* R5-POLISH-STEP23: `md:mt-3` is the 12px the sticky block above
+              used to carry as `pb-3`. In flow it looks the same at rest, but
+              it scrolls: the plates now reach the card's bottom border and
+              vanish under IT, not under a bare strip of page colour. */}
+          <div className="flex flex-col gap-[22px] md:mt-3" data-testid="ceramics-grid">
             {sections.map((s) => (
               <section key={s.label ?? "__ungrouped"} data-testid="ceramics-series">
                 {s.label && (
@@ -1611,9 +1620,16 @@ export function CeramicsStep({
             sticky has nothing to slide under — the card pins in the LEFT
             column (`top-4`), the rail in the RIGHT, and the two columns never
             overlap. Back to plain `top-4` with the original 1rem breathing
-            room. */}
+            room.
+            R5-POLISH-STEP23 T2 (feedback 2+7): the rail pins level with the
+            palette card, so the two top borders line up. The LEFT block pins
+            at 74px (band math at the nav cluster) and its kicker+h2 measure
+            64.5px, so the card's top edge lands at 138.5px: `top-[138px]`,
+            half a pixel out and invisible. Measured at 1280 — move it with
+            the other two. Surface = palette-card.tsx:71 verbatim (white
+            canvas, primary/20 border). */}
         <div
-          className="hidden min-w-0 rounded-sm border border-border bg-card p-5 lg:mt-16 lg:block lg:sticky lg:top-4 lg:self-start"
+          className="hidden min-w-0 rounded-lg border border-primary/20 bg-[var(--mk-canvas)] p-4 lg:mt-16 lg:block lg:sticky lg:top-[131px] lg:self-start"
           data-testid="docked-cart-panel"
         >
           {cartPanel}

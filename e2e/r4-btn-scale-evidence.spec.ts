@@ -99,16 +99,14 @@ for (const locale of LOCALES) {
       measures[k("back")] = await heightOf(page, "back-step");
       measures[k("next")] = await heightOf(page, "next-step");
       if (w < 768) {
-        // Sotto md la caption di `next-step` NON è una caption: è l'etichetta
-        // visibile del mockup .navB, 15px semibold, e il call-site la
-        // sovrascrive apposta sopra i 10px della ricetta `sm`. Quella
-        // precedenza regge sull'ordine delle classi in `className` e sulla
-        // semantica di tailwind-merge: due cose che un riordino futuro può
-        // rompere senza che si veda a occhio. Si misura il CALCOLATO, non le
-        // classi — le classi possono essere tutte presenti e perdere lo
-        // stesso.
-        measures[k("nextCaptionPx")] = await vis(page, "next-step")
-          .locator("[data-pill-caption]")
+        // R5-POLISH-STEP23 (TL, 22/9: «il copy deve essere pick your
+        // ceramics»): sotto md il visibile è l'ETICHETTA, non più la caption
+        // promossa del mockup .navB — la caption («Next step») è `sr-only`.
+        // Si misura il CALCOLATO e non le classi, per la stessa ragione di
+        // prima: la ricetta `sm` porta l'etichetta a 14px e un riordino di
+        // `className` può cambiarla senza che si veda a occhio.
+        measures[k("nextLabelPx")] = await vis(page, "next-step")
+          .locator("[data-pill-label]")
           .evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
       }
       await page.screenshot({
@@ -132,16 +130,9 @@ for (const locale of LOCALES) {
       if (w >= 1024) {
         await vis(page, "docked-checkout").scrollIntoViewIfNeeded();
         const c = await boxOf(page, "docked-checkout");
-        const n = await boxOf(page, "new-design-cta");
-        const s = await boxOf(page, "share-set");
         measures[k("checkout")] = Math.round(c.height);
-        measures[k("newDesign")] = Math.round(n.height);
-        measures[k("share")] = Math.round(s.height);
-        // Lo "stack" della card = dal bordo alto del primario al bordo basso
-        // dell'ultima pillola, gap compresi (237px = 72+12+71+12+70).
-        measures[k("stack")] = Math.round(s.y + s.height - c.y);
-        measures[k("gapPrimary")] = Math.round(n.y - (c.y + c.height));
-        measures[k("gapLow")] = Math.round(s.y - (n.y + n.height));
+        // R5-POLISH-STEP23: new-design-cta e share-set rimossi dallo stack
+        // (share solo con `?admin=1`) — resta l'altezza del primario.
       }
       await page.screenshot({
         path: `${OUT}/step3-${locale}-${w}.png`,
@@ -170,33 +161,20 @@ for (const locale of LOCALES) {
       persist(measures);
 
       // ── AC3: il touch target è il <button>, non il disco ────────────────
-      // `new-design-cta`/`share-set` vivono nella colonna, quindi si misurano
-      // solo da `lg` (v. sopra); la riga nav dello step 2 resta sotto md.
-      const smPills = [
-        ...(w >= 1024 ? ["new-design-cta", "share-set"] : []),
-        ...(w < 768 ? ["back-step", "next-step"] : []),
-      ];
+      // R5-POLISH-STEP23: le due pillole basse non esistono più — resta la
+      // riga nav dello step 2, che si misura sotto md.
+      const smPills = w < 768 ? ["back-step", "next-step"] : [];
       for (const id of smPills) {
-        const key = { "new-design-cta": "newDesign", "share-set": "share",
-          "back-step": "back", "next-step": "next" }[id]!;
+        const key = { "back-step": "back", "next-step": "next" }[id]!;
         expect(
           measures[k(key)],
           `AC3: ${id} @${w} ${locale} sotto i 44px di touch target`
         ).toBeGreaterThanOrEqual(44);
       }
 
-      // ── AC4: ingombro e gerarchia dello stack (colonna → da `lg`) ───────
-      if (w >= 1024) {
-        expect(
-          measures[k("stack")],
-          `AC4: stack @${w} ${locale} oltre 195px`
-        ).toBeLessThanOrEqual(195);
-        expect(
-          measures[k("checkout")] /
-            Math.max(measures[k("newDesign")], measures[k("share")]),
-          `AC4: il primario @${w} ${locale} non domina (rapporto < 1,4)`
-        ).toBeGreaterThanOrEqual(1.4);
-      }
+      // ── AC4: R5-POLISH-STEP23 — lo stack è una pillola sola (le due basse
+      // sono state rimosse), quindi ingombro e rapporto non hanno più due
+      // termini da confrontare: le asserzioni sono cadute con le pillole.
 
       // ── AC5: la riga nav sotto md ──────────────────────────────────────
       if (w < 768) {
@@ -204,14 +182,13 @@ for (const locale of LOCALES) {
           measures[k("nav")],
           `AC5: step-nav-flow @${w} ${locale} oltre 72px`
         ).toBeLessThanOrEqual(72);
-        // Vale in ENTRAMBE le fasi: oggi la caption è già 15px e deve
-        // restarci. Un rosso qui nel giro `after` significa che la ricetta
-        // `sm` ha scavalcato l'override del call-site — cioè che l'ordine in
-        // `className` è stato invertito.
+        // L'etichetta è ciò che il cliente legge sul bottone: deve esserci e
+        // avere la taglia della ricetta `sm` (14px). Un rosso qui significa
+        // che qualcuno l'ha rinascosta o le ha cambiato scala sotto md.
         expect(
-          measures[k("nextCaptionPx")],
-          `mockup .navB: la caption di next-step @${w} ${locale} deve restare 15px`
-        ).toBe(15);
+          measures[k("nextLabelPx")],
+          `next-step @${w} ${locale}: l'etichetta visibile deve restare 14px`
+        ).toBe(14);
       }
 
       // ── AC6 + AC7 contro i numeri del giro `before` ────────────────────
@@ -255,7 +232,8 @@ for (const locale of LOCALES) {
         ).toBe(false);
       }
 
-      // R5-BASKET-HOST PR 2: `docked-checkout`, `new-design-cta` e `share-set`
+      // R5-BASKET-HOST PR 2: `docked-checkout` (e, prima di
+      // R5-POLISH-STEP23, `new-design-cta` e `share-set`)
       // stanno nella colonna dello step 3, che si renderizza solo da `lg`.
       // Tutte e tre le LABEL_WIDTHS sono sotto — `:visible` non troverebbe
       // niente e i sei test si pianterebbero per 30s. Un `if (w >= 1024)` qui

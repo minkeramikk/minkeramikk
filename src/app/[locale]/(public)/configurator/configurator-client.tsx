@@ -25,12 +25,11 @@ import {
   nearestScrollLeft,
 } from "@/lib/configurator/lane-scroll";
 import { PreviewCanvas } from "@/components/ui-domain/preview-canvas";
-import { Stepper } from "@/components/ui-domain/stepper";
+import { Stepper, STEP_NAV_STICKY } from "@/components/ui-domain/stepper";
 import { Swatch } from "@/components/ui-domain/swatch";
 import {
   NextStepPill,
   PillIcon,
-  PILL_SM_UNDER_MD,
 } from "@/components/ui-domain/next-step-pill";
 import { ChevronLeft, Circle } from "lucide-react";
 import { assetUrl } from "@/lib/storage";
@@ -181,15 +180,12 @@ function keepClearOfKeyboard(field: HTMLElement) {
 export function ConfiguratorClient({
   designs,
   detailsBySlug,
-  ceramicThumbs = {},
   featuredSlot = null,
   paletteWords,
   productCounts = {},
 }: {
   designs: DesignChoice[];
   detailsBySlug: Record<string, DesignDetail>;
-  /** supplierId → fino a 3 foto di ceramica per l'icona della pillola step 2. */
-  ceramicThumbs?: Record<string, string[]>;
   /** F28: server-rendered featured strip — step 1 only, between stepper and grid. */
   featuredSlot?: React.ReactNode;
   /**
@@ -602,8 +598,6 @@ export function ConfiguratorClient({
     "#cf7b6b",
     "#9bb7d4",
   ];
-  /** Foto ceramica del fornitore del design scelto — icona della pillola step 2. */
-  const ceramics = ceramicThumbs[selected.supplierId] ?? [];
   // ── F15 / QA#3: keep the live preview visible while the option list scrolls ──
   // Desktop: the preview column is sticky (CSS only, md:sticky). Mobile: it scrolls
   // normally with the content. The old mobile collapse-to-thumbnail (zero-height
@@ -1324,7 +1318,9 @@ export function ConfiguratorClient({
           a bar floating over scrolling content; here the panel IS the surface
           and the row is its last, always-visible element (mockup .navB). */}
       <div
-        className={cn("mb-4", step === 2 && "max-md:mb-3")}
+        // R5-POLISH-STEP23 (TL, 22/9): same bar, same spacing, same scroll
+        // behaviour as step 3 — one recipe, `STEP_NAV_STICKY`.
+        className={cn(STEP_NAV_STICKY, step === 2 && "max-md:mb-3")}
         data-testid="step-nav"
       >
         <Stepper
@@ -1471,7 +1467,12 @@ export function ConfiguratorClient({
             // has nothing to park under — back to plain `top-4` like step 1
             // (same fix as T2's `docked-cart-panel` rail).
             "z-30 flex min-w-0 flex-col gap-3 md:sticky md:self-start",
-            "md:top-4",
+            // R5-POLISH-STEP23 (TL, 22/9: «lo sticky di step1 e step2 taglia
+            // un poco il box del disegno, che è la cosa più importante»):
+            // 84px, not 16 — the step bar pins above with a 68px band
+            // (STEP_NAV_STICKY), so the canvas stops 16px BELOW it and keeps
+            // exactly the breathing room `top-4` used to give it.
+            "md:top-[84px]",
             // CA-7 (variant B): design-first on mobile step 1 — the hero is
             // hidden entirely (the design cards double as the preview). It stays
             // MOUNTED (display:none only) so the same PreviewCanvas instance
@@ -2253,7 +2254,6 @@ export function ConfiguratorClient({
                 // nessuna classe, quindi la riga affiancata/impilata da md in
                 // su è quella di oggi pixel per pixel (AC6).
                 className={cn(
-                  PILL_SM_UNDER_MD,
                   "justify-center [&>span]:flex-none md:@md:shrink-0 md:@md:justify-start max-md:shrink-0"
                 )}
                 label={t("back")}
@@ -2277,74 +2277,33 @@ export function ConfiguratorClient({
                 // margine sul caso peggiore. Comprimere, non troncare.
                 // R4-STEP2 / AC10: affiancato al Back sotto md il Next ha
                 // ~190px a 360 — con caption, etichetta lunga e tre foto
-                // «Choose ceramics» si troncava (misurato in Chromium: EN@360
-                // labelClipped=true). Nell'editor la pillola diventa quella del
-                // mockup (.navB): SOLO «Neste steg ›». Quindi sotto md sparisce
-                // VISIVAMENTE l'ETICHETTA lunga (`data-pill-label`) e resta la
-                // CAPTION, che prende la taglia da CTA (15px semibold, niente
-                // maiuscoletto).
-                // Ruling finale (rivede quello precedente): `sr-only`, non
-                // `hidden` — così il nome accessibile resta «Choose ceramics»/
-                // «Velg keramikk» (la destinazione vera) invece di ridursi a
-                // «Next step». `sr-only` è `position:absolute`: come `hidden`
-                // non occupa larghezza né genera gap nel flex, quindi il costo
-                // visivo è zero. Da md in su non cambia nulla: caption sopra,
-                // etichetta lunga sotto, foto, freccetta.
+                // «Choose ceramics» si troncava. Da allora le foto sono
+                // sparite (R5-POLISH-STEP23) e la pillola è tutta la riga:
+                // lo spazio c'è.
+                // R5-POLISH-STEP23 (TL, 22/9): «il copy deve essere pick your
+                // ceramics». Quindi sotto md si nasconde la CAPTION («Next
+                // step», che non dice dove si va) e resta l'ETICHETTA, la
+                // destinazione vera — l'opposto della regola R4-STEP2, che il
+                // TL ha rovesciato. `sr-only` e non `hidden`: il nome
+                // accessibile resta «Next step · Pick your ceramics» e il
+                // costo visivo è zero (`position:absolute`).
+                // Se un giorno una lingua non ci sta, il rimedio è il copy
+                // corto («Pick ceramics», parole del TL), non il troncamento:
+                // l'etichetta ha già `truncate` come rete di sicurezza.
+                // Da md in su non cambia nulla: caption sopra, etichetta
+                // sotto, freccetta.
                 // Le varianti `@container` sono `md:`-prefissate: sotto md non
                 // competono più con queste.
-                // R4-BTN-SCALE AC5: `sm` SOLO sotto md. La ricetta va PRIMA
-                // degli override di questo call-site: `cn` tiene l'ultimo tra
-                // classi in conflitto, e qui sotto md la caption fa da
-                // etichetta e resta a 15px semibold (mockup .navB) — non deve
-                // scendere ai 10px della caption piccola.
                 className={cn(
-                  PILL_SM_UNDER_MD,
-                  "md:@max-md:gap-2.5 md:@max-md:p-2.5 md:@max-md:[&>span:last-child]:size-8 md:@md:flex-[1_1_16rem] max-md:flex-1 max-md:[&_[data-pill-label]]:sr-only max-md:[&_[data-pill-caption]]:text-[15px] max-md:[&_[data-pill-caption]]:font-semibold max-md:[&_[data-pill-caption]]:normal-case max-md:[&_[data-pill-caption]]:tracking-normal max-md:[&_[data-pill-caption]]:text-foreground"
+                  "md:@md:flex-[1_1_16rem] max-md:flex-1 max-md:[&_[data-pill-caption]]:sr-only max-md:[&_[data-pill-label]]:text-center"
                 )}
                 caption={t("teaser.nextStep")}
                 label={t("teaser.ceramics")}
                 arrow
                 icon={
-                  // Richiesta cliente 2026-07-21: foto REALI di ceramiche, tre
-                  // card quadrate affiancate (com'era il teaser CA-6), non
-                  // un'icona generica. Stessi asset delle miniature dello step 3
-                  // — nessun asset nuovo, nessuna query in più (cache catalogo).
-                  // size-9 (non size-11 come il cerchietto che sostituisce): tre
-                  // quadrati sono ~116px contro i 44 dell'icona singola, e a
-                  // 1280 come a 768 l'etichetta "Velg keramikk" si troncava.
-                  // L'etichetta del CTA primario non si tronca MAI (AC10).
-                  ceramics.length > 0 ? (
-                    <span
-                      className="flex shrink-0 gap-0.5 max-md:hidden @md:gap-1"
-                      aria-hidden
-                    >
-                      {ceramics.map((img) => (
-                        // eslint-disable-next-line @next/next/no-img-element -- catalog art from storage
-                        <img
-                          key={img}
-                          src={assetUrl(img)}
-                          alt=""
-                          loading="lazy"
-                          decoding="async"
-                          data-testid="next-step-ceramic-thumb"
-                          // AC13: a colonna stretta i quadrati scendono a 28px
-                          // (e il loro gap a 2px) — 16px restituiti
-                          // all'etichetta, che a 360 in inglese ne mancava 20.
-                          // Restano leggibili: sono decorativi (aria-hidden),
-                          // il touch target è tutta la pillola.
-                          className="size-7 rounded-sm border border-border bg-card object-contain @md:size-9"
-                        />
-                      ))}
-                    </span>
-                  ) : (
-                    // Fornitore senza foto prodotto: si ricade sull'icona neutra
-                    // invece di lasciare la pillola monca.
-                    // R4-STEP2: come le foto, il cerchietto di ripiego sparisce
-                    // sotto md — l'editor vuole la pillola nuda del mockup.
-                    <PillIcon className="max-md:hidden">
-                      <Circle className="size-5 fill-muted stroke-muted-foreground/50" />
-                    </PillIcon>
-                  )
+                  <PillIcon className="max-md:hidden">
+                    <Circle className="size-5 fill-primary-foreground/30 stroke-primary-foreground" />
+                  </PillIcon>
                 }
                 onMouseDown={keepFocusWhileTyping}
                 onClick={() => goToStep(3)}

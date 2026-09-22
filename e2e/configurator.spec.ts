@@ -478,13 +478,10 @@ test.describe("R2-3+R2-4 expandable card", () => {
         // the desktop "Ditt valg" box, and PR 3's mobile strip replaced the
         // old `your-selection-edit-mobile` control with nothing equivalent
         // (task 13's rewrite) — the `Stepper` (ceramics-step.tsx) is the one
-        // control that returns to step 2 at every width, so both branches
-        // now go through it: `step-2` on mobile, `back-step` on desktop.
-        if (isMobile) {
-          await page.getByTestId("step-2").click();
-        } else {
-          await page.getByTestId("back-step").click();
-        }
+        // control that returns to step 2 at every width. R5-POLISH-STEP23
+        // dropped step 3's Back pill (the bar is the stepper alone, like
+        // steps 1-2), so BOTH widths go through `step-2` now.
+        await page.getByTestId("step-2").click();
         await expect(page).toHaveURL(/step=2/);
       }
     } finally {

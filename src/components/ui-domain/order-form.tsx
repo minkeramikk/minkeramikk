@@ -326,7 +326,7 @@ export function OrderForm({
         disabled={status === "sending" || cart.length === 0 || !token}
         icon={
           <PillIcon>
-            <Truck className="size-5 text-primary" />
+            <Truck className="size-5 text-primary-foreground" />
           </PillIcon>
         }
       />
