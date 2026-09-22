@@ -257,7 +257,7 @@ export function CeramicsStep({
    */
   // (It used to be `rowThumb` that forced it up here; that moved to
   // `basket.tsx` in task 4 and these two kept it where it is.)
-  const designName = designLabel(snapshot, locale) ?? "";
+  const designName = designLabel(snapshot, locale) ?? design.name;
   const activePalette = paletteMatchingCode(
     palettes,
     configCode,
