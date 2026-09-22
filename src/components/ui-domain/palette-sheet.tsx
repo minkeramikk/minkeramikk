@@ -216,8 +216,12 @@ export function PaletteSheet({
 
           <div className="grid grid-cols-2 gap-1.5" data-testid="palette-sheet-grid">
             {sorted.map((p) => {
-              const dim = p.designSlug !== currentDesignSlug;
-              const active = !dim && p.code === activeCode;
+            const dim = p.designSlug !== currentDesignSlug;
+            // Not `!dim && …` like the bar's chip/pill: the sheet closes
+            // on pick, so this tile never lives to show the post-nav ring —
+            // but the rule stays the same anyway (a picked dim tile IS
+            // active), so a future keep-open change can't desync it.
+            const active = p.code === activeCode;
               return (
                 <PaletteTile
                   key={p.code}

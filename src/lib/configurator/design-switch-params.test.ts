@@ -67,9 +67,9 @@ describe("buildDesignSwitchParams", () => {
     expect(next.get("code")).not.toBeNull();
   });
 
-  it("same design (designSlug null) → only code is set, nothing else touched", () => {
+  it("same design (designSlug null) → only code is set, opt_ kept, text dropped (code carries it)", () => {
     const next = buildDesignSwitchParams(
-      at("design=text-design&opt_colors=colors-opt-b&step=2&note=wish"),
+      at("design=text-design&opt_colors=colors-opt-b&step=2&note=wish&text=old+words"),
       "MK-T-B",
       null
     );
@@ -77,5 +77,6 @@ describe("buildDesignSwitchParams", () => {
     expect(next.get("design")).toBe("text-design");
     expect(next.get("opt_colors")).toBe("colors-opt-b");
     expect(next.get("note")).toBe("wish");
+    expect(next.get("text")).toBeNull();
   });
 });

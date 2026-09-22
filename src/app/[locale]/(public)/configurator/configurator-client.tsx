@@ -915,7 +915,6 @@ export function ConfiguratorClient({
    * nothing — then `buildDesignSwitchParams` sets only `code=` and the effect
    * handles it exactly like before, so a tap never breaks over bad input.
    */
-
   /**
    * PR3 round 2 — the mobile palette sheet's «+ New»: resets the draft to
    * the DESIGN'S OWN DEFAULTS (`resolveSelections`'s fallback, same
