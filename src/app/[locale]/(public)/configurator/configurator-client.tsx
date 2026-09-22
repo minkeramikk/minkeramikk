@@ -2277,28 +2277,25 @@ export function ConfiguratorClient({
                 // margine sul caso peggiore. Comprimere, non troncare.
                 // R4-STEP2 / AC10: affiancato al Back sotto md il Next ha
                 // ~190px a 360 — con caption, etichetta lunga e tre foto
-                // «Choose ceramics» si troncava (misurato in Chromium: EN@360
-                // labelClipped=true). Nell'editor la pillola diventa quella del
-                // mockup (.navB): SOLO «Neste steg ›». Quindi sotto md sparisce
-                // VISIVAMENTE l'ETICHETTA lunga (`data-pill-label`) e resta la
-                // CAPTION, che prende la taglia da CTA (15px semibold, niente
-                // maiuscoletto).
-                // Ruling finale (rivede quello precedente): `sr-only`, non
-                // `hidden` — così il nome accessibile resta «Choose ceramics»/
-                // «Velg keramikk» (la destinazione vera) invece di ridursi a
-                // «Next step». `sr-only` è `position:absolute`: come `hidden`
-                // non occupa larghezza né genera gap nel flex, quindi il costo
-                // visivo è zero. Da md in su non cambia nulla: caption sopra,
-                // etichetta lunga sotto, foto, freccetta.
+                // «Choose ceramics» si troncava. Da allora le foto sono
+                // sparite (R5-POLISH-STEP23) e la pillola è tutta la riga:
+                // lo spazio c'è.
+                // R5-POLISH-STEP23 (TL, 22/9): «il copy deve essere pick your
+                // ceramics». Quindi sotto md si nasconde la CAPTION («Next
+                // step», che non dice dove si va) e resta l'ETICHETTA, la
+                // destinazione vera — l'opposto della regola R4-STEP2, che il
+                // TL ha rovesciato. `sr-only` e non `hidden`: il nome
+                // accessibile resta «Next step · Pick your ceramics» e il
+                // costo visivo è zero (`position:absolute`).
+                // Se un giorno una lingua non ci sta, il rimedio è il copy
+                // corto («Pick ceramics», parole del TL), non il troncamento:
+                // l'etichetta ha già `truncate` come rete di sicurezza.
+                // Da md in su non cambia nulla: caption sopra, etichetta
+                // sotto, freccetta.
                 // Le varianti `@container` sono `md:`-prefissate: sotto md non
                 // competono più con queste.
-                // R4-BTN-SCALE AC5: `sm` SOLO sotto md. La ricetta va PRIMA
-                // degli override di questo call-site: `cn` tiene l'ultimo tra
-                // classi in conflitto, e qui sotto md la caption fa da
-                // etichetta e resta a 15px semibold (mockup .navB) — non deve
-                // scendere ai 10px della caption piccola.
                 className={cn(
-                  "md:@md:flex-[1_1_16rem] max-md:flex-1 max-md:[&_[data-pill-label]]:sr-only max-md:[&_[data-pill-caption]]:text-center max-md:[&_[data-pill-caption]]:text-[15px] max-md:[&_[data-pill-caption]]:font-semibold max-md:[&_[data-pill-caption]]:normal-case max-md:[&_[data-pill-caption]]:tracking-normal max-md:[&_[data-pill-caption]]:text-foreground"
+                  "md:@md:flex-[1_1_16rem] max-md:flex-1 max-md:[&_[data-pill-caption]]:sr-only max-md:[&_[data-pill-label]]:text-center"
                 )}
                 caption={t("teaser.nextStep")}
                 label={t("teaser.ceramics")}

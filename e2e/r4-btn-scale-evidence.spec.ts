@@ -99,16 +99,14 @@ for (const locale of LOCALES) {
       measures[k("back")] = await heightOf(page, "back-step");
       measures[k("next")] = await heightOf(page, "next-step");
       if (w < 768) {
-        // Sotto md la caption di `next-step` NON è una caption: è l'etichetta
-        // visibile del mockup .navB, 15px semibold, e il call-site la
-        // sovrascrive apposta sopra i 10px della ricetta `sm`. Quella
-        // precedenza regge sull'ordine delle classi in `className` e sulla
-        // semantica di tailwind-merge: due cose che un riordino futuro può
-        // rompere senza che si veda a occhio. Si misura il CALCOLATO, non le
-        // classi — le classi possono essere tutte presenti e perdere lo
-        // stesso.
-        measures[k("nextCaptionPx")] = await vis(page, "next-step")
-          .locator("[data-pill-caption]")
+        // R5-POLISH-STEP23 (TL, 22/9: «il copy deve essere pick your
+        // ceramics»): sotto md il visibile è l'ETICHETTA, non più la caption
+        // promossa del mockup .navB — la caption («Next step») è `sr-only`.
+        // Si misura il CALCOLATO e non le classi, per la stessa ragione di
+        // prima: la ricetta `sm` porta l'etichetta a 14px e un riordino di
+        // `className` può cambiarla senza che si veda a occhio.
+        measures[k("nextLabelPx")] = await vis(page, "next-step")
+          .locator("[data-pill-label]")
           .evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
       }
       await page.screenshot({
@@ -184,14 +182,13 @@ for (const locale of LOCALES) {
           measures[k("nav")],
           `AC5: step-nav-flow @${w} ${locale} oltre 72px`
         ).toBeLessThanOrEqual(72);
-        // Vale in ENTRAMBE le fasi: oggi la caption è già 15px e deve
-        // restarci. Un rosso qui nel giro `after` significa che la ricetta
-        // `sm` ha scavalcato l'override del call-site — cioè che l'ordine in
-        // `className` è stato invertito.
+        // L'etichetta è ciò che il cliente legge sul bottone: deve esserci e
+        // avere la taglia della ricetta `sm` (14px). Un rosso qui significa
+        // che qualcuno l'ha rinascosta o le ha cambiato scala sotto md.
         expect(
-          measures[k("nextCaptionPx")],
-          `mockup .navB: la caption di next-step @${w} ${locale} deve restare 15px`
-        ).toBe(15);
+          measures[k("nextLabelPx")],
+          `next-step @${w} ${locale}: l'etichetta visibile deve restare 14px`
+        ).toBe(14);
       }
 
       // ── AC6 + AC7 contro i numeri del giro `before` ────────────────────
