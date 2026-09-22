@@ -164,7 +164,8 @@
     "designSwitch": {
       "label": "Design",
       "covers": "{count, plural, one {dekker # keramikk} other {dekker # keramikk}}",
-      "sheetTitle": "Velg design"
+      "sheetTitle": "Velg design",
+      "loaderAlt": "Laster {design}-design"
     },
     "ladder": {
       "title": "Kjøp flere – spar mer",

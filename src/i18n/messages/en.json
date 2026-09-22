@@ -165,7 +165,8 @@
     "designSwitch": {
       "label": "Design",
       "covers": "{count, plural, one {covers # ceramic} other {covers # ceramics}}",
-      "sheetTitle": "Choose design"
+      "sheetTitle": "Choose design",
+      "loaderAlt": "Loading {design} design"
     },
     "ladder": {
       "title": "Buy more – save more",

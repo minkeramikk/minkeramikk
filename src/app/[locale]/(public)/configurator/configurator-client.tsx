@@ -1449,12 +1449,15 @@ export function ConfiguratorClient({
                 inspirasjonsside. `t.rich` rende il tag <link> del dizionario —
                 nessun HTML crudo nei JSON. Nuova scheda: dal configuratore non
                 si esce mai. */}
+            {/* TODO:nb-review — configurator.designSwitch.loaderAlt NO copy is
+                new, unreviewed. */}
             <PreviewCanvas
-              alt={designName(selected)}
+              alt={t("designSwitch.loaderAlt", { design: designName(selected) })}
               caption={previewNote}
               className={cn(step === 2 && "max-md:contents")}
               layers={previewLayers}
               inscription={liveInscription}
+              designKey={selected.slug}
             />
             {/* R5-DESIGN-SWITCH T1 fix: il badge mobile deve ancorarsi al canvas
                 (mockup `:275`), non alla colonna: mount dentro `preview-sticky`

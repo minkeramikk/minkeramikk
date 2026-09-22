@@ -257,6 +257,16 @@ export function PreviewCanvas({
   alt,
   inscription,
   className,
+  /**
+   * R5-DESIGN-SWITCH T2: the design currently on screen (slug). The loader
+   * fires ONLY when THIS changes: a color tap keeps the same design, so it
+   * stays a plain fade. Absent (callers that never switch design) = never.
+   *
+   * Screen-reader copy for the loader (`role="status"`): the caller passes
+   * `configurator.designSwitch.loaderAlt` through `alt` already (its `alt`
+   * IS the design name — "Alici" IS the announcement), so no extra prop.
+   */
+  designKey,
 }: {
   layers: PreviewLayer[];
   /** Rich node, not just text: the configurator caption carries a link. */
@@ -268,6 +278,7 @@ export function PreviewCanvas({
    */
   inscription?: string;
   className?: string;
+  designKey?: string;
 }) {
   const targetKey = keyOf(layers);
 
@@ -281,12 +292,34 @@ export function PreviewCanvas({
     key: string;
     layers: PreviewLayer[];
   } | null>(null);
+  // R5-DESIGN-SWITCH T2: the layer key changed but the new art has not
+  // loaded yet → the whole-canvas spinning-plate overlay (data-testid
+  // "design-loader"). Only when the DESIGN changed (`designKey` prop), never
+  // on a color tap (same design, only recolors) — the fade below covers
+  // that, unchanged.
+  const [designLoading, setDesignLoading] = useState(false);
+  // Committed design identity (ref, not state: updating it must not
+  // re-trigger the transition effect below and re-run the preload).
+  // Initialized from the first render's `designKey` so a mount-then-decode
+  // (configurator lands with ?design= already in the URL) is not read as
+  // a switch away from nothing.
+  const committedDesign = useRef<string | undefined>(designKey);
   const [fadeIn, setFadeIn] = useState(false);
   const commitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // `PreviewCanvas` keeps ONE instance across steps (F14): the loading
+  // overlay is app state, so it clears on unmount — else a remount paints
+  // `designLoading` from a dead transition (stuck spinner on come-back).
+  useEffect(() => {
+    return () => setDesignLoading(false);
+    // mount/unmount only.
+  }, []);
 
   useEffect(() => {
     if (targetKey === shown.key) {
       setIncoming(null); // back to current set: drop any in-flight overlay
+      setDesignLoading(false);
+      if (designKey !== undefined) committedDesign.current = designKey;
       return;
     }
 
@@ -294,9 +327,18 @@ export function PreviewCanvas({
       typeof window !== "undefined" &&
       window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 
+    // Loader only on a DESIGN switch (never on a color tap, which keeps the
+    // same designKey and fades, unchanged). Reduced-motion → no loader and
+    // no animation at all: immediate swap once loaded.
+    const isDesignChange =
+      designKey !== undefined && designKey !== committedDesign.current;
+    if (isDesignChange && !reduce) setDesignLoading(true);
+
     let cancelled = false;
     preloadAll(layers).then(() => {
       if (cancelled) return;
+      setDesignLoading(false);
+      if (designKey !== undefined) committedDesign.current = designKey;
       if (reduce) {
         setShown({ key: targetKey, layers }); // immediate swap (AC4)
         setIncoming(null);
@@ -358,11 +400,33 @@ export function PreviewCanvas({
 
         {incoming && (
           <div
-            className="absolute inset-0 flex items-center justify-center transition-opacity"
+            className="absolute inset-0 flex items-center justify-center transition-opacity motion-reduce:transition-none"
             style={{ opacity: fadeIn ? 1 : 0, transitionDuration: `${FADE_MS}ms` }}
             data-testid="preview-incoming"
           >
             <LayerStack layers={incoming.layers} alt={alt} />
+          </div>
+        )}
+
+        {/* R5-DESIGN-SWITCH T2 — whole-canvas spinning-plate loader, only
+            while a DESIGN switch preloads (mockup-palettebar.html :57-59).
+            `role="status"` announces the switch; the design name (`alt`) IS
+            the announcement — no separate copy. Gated to motion-safe:
+            reduced-motion never renders it (immediate swap), and color taps
+            never trigger it (`designKey`, above). */}
+        {designLoading && (
+          <div
+            role="status"
+            data-testid="design-loader"
+            aria-label={alt}
+            className="absolute inset-0 z-10 flex items-center justify-center bg-[color-mix(in_oklab,var(--mk-canvas)_72%,transparent)]"
+          >
+            {/* `spinplate` = mockup class verbatim (globals.css, from
+                mockup-palettebar.html :57-59), incl. its own CSS
+                reduced-motion guard. */}
+            <div aria-hidden="true" className="spinplate h-[60%] w-[60%]">
+              <LayerStack layers={shown.layers} alt="" />
+            </div>
           </div>
         )}
 

@@ -101,6 +101,21 @@
   100% { transform: scale(1); }
 }
 
+/* R5-DESIGN-SWITCH T2: spinning-plate loader on design change — keyframes
+ * and class verbatim from mockup-palettebar.html :57-59 (mockup wins).
+ * Reduced-motion is ALSO JS-gated at the call site (no loader rendered),
+ * same double-guard pattern as `cart-pop` above. */
+@keyframes spinplate {
+  to { transform: rotate(360deg); }
+}
+.spinplate {
+  animation: spinplate 1.8s linear infinite;
+  transform-origin: 50% 50%;
+}
+@media (prefers-reduced-motion: reduce) {
+  .spinplate { animation: none; }
+}
+
 /*
  * minkeramikk theme (ADR 0008, docs/theme/DESIGN-SYSTEM.md).
  *
