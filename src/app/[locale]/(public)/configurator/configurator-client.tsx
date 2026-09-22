@@ -2117,25 +2117,17 @@ export function ConfiguratorClient({
               )}
             </div>
 
-            {/* R5-PALETTE-IN-ACTION T3: the SAME `PaletteCard` as step 3,
-                in-flow in the options column (mockup F3, NOT sticky) —
-                after colours + the Text field, before the nav row.
-                Desktop-only (`hidden md:block`); mobile keeps its own
-                `step2-palette-strip` below, untouched. Header: the card's
-                own eyebrow title + ONLY the de-emphasised `h-8` Save
-                (mockup r.88), gated on `canSaveDraft = !matchedPalette` —
-                no +New (card §Cosa cambia punto 2: every option change is
-                already a new draft). Chips (`leadPaletteChip` +
-                `otherPaletteChips`) and handlers
-                (`loadPalette`/`saveDraftAsPalette`) unchanged. */}
+            {/* R5-NEW-PALETTE: the SAME `PaletteCard` as step 3, in-flow in
+                the options column — after colours + the Text field, before
+                the nav row. Desktop-only (`hidden md:block`); mobile keeps
+                its own `step2-palette-strip` below, untouched. Header: the
+                card's own eyebrow title + ONLY the de-emphasised `h-8` Save,
+                gated on `canSaveDraft = !matchedPalette` — no +New (every
+                option change is already a new draft). */}
             <div className="hidden md:block">
               <PaletteCard
-                chips={
-                  <>
-                    {leadPaletteChip}
-                    {otherPaletteChips}
-                  </>
-                }
+                chips={[leadPaletteChip, ...otherPaletteChips]}
+                saved={palettes.length}
                 actions={
                   canSaveDraft && (
                     <button

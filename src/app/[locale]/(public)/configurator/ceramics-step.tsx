@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { usePathname, useRouter } from "@/i18n/navigation";
 import { Stepper, STEP_NAV_STICKY } from "@/components/ui-domain/stepper";
 import { PaletteCard } from "@/components/ui-domain/palette-card";
+import { paletteHexes } from "@/components/ui-domain/palette-card-model";
 import { PaletteChip } from "@/components/ui-domain/palette-chip";
 import { PaintingStrip } from "@/components/ui-domain/painting-strip";
 import { nameFor, paletteFor, sortLaneNewestFirst } from "@/lib/palettes/palettes";
@@ -214,7 +215,6 @@ export function CeramicsStep({
   const tc = useTranslations("configurator");
   const to = useTranslations("order");
   const tPaletteBar = useTranslations("palettes.bar");
-  const tPaletteCard = useTranslations("palettes.card");
   const locale = useLocale() as "no" | "en";
   const router = useRouter();
   const pathname = usePathname();
@@ -1563,15 +1563,15 @@ export function CeramicsStep({
                 (card §Cosa cambia 1). */}
             <div className="hidden md:block">
               <PaletteCard
-                // TODO:nb-review — `palettes.card.paintingNow` (T4 adds the
-                // json): EN "Painting now: {name}" / NO "Maler nå: {name}".
-                activeName={tPaletteCard("paintingNow", { name: paintingLabel })}
-                chips={
-                  <>
-                    {draftChip}
-                    {paletteChips}
-                  </>
-                }
+                now={{
+                  layers: designLayers,
+                  name: paintingLabel,
+                  dedication: currentDedication,
+                  designName,
+                  hexes: paletteHexes(snapshot),
+                }}
+                chips={[draftChip, ...paletteChips]}
+                saved={palettes.length}
                 actions={newPaletteChip}
               />
             </div>
