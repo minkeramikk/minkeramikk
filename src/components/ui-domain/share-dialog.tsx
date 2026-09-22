@@ -128,11 +128,14 @@ export function ShareDialog({
                     <p className="font-medium">
                       {shareState.kind === "copied" ? t("copied") : t("manual")}
                     </p>
-                    {shareState.kind === "manual" && (
-                      <code className="mt-1 block select-all font-mono text-[10px] break-all text-muted-foreground">
-                        {shareState.url}
-                      </code>
-                    )}
+                    {/* the URL stays on screen in BOTH states: clipboard success
+                        is invisible feedback, and the e2e locator reads <code> */}
+                    <p className="mt-1 text-[11px] text-muted-foreground">
+                      {t("linkLabel")}
+                    </p>
+                    <code className="mt-0.5 block select-all font-mono text-[10px] break-all text-muted-foreground">
+                      {shareState.url}
+                    </code>
                   </>
                 )}
                 {notShareable > 0 && (

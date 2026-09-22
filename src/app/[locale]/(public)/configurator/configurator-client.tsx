@@ -71,7 +71,6 @@ import {
 } from "@/components/ui-domain/design-switch";
 import { KitStrip, kitStripCounts } from "@/components/ui-domain/kit-strip";
 import { KitWelcome, kitWelcomeRows } from "@/components/ui-domain/kit-welcome";
-import { cartPieces, unpaintedPieces } from "@/lib/cart/cart";
 
 /** Pagina di ispirazione del cliente (fuori sito, apre in nuova scheda). */
 const INSPIRATION_URL = "https://www.minkeramikk.no/inspirasjon";
