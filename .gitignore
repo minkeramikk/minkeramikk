@@ -55,6 +55,9 @@ docs/evidence/
 !.claude/
 .claude/settings.local.json
 .claude/worktrees/
+# dev server del preview in-app: porta e comando dipendono dalla macchina
+# (R5-POLISH-STEP23: sulla 3199 gira già il server di Daniele)
+.claude/launch.json
 # planning scratch (superpowers)
 docs/superpowers/
 
