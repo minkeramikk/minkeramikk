@@ -314,7 +314,9 @@ export function PreviewCanvas({
    * stays a plain fade. Absent (callers that never switch design) = never.
    *
    * Screen-reader copy for the loader (`role="status"`): passed through
-   * the optional `loadingLabel` prop; `alt` stays the stable design name.
+   * the optional `loadingDesignLabel` prop ("Loading {design}", col nome);
+   * la scritta VISIBILE al centro delle alici è `loadingLabel` (solo
+   * "Loading…", mai il nome). `alt` stays the stable design name.
    *
    * `pendingDesignKey`: design già scelto ma non ancora arrivato via
    * navigazione RSC. Il `designKey` cambia solo DOPO il round-trip — troppo
@@ -324,6 +326,7 @@ export function PreviewCanvas({
    */
   designKey,
   loadingLabel,
+  loadingDesignLabel,
   pendingDesignKey,
 }: {
   layers: PreviewLayer[];
@@ -337,7 +340,10 @@ export function PreviewCanvas({
   inscription?: string;
   className?: string;
   designKey?: string;
+  /** Visibile al centro delle alici: solo "Loading…", mai il nome design. */
   loadingLabel?: string;
+  /** Solo screen reader (`aria-label`): "Loading {design}", col nome. */
+  loadingDesignLabel?: string;
   pendingDesignKey?: string | null;
 }) {
   const targetKey = keyOf(layers);
@@ -485,15 +491,16 @@ export function PreviewCanvas({
         {/* R5-DESIGN-SWITCH — le alici che girano, solo cambio design
             (mockup `:57-59` `spinplate` + artifact `Loader` r5-animation).
             Overlay OPACO (`--mk-canvas` pieno): il vecchio design non resta
-            sullo sfondo, si vedono solo le alici che girano + scritta.
-            `role="status"` annuncia via `loadingLabel`; `alt` resta il nome
-            stabile. Mai su tap colore; off con `reduced-motion`. Uscita in
-            dissolvenza (`LOADER_EXIT_MS`, ease-out): mai un blink. */}
+            sullo sfondo, si vedono solo le alici che girano + "Loading".
+            Visibile = solo `loadingLabel`; screen reader = `loadingDesignLabel`
+            (col nome design); `alt` resta il nome stabile. Mai su tap colore;
+            off con `reduced-motion`. Uscita in dissolvenza (`LOADER_EXIT_MS`,
+            ease-out): mai un blink. */}
         {showLoader && (
           <div
             role="status"
             data-testid="design-loader"
-            aria-label={loadingLabel ?? alt}
+            aria-label={loadingDesignLabel ?? loadingLabel ?? alt}
             className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 rounded-lg bg-[var(--mk-canvas)] transition-opacity motion-reduce:transition-none"
             style={{
               opacity: loaderFadingOut ? 0 : 1,
@@ -501,7 +508,7 @@ export function PreviewCanvas({
               transitionTimingFunction: "ease-out",
             }}
           >
-            <SpinnerMotif label={loadingLabel ?? alt} />
+            <SpinnerMotif label={loadingLabel} />
           </div>
         )}
 

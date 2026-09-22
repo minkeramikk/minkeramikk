@@ -168,7 +168,8 @@
       "coversShort": "{count, plural, one {# ceramic} other {# ceramics}}",
       "sheetTitle": "Choose design",
       "sheetSubtitle": "The colours reload with it",
-      "loaderAlt": "Loading {design}"
+      "loaderAlt": "Loading",
+      "loaderDesignAlt": "Loading {design}"
     },
     "ladder": {
       "title": "Buy more – save more",

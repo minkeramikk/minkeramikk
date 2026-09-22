@@ -1549,7 +1549,8 @@ export function ConfiguratorClient({
                 new, unreviewed. */}
             <PreviewCanvas
               alt={designName(selected)}
-              loadingLabel={t("designSwitch.loaderAlt", {
+              loadingLabel={t("designSwitch.loaderAlt")}
+              loadingDesignLabel={t("designSwitch.loaderDesignAlt", {
                 design: designName(
                   pending
                     ? (designs.find((d) => d.slug === pending.slug) ?? selected)
