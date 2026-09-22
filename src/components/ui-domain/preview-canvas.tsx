@@ -461,21 +461,18 @@ export function PreviewCanvas({
         )}
 
         {/* R5-DESIGN-SWITCH — le alici che girano, solo cambio design
-            (mockup `:57-59` `spinplate` + artifact `Loader` r5-animation:
-            motivo `size-16` che gira + caption). Il piatto bianco resta
-            fermo sotto, il motivo gira sopra — le alici nuotano in tondo.
+            (mockup `:57-59` `spinplate` + artifact `Loader` r5-animation).
+            Overlay OPACO (`--mk-canvas` pieno): il vecchio design non resta
+            sullo sfondo, si vedono solo le alici che girano + scritta.
             `role="status"` annuncia via `loadingLabel`; `alt` resta il nome
-            stabile. Mai su tap colore (né `pendingDesignKey` né `designKey`
-            cambiano lì); off con `reduced-motion`. `pendingDesignKey`
-            copre il round-trip RSC (stato subito), `designLoading` il
-            preload layer (stato dopo). Uscita in dissolvenza
-            (`LOADER_EXIT_MS`, ease-out): mai un blink a metà giro. */}
+            stabile. Mai su tap colore; off con `reduced-motion`. Uscita in
+            dissolvenza (`LOADER_EXIT_MS`, ease-out): mai un blink. */}
         {showLoader && (
           <div
             role="status"
             data-testid="design-loader"
             aria-label={loadingLabel ?? alt}
-            className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 bg-[color-mix(in_oklab,var(--mk-canvas)_72%,transparent)] transition-opacity motion-reduce:transition-none"
+            className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 rounded-lg bg-[var(--mk-canvas)] transition-opacity motion-reduce:transition-none"
             style={{
               opacity: loaderFadingOut ? 0 : 1,
               transitionDuration: `${LOADER_EXIT_MS}ms`,
