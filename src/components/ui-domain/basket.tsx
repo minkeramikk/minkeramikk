@@ -332,28 +332,13 @@ export function Basket({
             has to, for a11y) — a second «Handlekurv» under it would read as
             a second basket, which is the one thing this card is about. */}
         {!drawer && <h2 className="text-base font-semibold">{t("cartTitle")}</h2>}
-        {/* Fix wave B finding 3 — mockup `#s3a`'s header line, the
-            replacement for the removed "Ditt valg" box (task 9): says what a
-            NEW ceramic added right now gets painted with. TL follow-up
-            (post-task-12): this used to fall back straight to `designName`
-            for an unsaved draft, while the bar's OWN chip (a few hundred
-            lines up) named the exact same configuration with its
-            deterministic colour label — two names for one thing on one
-            screen, and the vaguer one is the one this header showed. Both
-            now read `paintingLabel`, computed ONCE above, so they can't
-            drift apart again; `designName` only survives inside that
-            variable's own fallback chain, for when there's no configuration
-            to name at all. Hidden with the box's own rule (AC4) when
-            there's no config at all yet (a bare `?set=` landing).
-            TODO:nb-review — cart.paintedWith NO copy is new, unreviewed. */}
-        {currentConfig?.explicit && (
-          <span className="text-xs text-muted-foreground">
-            {t.rich("paintedWith", {
-              name: currentConfig.label,
-              b: (chunks) => <b className="font-semibold text-foreground">{chunks}</b>,
-            })}
-          </span>
-        )}
+        {/* R5-POLISH-STEP23 (TL, 22/9: «"new ceramics come painted with
+            Ocra" in basket has no sense»): the header line from mockup
+            `#s3a` is gone. Step 3's own <h2> already says it, in the same
+            screen and in plainer words — «tap = one piece in ‹palette›» —
+            and the painting chip above the catalogue names the same palette
+            a third time. What a new piece gets painted with is stated where
+            the tap happens, not in the receipt. */}
       </div>
 
       {/* R5-UNPAINTED task 9: explicit, no button inside — Paint lives on the
