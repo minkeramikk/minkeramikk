@@ -1521,10 +1521,17 @@ export function CeramicsStep({
               tucks 1px under it.
               `bg-background` came off on the TL's word and went straight back
               on (TL, 22/9: «attenzione step3 non sparisce sotto sticky ma si
-              vede»): transparent, the plates scroll OVER the heading. It is
-              the same `#fbe9e4` the page is painted with — what used to read
-              as «a container of a different colour» was the 12px this band
-              overshot the card by, and that is gone.
+              vede»): transparent, the plates scroll OVER the heading.
+
+              `-mx-3/px-3`, was `-mx-1/px-1` — and THIS is the faint vertical
+              edge the TL kept seeing on both sides of the block («è un
+              discorso di bordi?»). It never was a colour: the band is the
+              same `--background` token `body` is painted with. The product
+              cards carry `--shadow-card` (`0 2px 10px`), which bleeds ~5px
+              PAST the column on each side; the band only overhung 4px, so a
+              1-2px ribbon of that shadow stayed visible beside the band for
+              its whole height and read as a container edge. 12px of overhang
+              swallows the bleed and still clears the 28px column gap.
               No `pb` any more (TL, 22/9): the padding made the opaque band
               overshoot the card by 12px, so the plates were cut by a bare
               rose rectangle instead of disappearing under the white card —
@@ -1533,7 +1540,7 @@ export function CeramicsStep({
               catalogue's own `md:mt-3` below, where it scrolls away like
               any other in-flow spacing. The card's rounded corners still
               sit ON this background, so nothing peeks through them. */}
-          <div className="md:sticky md:top-[67px] md:z-20 md:-mx-1 md:bg-background md:px-1">
+          <div className="md:sticky md:top-[67px] md:z-20 md:-mx-3 md:bg-background md:px-3">
             <p className="text-[11px] uppercase tracking-[0.06em] text-muted-foreground">
               {tc("stepIndicator", { step: 3 })}
             </p>

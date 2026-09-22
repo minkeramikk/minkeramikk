@@ -15,14 +15,17 @@ export interface Step {
  * is 12px + the bar + 12px; `-mt-3`/`mb-1` hand those paddings back to the
  * flow, so the resting layout is exactly what it was before the bar pinned,
  * and the padding only buys air above the bar once it is stuck to the
- * viewport edge. `z-40`, not 30: step 2's preview column is itself a
+ * viewport edge. `-mx-3/px-3` for the same reason the step-3 heading block
+ * has it: the cards underneath carry `--shadow-card`, which bleeds ~5px past
+ * the columns, and a band that stops AT the column leaves a ribbon of that
+ * shadow showing beside it. `z-40`, not 30: step 2's preview column is itself a
  * `sticky z-30` that comes LATER in the DOM, so at 30 the bar tied with it
  * and the preview painted over the stepper. 40 stays below the 50 of
  * dialogs and sheets, and above the step-3 heading block's `z-20`, which
  * pins UNDER this one (see its own `top-[…]`).
  */
 export const STEP_NAV_STICKY =
-  "mb-4 md:sticky md:top-0 md:z-40 md:-mt-3 md:mb-1 md:bg-background md:pt-3 md:pb-3";
+  "mb-4 md:sticky md:top-0 md:z-40 md:-mx-3 md:-mt-3 md:mb-1 md:bg-background md:px-3 md:pt-3 md:pb-3";
 
 /**
  * Configurator stepper (DESIGN-SYSTEM §3.8): dots joined by a line, active step
