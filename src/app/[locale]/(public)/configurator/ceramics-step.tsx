@@ -30,6 +30,7 @@ import {
   type NewCartLine,
 } from "@/lib/cart/cart";
 import { encodeSetParam, selectionCountOf, SET_LINK_BUDGET, stripCustomSegment } from "@/lib/cart/set-code";
+import { designSegmentOf, encodeKitParam } from "@/lib/cart/kit-code";
 import {
   activeSuggestions,
   cartSaved,
@@ -51,6 +52,7 @@ import { ShoppingBag, Truck, ArrowUpRight, Brush } from "lucide-react";
 import type { ResolvedSharedSet } from "./resolve-shared-set";
 import { ProductSheet } from "@/components/ui-domain/product-sheet";
 import { AddedSheet } from "@/components/ui-domain/added-sheet";
+import { ShareDialog, type ShareKind } from "@/components/ui-domain/share-dialog";
 import { Basket } from "@/components/ui-domain/basket";
 import { NextStepPill, PillIcon } from "@/components/ui-domain/next-step-pill";
 
@@ -861,43 +863,47 @@ export function CeramicsStep({
   const notShareable = cart.filter((l) => !l.productSlug || !l.configCode).length;
 
   // NEVER fail silently: every path lands on a visible state — the click must
-  // always produce the link on screen, clipboard/native share are a bonus
+  // always produce the link on screen, clipboard is a bonus
   // (clipboard throws NotAllowedError in plenty of real contexts).
-  //
-  // @param preferNative try the OS share sheet first. ONLY the mobile sticky
-  //   bar passes true (frame 5): desktop Chrome/Safari also expose
-  //   navigator.share, but on desktop the expected gesture is copy-link
-  //   (frame 1, ConfigCodeBar pattern), not a system share dialog.
-  async function shareSet(preferNative: boolean) {
-    // R5-TEXT-IDENTITY task 3: strip each line's inscription/colour-wish
-    // segment before it enters the link — selectionCountOf reads it off the
-    // line's OWN snapshot, no design/catalog lookup needed.
-    const param = encodeSetParam(
-      cart.map((l) => ({
-        configCode: l.configCode,
-        productSlug: l.productSlug,
-        quantity: l.quantity,
-        selectionCount: selectionCountOf(l.configSnapshot),
-      }))
-    );
-    if (!param) {
-      // only legacy rows (no productSlug) → nothing can travel in the link
-      setShareState({ kind: "none" });
-      return;
+  async function buildShareUrl(kind: ShareKind): Promise<string | null> {
+    setShareState(null);
+    let query: string;
+    if (kind === "kit") {
+      const segment = configCode ? designSegmentOf(configCode) ?? "" : "";
+      const param = encodeKitParam(
+        segment,
+        cart.map((l) => ({ productSlug: l.productSlug, quantity: l.quantity }))
+      );
+      if (!param) {
+        // only legacy rows (no productSlug) → nothing can travel in the link
+        setShareState({ kind: "none" });
+        return null;
+      }
+      query = `?step=2&kit=${param}`;
+    } else {
+      // R5-TEXT-IDENTITY task 3: strip each line's inscription/colour-wish
+      // segment before it enters the link — selectionCountOf reads it off the
+      // line's OWN snapshot, no design/catalog lookup needed.
+      const param = encodeSetParam(
+        cart.map((l) => ({
+          configCode: l.configCode,
+          productSlug: l.productSlug,
+          quantity: l.quantity,
+          selectionCount: selectionCountOf(l.configSnapshot),
+        }))
+      );
+      if (!param) {
+        // only legacy rows (no productSlug) → nothing can travel in the link
+        setShareState({ kind: "none" });
+        return null;
+      }
+      query = `?step=3&set=${param}`;
     }
-    const url = `${window.location.origin}${window.location.pathname}?step=3&set=${param}`;
+    const url = `${window.location.origin}${window.location.pathname}${query}`;
     if (url.length > SET_LINK_BUDGET) {
       // decision 5: silent budget check — overflow is academic, just say so
       setShareState({ kind: "tooBig" });
-      return;
-    }
-    if (preferNative && typeof navigator.share === "function") {
-      try {
-        await navigator.share({ url });
-        return; // the OS share sheet was the feedback
-      } catch {
-        /* user cancelled or share unsupported for URLs → fall back to copy */
-      }
+      return null;
     }
     try {
       await navigator.clipboard.writeText(url);
@@ -906,7 +912,13 @@ export function CeramicsStep({
       // clipboard blocked → still show the link for manual copy
       setShareState({ kind: "manual", url });
     }
+    return url;
   }
+
+  const [shareOpen, setShareOpen] = useState(false);
+  const sharePrice = formatMoney(discount.total, locale);
+  const sharePieces = cartPieces(cart);
+  const shareKitThumb = cart.find((l) => l.plateImage)?.plateImage ?? null;
 
   // ── CA-3 D: landing from a shared link. The server resolved `set=` into
   // ready lines (live prices); here we apply (empty basket) or ask (3-way
@@ -1008,11 +1020,8 @@ export function CeramicsStep({
   const cartFooter = (
     <>
       <div className="flex flex-col gap-2">
-        {/* R5-POLISH-STEP23 T2 (feedback 5): share is an ADMIN tool until
-            R5-KIT-SHARE gives it its own dialog. `?admin=1` is the gate the
-            R5 plan names for that card (§3 #4); it adds sessionStorage
-            persistence, this only reads the URL. ACCEPTANCE §8 stays green
-            through `share-set.spec.ts` (`&admin=1`). */}
+        {/* R5-KIT T4: one Share button opens the set-or-kit dialog. The gate
+            is the admin session (page.tsx prop), never the URL. */}
         {isAdmin && (
           <NextStepPill
             variant="tertiary"
@@ -1024,47 +1033,24 @@ export function CeramicsStep({
                 <ArrowUpRight className="size-5 text-muted-foreground" />
               </PillIcon>
             }
-            onClick={() => shareSet(false)}
+            onClick={() => {
+              setShareState(null);
+              setShareOpen(true);
+            }}
           />
         )}
       </div>
-      {/* share feedback: announced, link visible (frame 1) */}
-      <div aria-live="polite">
-        {shareState && (
-          <div
-            data-testid="share-feedback"
-            className="rounded-sm border border-primary/40 bg-primary/5 p-2.5 text-xs"
-          >
-            {shareState.kind === "tooBig" ? (
-              <p>{t("share.tooBig")}</p>
-            ) : shareState.kind === "none" ? null : (
-              <>
-                <p className="font-medium">
-                  {shareState.kind === "copied"
-                    ? t("share.copied")
-                    : t("share.manual")}
-                </p>
-                {/* Only show the raw URL when the clipboard failed
-                    (manual copy needs the whole link visible). On
-                    success the bare link looked ugly → hide it. */}
-                {shareState.kind === "manual" && (
-                  <code className="mt-1 block select-all font-mono text-[10px] break-all text-muted-foreground">
-                    {shareState.url}
-                  </code>
-                )}
-              </>
-            )}
-            {notShareable > 0 && (
-              <p
-                data-testid="share-not-shareable"
-                className="mt-1 text-muted-foreground"
-              >
-                {t("share.notShareable", { count: notShareable })}
-              </p>
-            )}
-          </div>
-        )}
-      </div>
+      <ShareDialog
+        open={shareOpen}
+        onOpenChange={setShareOpen}
+        onPick={buildShareUrl}
+        shareState={shareState}
+        price={sharePrice}
+        pieces={sharePieces}
+        designLayers={designLayers}
+        kitThumb={shareKitThumb}
+        notShareable={notShareable}
+      />
     </>
   );
 
