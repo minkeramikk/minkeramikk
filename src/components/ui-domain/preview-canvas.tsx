@@ -403,7 +403,10 @@ export function PreviewCanvas({
   // arrivato (`pendingDesignKey` — copre l'attesa del round-trip RSC, che
   // è dove il cliente aspetta davvero); (2) layer cambiati ma non ancora
   // precaricati (`designLoading`, transizione client). Entrambi solo su
-  // cambio design, mai su tap colore. `reduced-motion` spegne tutto.
+  // cambio design via `selectDesign`, mai su tap palette/colore
+  // (`loadPalette` non tocca mai `pendingDesignKey`, e il F19 effect lo
+  // azzera se un `?code=` arriva a metà di uno switch). `reduced-motion`
+  // spegne tutto.
   const reduceMotion =
     typeof window !== "undefined" &&
     window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;

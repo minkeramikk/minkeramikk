@@ -629,6 +629,12 @@ export function ConfiguratorClient({
   }
   // F19: a ?code= deep-link (cart-row "reopen" or a shared link) is decoded once
   // on arrival into the canonical opt_* params, then dropped from the URL.
+  // It also clears a stale `pendingDesignSlug`: a `?code=` navigation
+  // (palette tap, «Edit design») resolves its own design through the decode
+  // below and never starts the spinner — if a previous `selectDesign` was
+  // still waiting, that wait is over (its design either arrived or was
+  // superseded by this one). Without this, tapping a palette mid-flight
+  // left the loader comparing against a design that never comes: infinite.
   //
   // R5-TEXT-IDENTITY final-review round 2, finding 1 (BLOCKER): this effect
   // used to destructure only `{ designSlug, selections }` and threw the
@@ -663,6 +669,12 @@ export function ConfiguratorClient({
   useEffect(() => {
     const incoming = searchParams.get("code");
     if (!incoming) return;
+    // A `?code=` navigation carries its own design — the spinner (only ever
+    // started by `selectDesign`) has nothing to wait for: clear it now, not
+    // after the decode below, so a palette tap can never inherit a stuck
+    // loader from an in-flight design switch.
+    setPendingDesignSlug(null);
+    setPendingDesignAt(null);
     const explicitText = searchParams.get("text");
     const params = new URLSearchParams(searchParams.toString());
     params.delete("code");
@@ -928,14 +940,11 @@ export function ConfiguratorClient({
     // `buildDesignSwitchParams` sets `design=` upfront from the decoded code
     // (via the `codecDesigns` below) and drops the old design's `opt_*`/`text=`;
     // the F19 decode effect then resolves the selections, same as before.
-    // Fix wave A finding 1: same bug as step 3's `paintWith` — a from-scratch
-    // URL was dropping every other param, `design=` included. The `?code=`
-    // decode effect above sets `design` from the code, but only AFTER a
-    // render with the OLD `design` param (or none) has already run, and that
-    // render falls back to `designs[0]` — resetting `noteText`/`customText`/
-    // `activeTab` through the effects keyed on the design, losing note=/text=
-    // for good on any design that isn't first by sort order. Building from
-    // the current params (like `goToStep` does) keeps `design=` in place.
+    //
+    // NO loader here (unlike `selectDesign` below): this is a palette pick,
+    // not a design change — the decoded config arrives with the navigation
+    // and the canvas cross-fades. `pendingDesignSlug` stays null, so the
+    // spinner never starts and can never get stuck on.
     const next = buildDesignSwitchParams(
       searchParams,
       code,
