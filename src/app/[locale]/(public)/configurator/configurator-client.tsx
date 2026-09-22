@@ -69,6 +69,9 @@ import {
   DesignSwitch,
   type DesignSwitchChoice,
 } from "@/components/ui-domain/design-switch";
+import { KitStrip, kitStripCounts } from "@/components/ui-domain/kit-strip";
+import { KitWelcome, kitWelcomeRows } from "@/components/ui-domain/kit-welcome";
+import { cartPieces, unpaintedPieces } from "@/lib/cart/cart";
 
 /** Pagina di ispirazione del cliente (fuori sito, apre in nuova scheda). */
 const INSPIRATION_URL = "https://www.minkeramikk.no/inspirasjon";
@@ -210,6 +213,7 @@ export function ConfiguratorClient({
   kit?: import("./resolve-kit").ResolvedKit | null;
 }) {
   const t = useTranslations("configurator");
+  const tKit = useTranslations("kit");
   const locale = useLocale();
   /** Design name in the active locale (falls back to NO, then legacy name). */
   const designName = (d: DesignChoice) =>
@@ -732,7 +736,37 @@ export function ConfiguratorClient({
     removePalette: deletePalette,
     setCurrentConfig,
     setKeyboardOpen: publishKeyboardOpen,
+    cart,
+    hydrated,
+    addMany,
   } = useCartContext();
+  // R5-KIT T5: one-shot landing — add the resolved lines once (even onto a
+  // non-empty cart: an unpainted row never overwrites anything), show passo 0,
+  // then consume `kit=` and pin `origin=kit` (the kit-mode). Empty kit:
+  // consume silently, no welcome.
+  const kitConsumedRef = useRef(false);
+  const [kitWelcomeOpen, setKitWelcomeOpen] = useState(false);
+  const kitMode =
+    searchParams.get("origin") === "kit" ||
+    Boolean(kit && searchParams.get("kit"));
+  useEffect(() => {
+    if (!kit || !hydrated || kitConsumedRef.current) return;
+    if (!searchParams.get("kit")) return;
+    kitConsumedRef.current = true;
+    if (kit.lines.length > 0) {
+      addMany(kit.lines);
+      setKitWelcomeOpen(true);
+    }
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("kit");
+    if (kit.design) {
+      params.set("design", kit.design.slug);
+      params.set("step", "2");
+      params.set("origin", "kit");
+    }
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot apply on arrival
+  }, [kit, hydrated]);
   /**
    * R5-BASKET-HOST task 8 (card §3) — the same `typing` that makes the canvas
    * let go of its sticky also has to keep the basket shut: with the keyboard
@@ -998,6 +1032,7 @@ export function ConfiguratorClient({
 
   function selectDesign(d: DesignChoice | DesignSwitchChoice) {
     if (d.slug === selected.slug) return;
+    // kit-mode pins the design: the switch is not rendered there (below).
     // Cambio design esplicito: navigazione RSC, il canvas cambia solo DOPO
     // il round-trip — il loader parte subito da qui (`pending`, sopra).
     startDesignTransition(d.slug);
@@ -1051,7 +1086,8 @@ export function ConfiguratorClient({
     const params = new URLSearchParams(searchParams.toString());
     params.set("design", selected.slug);
     // Leaving steps 1–2 IS the explicit choice: whatever brought the design in
-    // (a shared set landing marks it `origin=set`) stops mattering here.
+    // (a shared set landing marks it `origin=set`, a kit `origin=kit`) stops
+    // mattering here.
     params.delete("origin");
     if (target === 1) params.delete("step");
     else params.set("step", String(target));
@@ -1312,6 +1348,31 @@ export function ConfiguratorClient({
         />
       )}
 
+      {/* R5-KIT T5: the strip on a kit landing, above the nav, every width. */}
+      {step === 2 && kitMode && (
+        <KitStrip
+          thumb={
+            cart.find((l) => l.plateImage)?.plateImage ? (
+              // eslint-disable-next-line @next/next/no-img-element -- resolved catalog asset
+              <img
+                src={cart.find((l) => l.plateImage)!.plateImage!}
+                alt=""
+                className="size-[30px] shrink-0 rounded-full border border-border object-cover"
+              />
+            ) : (
+              <DesignRound layers={previewLayers} className="size-[30px]" />
+            )
+          }
+          total={kitStripCounts(cart).total}
+          painted={kitStripCounts(cart).painted}
+        />
+      )}
+      <KitWelcome
+        open={kitWelcomeOpen}
+        onOpenChange={setKitWelcomeOpen}
+        rows={kitWelcomeRows(kit?.lines ?? [], locale as "no" | "en")}
+        total={(kit?.lines ?? []).reduce((n, l) => n + l.quantity, 0)}
+      />
       {/* CA-2: the top cluster holds ONLY the stepper (orientation + step
           jumps, F18). The advance/back CTAs live in-flow at the END of the
           options column — no climb back to the top on desktop. Decision closed
@@ -1573,13 +1634,22 @@ export function ConfiguratorClient({
                 (mockup `:275`), non alla colonna: mount dentro `preview-sticky`
                 (relative su step 2), accanto a `PreviewCanvas`. La riga desktop
                 resta sotto, fuori dal box relativo. */}
-            {step === 2 && (
+            {step === 2 && !kitMode && (
               <DesignSwitch
                 designs={designs}
                 currentSlug={selected.slug}
                 productCounts={productCounts}
                 onSelect={selectDesign}
               />
+            )}
+            {/* R5-KIT T5: the design is fixed by the kit — no switch. */}
+            {step === 2 && kitMode && (
+              <p
+                data-testid="kit-design-fixed"
+                className="mt-2 text-[11px] text-muted-foreground"
+              >
+                {tKit("fixedDesign", { name: designName(selected) })}
+              </p>
             )}
           </div>
         </div>

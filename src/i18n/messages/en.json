@@ -334,8 +334,22 @@
       "taken": "Added to the basket"
     }
   },
-  "order": {
-    "title": "Order",
+  "kit": {
+    "strip": {
+      "title": "A kit from minkeramikk",
+      "subtitle": "{count, plural, one {# piece} other {# pieces}} · colours to choose",
+      "painted": "{painted} of {total} painted"
+    },
+    "fixedDesign": "Design: {name} — fixed by the kit",
+    "welcome": {
+      "eyebrow": "Kit",
+      "title": "{count, plural, one {# piece} other {# pieces}}, waiting for your colours",
+      "body": "They're already in your basket. Choose the colours here — once for all of them, or piece by piece.",
+      "show": "Show me how",
+      "self": "I'll have a look myself"
+    }
+  },
+  "order": {    "title": "Order",
     "sending": "Sending…",
     "error": "Something went wrong. Please try again.",
     "unpaintedError": "Some pieces in your basket are still unpainted — paint them before you order.",

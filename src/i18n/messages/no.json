@@ -245,17 +245,17 @@
     },
     "itemCount": "{count, plural, =0 {Tom} one {# vare} other {# varer}}",
     "share": {
-      "button": "Del denne kurven", // TODO:nb-review
-      "eyebrow": "Admin", // TODO:nb-review
-      "title": "Del denne kurven", // TODO:nb-review
-      "lead": "Send kurven som den er, eller som et kit som skal males.", // TODO:nb-review
-      "asSet": "Som et sett", // TODO:nb-review
-      "asSetHint": "De får nøyaktig disse fargene. Klart til bestilling.", // TODO:nb-review
-      "asKit": "Som et kit", // TODO:nb-review
-      "asKitHint": "Farger fjernet. De velger selv, på disse delene.", // TODO:nb-review
-      "priceLine": "{price} · {count, plural, one {# del} other {# deler}}", // TODO:nb-review
-      "linkLabel": "Lenke", // TODO:nb-review
-      "copy": "Kopier lenke", // TODO:nb-review
+      "button": "Del denne kurven",
+      "eyebrow": "Admin",
+      "title": "Del denne kurven",
+      "lead": "Send kurven som den er, eller som et kit som skal males.",
+      "asSet": "Som et sett",
+      "asSetHint": "De får nøyaktig disse fargene. Klart til bestilling.",
+      "asKit": "Som et kit",
+      "asKitHint": "Farger fjernet. De velger selv, på disse delene.",
+      "priceLine": "{price} · {count, plural, one {# del} other {# deler}}",
+      "linkLabel": "Lenke",
+      "copy": "Kopier lenke",
       "copied": "Lenke kopiert",
       "manual": "Kopier denne lenken — den som åpner den finner dette settet",
       "tooBig": "Settet er for stort for en lenke",
@@ -331,6 +331,21 @@
     "addedWithPct": "Lagt i handlekurven · −{pct} %",
     "sheetOffer": {
       "taken": "Lagt i handlekurven"
+    }
+  },
+  "kit": {
+    "strip": {
+      "title": "Et kit fra minkeramikk",
+      "subtitle": "{count, plural, one {# del} other {# deler}} · farger å velge",
+      "painted": "{painted} av {total} malt"
+    },
+    "fixedDesign": "Design: {name} — bestemt av kittet",
+    "welcome": {
+      "eyebrow": "Kit",
+      "title": "{count, plural, one {# del} other {# deler}} venter på dine farger",
+      "body": "De ligger allerede i handlekurven. Velg fargene her — én gang for alle, eller del for del.",
+      "show": "Vis meg hvordan",
+      "self": "Jeg ser selv"
     }
   },
   "order": {
