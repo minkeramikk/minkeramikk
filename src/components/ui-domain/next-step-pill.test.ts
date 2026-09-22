@@ -47,8 +47,11 @@ const buttonClasses = (html: string) => {
 };
 
 describe("NextStepPill · scala di taglia", () => {
-  it("senza `size` rende esattamente la pillola `lg`", () => {
-    expect(render()).toBe(render({ size: "lg" }));
+  it("senza `size` rende la pillola `sm`: la taglia di default è UNA", () => {
+    // R5-POLISH-STEP23 (TL): tutte le pillole della stessa taglia. Il default
+    // porta la regola, così una pillola nuova non può nascere fuori scala.
+    expect(render()).toBe(render({ size: "sm" }));
+    expect(render()).not.toBe(render({ size: "lg" }));
   });
 
   it("`lg` è la pillola di oggi: p-3, gap-3.5, label 15px, freccetta size-9, disco size-11", () => {

@@ -1467,7 +1467,12 @@ export function ConfiguratorClient({
             // has nothing to park under — back to plain `top-4` like step 1
             // (same fix as T2's `docked-cart-panel` rail).
             "z-30 flex min-w-0 flex-col gap-3 md:sticky md:self-start",
-            "md:top-4",
+            // R5-POLISH-STEP23 (TL, 22/9: «lo sticky di step1 e step2 taglia
+            // un poco il box del disegno, che è la cosa più importante»):
+            // 84px, not 16 — the step bar pins above with a 68px band
+            // (STEP_NAV_STICKY), so the canvas stops 16px BELOW it and keeps
+            // exactly the breathing room `top-4` used to give it.
+            "md:top-[84px]",
             // CA-7 (variant B): design-first on mobile step 1 — the hero is
             // hidden entirely (the design cards double as the preview). It stays
             // MOUNTED (display:none only) so the same PreviewCanvas instance
@@ -2241,7 +2246,6 @@ export function ConfiguratorClient({
             <div className="flex flex-col-reverse gap-3 md:@md:flex-row md:@md:items-stretch max-md:flex-row max-md:gap-2.5">
               <NextStepPill
                 variant="secondary"
-                size="sm"
                 data-testid="back-step"
                 // Stacked (colonna stretta): piena larghezza e contenuto
                 // centrato come da mockup. Affiancato: torna largo il minimo
@@ -2262,7 +2266,6 @@ export function ConfiguratorClient({
                 onClick={() => goToStep(1)}
               />
               <NextStepPill
-                size="sm"
                 data-testid="next-step"
                 // `@md:` = affiancato: in colonna `flex-basis` sarebbe
                 // l'ALTEZZA (16rem di pillola), e stacked non serve comunque
@@ -2295,7 +2298,7 @@ export function ConfiguratorClient({
                 // etichetta e resta a 15px semibold (mockup .navB) — non deve
                 // scendere ai 10px della caption piccola.
                 className={cn(
-                  "md:@md:flex-[1_1_16rem] max-md:flex-1 max-md:[&_[data-pill-label]]:sr-only max-md:[&_[data-pill-caption]]:text-[15px] max-md:[&_[data-pill-caption]]:font-semibold max-md:[&_[data-pill-caption]]:normal-case max-md:[&_[data-pill-caption]]:tracking-normal max-md:[&_[data-pill-caption]]:text-foreground"
+                  "md:@md:flex-[1_1_16rem] max-md:flex-1 max-md:[&_[data-pill-label]]:sr-only max-md:[&_[data-pill-caption]]:text-center max-md:[&_[data-pill-caption]]:text-[15px] max-md:[&_[data-pill-caption]]:font-semibold max-md:[&_[data-pill-caption]]:normal-case max-md:[&_[data-pill-caption]]:tracking-normal max-md:[&_[data-pill-caption]]:text-foreground"
                 )}
                 caption={t("teaser.nextStep")}
                 label={t("teaser.ceramics")}

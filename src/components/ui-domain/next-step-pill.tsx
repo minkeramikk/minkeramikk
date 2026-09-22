@@ -126,7 +126,7 @@ export function NextStepPill({
   caption,
   arrow = false,
   variant = "primary",
-  size = "lg",
+  size = "sm",
   type = "button",
   onClick,
   disabled,
@@ -140,7 +140,14 @@ export function NextStepPill({
    *  — the order form swaps it for a spinner while the order is leaving. */
   arrow?: boolean | React.ReactNode;
   variant?: PillVariant;
-  /** R4-BTN-SCALE: `lg` (default) = la pillola di sempre. `sm` = i tier bassi. */
+  /**
+   * R4-BTN-SCALE gave the pill two sizes. R5-POLISH-STEP23 (TL, 22/9):
+   * «i bottoni next, order ecc devono essere tutti uguali — a volte sono di
+   * dimensione diversa e non ci piace». So the DEFAULT is `sm` now: a new
+   * call-site is uniform with every other pill unless it deliberately asks
+   * for `lg`, instead of being uniform only if someone remembers to pass
+   * the prop. No call-site passes `lg` today.
+   */
   size?: PillSize;
   /** R4-FIX Ⓕ: the order form submits with the pill, so it needs to BE the
    *  submit — a `<button type="button">` inside a form does nothing. Default
