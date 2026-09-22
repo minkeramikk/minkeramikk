@@ -83,10 +83,11 @@ const WISHES_TAB = "__wishes";
 /**
  * R5-DESIGN-SWITCH loader: durata minima visibile dell'animazione (il demo
  * kit simula 700ms in `navigateDesign`; qui il server è già veloce, senza
- * un minimo il piatto non si vede mai girare).
+ * un minimo il piatto non si vede mai girare). 2000ms = un giro intero
+ * `spinplate` (1.8s) più margine — voluto, non tuning.
  */
-// ponytail: fixed 700ms like the demo — real elapsed-time wait if slowness ever needs proving
-const LOADER_MIN_MS = 700;
+// ponytail: fixed 2000ms like the demo — real elapsed-time wait if slowness ever needs proving
+const LOADER_MIN_MS = 2000;
 
 export interface DesignChoice {
   id: string;

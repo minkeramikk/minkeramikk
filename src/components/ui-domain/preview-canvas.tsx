@@ -62,16 +62,14 @@ function preloadAll(layers: PreviewLayer[]): Promise<void> {
 }
 
 /**
- * Le alici che girano: SEMPRE il layer delle alici di default
- * (`designs/ansjos-pastatallerken/tree/1-layer@512.webp` — le sardine che
- * nuotano in tondo), per ogni design e ogni piatto. Non il motivo corrente:
- * quello cambia per design e spesso è un file diverso; le alici sono
- * l'icona fissa dello spinner. `spinplate` verbatim dal mockup, con il suo
- * guard reduced-motion.
+ * Le alici che girano: SEMPRE questo layer fisso dal bucket vecchio
+ * (URL diretto, voluto: sul bucket live l'oggetto non esiste — 404
+ * NoSuchKey). Non il motivo corrente: quello cambia per design; le alici
+ * sono l'icona fissa dello spinner. `spinplate` verbatim dal mockup, con
+ * il suo guard reduced-motion.
  */
-const SARDINES_SRC = assetUrl(
-  "designs/ansjos-pastatallerken/tree/1-layer.png"
-);
+const SARDINES_SRC =
+  "https://lfphyfkuuszqazkioxlr.supabase.co/storage/v1/object/public/assets/designs/ansjos-pastatallerken/tree/1-layer@512.webp";
 function SpinnerMotif() {
   return (
     <div aria-hidden="true" className={`spinplate relative ${ART_BOX}`}>
