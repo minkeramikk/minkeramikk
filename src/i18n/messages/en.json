@@ -141,7 +141,13 @@
       "title": "Popular designs",
       "curated": "curated by the shop",
       "prev": "Previous",
-      "next": "Next"
+      "next": "Next",
+      "kitBadge": "Kit · {count, plural, one {# piece} other {# pieces}}",
+      "coloursYours": "Colours: <b>yours to choose</b>",
+      "coloursReady": "Colours: ready to order",
+      "buildYourOwn": "Design · build your own",
+      "colourKit": "Colour this kit",
+      "seeSet": "See the set"
     },
     "customNotes": {
       "title": "Your colour notes",

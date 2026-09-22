@@ -140,7 +140,13 @@
       "title": "Populære design",
       "curated": "utvalgt av butikken",
       "prev": "Forrige",
-      "next": "Neste"
+      "next": "Neste",
+      "kitBadge": "Kit · {count, plural, one {# del} other {# deler}}",
+      "coloursYours": "Farger: <b>du velger</b>",
+      "coloursReady": "Farger: klare til bestilling",
+      "buildYourOwn": "Design · lag ditt eget",
+      "colourKit": "Fargelegg dette kittet",
+      "seeSet": "Se settet"
     },
     "customNotes": {
       "title": "Egne fargeønsker",
