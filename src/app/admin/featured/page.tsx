@@ -78,14 +78,16 @@ export default async function AdminFeaturedPage() {
                     <td className="px-3 py-2.5">
                       <span
                         className={`rounded-md px-2 py-0.5 text-[10.5px] font-bold uppercase ${
-                          row.kind === "set"
+                          row.kind === "kit"
                             ? "bg-ink text-ink-foreground"
-                            : "bg-primary/10 text-primary"
+                            : row.kind === "set"
+                              ? "bg-ink text-ink-foreground"
+                              : "bg-primary/10 text-primary"
                         }`}
                       >
                         {row.kind}
                       </span>
-                      {row.kind === "set" && row.setCount != null && (
+                      {(row.kind === "set" || row.kind === "kit") && row.setCount != null && (
                         <span className="ml-1.5 text-xs text-muted-foreground">
                           · {row.setCount} pcs
                         </span>

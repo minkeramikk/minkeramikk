@@ -5,19 +5,23 @@ import { createPublicClient } from "@/lib/supabase/public";
 import { resilientRead } from "@/lib/supabase/resilient-read";
 import { getActiveDesigns } from "./designs";
 import { getDesignDetail } from "./design-options";
-import { getSupplierProducts } from "./products";
+import { getDesignProducts, getSupplierProducts } from "./products";
 import {
   decodeConfigCode,
   toCodecDesign,
   type CodecDesign,
 } from "@/lib/configurator/config-code";
 import { decodeSetParam } from "@/lib/cart/set-code";
+import { decodeKitParam } from "@/lib/cart/kit-code";
 import { stripFeaturedCode, stripFeaturedSet } from "./featured-strip";
+import { featuredPrice, type FeaturedPrice } from "./featured-price";
+import { getDiscountConfig } from "@/lib/discounts/config.server";
+import type { Currency } from "@/lib/money/money";
 
 /** A featured_configs row, as stored (F28 / ADR 0016). */
 export interface FeaturedRow {
   id: string;
-  kind: "design" | "set";
+  kind: "design" | "set" | "kit";
   payload: string;
   labelNo: string | null;
   labelEn: string | null;
@@ -38,8 +42,10 @@ export interface ValidatedFeatured extends FeaturedRow {
   designName: string | null;
   /** EN resolved design name (the existing `designName` is the NO one). */
   designNameEn: string | null;
-  /** sets only: total pieces (badge "Sett · N deler") */
+  /** sets and kits only: total pieces (badge "Sett · N deler") */
   setCount: number | null;
+  /** sets and kits only: live price of the pieces (R5-KIT); null for design */
+  price: FeaturedPrice | null;
 }
 
 export type PayloadValidation =
@@ -70,7 +76,7 @@ export type PayloadValidation =
  * hides the row from the home and badges it in admin).
  */
 export async function validateFeaturedPayload(
-  kind: "design" | "set",
+  kind: "design" | "set" | "kit",
   payload: string
 ): Promise<PayloadValidation> {
   const designs = await getActiveDesigns();
@@ -106,6 +112,40 @@ export async function validateFeaturedPayload(
       setCount: null,
       firstCode: canonicalPayload,
       canonicalPayload,
+    };
+  }
+
+  // kind=kit: one design (by code), every slug inside its whitelist
+  if (kind === "kit") {
+    const { designCode, entries, dropped } = decodeKitParam(payload);
+    if (entries.length === 0 || dropped > 0) {
+      return { ok: false, reason: "kit payload no longer parses" };
+    }
+    const detail = (
+      await Promise.all(designs.map((d) => getDesignDetail(d.slug)))
+    ).find((d) => d != null && d.code === designCode.toUpperCase());
+    if (!detail) {
+      return { ok: false, reason: `design code "${designCode}" is not active` };
+    }
+    const active = designBySlug.get(detail.slug);
+    if (!active) return { ok: false, reason: `design "${detail.slug}" is not active` };
+    const products = await getDesignProducts(active.id, active.supplierId);
+    let pieces = 0;
+    for (const entry of entries) {
+      const product = products.find((p) => p.slug === entry.productSlug);
+      if (!product) {
+        return { ok: false, reason: `product "${entry.productSlug}" is hidden or gone` };
+      }
+      pieces += entry.qty * product.pieces;
+    }
+    const firstCode = `MK-${designCode.toUpperCase()}`;
+    return {
+      ok: true,
+      designName: active.nameNo,
+      designNameEn: active.nameEn,
+      setCount: pieces,
+      firstCode,
+      canonicalPayload: payload,
     };
   }
 
@@ -158,7 +198,7 @@ async function loadValidatedFeatured(): Promise<ValidatedFeatured[]> {
 
   const rows: FeaturedRow[] = data.map((r) => ({
     id: r.id,
-    kind: r.kind as "design" | "set",
+    kind: r.kind as "design" | "set" | "kit",
     payload: r.payload,
     labelNo: r.label_no,
     labelEn: r.label_en,
@@ -166,21 +206,65 @@ async function loadValidatedFeatured(): Promise<ValidatedFeatured[]> {
     sortOrder: r.sort_order,
   }));
 
+  // live prices, once per render: sets and kits of the same pieces share the
+  // same rows → the same price by construction (AC5). Designs carry no price.
+  const bySlug: Record<string, { id: string; priceCents: number; currency: Currency }> = {};
+  const activeDesigns = await getActiveDesigns();
+  const supplierIds = [...new Set(activeDesigns.map((d) => d.supplierId))];
+  const perSupplier = await Promise.all(supplierIds.map((id) => getSupplierProducts(id)));
+  for (const list of perSupplier) {
+    for (const p of list) {
+      bySlug[p.slug] = {
+        id: p.id,
+        priceCents: p.price.amountCents,
+        currency: p.price.currency,
+      };
+    }
+  }
+  const discountConfig = await getDiscountConfig();
+
   return Promise.all(
     rows.map(async (row): Promise<ValidatedFeatured> => {
       const v = await validateFeaturedPayload(row.kind, row.payload);
-      return v.ok
-        ? {
-            ...row,
-            valid: true,
-            reason: null,
-            designName: v.designName,
-            designNameEn: v.designNameEn,
-            setCount: v.setCount,
-          }
-        : { ...row, valid: false, reason: v.reason, designName: null, designNameEn: null, setCount: null };
+      if (!v.ok) {
+        return { ...row, valid: false, reason: v.reason, designName: null, designNameEn: null, setCount: null, price: null };
+      }
+      const price =
+        row.kind === "design"
+          ? null
+          : featuredPrice(
+              kitPriceRows(row.kind, row.payload),
+              bySlug,
+              discountConfig
+            );
+      return {
+        ...row,
+        valid: true,
+        reason: null,
+        designName: v.designName,
+        designNameEn: v.designNameEn,
+        setCount: v.setCount,
+        price,
+      };
     })
   );
+}
+
+/** slug × qty rows of a set or kit payload — the same shape price eats. */
+function kitPriceRows(
+  kind: "set" | "kit",
+  payload: string
+): { productSlug: string; qty: number }[] {
+  if (kind === "kit") {
+    return decodeKitParam(payload).entries.map((e) => ({
+      productSlug: e.productSlug,
+      qty: e.qty,
+    }));
+  }
+  return decodeSetParam(payload).entries.map((e) => ({
+    productSlug: e.productSlug,
+    qty: e.qty,
+  }));
 }
 
 /**

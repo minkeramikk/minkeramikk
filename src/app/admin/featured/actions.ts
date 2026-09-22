@@ -21,14 +21,16 @@ import { MAX_FEATURED } from "@/lib/catalog/featured-constants";
 const INPUT_ERRORS: Record<string, string> = {
   empty: "Paste a config code or an app link.",
   "url-without-payload":
-    "That link has no ?code= or ?set= in it — copy it from the configurator (Copy link / Share this set).",
+    "That link has no ?code=, ?set= or ?kit= in it — copy it from the configurator (Copy link / Share).",
   "invalid-set":
     "That set has rows that don't parse — re-copy the link from the app.",
+  "invalid-kit":
+    "That kit has rows that don't parse — re-copy the link from the app.",
   "invalid-code": "That doesn't look like a config code (MK-…) or an app link.",
 };
 
 export interface FeaturedPreview {
-  kind: "design" | "set";
+  kind: "design" | "set" | "kit";
   payload: string;
   designName: string;
   setCount: number | null;
@@ -73,7 +75,13 @@ async function resolveInput(
           productSlug: e.productSlug,
           qty: e.qty,
         }))
-      : [];
+      : parsed.kind === "kit" && parsed.ok
+        ? parsed.entries.map((e) => ({
+            code: parsed.designCode,
+            productSlug: e.productSlug,
+            qty: e.qty,
+          }))
+        : [];
 
   return {
     preview: {

@@ -8,7 +8,7 @@ import { SetBadge } from "@/components/ui-domain/set-badge";
 
 export interface FeaturedStripItem {
   id: string;
-  kind: "design" | "set";
+  kind: "design" | "set" | "kit";
   payload: string;
   /** resolved URL of the PRE-composed thumb — ONE image per card (ADR 0016) */
   thumbUrl: string;
