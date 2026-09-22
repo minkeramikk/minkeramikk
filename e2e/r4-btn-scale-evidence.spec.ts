@@ -132,16 +132,9 @@ for (const locale of LOCALES) {
       if (w >= 1024) {
         await vis(page, "docked-checkout").scrollIntoViewIfNeeded();
         const c = await boxOf(page, "docked-checkout");
-        const n = await boxOf(page, "new-design-cta");
-        const s = await boxOf(page, "share-set");
         measures[k("checkout")] = Math.round(c.height);
-        measures[k("newDesign")] = Math.round(n.height);
-        measures[k("share")] = Math.round(s.height);
-        // Lo "stack" della card = dal bordo alto del primario al bordo basso
-        // dell'ultima pillola, gap compresi (237px = 72+12+71+12+70).
-        measures[k("stack")] = Math.round(s.y + s.height - c.y);
-        measures[k("gapPrimary")] = Math.round(n.y - (c.y + c.height));
-        measures[k("gapLow")] = Math.round(s.y - (n.y + n.height));
+        // R5-POLISH-STEP23: new-design-cta e share-set rimossi dallo stack
+        // (share solo con `?admin=1`) — resta l'altezza del primario.
       }
       await page.screenshot({
         path: `${OUT}/step3-${locale}-${w}.png`,
@@ -170,33 +163,20 @@ for (const locale of LOCALES) {
       persist(measures);
 
       // ── AC3: il touch target è il <button>, non il disco ────────────────
-      // `new-design-cta`/`share-set` vivono nella colonna, quindi si misurano
-      // solo da `lg` (v. sopra); la riga nav dello step 2 resta sotto md.
-      const smPills = [
-        ...(w >= 1024 ? ["new-design-cta", "share-set"] : []),
-        ...(w < 768 ? ["back-step", "next-step"] : []),
-      ];
+      // R5-POLISH-STEP23: le due pillole basse non esistono più — resta la
+      // riga nav dello step 2, che si misura sotto md.
+      const smPills = w < 768 ? ["back-step", "next-step"] : [];
       for (const id of smPills) {
-        const key = { "new-design-cta": "newDesign", "share-set": "share",
-          "back-step": "back", "next-step": "next" }[id]!;
+        const key = { "back-step": "back", "next-step": "next" }[id]!;
         expect(
           measures[k(key)],
           `AC3: ${id} @${w} ${locale} sotto i 44px di touch target`
         ).toBeGreaterThanOrEqual(44);
       }
 
-      // ── AC4: ingombro e gerarchia dello stack (colonna → da `lg`) ───────
-      if (w >= 1024) {
-        expect(
-          measures[k("stack")],
-          `AC4: stack @${w} ${locale} oltre 195px`
-        ).toBeLessThanOrEqual(195);
-        expect(
-          measures[k("checkout")] /
-            Math.max(measures[k("newDesign")], measures[k("share")]),
-          `AC4: il primario @${w} ${locale} non domina (rapporto < 1,4)`
-        ).toBeGreaterThanOrEqual(1.4);
-      }
+      // ── AC4: R5-POLISH-STEP23 — lo stack è una pillola sola (le due basse
+      // sono state rimosse), quindi ingombro e rapporto non hanno più due
+      // termini da confrontare: le asserzioni sono cadute con le pillole.
 
       // ── AC5: la riga nav sotto md ──────────────────────────────────────
       if (w < 768) {
@@ -255,7 +235,8 @@ for (const locale of LOCALES) {
         ).toBe(false);
       }
 
-      // R5-BASKET-HOST PR 2: `docked-checkout`, `new-design-cta` e `share-set`
+      // R5-BASKET-HOST PR 2: `docked-checkout` (e, prima di
+      // R5-POLISH-STEP23, `new-design-cta` e `share-set`)
       // stanno nella colonna dello step 3, che si renderizza solo da `lg`.
       // Tutte e tre le LABEL_WIDTHS sono sotto — `:visible` non troverebbe
       // niente e i sei test si pianterebbero per 30s. Un `if (w >= 1024)` qui

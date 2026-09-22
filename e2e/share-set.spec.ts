@@ -15,7 +15,7 @@ import { designWithCode, ceramicCards } from "./helpers";
 let step3 = "";
 test.beforeAll(async () => {
   const design = await designWithCode();
-  step3 = `/no/configurator?design=${design.slug}&step=3`;
+  step3 = `/no/configurator?design=${design.slug}&step=3&admin=1`;
 });
 
 const ceramics = (page: Page) => ceramicCards(page);

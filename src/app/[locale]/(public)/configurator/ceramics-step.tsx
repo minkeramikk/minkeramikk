@@ -46,7 +46,7 @@ import {
 } from "@/lib/catalog/product-attributes";
 import { groupBySeries } from "@/lib/configurator/product-series";
 import { buildDesignSwitchParams } from "@/lib/configurator/design-switch-params";
-import { ShoppingBag, Truck, Plus, ArrowUpRight, Brush } from "lucide-react";
+import { ShoppingBag, Truck, ArrowUpRight, Brush } from "lucide-react";
 import type { ResolvedSharedSet } from "./resolve-shared-set";
 import { ProductSheet } from "@/components/ui-domain/product-sheet";
 import { AddedSheet } from "@/components/ui-domain/added-sheet";
@@ -213,13 +213,13 @@ export function CeramicsStep({
   // TODO:nb-review NO copy: step3.seriesCount · stickyBar.pieces · stickyBar.unpainted
   const tc = useTranslations("configurator");
   const to = useTranslations("order");
-  const ta = useTranslations("actions");
   const tPaletteBar = useTranslations("palettes.bar");
   const tPaletteCard = useTranslations("palettes.card");
   const locale = useLocale() as "no" | "en";
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const isAdmin = searchParams.get("admin") === "1"; // T2: share-set gate, see cartFooter
 
   const {
     cart,
@@ -429,6 +429,9 @@ export function CeramicsStep({
    * lead NEWEST FIRST (last created leftmost), the rest follow dimmed — a
    * filter + concat, not a stable sort, so the store order stays untouched.
    */
+  // R5-POLISH-STEP23 T2 (feedback 3): step 3 only PAINTS — no rename, no
+  // delete on these chips; both live at step 2 (and in the mobile sheet,
+  // which keeps its own wiring below). `renamingPaletteCode` stays for it.
   const paletteChips = sortLaneNewestFirst(palettes, design.slug).map((p) => {
     const dim = p.designSlug !== design.slug;
     if (dim) {
@@ -442,7 +445,6 @@ export function CeramicsStep({
           dim
           dimDesignName={designLabel(p.snapshot, locale) ?? p.designSlug}
           onSelect={() => paintWith(p.code)}
-          onDelete={() => deletePalette(p.code)}
         />
       );
     }
@@ -463,15 +465,7 @@ export function CeramicsStep({
         layers={p.layers}
         active={isActive}
         brush={isActive}
-        renaming={renamingPaletteCode === p.code}
         onSelect={() => paintWith(p.code)}
-        onRenameStart={() => setRenamingPaletteCode(p.code)}
-        onRenameConfirm={(next) => {
-          renamePalette(p.code, next);
-          setRenamingPaletteCode(null);
-        }}
-        onRenameCancel={() => setRenamingPaletteCode(null)}
-        onDelete={() => deletePalette(p.code)}
       />
     );
   });
@@ -1090,42 +1084,27 @@ export function CeramicsStep({
   // are handed to `<Basket>` as a slot rather than moved into it.
   const cartFooter = (
     <>
-      {/* R4-BTN-SCALE AC4: le due azioni basse sono un GRUPPO, non
-          due pari del primario. Wrapper `gap-2` dentro il `gap-3`
-          dello stack → ritmo a due livelli: 12px staccano «Bestill»,
-          8px tengono insieme queste due. Taglia `sm` (mockup
-          vincolante): il primario resta 72px contro i loro ~51, cioè
-          1,4× — la gerarchia si legge anche in bianco e nero, non
-          solo dal colore. */}
       <div className="flex flex-col gap-2">
-        <NextStepPill
-          variant="secondary"
-          size="sm"
-          data-testid="new-design-cta"
-          className="w-full"
-          label={ta("newDesign")}
-          icon={
-            <PillIcon variant="secondary">
-              <Plus className="size-5 text-primary/60" />
-            </PillIcon>
-          }
-          onClick={() => goToStep(1)}
-        />
-        {/* CA-3: share in coda — gesto leggero, quindi la variante
-            più tenue della scala. */}
-        <NextStepPill
-          variant="tertiary"
-          size="sm"
-          data-testid="share-set"
-          className="w-full"
-          label={t("share.button")}
-          icon={
-            <PillIcon variant="tertiary">
-              <ArrowUpRight className="size-5 text-muted-foreground" />
-            </PillIcon>
-          }
-          onClick={() => shareSet(false)}
-        />
+        {/* R5-POLISH-STEP23 T2 (feedback 5): share is an ADMIN tool until
+            R5-KIT-SHARE gives it its own dialog. `?admin=1` is the gate the
+            R5 plan names for that card (§3 #4); it adds sessionStorage
+            persistence, this only reads the URL. ACCEPTANCE §8 stays green
+            through `share-set.spec.ts` (`&admin=1`). */}
+        {isAdmin && (
+          <NextStepPill
+            variant="tertiary"
+            size="sm"
+            data-testid="share-set"
+            className="w-full"
+            label={t("share.button")}
+            icon={
+              <PillIcon variant="tertiary">
+                <ArrowUpRight className="size-5 text-muted-foreground" />
+              </PillIcon>
+            }
+            onClick={() => shareSet(false)}
+          />
+        )}
       </div>
       {/* share feedback: announced, link visible (frame 1) */}
       <div aria-live="polite">
@@ -1611,9 +1590,14 @@ export function CeramicsStep({
             sticky has nothing to slide under — the card pins in the LEFT
             column (`top-4`), the rail in the RIGHT, and the two columns never
             overlap. Back to plain `top-4` with the original 1rem breathing
-            room. */}
+            room.
+            R5-POLISH-STEP23 T2 (feedback 2+7): `top-16`, not `top-4` — the
+            LEFT block pins at `top-0` and its kicker+h2 are 64px tall, so the
+            palette card's top edge sits at 64px when pinned; the rail now
+            pins at the same 64px and the two top borders line up. Surface =
+            palette-card.tsx:71 verbatim (white canvas, primary/20 border). */}
         <div
-          className="hidden min-w-0 rounded-sm border border-border bg-card p-5 lg:mt-16 lg:block lg:sticky lg:top-4 lg:self-start"
+          className="hidden min-w-0 rounded-lg border border-primary/20 bg-[var(--mk-canvas)] p-4 lg:mt-16 lg:block lg:sticky lg:top-16 lg:self-start"
           data-testid="docked-cart-panel"
         >
           {cartPanel}
