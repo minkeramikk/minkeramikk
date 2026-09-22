@@ -46,13 +46,15 @@ describe("buildDesignSwitchParams", () => {
     expect(decodeConfigCode(next.get("code")!, findDesign).customText).toBe("Til Anna");
   });
 
-  it("drops stale opt_* — the old design's categories — on a design change", () => {
+  it("drops stale opt_*, lock and note — per-design state — on a design change", () => {
     const next = buildDesignSwitchParams(
-      at("design=text-design&opt_colors=x&opt_borders=y&step=2"),
+      at("design=text-design&opt_colors=x&opt_borders=y&step=2&lock=1&note=wish"),
       "MK-O-B",
       OTHER_DESIGN.slug
     );
     expect([...next.keys()].filter((k) => k.startsWith("opt_"))).toEqual([]);
+    expect(next.get("lock")).toBeNull();
+    expect(next.get("note")).toBeNull();
     expect(next.get("design")).toBe(OTHER_DESIGN.slug);
     expect(next.get("step")).toBe("2");
   });
@@ -67,7 +69,7 @@ describe("buildDesignSwitchParams", () => {
     expect(next.get("code")).not.toBeNull();
   });
 
-  it("same design (designSlug null) → only code is set, opt_ kept, text dropped (code carries it)", () => {
+  it("same design (designSlug null) → only code+text reset, opt_/lock/note kept", () => {
     const next = buildDesignSwitchParams(
       at("design=text-design&opt_colors=colors-opt-b&step=2&note=wish&text=old+words"),
       "MK-T-B",

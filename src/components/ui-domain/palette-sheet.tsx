@@ -395,7 +395,7 @@ function PaletteTile({
           // R5-DESIGN-SWITCH AC4: dim tiles stay tappable — the tap switches
           // design implicitly through the same `?code=` navigation (`onPick`).
           aria-current={active ? "true" : undefined}
-          className="flex min-h-11 min-w-0 flex-1 items-center gap-2 text-left disabled:cursor-not-allowed"
+          className="flex min-h-11 min-w-0 flex-1 items-center gap-2 text-left"
         >
           <DesignRound layers={palette.layers} className={cn("size-8", dim && "grayscale-[.3]")} />
           <span className="min-w-0 leading-tight">

@@ -576,6 +576,12 @@ export function ConfiguratorClient({
   // R5-DESIGN-SWITCH AC4: `loadPalette` below needs this BEFORE the F19
   // effect runs — `buildDesignSwitchParams` resolves it through the same
   // tolerant codec, and the effect re-resolves it identically on arrival.
+  /**
+   * R5-DESIGN-SWITCH AC4: which design a `?code=` belongs to, via the same
+   * tolerant codec the F19 decode effect uses. Null when it resolves to
+   * nothing — then `buildDesignSwitchParams` sets only `code=` and the effect
+   * handles it exactly like before, so a tap never breaks over bad input.
+   */
   function designSlugOfCode(code: string): string | null {
     try {
       const { designSlug } = decodeConfigCode(
@@ -909,12 +915,6 @@ export function ConfiguratorClient({
     router.push(`${pathname}?${next.toString()}`, { scroll: false });
   }
 
-  /**
-   * R5-DESIGN-SWITCH AC4: which design a `?code=` belongs to, via the same
-   * tolerant codec the F19 decode effect uses. Null when it resolves to
-   * nothing — then `buildDesignSwitchParams` sets only `code=` and the effect
-   * handles it exactly like before, so a tap never breaks over bad input.
-   */
   /**
    * PR3 round 2 — the mobile palette sheet's «+ New»: resets the draft to
    * the DESIGN'S OWN DEFAULTS (`resolveSelections`'s fallback, same

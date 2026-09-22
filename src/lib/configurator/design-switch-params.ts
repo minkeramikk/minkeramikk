@@ -9,10 +9,11 @@
  * never a new navigation shape. The caller resolves `designSlug` (step 2
  * decodes the code with the existing codec, step 3 reads the palette's own
  * store-written `designSlug`) and this sets it upfront, so no render runs
- * with the stale design first; `opt_*` (the old design's categories) and
- * `text=` (the old dedication — the code carries the tapped palette's own)
- * drop with it. `note=` and everything else ride along untouched (the colour
- * wish travels only in the URL, never in the code).
+ * with the stale design first; `opt_*` (the old design's categories),
+ * `text=` (the old dedication — the code carries the tapped palette's own),
+ * `lock` and `note=` (both per-design, stale after a switch — same reason
+ * `selectDesign` drops them) go with it. Everything else rides along
+ * untouched.
  *
  * `designSlug` null = the code resolved to nothing (tolerant decode, never
  * throws): only `code=` is set and the existing decode effects handle the
@@ -29,6 +30,8 @@ export function buildDesignSwitchParams(
   next.delete("text");
   if (designSlug) {
     next.set("design", designSlug);
+    next.delete("lock");
+    next.delete("note");
     for (const key of [...next.keys()]) {
       if (key.startsWith("opt_")) next.delete(key);
     }

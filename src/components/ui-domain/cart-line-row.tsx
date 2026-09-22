@@ -721,7 +721,8 @@ export function CartLineRow({
         >
           {/* Card §4-bis (added mid-PR): current design's own palettes
               lead, the rest trail dimmed — same stable sort as the bar's
-              chips, not a filter (a dim pill stays reachable, just inert). */}
+              chips, not a filter (a dim pill stays tappable: the tap
+              switches the row to that palette's whole saved snapshot). */}
           {sortCurrentDesignFirst(palettes, currentDesignSlug).map((p) => {
             const dim = p.designSlug !== currentDesignSlug;
             // R5-TEXT-CARRY: exact, not stripped — the row's own thumb code
