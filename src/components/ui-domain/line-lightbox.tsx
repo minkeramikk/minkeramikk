@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { CLOSE_DISC } from "@/components/ui-domain/close-disc";
-import { DesignRound } from "@/components/ui-domain/design-round";
 import { SetBadge } from "@/components/ui-domain/set-badge";
 import { atVariantWidth, VARIANT_WIDTHS } from "@/lib/asset-variants";
 import type { CartLayer, CartLine } from "@/lib/cart/cart";
@@ -83,7 +82,6 @@ export function LineLightbox({
   locale: "no" | "en";
   onOpenChange: (open: boolean) => void;
 }) {
-  const tSelection = useTranslations("configurator.yourSelection");
   const tPhotos = useTranslations("configurator.photos");
   const open = line !== null;
 
@@ -192,36 +190,12 @@ export function LineLightbox({
           )}
         </div>
 
-        {/* R5-POLISH-STEP23 T3 round 2: the two-tile slide switcher is gone
-            (TL: «with your palette → via»). When the line has both a photo
-            and a design, the design shows the way the buy sheet shows it —
-            the `.pair` strip of `product-sheet.tsx:233`, same markup, same
-            copy key — so nothing is lost and there is one idiom, not two.
-            A line with only layers still opens on the composite above: that
-            is the `slides` fallback, not a second view to toggle. */}
-        {shown.plateImage && shown.layers && shown.layers.length > 0 && (
-          <div
-            data-testid="line-lightbox-pair"
-            className="mt-2.5 flex items-center gap-2.5 rounded-sm bg-muted px-3 py-2.5 text-[12.5px]"
-          >
-            <div className="flex shrink-0 items-center gap-2">
-              {/* eslint-disable-next-line @next/next/no-img-element -- chosen ceramic photo from storage */}
-              <img
-                src={shown.plateImage}
-                alt=""
-                aria-hidden
-                className="size-11 shrink-0 rounded-full object-cover"
-              />
-              <span aria-hidden className="font-semibold text-muted-foreground">
-                +
-              </span>
-              <DesignRound layers={shown.layers} className="size-11" />
-            </div>
-            <p className="min-w-0 font-medium text-foreground">
-              {tSelection("pairCaption")}
-            </p>
-          </div>
-        )}
+        {/* R5-POLISH-STEP23 (TL, 22/9): nothing under the photo. The slide
+            switcher went first, then the buy sheet's «This ceramic + your
+            design» strip that had replaced it — «si vede solo il piatto e
+            l'header, bottom pulito». A line with no photo still opens on its
+            composite above: that is the `slides` fallback, not a second view.
+            The design a line carries is on the basket row itself. */}
       </DialogContent>
     </Dialog>
   );
