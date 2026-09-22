@@ -113,8 +113,18 @@
   animation: spinplate 4s linear infinite;
   transform-origin: 50% 50%;
 }
+/* Contro-rotazione per la scritta ferma al centro dello spinner: stesso
+   periodo del giro (4s), verso opposto — resta leggibile mentre le alici
+   ruotano attorno. */
+@keyframes spinplate-counter {
+  to { transform: rotate(-360deg); }
+}
+.spinplate-counter {
+  animation: spinplate-counter 4s linear infinite;
+}
 @media (prefers-reduced-motion: reduce) {
   .spinplate { animation: none; }
+  .spinplate-counter { animation: none; }
 }
 
 /*

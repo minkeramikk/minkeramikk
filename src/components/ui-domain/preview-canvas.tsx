@@ -75,7 +75,7 @@ function preloadAll(layers: PreviewLayer[]): Promise<void> {
  */
 const SARDINES_SRC =
   "https://lfphyfkuuszqazkioxlr.supabase.co/storage/v1/object/public/assets/designs/ansjos-pastatallerken/tree/1-layer@512.webp";
-function SpinnerMotif() {
+function SpinnerMotif({ label }: { label?: string }) {
   return (
     <div aria-hidden="true" className="spinplate relative h-[62%] w-[62%]">
       {/* eslint-disable-next-line @next/next/no-img-element -- catalog art from storage, same as LayerStack */}
@@ -85,6 +85,14 @@ function SpinnerMotif() {
         className="absolute inset-0 h-full w-full object-contain"
         style={{ mixBlendMode: "multiply" }}
       />
+      {/* Scritta DENTRO il giro: resta ferma al centro mentre le alici
+          ruotano attorno (il padre gira, questo contro-gira alla stessa
+          velocità — tecnica standard per testo stabile su spinner). */}
+      {label ? (
+        <span className="spinplate-counter absolute inset-0 grid place-items-center">
+          <span className="text-sm font-semibold text-foreground">{label}</span>
+        </span>
+      ) : null}
     </div>
   );
 }
@@ -479,10 +487,7 @@ export function PreviewCanvas({
               transitionTimingFunction: "ease-out",
             }}
           >
-            <SpinnerMotif />
-            <span className="mt-1 text-sm font-semibold text-foreground">
-              {loadingLabel ?? alt}
-            </span>
+            <SpinnerMotif label={loadingLabel ?? alt} />
           </div>
         )}
 
