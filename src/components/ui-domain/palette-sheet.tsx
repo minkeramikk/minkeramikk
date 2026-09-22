@@ -366,9 +366,7 @@ function PaletteTile({
         hasActions && "col-span-2",
         active
           ? "border-primary bg-card shadow-[0_0_0_1px_var(--ring)]"
-          : dim
-            ? "border-border/60 bg-muted/40 opacity-50"
-            : "border-border bg-card hover:border-ring"
+          : "border-border bg-card hover:border-ring"
       )}
     >
       {renaming ? (
@@ -397,20 +395,27 @@ function PaletteTile({
           aria-current={active ? "true" : undefined}
           className="flex min-h-11 min-w-0 flex-1 items-center gap-2 text-left"
         >
-          <DesignRound layers={palette.layers} className={cn("size-8", dim && "grayscale-[.3]")} />
+          <DesignRound layers={palette.layers} className="size-8" />
           <span className="min-w-0 leading-tight">
             <span className="block truncate font-medium">{palette.name}</span>
             {/* R5-TEXT-IDENTITY (TL ruling) — the caller already resolved
                 whose words this is (this palette's own, or the canvas's
                 while active); nothing decoded from `palette.code` here. */}
-            {/* `!dim` for the same reason the chip trades it away: a tile for
-                another design gives its second line to that design's name. */}
-            {!dim && <PaletteDedicationLine text={dedication} className="max-w-none" />}
+            {/* Second line: a tile for another design shows that design's
+                name first (the tap switches design too), then its own dots
+                like every other tile — no faded/unselectable state. */}
+            {dim && dimDesignName ? (
+              <span className="block truncate text-[10px] text-muted-foreground">
+                {dimDesignName}
+              </span>
+            ) : (
+              <PaletteDedicationLine text={dedication} className="max-w-none" />
+            )}
             <span className="block truncate text-[10px] text-muted-foreground">
               {/* Fix wave PR3 finding 6: was its own near-copy of `cart-line-row.tsx`'s
                   `Dots` (the mockup's `Dots(code)`) that had drifted off ADR 0008's
                   tokens-only rule — same colour swatches, now the one component. */}
-              {dim ? dimDesignName : <Dots hexes={hexes} />}
+              <Dots hexes={hexes} />
             </span>
           </span>
         </button>

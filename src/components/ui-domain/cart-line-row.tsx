@@ -750,11 +750,12 @@ export function CartLineRow({
                   // (R5-TEXT-IDENTITY) is a genuine second line, same "let
                   // it grow" fix `PaletteChip`'s own tile needed.
                   "flex min-h-11 min-w-0 shrink-0 items-center gap-1.5 rounded-full pl-1 pr-2.5 text-xs lg:min-h-8",
-                  dim
-                    ? "bg-muted text-muted-foreground opacity-45"
-                    : active
-                      ? "bg-card font-semibold shadow-[0_0_0_1.5px_var(--ring)]"
-                      : "bg-muted hover:bg-secondary"
+                  // No faded/unselectable state: every palette is always
+                  // available, the tap just switches design too (`dim`
+                  // only decides the subtitle below).
+                  active
+                    ? "bg-card font-semibold shadow-[0_0_0_1.5px_var(--ring)]"
+                    : "bg-muted hover:bg-secondary"
                 )}
               >
                 <DesignRound layers={p.layers} className="size-6 shrink-0 rounded-sm" />

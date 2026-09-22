@@ -48,9 +48,10 @@ export interface PaletteChipProps {
   active?: boolean;
   /** The current (unsaved) canvas colours — dashed border, «Unsaved» eyebrow over the name. */
   draft?: boolean;
-  /** Belongs to another design than the one on screen — faded, but tappable:
-   *  the tap switches design implicitly through `?code=` (R5-DESIGN-SWITCH
-   *  AC4), the same navigation a same-design chip tap already does. */
+  /** Belongs to another design than the one on screen — same skin as any
+   *  other chip (no faded/unselectable state: every palette is always
+   *  available, the tap just switches design too). `dimDesignName` still
+   *  shows as subtitle so the customer knows the tap changes design. */
   dim?: boolean;
   /** The OTHER design's name, shown as a subtitle — only rendered (and only meaningful) when `dim`. */
   dimDesignName?: string;
@@ -148,12 +149,10 @@ export function PaletteChip({
     ? "bg-card font-semibold text-foreground shadow-[0_0_0_2px_var(--ring)]"
     : draft
       ? "border border-dashed border-primary/50 bg-transparent text-foreground"
-      : dim
-        ? "bg-muted text-muted-foreground opacity-50"
-        : "bg-muted text-foreground hover:bg-secondary";
+      : "bg-muted text-foreground hover:bg-secondary";
 
   const thumb = (
-    <DesignRound layers={layers} className={cn("size-9", dim && "grayscale-[.3]")} />
+    <DesignRound layers={layers} className="size-9" />
   );
 
   return (
@@ -233,11 +232,10 @@ export function PaletteChip({
                 </span>
               )}
               <span className="max-w-[108px] truncate">{name}</span>
-              {/* One second line, and `dim` spends it on the OTHER design's
-                  name: a palette you cannot paint with right now needs to say
-                  WHY before it says what it was dedicated to. Callers still
-                  pass `dedication` for dim chips — it is simply outranked
-                  here, not forgotten. */}
+            {/* One second line, and `dim` spends it on the OTHER design's
+                name: the tap switches design too, so the chip says so
+                upfront. Callers still pass `dedication` for dim chips — it
+                is simply outranked here, not forgotten. */}
               {dim && dimDesignName ? (
                 <span className="max-w-[108px] truncate text-[10px] text-muted-foreground">
                   {dimDesignName}

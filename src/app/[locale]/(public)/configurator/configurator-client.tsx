@@ -975,9 +975,8 @@ export function ConfiguratorClient({
     // navigazione RSC (`router.push`), il `designKey` del canvas cambia
     // solo DOPO il round-trip — troppo tardi perché il loader serva.
     // `pendingDesignAt` anticipa lo stato: il canvas mostra subito il
-    // piatto che gira (solo cambio design, mai tap colore) per almeno
+    // piatto che gira (solo cambio design, MAI tap palette/colore) per almeno
     // `LOADER_MIN_MS`, finché i nuovi layer non arrivano. Si azzera da
-    // solo quando `selected.slug` segue (con attesa del minimo).
     setPendingDesignSlug(d.slug);
     setPendingDesignAt(Date.now());
     const params = new URLSearchParams(searchParams.toString());
