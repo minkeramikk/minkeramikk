@@ -414,14 +414,18 @@ export function PreviewCanvas({
             role="status"
             data-testid="design-loader"
             aria-label={loadingLabel ?? alt}
-            className="absolute inset-0 z-10 flex items-center justify-center bg-[color-mix(in_oklab,var(--mk-canvas)_72%,transparent)]"
+            className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 bg-[color-mix(in_oklab,var(--mk-canvas)_72%,transparent)]"
           >
             {/* `spinplate` = mockup class verbatim (globals.css, from
-                mockup-palettebar.html :57-59), incl. its own CSS
+                mockup-palettebar.html :57-59; size-16 + caption verbatim
+                from r5-animation artifact `Loader`), incl. its own CSS
                 reduced-motion guard. */}
-            <div aria-hidden="true" className="spinplate h-[60%] w-[60%]">
+            <div aria-hidden="true" className="spinplate size-16 opacity-80">
               <LayerStack layers={shown.layers} alt="" />
             </div>
+            <span className="text-[11px] text-muted-foreground">
+              {loadingLabel ?? alt}
+            </span>
           </div>
         )}
 

@@ -165,6 +165,7 @@
     "designSwitch": {
       "label": "Design",
       "covers": "{count, plural, one {covers # ceramic} other {covers # ceramics}}",
+      "coversShort": "{count, plural, one {# ceramic} other {# ceramics}}",
       "sheetTitle": "Choose design",
       "loaderAlt": "Loading {design} design"
     },
