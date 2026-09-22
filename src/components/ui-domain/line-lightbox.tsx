@@ -128,7 +128,14 @@ export function LineLightbox({
             trigger.current.focus();
           }
         }}
-        className="top-0 left-0 flex h-dvh max-w-none! translate-x-0 translate-y-0 flex-col gap-0 rounded-none bg-ink/92 px-4 py-3 ring-0 sm:max-w-none!"
+        className={cn(
+          // below sm: unchanged — full-screen sheet on the ink backdrop
+          "top-0 left-0 flex h-dvh max-w-none! translate-x-0 translate-y-0 flex-col gap-0 rounded-none bg-ink/92 px-4 py-3 ring-0",
+          // R5-POLISH-STEP23 T3 (feedback 4): from sm a plain centred dialog,
+          // same geometry family as product-sheet.tsx:148-150 — the plate
+          // reads at full size on a white box, nothing else competes.
+          "sm:top-1/2 sm:left-1/2 sm:h-auto sm:max-h-[90vh] sm:w-[min(720px,92vw)] sm:max-w-none! sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-lg sm:p-5"
+        )}
       >
         <DialogTitle className="sr-only">{title}</DialogTitle>
 
@@ -147,7 +154,7 @@ export function LineLightbox({
           </button>
         </div>
 
-        <div className="my-3 grid min-h-0 flex-1 place-items-center overflow-hidden rounded-lg bg-[var(--mk-canvas)] p-4">
+        <div className="my-3 grid min-h-0 flex-1 place-items-center overflow-hidden rounded-lg bg-[var(--mk-canvas)] p-4 sm:aspect-square sm:max-h-[70vh] sm:w-full sm:flex-none">
           {active === "ceramic" && shown.plateImage && (
             // eslint-disable-next-line @next/next/no-img-element -- chosen ceramic photo from storage
             <img src={shown.plateImage} alt="" className="max-h-full max-w-full object-contain" />
