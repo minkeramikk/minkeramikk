@@ -207,7 +207,6 @@
   },
   "cart": {
     "title": "Choose ceramics",
-    "tapOnePieceIn": "tap = one piece in {name}",
     "quantity": "Quantity",
     "decreaseQty": "Fewer",
     "increaseQty": "More",
@@ -383,7 +382,12 @@
       "new": "New palette"
     },
     "card": {
-      "paintingNow": "Painting now: {name}"
+      "paintingNow": "Painting now",
+      "switchTo": "Switch to",
+      "editColours": "Edit colours",
+      "showAll": "Show all {count}",
+      "showFewer": "Show fewer",
+      "emptyHint": "No other palettes to switch to yet. Save one from the colour step and it shows up here."
     },
     "sheet": {
       "trigger": "Palettes",

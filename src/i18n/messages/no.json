@@ -206,7 +206,6 @@
   },
   "cart": {
     "title": "Velg keramikk",
-    "tapOnePieceIn": "trykk = én del i {name}",
     "quantity": "Antall",
     "decreaseQty": "Færre",
     "increaseQty": "Flere",
@@ -382,7 +381,12 @@
       "new": "Ny palett"
     },
     "card": {
-      "paintingNow": "Maler nå: {name}"
+      "paintingNow": "Maler nå",
+      "switchTo": "Bytt til",
+      "editColours": "Rediger farger",
+      "showAll": "Vis alle {count}",
+      "showFewer": "Vis færre",
+      "emptyHint": "Ingen andre paletter å bytte til ennå. Lagre en fra fargesteget, så vises den her."
     },
     "sheet": {
       "trigger": "Paletter",
