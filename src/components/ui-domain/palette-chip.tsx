@@ -58,6 +58,8 @@ export interface PaletteChipProps {
   dimDesignName?: string;
   /** Small paintbrush badge on the thumb — the active chip in paint mode. */
   brush?: boolean;
+  /** Step 3, pure target: thumb 28, text 12.5, name at 96px — DS §3.31. */
+  compact?: boolean;
   /** Parent-owned: this is the one chip currently in rename mode (only one at a time). */
   renaming?: boolean;
   /** Fires on click/Enter/Space of the chip body (not while `renaming`). */
@@ -89,6 +91,7 @@ export function PaletteChip({
   dim = false,
   dimDesignName,
   brush = false,
+  compact = false,
   renaming = false,
   onSelect,
   onRenameStart,
@@ -161,8 +164,10 @@ export function PaletteChip({
       : "bg-muted text-foreground hover:bg-secondary";
 
   const thumb = (
-    <DesignRound layers={layers} className="size-9" />
+    <DesignRound layers={layers} className={compact ? "size-7" : "size-9"} />
   );
+
+  const cap = compact ? "max-w-[96px]" : "max-w-[108px]";
 
   return (
     <div
@@ -175,6 +180,7 @@ export function PaletteChip({
         // clip — same "let it grow" fix `PaletteBar`'s own row already
         // needed for the same reason.
         "group relative flex min-h-12 shrink-0 items-center gap-2.5 rounded-full py-1 pl-1.5 pr-4 text-[13.5px] transition-colors",
+        compact && "min-h-11 gap-2 pl-1 pr-3 text-[12.5px] sm:min-h-9",
         skin
       )}
     >
@@ -240,17 +246,17 @@ export function PaletteChip({
                   {t("unsaved")}
                 </span>
               )}
-              <span className="max-w-[108px] truncate">{name}</span>
+              <span className={cn(cap, "truncate")}>{name}</span>
             {/* One second line, and `dim` spends it on the OTHER design's
                 name: the tap switches design too, so the chip says so
                 upfront. Callers still pass `dedication` for dim chips — it
                 is simply outranked here, not forgotten. */}
               {dim && dimDesignName ? (
-                <span className="max-w-[108px] truncate text-[10px] text-muted-foreground">
+                <span className={cn(cap, "truncate text-[10px] text-muted-foreground")}>
                   {dimDesignName}
                 </span>
               ) : (
-                <PaletteDedicationLine text={dedication} />
+                <PaletteDedicationLine text={dedication} className={cap} />
               )}
             </span>
           </button>
