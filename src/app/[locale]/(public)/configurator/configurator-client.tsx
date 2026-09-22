@@ -81,13 +81,15 @@ const INSPIRATION_URL = "https://www.minkeramikk.no/inspirasjon";
 const WISHES_TAB = "__wishes";
 
 /**
- * R5-DESIGN-SWITCH loader: durata minima visibile dell'animazione (il demo
- * kit simula 700ms in `navigateDesign`; qui il server è già veloce, senza
- * un minimo le alici non si vedono mai nuotare). 4200ms = un giro intero
- * `spinplate` (4s) più margine — voluto, non tuning.
+ * R5-DESIGN-SWITCH loader: due giri `spinplate` (2×4s) garantiti a ogni
+ * cambio design visibile. Misura: server locale risponde in ~100ms, senza
+ * minimo le alici non si vedono mai nuotare. Mai infinito: safety cap
+ * 10s nell'effect (un tap supersede sovrascrive, non accoda).
  */
-// ponytail: fixed 4200ms like the demo — real elapsed-time wait if slowness ever needs proving
-const LOADER_MIN_MS = 4200;
+// ponytail: due giri fissi, non tuning — se il server rallenta il loader copre comunque l'attesa reale
+const LOADER_MIN_MS = 8000;
+/** Safety cap: oltre qui il loader muore comunque (con warn in console). */
+const LOADER_SAFETY_CAP_MS = 10000;
 
 export interface DesignChoice {
   id: string;
@@ -242,31 +244,42 @@ export function ConfiguratorClient({
   const urlSlug = searchParams.get("design");
   const selected =
     designs.find((d) => d.slug === urlSlug) ?? designs[0]; // sort_order=1 default (AC1)
-  // R5-DESIGN-SWITCH loader: design in attesa di arrivo dopo `selectDesign`
-  // (navigazione RSC). Finché `selected.slug` non lo segue, il canvas gira.
-  // Stesso concetto del `S.pendingDesign` del demo kit (`navigateDesign`).
-  // `pendingDesignAt` = quando il tap è partito: il loader resta visibile
-  // almeno `LOADER_MIN_MS` anche se il server risponde subito — sennò
-  // l'animazione non si vede mai (il demo simula 700ms per lo stesso motivo).
-  const [pendingDesignSlug, setPendingDesignSlug] = useState<string | null>(
-    null
-  );
-  const [pendingDesignAt, setPendingDesignAt] = useState<number | null>(null);
+  // R5-DESIGN-SWITCH loader — UN SOLO STATO: `pending = {slug, startedAt} |
+  // null`. Il canvas mostra il loader se e solo se `pending != null`
+  // (+ `reduced-motion` off). Un solo trigger (`startDesignTransition`,
+  // sotto): `selectDesign` sempre, `loadPalette` solo se il code risolve
+  // un ALTRO design. Stesso design / tap colore → mai loader. Clear unico
+  // nell'effect sotto: design arrivato + minimo visivo passato. Supersede
+  // (nuovo tap) sovrascrive slug + clock. Safety cap 10s: mai infinito.
+  const [pending, setPending] = useState<{
+    slug: string;
+    startedAt: number;
+  } | null>(null);
+  const startDesignTransition = (slug: string) => {
+    setPending({ slug, startedAt: Date.now() });
+  };
   useEffect(() => {
-    if (pendingDesignSlug !== null && selected.slug === pendingDesignSlug) {
-      const elapsed = pendingDesignAt ? Date.now() - pendingDesignAt : Infinity;
-      if (elapsed >= LOADER_MIN_MS) {
-        setPendingDesignSlug(null);
-        setPendingDesignAt(null);
-      } else {
-        const t = setTimeout(() => {
-          setPendingDesignSlug(null);
-          setPendingDesignAt(null);
-        }, LOADER_MIN_MS - elapsed);
-        return () => clearTimeout(t);
-      }
+    if (pending === null || selected.slug !== pending.slug) return;
+    const elapsed = Date.now() - pending.startedAt;
+    if (elapsed >= LOADER_MIN_MS) {
+      setPending(null);
+    } else {
+      const t = setTimeout(() => {
+        setPending(null);
+      }, LOADER_MIN_MS - elapsed);
+      return () => clearTimeout(t);
     }
-  }, [selected.slug, pendingDesignSlug, pendingDesignAt]);
+  }, [selected.slug, pending]);
+  // Safety cap: se il design non arriva mai (navigazione fallita, decode
+  // perso), il loader muore comunque dopo 10s invece di girare all'infinito.
+  useEffect(() => {
+    if (pending === null) return;
+    const t = setTimeout(() => {
+      console.warn("[design-loader] safety cap: clearing stale pending", pending.slug);
+      setPending(null);
+    }, LOADER_SAFETY_CAP_MS);
+    return () => clearTimeout(t);
+  }, [pending]);
   const detail = detailsBySlug[selected.slug];
   /** R4-RESTYLE: la corsia tab è fatta SOLO di gruppi-opzione — «Detaljer» e
    *  «Bilder» non esistono più (i loro contenuti sono in pagina, sopra il
@@ -629,12 +642,12 @@ export function ConfiguratorClient({
   }
   // F19: a ?code= deep-link (cart-row "reopen" or a shared link) is decoded once
   // on arrival into the canonical opt_* params, then dropped from the URL.
-  // It also clears a stale `pendingDesignSlug`: a `?code=` navigation
-  // (palette tap, «Edit design») resolves its own design through the decode
-  // below and never starts the spinner — if a previous `selectDesign` was
-  // still waiting, that wait is over (its design either arrived or was
-  // superseded by this one). Without this, tapping a palette mid-flight
-  // left the loader comparing against a design that never comes: infinite.
+  // It also supersedes a stale `pending`: a `?code=` navigation resolves
+  // its own design through the decode below — if it names a DIFFERENT
+  // design than the one `pending` waits for, the old wait is over
+  // (`loadPalette` already started the right one, or the tap stayed on the
+  // same design and no loader runs at all). Same design as pending →
+  // untouched, the normal clear path handles it.
   //
   // R5-TEXT-IDENTITY final-review round 2, finding 1 (BLOCKER): this effect
   // used to destructure only `{ designSlug, selections }` and threw the
@@ -669,12 +682,20 @@ export function ConfiguratorClient({
   useEffect(() => {
     const incoming = searchParams.get("code");
     if (!incoming) return;
-    // A `?code=` navigation carries its own design — the spinner (only ever
-    // started by `selectDesign`) has nothing to wait for: clear it now, not
-    // after the decode below, so a palette tap can never inherit a stuck
-    // loader from an in-flight design switch.
-    setPendingDesignSlug(null);
-    setPendingDesignAt(null);
+    // Un `?code=` con design DIVERSO dal `pending` in volo lo supersede:
+    // la vecchia attesa non arriverà mai (l'URL ora dice un'altra cosa).
+    // `loadPalette` ha già startato il `pending` giusto; per i deep-link
+    // esterni (reopen, shared) che arrivano DURANTE uno switch, si riallinea
+    // qui decodificando — mai clear cieco, mai confronto con design fantasma.
+    try {
+      const { designSlug: decodedSlug } = decodeConfigCode(
+        incoming,
+        (c) => codecDesigns.find((d) => d.code === c.toUpperCase()) ?? null
+      );
+      if (decodedSlug !== selected.slug) startDesignTransition(decodedSlug);
+    } catch {
+      /* undecodable → pending untouched, normal clear path handles it */
+    }
     const explicitText = searchParams.get("text");
     const params = new URLSearchParams(searchParams.toString());
     params.delete("code");
@@ -698,7 +719,7 @@ export function ConfiguratorClient({
       /* invalid code → just drop the param, never crash */
     }
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
-  }, [searchParams, codecDesigns, pathname, router]);
+  }, [searchParams, codecDesigns, pathname, router, selected.slug]);
 
   // ── R5-PALETTES task 8: the manage bar (step 2, desktop) ──
   // One `usePalettes()` instance for the whole tab, shared via CartProvider
@@ -941,15 +962,14 @@ export function ConfiguratorClient({
     // (via the `codecDesigns` below) and drops the old design's `opt_*`/`text=`;
     // the F19 decode effect then resolves the selections, same as before.
     //
-    // NO loader here (unlike `selectDesign` below): this is a palette pick,
-    // not a design change — the decoded config arrives with the navigation
-    // and the canvas cross-fades. `pendingDesignSlug` stays null, so the
-    // spinner never starts and can never get stuck on.
-    const next = buildDesignSwitchParams(
-      searchParams,
-      code,
-      designSlugOfCode(code)
-    );
+    // Switch implicito = stesso loader del cambio design esplicito: se il
+    // code risolve un ALTRO design, `startDesignTransition` — stesso stato,
+    // stesso minimo, stesso clear. Stesso design → niente loader, solo fade.
+    const targetSlug = designSlugOfCode(code);
+    if (targetSlug !== null && targetSlug !== selected.slug) {
+      startDesignTransition(targetSlug);
+    }
+    const next = buildDesignSwitchParams(searchParams, code, targetSlug);
     next.set("step", "2");
     // Fix wave PR3 finding 3: `resetPaletteDraft` a few lines below already
     // passes this — a phone picks a chip mid-page (the mobile tab lane sits
@@ -980,14 +1000,9 @@ export function ConfiguratorClient({
 
   function selectDesign(d: DesignChoice | DesignSwitchChoice) {
     if (d.slug === selected.slug) return;
-    // R5-DESIGN-SWITCH loader: siccome il cambio design qui è una
-    // navigazione RSC (`router.push`), il `designKey` del canvas cambia
-    // solo DOPO il round-trip — troppo tardi perché il loader serva.
-    // `pendingDesignAt` anticipa lo stato: il canvas mostra subito il
-    // piatto che gira (solo cambio design, MAI tap palette/colore) per almeno
-    // `LOADER_MIN_MS`, finché i nuovi layer non arrivano. Si azzera da
-    setPendingDesignSlug(d.slug);
-    setPendingDesignAt(Date.now());
+    // Cambio design esplicito: navigazione RSC, il canvas cambia solo DOPO
+    // il round-trip — il loader parte subito da qui (`pending`, sopra).
+    startDesignTransition(d.slug);
     const params = new URLSearchParams(searchParams.toString());
     params.set("design", d.slug);
     // a new design resets option selections (different categories)
@@ -1536,9 +1551,8 @@ export function ConfiguratorClient({
               alt={designName(selected)}
               loadingLabel={t("designSwitch.loaderAlt", {
                 design: designName(
-                  pendingDesignSlug
-                    ? (designs.find((d) => d.slug === pendingDesignSlug) ??
-                      selected)
+                  pending
+                    ? (designs.find((d) => d.slug === pending.slug) ?? selected)
                     : selected
                 ),
               })}
@@ -1547,7 +1561,7 @@ export function ConfiguratorClient({
               layers={previewLayers}
               inscription={liveInscription}
               designKey={selected.slug}
-              pendingDesignKey={pendingDesignSlug}
+              pendingDesignKey={pending?.slug ?? null}
             />
             {/* R5-DESIGN-SWITCH T1 fix: il badge mobile deve ancorarsi al canvas
                 (mockup `:275`), non alla colonna: mount dentro `preview-sticky`

@@ -9,7 +9,6 @@ import {
   scaleForLength,
   shrinkStep,
 } from "@/lib/configurator/inscription";
-import { assetUrl } from "@/lib/storage";
 
 export interface PreviewLayer {
   src: string;
@@ -331,18 +330,10 @@ export function PreviewCanvas({
     key: string;
     layers: PreviewLayer[];
   } | null>(null);
-  // R5-DESIGN-SWITCH T2: the layer key changed but the new art has not
-  // loaded yet → the whole-canvas spinning-plate overlay (data-testid
-  // "design-loader"). Only when the DESIGN changed (`designKey` prop), never
-  // on a color tap (same design, only recolors) — the fade below covers
-  // that, unchanged. Overlay is state derived from the transition, so no
-  // unmount reset: useState dies with the component.
-  const [designLoading, setDesignLoading] = useState(false);
-  // Committed design identity (ref, not state: updating it must not
-  // re-trigger the transition effect below and re-run the preload).
-  // Initialized from the first render's `designKey` so a mount-then-decode
-  // (configurator lands with ?design= already in the URL) is not read as
-  // a switch away from nothing.
+  // Cross-fade interno dei layer (preload + fade): guida solo la
+  // transizione dell'arte. Il loader NON lo decide lui: solo
+  // `pendingDesignKey` (unico stato, nel client). `designKey` resta prop
+  // per coerenza futura, ma nessun confronto show/hide lo legge più.
   const committedDesign = useRef<string | undefined>(designKey);
   const [fadeIn, setFadeIn] = useState(false);
   const commitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -350,7 +341,6 @@ export function PreviewCanvas({
   useEffect(() => {
     if (targetKey === shown.key) {
       setIncoming(null); // back to current set: drop any in-flight overlay
-      setDesignLoading(false);
       if (designKey !== undefined) committedDesign.current = designKey;
       return;
     }
@@ -359,17 +349,9 @@ export function PreviewCanvas({
       typeof window !== "undefined" &&
       window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 
-    // Loader only on a DESIGN switch (never on a color tap, which keeps the
-    // same designKey and fades, unchanged). Reduced-motion → no loader and
-    // no animation at all: immediate swap once loaded.
-    const isDesignChange =
-      designKey !== undefined && designKey !== committedDesign.current;
-    if (isDesignChange && !reduce) setDesignLoading(true);
-
     let cancelled = false;
     preloadAll(layers).then(() => {
       if (cancelled) return;
-      setDesignLoading(false);
       if (designKey !== undefined) committedDesign.current = designKey;
       if (reduce) {
         setShown({ key: targetKey, layers }); // immediate swap (AC4)
@@ -404,43 +386,39 @@ export function PreviewCanvas({
     };
   }, [incoming, fadeIn]);
 
-  // The loader never blinks away: once the new layers have committed, it
+  // The loader never blinks away: once `pending` clears upstream, it
   // overstays one trailing fade so the spinner dissolves on top of the
-  // incoming art instead of cutting to it mid-spin.
+  // incoming art instead of cutting to it mid-spin. Skipped on first
+  // mount (pending never existed → no flash) via the ref below.
   const [loaderLeaving, setLoaderLeaving] = useState(false);
   const loaderExitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const rawLoaderOn =
-    designLoading ||
-    (pendingDesignKey != null && pendingDesignKey !== committedDesign.current);
+  const everLoading = useRef(false);
+  const rawLoaderOn = pendingDesignKey != null;
+  if (rawLoaderOn) everLoading.current = true;
   useEffect(() => {
     if (rawLoaderOn) {
       if (loaderExitTimer.current) clearTimeout(loaderExitTimer.current);
       setLoaderLeaving(false);
       return;
     }
-    if (designLoading || pendingDesignKey != null) {
-      // was showing, now the design resolved → trailing fade, then off
-      setLoaderLeaving(true);
-      loaderExitTimer.current = setTimeout(() => {
-        setLoaderLeaving(false);
-      }, LOADER_EXIT_MS);
-      return () => {
-        if (loaderExitTimer.current) clearTimeout(loaderExitTimer.current);
-      };
-    }
-    return undefined;
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- driven by loader signal only
+    if (!everLoading.current) return;
+    setLoaderLeaving(true);
+    loaderExitTimer.current = setTimeout(() => {
+      setLoaderLeaving(false);
+    }, LOADER_EXIT_MS);
+    return () => {
+      if (loaderExitTimer.current) clearTimeout(loaderExitTimer.current);
+    };
   }, [rawLoaderOn]);
 
   const nothingToShow = shown.layers.length === 0 && !incoming;
-  // Loader visibile in due casi: (1) design già scelto ma non ancora
-  // arrivato (`pendingDesignKey` — copre l'attesa del round-trip RSC, che
-  // è dove il cliente aspetta davvero); (2) layer cambiati ma non ancora
-  // precaricati (`designLoading`, transizione client). Entrambi solo su
-  // cambio design via `selectDesign`, mai su tap palette/colore
-  // (`loadPalette` non tocca mai `pendingDesignKey`, e il F19 effect lo
-  // azzera se un `?code=` arriva a metà di uno switch). `reduced-motion`
-  // spegne tutto.
+  // Loader visibile in UN SOLO caso: `pendingDesignKey != null` — l'unico
+  // stato, settato dall'unico trigger (`startDesignTransition`: cambio
+  // design esplicito, o palette dim che risolve un altro design). Tap
+  // colore / palette stesso design non lo toccano mai. Il clear sta nel
+  // client (design arrivato + minimo visivo); qui dentro resta solo il
+  // trailing fade d'uscita. `committedDesign` serve più solo al fade
+  // interno, non al confronto show/hide. `reduced-motion` spegne tutto.
   const reduceMotion =
     typeof window !== "undefined" &&
     window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
