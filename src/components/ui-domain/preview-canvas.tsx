@@ -87,10 +87,24 @@ function SpinnerMotif({ label }: { label?: string }) {
       />
       {/* Scritta DENTRO il giro: resta ferma al centro mentre le alici
           ruotano attorno (il padre gira, questo contro-gira alla stessa
-          velocità — tecnica standard per testo stabile su spinner). */}
+          velocità — tecnica standard per testo stabile su spinner).
+          Stessa veste delle scritte sul piatto (R5-TEXT-LIVE): Lora
+          corsivo — il font che lo studio usa per dipingere. */}
       {label ? (
         <span className="spinplate-counter absolute inset-0 grid place-items-center">
-          <span className="text-sm font-semibold text-foreground">{label}</span>
+          <span
+            className="block max-w-[70%] text-center text-[13px] leading-snug"
+            style={{
+              fontFamily:
+                'var(--font-inscription), "Times New Roman", Times, serif',
+              fontStyle: "italic",
+              fontWeight: 500,
+              color: "var(--mk-dark)",
+              opacity: 0.78,
+            }}
+          >
+            {label}…
+          </span>
         </span>
       ) : null}
     </div>
