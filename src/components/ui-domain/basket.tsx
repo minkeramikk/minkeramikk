@@ -566,7 +566,7 @@ export function Basket({
         arrow
         icon={
           <PillIcon>
-            <Truck className="size-5 text-primary" />
+            <Truck className="size-5 text-primary-foreground" />
           </PillIcon>
         }
         onClick={() => setCheckoutHost(host)}
@@ -733,12 +733,10 @@ export function Basket({
               <>
                 {/* R-EXTRA: lo stack usa la stessa pillola degli step 1/2
                     (DESIGN-SYSTEM §3.16). Solo "Send bestilling" ha la
-                    freccetta e il riempimento: gli altri due non fanno
-                    avanzare il funnel (uno riavvia il flusso, l'altro è
-                    collaterale). R3-C (final): "Bygg et nytt design" resta
-                    l'UNICO punto da cui si ricomincia, e tiene il carrello
-                    (F03/F16). */}
-                {ctaPill("lg", "w-full")}
+                    freccetta e il riempimento.
+                    R5-POLISH-STEP23 T4: `sm` — the column CTA is the same
+                    family as the step nav now, not 1,4× of it. */}
+                {ctaPill("sm", "w-full")}
                 {footerSlot}
               </>
             )}

@@ -241,7 +241,7 @@ export function UnpaintDialog({
           arrow
           icon={
             <PillIcon>
-              <Eraser className="size-5 text-primary" />
+              <Eraser className="size-5 text-primary-foreground" />
             </PillIcon>
           }
           label={t("confirm", { n, unit: unitForN })}

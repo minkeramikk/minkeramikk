@@ -46,7 +46,7 @@ import {
 } from "@/lib/catalog/product-attributes";
 import { groupBySeries } from "@/lib/configurator/product-series";
 import { buildDesignSwitchParams } from "@/lib/configurator/design-switch-params";
-import { ShoppingBag, Truck, ArrowUpRight, Brush } from "lucide-react";
+import { ShoppingBag, Truck, ArrowUpRight, Brush, ChevronLeft } from "lucide-react";
 import type { ResolvedSharedSet } from "./resolve-shared-set";
 import { ProductSheet } from "@/components/ui-domain/product-sheet";
 import { AddedSheet } from "@/components/ui-domain/added-sheet";
@@ -1359,7 +1359,7 @@ export function CeramicsStep({
             </PillIcon>
           ) : (
             <PillIcon>
-              <Truck className="size-5 text-primary" />
+              <Truck className="size-5 text-primary-foreground" />
             </PillIcon>
           )
         }
@@ -1393,16 +1393,19 @@ export function CeramicsStep({
 
       {/* F21: nav cluster — stepper always; Back active; Next disabled at step 3 */}
       <div className="mb-4 flex items-center gap-2" data-testid="step-nav">
-        <Button
-          variant="outline"
-          size="lg"
+        <NextStepPill
+          variant="secondary"
+          size="sm"
           data-testid="back-step"
-          className="min-h-11 shrink-0 max-md:hidden"
+          className="shrink-0 max-md:hidden"
+          label={tc("back")}
+          icon={
+            <PillIcon variant="secondary">
+              <ChevronLeft className="size-5 text-primary/60" />
+            </PillIcon>
+          }
           onClick={() => goToStep(2)}
-          aria-label={tc("back")}
-        >
-          ‹ {tc("back")}
-        </Button>
+        />
         <Stepper
           ariaLabel={tc("stepperLabel")}
           current={2}

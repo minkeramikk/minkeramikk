@@ -59,7 +59,7 @@ export const PILL_SM_UNDER_MD =
 
 /** Anello del cerchietto icona — segue la stessa scala di peso della superficie. */
 const ICON_RING: Record<PillVariant, string> = {
-  primary: "border-2 border-primary",
+  primary: "border-2 border-primary-foreground/50",
   secondary: "border-[1.5px] border-primary/60",
   tertiary: "border border-border",
 };
@@ -109,7 +109,9 @@ export function PillIcon({
  * dal back-office (ADR 0008) e deve restare agganciato.
  */
 const SURFACE: Record<PillVariant, string> = {
-  primary: "border-2 border-primary bg-primary/10 hover:bg-primary/20",
+  // R5-POLISH-STEP23 T4 (feedback 6): primary is FILLED — solid --primary,
+  // white type. One family: Order, step 1/2 Next, sticky bar, submit, Unpaint.
+  primary: "border-2 border-primary bg-primary text-primary-foreground hover:bg-primary/90",
   // Stesso fill del terziario (`--card`, il crema di "Del settet"): secondario
   // e terziario si distinguono SOLO per intensità di bordo e testo, così il
   // bottone è identico su qualunque sfondo. Trasparente no: prendeva il colore
@@ -190,7 +192,10 @@ export function NextStepPill({
           // selector. Nothing else changes here.
           <span
             data-pill-caption
-            className="block text-[11px] uppercase tracking-[0.08em] text-foreground/75"
+            className={cn(
+              "block text-[11px] uppercase tracking-[0.08em]",
+              variant === "primary" ? "text-primary-foreground/80" : "text-foreground/75"
+            )}
           >
             {caption}
           </span>
@@ -216,7 +221,12 @@ export function NextStepPill({
           aria-hidden
           // `data-pill-arrow`: aggancio di taglia, come per icona/label/caption.
           data-pill-arrow
-          className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary text-lg leading-none text-primary-foreground"
+          className={cn(
+            "flex size-9 shrink-0 items-center justify-center rounded-full text-lg leading-none",
+            variant === "primary"
+              ? "bg-primary-foreground text-primary"
+              : "bg-primary text-primary-foreground"
+          )}
         >
           {arrow === true ? "›" : arrow}
         </span>

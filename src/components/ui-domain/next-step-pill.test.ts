@@ -131,4 +131,11 @@ describe("NextStepPill · submit", () => {
     expect(html).toContain("spinner");
     expect(html).not.toContain("›");
   });
+
+  it("primary is filled: solid primary surface, foreground type, inverted arrow", () => {
+    const html = render({ arrow: true });
+    expect(html).toContain("bg-primary text-primary-foreground");
+    expect(html).not.toContain("bg-primary/10");
+    expect(html).toContain("bg-primary-foreground text-primary");
+  });
 });

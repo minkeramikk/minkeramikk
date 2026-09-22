@@ -30,7 +30,6 @@ import { Swatch } from "@/components/ui-domain/swatch";
 import {
   NextStepPill,
   PillIcon,
-  PILL_SM_UNDER_MD,
 } from "@/components/ui-domain/next-step-pill";
 import { ChevronLeft, Circle } from "lucide-react";
 import { assetUrl } from "@/lib/storage";
@@ -181,15 +180,12 @@ function keepClearOfKeyboard(field: HTMLElement) {
 export function ConfiguratorClient({
   designs,
   detailsBySlug,
-  ceramicThumbs = {},
   featuredSlot = null,
   paletteWords,
   productCounts = {},
 }: {
   designs: DesignChoice[];
   detailsBySlug: Record<string, DesignDetail>;
-  /** supplierId → fino a 3 foto di ceramica per l'icona della pillola step 2. */
-  ceramicThumbs?: Record<string, string[]>;
   /** F28: server-rendered featured strip — step 1 only, between stepper and grid. */
   featuredSlot?: React.ReactNode;
   /**
@@ -602,8 +598,6 @@ export function ConfiguratorClient({
     "#cf7b6b",
     "#9bb7d4",
   ];
-  /** Foto ceramica del fornitore del design scelto — icona della pillola step 2. */
-  const ceramics = ceramicThumbs[selected.supplierId] ?? [];
   // ── F15 / QA#3: keep the live preview visible while the option list scrolls ──
   // Desktop: the preview column is sticky (CSS only, md:sticky). Mobile: it scrolls
   // normally with the content. The old mobile collapse-to-thumbnail (zero-height
@@ -2245,6 +2239,7 @@ export function ConfiguratorClient({
             <div className="flex flex-col-reverse gap-3 md:@md:flex-row md:@md:items-stretch max-md:flex-row max-md:gap-2.5">
               <NextStepPill
                 variant="secondary"
+                size="sm"
                 data-testid="back-step"
                 // Stacked (colonna stretta): piena larghezza e contenuto
                 // centrato come da mockup. Affiancato: torna largo il minimo
@@ -2253,7 +2248,6 @@ export function ConfiguratorClient({
                 // nessuna classe, quindi la riga affiancata/impilata da md in
                 // su è quella di oggi pixel per pixel (AC6).
                 className={cn(
-                  PILL_SM_UNDER_MD,
                   "justify-center [&>span]:flex-none md:@md:shrink-0 md:@md:justify-start max-md:shrink-0"
                 )}
                 label={t("back")}
@@ -2266,6 +2260,7 @@ export function ConfiguratorClient({
                 onClick={() => goToStep(1)}
               />
               <NextStepPill
+                size="sm"
                 data-testid="next-step"
                 // `@md:` = affiancato: in colonna `flex-basis` sarebbe
                 // l'ALTEZZA (16rem di pillola), e stacked non serve comunque
@@ -2298,53 +2293,15 @@ export function ConfiguratorClient({
                 // etichetta e resta a 15px semibold (mockup .navB) — non deve
                 // scendere ai 10px della caption piccola.
                 className={cn(
-                  PILL_SM_UNDER_MD,
-                  "md:@max-md:gap-2.5 md:@max-md:p-2.5 md:@max-md:[&>span:last-child]:size-8 md:@md:flex-[1_1_16rem] max-md:flex-1 max-md:[&_[data-pill-label]]:sr-only max-md:[&_[data-pill-caption]]:text-[15px] max-md:[&_[data-pill-caption]]:font-semibold max-md:[&_[data-pill-caption]]:normal-case max-md:[&_[data-pill-caption]]:tracking-normal max-md:[&_[data-pill-caption]]:text-foreground"
+                  "md:@md:flex-[1_1_16rem] max-md:flex-1 max-md:[&_[data-pill-label]]:sr-only max-md:[&_[data-pill-caption]]:text-[15px] max-md:[&_[data-pill-caption]]:font-semibold max-md:[&_[data-pill-caption]]:normal-case max-md:[&_[data-pill-caption]]:tracking-normal max-md:[&_[data-pill-caption]]:text-foreground"
                 )}
                 caption={t("teaser.nextStep")}
                 label={t("teaser.ceramics")}
                 arrow
                 icon={
-                  // Richiesta cliente 2026-07-21: foto REALI di ceramiche, tre
-                  // card quadrate affiancate (com'era il teaser CA-6), non
-                  // un'icona generica. Stessi asset delle miniature dello step 3
-                  // — nessun asset nuovo, nessuna query in più (cache catalogo).
-                  // size-9 (non size-11 come il cerchietto che sostituisce): tre
-                  // quadrati sono ~116px contro i 44 dell'icona singola, e a
-                  // 1280 come a 768 l'etichetta "Velg keramikk" si troncava.
-                  // L'etichetta del CTA primario non si tronca MAI (AC10).
-                  ceramics.length > 0 ? (
-                    <span
-                      className="flex shrink-0 gap-0.5 max-md:hidden @md:gap-1"
-                      aria-hidden
-                    >
-                      {ceramics.map((img) => (
-                        // eslint-disable-next-line @next/next/no-img-element -- catalog art from storage
-                        <img
-                          key={img}
-                          src={assetUrl(img)}
-                          alt=""
-                          loading="lazy"
-                          decoding="async"
-                          data-testid="next-step-ceramic-thumb"
-                          // AC13: a colonna stretta i quadrati scendono a 28px
-                          // (e il loro gap a 2px) — 16px restituiti
-                          // all'etichetta, che a 360 in inglese ne mancava 20.
-                          // Restano leggibili: sono decorativi (aria-hidden),
-                          // il touch target è tutta la pillola.
-                          className="size-7 rounded-sm border border-border bg-card object-contain @md:size-9"
-                        />
-                      ))}
-                    </span>
-                  ) : (
-                    // Fornitore senza foto prodotto: si ricade sull'icona neutra
-                    // invece di lasciare la pillola monca.
-                    // R4-STEP2: come le foto, il cerchietto di ripiego sparisce
-                    // sotto md — l'editor vuole la pillola nuda del mockup.
-                    <PillIcon className="max-md:hidden">
-                      <Circle className="size-5 fill-muted stroke-muted-foreground/50" />
-                    </PillIcon>
-                  )
+                  <PillIcon className="max-md:hidden">
+                    <Circle className="size-5 fill-primary-foreground/30 stroke-primary-foreground" />
+                  </PillIcon>
                 }
                 onMouseDown={keepFocusWhileTyping}
                 onClick={() => goToStep(3)}
