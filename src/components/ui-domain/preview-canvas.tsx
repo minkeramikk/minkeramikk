@@ -21,14 +21,20 @@ export interface PreviewLayer {
  * Live design preview (DESIGN-SYSTEM §3.11) — the continuity element of the
  * configurator (F14):
  * - first paint is the composed plate (layers from SSR), never a hole;
- * - changing design cross-fades ~200ms: the OLD layers stay painted until the
- *   NEW ones have loaded, then the new ones fade in and REPLACE them (no stale
- *   layers left behind, no white flash);
+ * - changing design cross-fades gently: the OLD layers stay painted until the
+ *   NEW ones have loaded, then the new ones ease in and REPLACE them (no stale
+ *   layers left behind, no white flash); the loader itself fades out on top
+ *   of the incoming art instead of blinking away;
  * - `prefers-reduced-motion: reduce` → no fade, immediate swap once loaded;
  * - skeleton shows only when there is genuinely nothing to display yet.
  */
 
 const FADE_MS = 200;
+
+/** Loader hold once the new design is ready: the spinner has a trailing fade
+ *  so its exit is as gentle as its entrance. `ease-out` = fast start, soft
+ *  landing — the eye reads "arrived" without a blink. */
+const LOADER_EXIT_MS = 350;
 
 /**
  * Il riquadro dell'arte dentro il frame. Era un letterale dentro `LayerStack`;
@@ -398,6 +404,34 @@ export function PreviewCanvas({
     };
   }, [incoming, fadeIn]);
 
+  // The loader never blinks away: once the new layers have committed, it
+  // overstays one trailing fade so the spinner dissolves on top of the
+  // incoming art instead of cutting to it mid-spin.
+  const [loaderLeaving, setLoaderLeaving] = useState(false);
+  const loaderExitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const rawLoaderOn =
+    designLoading ||
+    (pendingDesignKey != null && pendingDesignKey !== committedDesign.current);
+  useEffect(() => {
+    if (rawLoaderOn) {
+      if (loaderExitTimer.current) clearTimeout(loaderExitTimer.current);
+      setLoaderLeaving(false);
+      return;
+    }
+    if (designLoading || pendingDesignKey != null) {
+      // was showing, now the design resolved → trailing fade, then off
+      setLoaderLeaving(true);
+      loaderExitTimer.current = setTimeout(() => {
+        setLoaderLeaving(false);
+      }, LOADER_EXIT_MS);
+      return () => {
+        if (loaderExitTimer.current) clearTimeout(loaderExitTimer.current);
+      };
+    }
+    return undefined;
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- driven by loader signal only
+  }, [rawLoaderOn]);
+
   const nothingToShow = shown.layers.length === 0 && !incoming;
   // Loader visibile in due casi: (1) design già scelto ma non ancora
   // arrivato (`pendingDesignKey` — copre l'attesa del round-trip RSC, che
@@ -411,9 +445,8 @@ export function PreviewCanvas({
     typeof window !== "undefined" &&
     window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
   const showLoader =
-    !reduceMotion &&
-    (designLoading ||
-      (pendingDesignKey != null && pendingDesignKey !== committedDesign.current));
+    !reduceMotion && (rawLoaderOn || loaderLeaving);
+  const loaderFadingOut = !rawLoaderOn && loaderLeaving;
 
   return (
     <div className={className} data-testid="preview-canvas">
@@ -457,13 +490,19 @@ export function PreviewCanvas({
             stabile. Mai su tap colore (né `pendingDesignKey` né `designKey`
             cambiano lì); off con `reduced-motion`. `pendingDesignKey`
             copre il round-trip RSC (stato subito), `designLoading` il
-            preload layer (stato dopo). */}
+            preload layer (stato dopo). Uscita in dissolvenza
+            (`LOADER_EXIT_MS`, ease-out): mai un blink a metà giro. */}
         {showLoader && (
           <div
             role="status"
             data-testid="design-loader"
             aria-label={loadingLabel ?? alt}
-            className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 bg-[color-mix(in_oklab,var(--mk-canvas)_72%,transparent)]"
+            className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 bg-[color-mix(in_oklab,var(--mk-canvas)_72%,transparent)] transition-opacity motion-reduce:transition-none"
+            style={{
+              opacity: loaderFadingOut ? 0 : 1,
+              transitionDuration: `${LOADER_EXIT_MS}ms`,
+              transitionTimingFunction: "ease-out",
+            }}
           >
             <SpinnerMotif />
             <span className="text-[11px] text-muted-foreground">
