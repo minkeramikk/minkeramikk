@@ -80,6 +80,14 @@ const INSPIRATION_URL = "https://www.minkeramikk.no/inspirasjon";
  *  identità stabile fra i render. */
 const WISHES_TAB = "__wishes";
 
+/**
+ * R5-DESIGN-SWITCH loader: durata minima visibile dell'animazione (il demo
+ * kit simula 700ms in `navigateDesign`; qui il server è già veloce, senza
+ * un minimo il piatto non si vede mai girare).
+ */
+// ponytail: fixed 700ms like the demo — real elapsed-time wait if slowness ever needs proving
+const LOADER_MIN_MS = 700;
+
 export interface DesignChoice {
   id: string;
   slug: string;
@@ -236,14 +244,28 @@ export function ConfiguratorClient({
   // R5-DESIGN-SWITCH loader: design in attesa di arrivo dopo `selectDesign`
   // (navigazione RSC). Finché `selected.slug` non lo segue, il canvas gira.
   // Stesso concetto del `S.pendingDesign` del demo kit (`navigateDesign`).
+  // `pendingDesignAt` = quando il tap è partito: il loader resta visibile
+  // almeno `LOADER_MIN_MS` anche se il server risponde subito — sennò
+  // l'animazione non si vede mai (il demo simula 700ms per lo stesso motivo).
   const [pendingDesignSlug, setPendingDesignSlug] = useState<string | null>(
     null
   );
+  const [pendingDesignAt, setPendingDesignAt] = useState<number | null>(null);
   useEffect(() => {
     if (pendingDesignSlug !== null && selected.slug === pendingDesignSlug) {
-      setPendingDesignSlug(null);
+      const elapsed = pendingDesignAt ? Date.now() - pendingDesignAt : Infinity;
+      if (elapsed >= LOADER_MIN_MS) {
+        setPendingDesignSlug(null);
+        setPendingDesignAt(null);
+      } else {
+        const t = setTimeout(() => {
+          setPendingDesignSlug(null);
+          setPendingDesignAt(null);
+        }, LOADER_MIN_MS - elapsed);
+        return () => clearTimeout(t);
+      }
     }
-  }, [selected.slug, pendingDesignSlug]);
+  }, [selected.slug, pendingDesignSlug, pendingDesignAt]);
   const detail = detailsBySlug[selected.slug];
   /** R4-RESTYLE: la corsia tab è fatta SOLO di gruppi-opzione — «Detaljer» e
    *  «Bilder» non esistono più (i loro contenuti sono in pagina, sopra il
@@ -951,10 +973,12 @@ export function ConfiguratorClient({
     // R5-DESIGN-SWITCH loader: siccome il cambio design qui è una
     // navigazione RSC (`router.push`), il `designKey` del canvas cambia
     // solo DOPO il round-trip — troppo tardi perché il loader serva.
-    // `pendingDesignSlug` anticipa lo stato: il canvas mostra subito il
-    // piatto che gira (solo cambio design, mai tap colore) finché i nuovi
-    // layer non arrivano. Si azzera da solo quando `selected.slug` segue.
+    // `pendingDesignAt` anticipa lo stato: il canvas mostra subito il
+    // piatto che gira (solo cambio design, mai tap colore) per almeno
+    // `LOADER_MIN_MS`, finché i nuovi layer non arrivano. Si azzera da
+    // solo quando `selected.slug` segue (con attesa del minimo).
     setPendingDesignSlug(d.slug);
+    setPendingDesignAt(Date.now());
     const params = new URLSearchParams(searchParams.toString());
     params.set("design", d.slug);
     // a new design resets option selections (different categories)

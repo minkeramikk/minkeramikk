@@ -60,6 +60,29 @@ function preloadAll(layers: PreviewLayer[]): Promise<void> {
   ).then(() => undefined);
 }
 
+/**
+ * Le alici che girano: il PRIMO layer recolor del design (il motivo, non
+ * il piatto) su fondo trasparente, dentro la stessa scatola del piatto.
+ * Il piatto bianco NON gira — resta fermo sotto come nel canvas — così le
+ * alici sembrano nuotare in tondo sopra la ceramica, non un disco che ruota.
+ * `spinplate` verbatim dal mockup, con il suo guard reduced-motion.
+ */
+function SpinnerMotif({ layers }: { layers: PreviewLayer[] }) {
+  const motif = layers.find((l) => l.recolor) ?? layers[0];
+  if (!motif) return null;
+  return (
+    <div aria-hidden="true" className={`spinplate relative ${ART_BOX}`}>
+      {/* eslint-disable-next-line @next/next/no-img-element -- catalog art from storage, same as LayerStack */}
+      <img
+        src={motif.src}
+        alt=""
+        className="absolute inset-0 h-full w-full object-contain"
+        style={{ mixBlendMode: "multiply" }}
+      />
+    </div>
+  );
+}
+
 function LayerStack({
   layers,
   alt,
@@ -422,13 +445,15 @@ export function PreviewCanvas({
           </div>
         )}
 
-        {/* R5-DESIGN-SWITCH — spinning-plate loader, solo cambio design
-            (mockup `:57-59` + artifact `Loader` r5-animation: piatto
-            `size-16` che gira + caption). `role="status"` annuncia via
-            `loadingLabel`; `alt` resta il nome stabile. Mai su tap colore
-            (né `pendingDesignKey` né `designKey` cambiano lì); off con
-            `reduced-motion`. `pendingDesignKey` copre il round-trip RSC
-            (stato subito), `designLoading` il preload layer (stato dopo). */}
+        {/* R5-DESIGN-SWITCH — le alici che girano, solo cambio design
+            (mockup `:57-59` `spinplate` + artifact `Loader` r5-animation:
+            motivo `size-16` che gira + caption). Il piatto bianco resta
+            fermo sotto, il motivo gira sopra — le alici nuotano in tondo.
+            `role="status"` annuncia via `loadingLabel`; `alt` resta il nome
+            stabile. Mai su tap colore (né `pendingDesignKey` né `designKey`
+            cambiano lì); off con `reduced-motion`. `pendingDesignKey`
+            copre il round-trip RSC (stato subito), `designLoading` il
+            preload layer (stato dopo). */}
         {showLoader && (
           <div
             role="status"
@@ -436,13 +461,7 @@ export function PreviewCanvas({
             aria-label={loadingLabel ?? alt}
             className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 bg-[color-mix(in_oklab,var(--mk-canvas)_72%,transparent)]"
           >
-            {/* `spinplate` = mockup class verbatim (globals.css, from
-                mockup-palettebar.html :57-59; size-16 + caption verbatim
-                from r5-animation artifact `Loader`), incl. its own CSS
-                reduced-motion guard. */}
-            <div aria-hidden="true" className="spinplate size-16 opacity-80">
-              <LayerStack layers={shown.layers} alt="" />
-            </div>
+            <SpinnerMotif layers={shown.layers} />
             <span className="text-[11px] text-muted-foreground">
               {loadingLabel ?? alt}
             </span>
