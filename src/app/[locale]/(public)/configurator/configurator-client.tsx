@@ -233,6 +233,17 @@ export function ConfiguratorClient({
   const urlSlug = searchParams.get("design");
   const selected =
     designs.find((d) => d.slug === urlSlug) ?? designs[0]; // sort_order=1 default (AC1)
+  // R5-DESIGN-SWITCH loader: design in attesa di arrivo dopo `selectDesign`
+  // (navigazione RSC). Finché `selected.slug` non lo segue, il canvas gira.
+  // Stesso concetto del `S.pendingDesign` del demo kit (`navigateDesign`).
+  const [pendingDesignSlug, setPendingDesignSlug] = useState<string | null>(
+    null
+  );
+  useEffect(() => {
+    if (pendingDesignSlug !== null && selected.slug === pendingDesignSlug) {
+      setPendingDesignSlug(null);
+    }
+  }, [selected.slug, pendingDesignSlug]);
   const detail = detailsBySlug[selected.slug];
   /** R4-RESTYLE: la corsia tab è fatta SOLO di gruppi-opzione — «Detaljer» e
    *  «Bilder» non esistono più (i loro contenuti sono in pagina, sopra il
@@ -937,6 +948,13 @@ export function ConfiguratorClient({
 
   function selectDesign(d: DesignChoice | DesignSwitchChoice) {
     if (d.slug === selected.slug) return;
+    // R5-DESIGN-SWITCH loader: siccome il cambio design qui è una
+    // navigazione RSC (`router.push`), il `designKey` del canvas cambia
+    // solo DOPO il round-trip — troppo tardi perché il loader serva.
+    // `pendingDesignSlug` anticipa lo stato: il canvas mostra subito il
+    // piatto che gira (solo cambio design, mai tap colore) finché i nuovi
+    // layer non arrivano. Si azzera da solo quando `selected.slug` segue.
+    setPendingDesignSlug(d.slug);
     const params = new URLSearchParams(searchParams.toString());
     params.set("design", d.slug);
     // a new design resets option selections (different categories)
@@ -1483,12 +1501,20 @@ export function ConfiguratorClient({
                 new, unreviewed. */}
             <PreviewCanvas
               alt={designName(selected)}
-              loadingLabel={t("designSwitch.loaderAlt", { design: designName(selected) })}
+              loadingLabel={t("designSwitch.loaderAlt", {
+                design: designName(
+                  pendingDesignSlug
+                    ? (designs.find((d) => d.slug === pendingDesignSlug) ??
+                      selected)
+                    : selected
+                ),
+              })}
               caption={previewNote}
               className={cn(step === 2 && "max-md:contents")}
               layers={previewLayers}
               inscription={liveInscription}
               designKey={selected.slug}
+              pendingDesignKey={pendingDesignSlug}
             />
             {/* R5-DESIGN-SWITCH T1 fix: il badge mobile deve ancorarsi al canvas
                 (mockup `:275`), non alla colonna: mount dentro `preview-sticky`

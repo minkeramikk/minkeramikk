@@ -264,9 +264,16 @@ export function PreviewCanvas({
    *
    * Screen-reader copy for the loader (`role="status"`): passed through
    * the optional `loadingLabel` prop; `alt` stays the stable design name.
+   *
+   * `pendingDesignKey`: design già scelto ma non ancora arrivato via
+   * navigazione RSC. Il `designKey` cambia solo DOPO il round-trip — troppo
+   * tardi per dare feedback — quindi il loader si accende subito su questo
+   * (stesso concetto del `S.pendingDesign` del demo kit). Solo cambio
+   * design: tap colore, palette, opzioni non lo settano mai.
    */
   designKey,
   loadingLabel,
+  pendingDesignKey,
 }: {
   layers: PreviewLayer[];
   /** Rich node, not just text: the configurator caption carries a link. */
@@ -280,6 +287,7 @@ export function PreviewCanvas({
   className?: string;
   designKey?: string;
   loadingLabel?: string;
+  pendingDesignKey?: string | null;
 }) {
   const targetKey = keyOf(layers);
 
@@ -367,6 +375,18 @@ export function PreviewCanvas({
   }, [incoming, fadeIn]);
 
   const nothingToShow = shown.layers.length === 0 && !incoming;
+  // Loader visibile in due casi: (1) design già scelto ma non ancora
+  // arrivato (`pendingDesignKey` — copre l'attesa del round-trip RSC, che
+  // è dove il cliente aspetta davvero); (2) layer cambiati ma non ancora
+  // precaricati (`designLoading`, transizione client). Entrambi solo su
+  // cambio design, mai su tap colore. `reduced-motion` spegne tutto.
+  const reduceMotion =
+    typeof window !== "undefined" &&
+    window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+  const showLoader =
+    !reduceMotion &&
+    (designLoading ||
+      (pendingDesignKey != null && pendingDesignKey !== committedDesign.current));
 
   return (
     <div className={className} data-testid="preview-canvas">
@@ -402,14 +422,14 @@ export function PreviewCanvas({
           </div>
         )}
 
-        {/* R5-DESIGN-SWITCH T2 — whole-canvas spinning-plate loader, only
-            while a DESIGN switch preloads (mockup-palettebar.html :57-59).
-            `role="status"` announces the switch via `loadingLabel`
-            (falls back to `alt`); `alt` itself stays the stable design name.
-            Gated to motion-safe:
-            reduced-motion never renders it (immediate swap), and color taps
-            never trigger it (`designKey`, above). */}
-        {designLoading && (
+        {/* R5-DESIGN-SWITCH — spinning-plate loader, solo cambio design
+            (mockup `:57-59` + artifact `Loader` r5-animation: piatto
+            `size-16` che gira + caption). `role="status"` annuncia via
+            `loadingLabel`; `alt` resta il nome stabile. Mai su tap colore
+            (né `pendingDesignKey` né `designKey` cambiano lì); off con
+            `reduced-motion`. `pendingDesignKey` copre il round-trip RSC
+            (stato subito), `designLoading` il preload layer (stato dopo). */}
+        {showLoader && (
           <div
             role="status"
             data-testid="design-loader"
