@@ -21,7 +21,7 @@ export function KitStrip({
   return (
     <div
       data-testid="kit-strip"
-      className="flex items-center gap-2.5 border-b border-border bg-secondary px-4 py-2 text-[12px]"
+      className="flex items-center gap-2.5 border-b border-border bg-secondary px-5 py-2 text-[12px] sm:px-6"
     >
       {thumb}
       <span className="min-w-0 flex-1">

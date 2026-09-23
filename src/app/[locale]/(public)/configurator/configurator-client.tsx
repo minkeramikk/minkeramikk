@@ -776,7 +776,6 @@ export function ConfiguratorClient({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot apply on arrival
   }, [kit, hydrated]);
   const kitCounts = kitStripCounts(cart);
-  const kitThumb = cart.find((l) => l.plateImage)?.plateImage ?? null;
   /**
    * R5-BASKET-HOST task 8 (card §3) — the same `typing` that makes the canvas
    * let go of its sticky also has to keep the basket shut: with the keyboard
@@ -1358,24 +1357,17 @@ export function ConfiguratorClient({
         />
       )}
 
-      {/* R5-KIT T5: the strip on a kit landing, above the nav, every width. */}
+      {/* R5-KIT T5: the strip on a kit landing, hugging the header full-bleed
+          (the <main> carries px-5 py-7). Thumb = the design round: at 30px a
+          product photo is a grey disc. */}
       {step === 2 && kitMode && (
-        <KitStrip
-          thumb={
-            kitThumb ? (
-              // eslint-disable-next-line @next/next/no-img-element -- resolved catalog asset
-              <img
-                src={kitThumb}
-                alt=""
-                className="size-[30px] shrink-0 rounded-full border border-border object-cover"
-              />
-            ) : (
-              <DesignRound layers={previewLayers} className="size-[30px]" />
-            )
-          }
-          total={kitCounts.total}
-          painted={kitCounts.painted}
-        />
+        <div className="-mx-5 -mt-7 mb-5">
+          <KitStrip
+            thumb={<DesignRound layers={previewLayers} className="size-[30px]" />}
+            total={kitCounts.total}
+            painted={kitCounts.painted}
+          />
+        </div>
       )}
       <KitWelcome
         open={kitWelcome !== null}

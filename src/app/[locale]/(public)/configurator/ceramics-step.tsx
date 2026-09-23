@@ -1346,24 +1346,16 @@ export function CeramicsStep({
         />
       </div>
 
-      {/* R5-KIT T6: the strip on a kit landing, above the nav — same props as step 2. */}
+      {/* R5-KIT T6: the strip on a kit landing, hugging the header full-bleed
+          (the <main> carries px-5 py-7). Thumb = the design round. */}
       {kitMode && (
-        <KitStrip
-          thumb={
-            cart.find((l) => l.plateImage)?.plateImage ? (
-              // eslint-disable-next-line @next/next/no-img-element -- resolved catalog asset
-              <img
-                src={cart.find((l) => l.plateImage)!.plateImage!}
-                alt=""
-                className="size-[30px] shrink-0 rounded-full border border-border object-cover"
-              />
-            ) : (
-              <DesignRound layers={designLayers} className="size-[30px]" />
-            )
-          }
-          total={kitStripCounts(cart).total}
-          painted={kitStripCounts(cart).painted}
-        />
+        <div className="-mx-5 -mt-7 mb-5">
+          <KitStrip
+            thumb={<DesignRound layers={designLayers} className="size-[30px]" />}
+            total={kitStripCounts(cart).total}
+            painted={kitStripCounts(cart).painted}
+          />
+        </div>
       )}
 
       {/* CA-3 D: shared-set landing banner (frames 3–4). The 3-way choice

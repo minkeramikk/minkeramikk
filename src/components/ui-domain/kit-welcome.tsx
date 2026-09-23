@@ -22,7 +22,7 @@ export function KitWelcome({
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  rows: { qty: number; name: string }[];
+  rows: { qty: number; name: string; image?: string }[];
   total: number;
 }) {
   const t = useTranslations("kit.welcome");
@@ -39,14 +39,28 @@ export function KitWelcome({
           <DialogTitle>{t("title", { count: total })}</DialogTitle>
           <DialogDescription>{t("body")}</DialogDescription>
         </DialogHeader>
-        <ul className="rounded-[11px] bg-muted px-3 py-2 text-sm">
+        <div className="mt-3 flex flex-wrap items-center gap-2 rounded-[11px] bg-muted px-2.5 py-2">
           {rows.map((r, i) => (
-            <li key={`${r.name}-${i}`} className="flex justify-between gap-2 py-0.5">
-              <span className="font-medium tabular-nums">{r.qty}×</span>
-              <span className="min-w-0 flex-1 truncate">{r.name}</span>
-            </li>
+            <span key={`${r.name}-${i}`} className="flex items-center gap-1.5">
+              {i > 0 && <span className="text-muted-foreground">·</span>}
+              <span className="flex items-center gap-1.5 text-[11.5px]">
+                {r.image ? (
+                  // eslint-disable-next-line @next/next/no-img-element -- resolved catalog asset
+                  <img
+                    src={r.image}
+                    alt=""
+                    className="size-7 rounded-full border border-border object-cover grayscale"
+                  />
+                ) : (
+                  <span className="size-7 rounded-full border border-border bg-card" />
+                )}
+                <span className="leading-tight">
+                  {r.qty}× {r.name}
+                </span>
+              </span>
+            </span>
           ))}
-        </ul>
+        </div>
         <div className="flex flex-col gap-2">
           <Button
             type="button"
@@ -71,13 +85,19 @@ export function KitWelcome({
   );
 }
 
-/** Row names in the active locale for the welcome dialog. */
+/** Row names (+ piece photos) in the active locale for the welcome dialog. */
 export function kitWelcomeRows(
-  lines: { quantity: number; productNameNo: string; productNameEn: string }[],
+  lines: {
+    quantity: number;
+    productNameNo: string;
+    productNameEn: string;
+    plateImage?: string;
+  }[],
   locale: "no" | "en"
-): { qty: number; name: string }[] {
+): { qty: number; name: string; image?: string }[] {
   return lines.map((l) => ({
     qty: l.quantity,
     name: locale === "no" ? l.productNameNo : l.productNameEn,
+    image: l.plateImage,
   }));
 }
