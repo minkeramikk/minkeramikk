@@ -54,7 +54,7 @@ import type { PreviewLayer } from "@/lib/configurator/preview";
 import { useCartContext } from "@/lib/cart/cart-context";
 import { keyboardUp } from "@/lib/cart/basket-open";
 import { hoverCapable } from "@/lib/pointer";
-import { designLabel } from "@/lib/cart/cart";
+import { cartPieces, designLabel } from "@/lib/cart/cart";
 import { buildConfigLinePayload } from "@/lib/configurator/line-payload";
 import { buildDesignSwitchParams } from "@/lib/configurator/design-switch-params";
 import { paletteMatchingCode } from "@/lib/configurator/save-gate";
@@ -760,8 +760,9 @@ export function ConfiguratorClient({
     imageCustom: boolean;
   } | null>(null);
   const kitMode =
-    searchParams.get("origin") === "kit" ||
-    Boolean(kit && searchParams.get("kit"));
+    (searchParams.get("origin") === "kit" ||
+      Boolean(kit && searchParams.get("kit"))) &&
+    (!hydrated || cartPieces(cart) > 0);
   useEffect(() => {
     if (!kit || !hydrated || kitConsumedRef.current) return;
     if (!searchParams.get("kit")) return;

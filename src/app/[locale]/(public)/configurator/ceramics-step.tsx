@@ -1006,8 +1006,11 @@ export function CeramicsStep({
   const kitShownTitle = kitTitle(kitCtx, locale, tKit("strip.title"));
   // R5-KIT T6: kit-mode (mirror of origin=set) — survives refresh and
   // goToStep (which copies every param), dies with selectDesign (there is no
-  // switch in kit-mode anyway). Opens the existing drawer once on arrival.
-  const kitMode = searchParams.get("origin") === "kit";
+  // switch in kit-mode anyway) AND with an emptied basket (fix 10: no pieces
+  // left → no strip, no auto-open). Opens the existing drawer once on arrival.
+  const kitMode =
+    searchParams.get("origin") === "kit" &&
+    (!hydrated || cartPieces(cart) > 0);
   const kitOpenedRef = useRef(false);
   useEffect(() => {
     if (!kitMode || !hydrated || kitOpenedRef.current) return;
