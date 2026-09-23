@@ -743,8 +743,14 @@ export function ConfiguratorClient({
   // non-empty cart: an unpainted row never overwrites anything), show passo 0,
   // then consume `kit=` and pin `origin=kit` (the kit-mode). Empty kit:
   // consume silently, no welcome.
+  // The welcome snapshots the resolved lines at apply time: the
+  // router.replace below re-renders the page with `kit = null` (a server
+  // prop), so reading `kit?.lines` at the mount would show «0 pieces».
   const kitConsumedRef = useRef(false);
-  const [kitWelcomeOpen, setKitWelcomeOpen] = useState(false);
+  const [kitWelcome, setKitWelcome] = useState<{
+    rows: { qty: number; name: string }[];
+    total: number;
+  } | null>(null);
   const kitMode =
     searchParams.get("origin") === "kit" ||
     Boolean(kit && searchParams.get("kit"));
@@ -754,7 +760,10 @@ export function ConfiguratorClient({
     kitConsumedRef.current = true;
     if (kit.lines.length > 0) {
       addMany(kit.lines);
-      setKitWelcomeOpen(true);
+      setKitWelcome({
+        rows: kitWelcomeRows(kit.lines, locale as "no" | "en"),
+        total: kit.lines.reduce((n, l) => n + l.quantity * (l.pieces ?? 1), 0),
+      });
     }
     const params = new URLSearchParams(searchParams.toString());
     params.delete("kit");
@@ -1369,10 +1378,10 @@ export function ConfiguratorClient({
         />
       )}
       <KitWelcome
-        open={kitWelcomeOpen}
-        onOpenChange={setKitWelcomeOpen}
-        rows={kitWelcomeRows(kit?.lines ?? [], locale as "no" | "en")}
-        total={(kit?.lines ?? []).reduce((n, l) => n + l.quantity * (l.pieces ?? 1), 0)}
+        open={kitWelcome !== null}
+        onOpenChange={(o) => !o && setKitWelcome(null)}
+        rows={kitWelcome?.rows ?? []}
+        total={kitWelcome?.total ?? 0}
       />
       {/* CA-2: the top cluster holds ONLY the stepper (orientation + step
           jumps, F18). The advance/back CTAs live in-flow at the END of the

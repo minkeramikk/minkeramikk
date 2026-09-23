@@ -348,7 +348,7 @@
     },
     "fixedDesign": "Design: {name} — fixed by the kit",
     "welcome": {
-      "eyebrow": "Kit",
+      "eyebrow": "A kit from minkeramikk",
       "title": "{count, plural, one {# piece} other {# pieces}}, waiting for your colours",
       "body": "They're already in your basket. Choose the colours here — once for all of them, or piece by piece.",
       "show": "Show me how",

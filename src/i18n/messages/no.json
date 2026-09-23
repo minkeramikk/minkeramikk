@@ -347,7 +347,7 @@
     },
     "fixedDesign": "Design: {name} — bestemt av kittet",
     "welcome": {
-      "eyebrow": "Kit",
+      "eyebrow": "Et sett fra minkeramikk",
       "title": "{count, plural, one {# del} other {# deler}} venter på dine farger",
       "body": "De ligger allerede i handlekurven. Velg fargene her — én gang for alle, eller del for del.",
       "show": "Vis meg hvordan",
