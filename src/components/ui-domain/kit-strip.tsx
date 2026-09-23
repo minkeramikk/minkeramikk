@@ -3,11 +3,12 @@
 import { useTranslations } from "next-intl";
 
 /**
- * R5-KIT — the strip above the step nav on a kit landing: what the kit is,
- * how many pieces, how many already painted. Pure props, no cart read inside
- * (steps 2 and 3 both supply the same two numbers). `title`: the featured
- * label of the kit when the landing matched one (custom label, else design
- * name — same fallback as the strip card), else the generic fallback.
+ * R5-KIT fix 8 — the strip above the step nav on a kit landing: what the kit
+ * is, how many pieces, how many already painted. Pure props, no cart read
+ * inside (steps 2 and 3 both supply the same two numbers). `title` is the
+ * resolved shop-window label already (the caller reads it from the kit
+ * context with `kitTitle`); the generic i18n fallback stays for kits with no
+ * shop-window row.
  */
 export function KitStrip({
   thumb,
@@ -16,8 +17,7 @@ export function KitStrip({
   painted,
 }: {
   thumb: React.ReactNode;
-  /** null → generic "A kit from minkeramikk" fallback */
-  title: string | null;
+  title: string;
   total: number;
   painted: number;
 }) {
@@ -29,7 +29,7 @@ export function KitStrip({
     >
       {thumb}
       <span className="min-w-0 flex-1">
-        <span className="block truncate font-semibold">{title ?? t("title")}</span>
+        <span className="block truncate font-semibold">{title}</span>
         <span className="block truncate text-muted-foreground">
           {t("subtitle", { count: total })}
         </span>

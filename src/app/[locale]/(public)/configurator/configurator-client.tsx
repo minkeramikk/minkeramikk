@@ -70,7 +70,12 @@ import {
   type DesignSwitchChoice,
 } from "@/components/ui-domain/design-switch";
 import { KitStrip } from "@/components/ui-domain/kit-strip";
-import { encodeKitLabel, kitStripCounts } from "@/lib/cart/kit-label";
+import { kitStripCounts } from "@/lib/cart/kit-label";
+import {
+  kitTitle,
+  readKitContext,
+  saveKitContext,
+} from "@/lib/cart/kit-context";
 import { KitWelcome, kitWelcomeRows } from "@/components/ui-domain/kit-welcome";
 
 /** Pagina di ispirazione del cliente (fuori sito, apre in nuova scheda). */
@@ -753,7 +758,6 @@ export function ConfiguratorClient({
     total: number;
     image: string | null;
     imageCustom: boolean;
-    label: { no: string; en: string } | null;
   } | null>(null);
   const kitMode =
     searchParams.get("origin") === "kit" ||
@@ -769,8 +773,11 @@ export function ConfiguratorClient({
         total: kit.lines.reduce((n, l) => n + l.quantity * (l.pieces ?? 1), 0),
         image: kit.image,
         imageCustom: kit.imageCustom,
-        label: kit.label,
       });
+      // the strip + welcome keep the shop-window label/image for the whole
+      // journey (step 3 is a separate server render that never sees the
+      // resolver) — read back lazily below, never per render.
+      saveKitContext({ label: kit.label, image: kit.image, custom: kit.imageCustom });
     }
     const params = new URLSearchParams(searchParams.toString());
     params.delete("kit");
@@ -783,6 +790,11 @@ export function ConfiguratorClient({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot apply on arrival
   }, [kit, hydrated]);
   const kitCounts = kitStripCounts(cart);
+  // the persisted kit context (label + image for strip + welcome). Lazy: it
+  // only exists after the apply effect above ran, never per render.
+  const [kitCtx] = useState(() => readKitContext());
+  const kitShownTitle = kitTitle(kitCtx, locale as "no" | "en", tKit("strip.title"));
+  const kitShownEyebrow = kitTitle(kitCtx, locale as "no" | "en", tKit("welcome.eyebrow"));
   /**
    * R5-BASKET-HOST task 8 (card §3) — the same `typing` that makes the canvas
    * let go of its sticky also has to keep the basket shut: with the keyboard
@@ -1104,14 +1116,9 @@ export function ConfiguratorClient({
     // Leaving steps 1–2 IS the explicit choice for a set: `origin=set` stops
     // mattering here. A kit instead survives the whole loop (DS §4): it dies
     // only with a design change (`selectDesign` drops it — no switch renders
-    // in kit-mode anyway). The kit label rides a `kitlabel=` param so step 3
-    // — a separate server render — can show it too.
+    // in kit-mode anyway). The label/image ride sessionStorage (kit-context),
+    // so the URL stays clean — step 3 reads them back itself.
     if (params.get("origin") !== "kit") params.delete("origin");
-    if (params.get("origin") === "kit" && kitWelcome?.label) {
-      params.set("kitlabel", encodeKitLabel(kitWelcome.label));
-    } else {
-      params.delete("kitlabel");
-    }
     if (target === 1) params.delete("step");
     else params.set("step", String(target));
     // R2-2b: carry the note forward only when the design accepts it and the
@@ -1381,6 +1388,7 @@ export function ConfiguratorClient({
         total={kitWelcome?.total ?? 0}
         image={kitWelcome?.image}
         imageCustom={kitWelcome?.imageCustom}
+        eyebrow={kitShownEyebrow}
       />
       {/* CA-2: the top cluster holds ONLY the stepper (orientation + step
           jumps, F18). The advance/back CTAs live in-flow at the END of the
@@ -1410,28 +1418,26 @@ export function ConfiguratorClient({
         />
       </div>
 
-      {/* R5-KIT: strip under the stepper, same column width.
-          // ponytail: kit image only where the resolver ran; step 3 shows the design. */}
+      {/* R5-KIT fix 8: strip under the stepper, same column width — title
+          and thumb from the persisted shop-window context. */}
       {step === 2 && kitMode && (
         <div className="mb-4">
           <KitStrip
             thumb={
-              kitWelcome?.image ? (
+              kitCtx?.image ? (
                 // eslint-disable-next-line @next/next/no-img-element -- resolved catalog asset
                 <img
-                  src={kitWelcome.image}
+                  src={kitCtx.image}
                   alt=""
-                  className="size-[30px] shrink-0 rounded-full border border-border object-cover"
+                  className={`size-[30px] shrink-0 rounded-full border border-border object-cover ${
+                    kitCtx.custom ? "" : "grayscale"
+                  }`}
                 />
               ) : (
                 <DesignRound layers={previewLayers} className="size-[30px]" />
               )
             }
-            title={
-              kitWelcome?.label
-                ? (locale === "no" ? kitWelcome.label.no : kitWelcome.label.en)
-                : null
-            }
+            title={kitShownTitle}
             total={kitCounts.total}
             painted={kitCounts.painted}
           />

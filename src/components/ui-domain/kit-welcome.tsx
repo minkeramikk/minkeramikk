@@ -21,6 +21,7 @@ export function KitWelcome({
   total,
   image = null,
   imageCustom = false,
+  eyebrow,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -30,6 +31,8 @@ export function KitWelcome({
   image?: string | null;
   /** true when `image` is a custom upload (fills the frame, not round) */
   imageCustom?: boolean;
+  /** the resolved shop-window label (caller reads it via `kitTitle`) */
+  eyebrow: string;
 }) {
   const t = useTranslations("kit.welcome");
   return (
@@ -40,7 +43,7 @@ export function KitWelcome({
       >
         <DialogHeader>
           <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-            {t("eyebrow")}
+            {eyebrow}
           </p>
           {image && (
             <span

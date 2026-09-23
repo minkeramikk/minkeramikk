@@ -55,7 +55,8 @@ import { ProductSheet } from "@/components/ui-domain/product-sheet";
 import { AddedSheet } from "@/components/ui-domain/added-sheet";
 import { ShareDialog, type ShareKind } from "@/components/ui-domain/share-dialog";
 import { KitStrip } from "@/components/ui-domain/kit-strip";
-import { decodeKitLabel, kitStripCounts } from "@/lib/cart/kit-label";
+import { kitStripCounts } from "@/lib/cart/kit-label";
+import { kitTitle, readKitContext } from "@/lib/cart/kit-context";
 import { DesignRound } from "@/components/ui-domain/design-round";
 import { Basket } from "@/components/ui-domain/basket";
 import { NextStepPill, PillIcon } from "@/components/ui-domain/next-step-pill";
@@ -190,7 +191,6 @@ export function CeramicsStep({
   paletteWords,
   // ponytail: optional prop so T3 compiles before T4/T6 wire it
   isAdmin = false,
-  kitLabel = null,
 }: {
   products: CeramicProduct[];
   design: DesignRef;
@@ -220,10 +220,6 @@ export function CeramicsStep({
   paletteWords: PaletteWords;
   /** R5-KIT: real admin gate from the session (page.tsx), replaces `?admin=1`. */
   isAdmin?: boolean;
-  /** R5-KIT fix 8: the featured label of the kit (decoded from `kitlabel=`
-   *  by page.tsx). Null: hand-made link or no featured match — the strip
-   *  keeps the generic fallback. */
-  kitLabel?: { no: string; en: string } | null;
 }) {
   const t = useTranslations("cart");
   // TODO:nb-review NO copy: step3.seriesCount · stickyBar.pieces · stickyBar.unpainted
@@ -1002,15 +998,12 @@ export function CeramicsStep({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot apply on arrival
   }, [sharedSet, hydrated]);
 
-  // R5-KIT fix 8: the strip title is the featured label (decoded from
-  // `kitlabel=` by page.tsx), else the generic fallback.
-  const kitLabelShown = decodeKitLabel(searchParams.get("kitlabel")) ?? kitLabel;
-  const kitTitle =
-    kitLabelShown != null
-      ? locale === "no"
-        ? kitLabelShown.no
-        : kitLabelShown.en
-      : null;
+  // R5-KIT fix 8: the strip reads the persisted shop-window context (label +
+  // image saved at the step-2 apply). Lazy state: storage only, never per
+  // render. No match (hand-made link) → generic fallback + design thumb.
+  const [kitCtx] = useState(() => readKitContext());
+  const tKit = useTranslations("kit");
+  const kitShownTitle = kitTitle(kitCtx, locale, tKit("strip.title"));
   // R5-KIT T6: kit-mode (mirror of origin=set) — survives refresh and
   // goToStep (which copies every param), dies with selectDesign (there is no
   // switch in kit-mode anyway). Opens the existing drawer once on arrival.
@@ -1361,12 +1354,24 @@ export function CeramicsStep({
         />
       </div>
 
-      {/* R5-KIT T6: strip under the stepper, same column width (PM 23/9). */}
+      {/* R5-KIT fix 8: strip under the stepper — title + thumb from the
+          persisted shop-window context (custom image fills the round). */}
       {kitMode && (
         <div className="mb-4">
           <KitStrip
-            thumb={<DesignRound layers={designLayers} className="size-[30px]" />}
-            title={kitTitle}
+            thumb={
+              kitCtx?.image ? (
+                // eslint-disable-next-line @next/next/no-img-element -- resolved catalog asset
+                <img
+                  src={kitCtx.image}
+                  alt=""
+                  className="size-[30px] shrink-0 rounded-full border border-border object-cover"
+                />
+              ) : (
+                <DesignRound layers={designLayers} className="size-[30px]" />
+              )
+            }
+            title={kitShownTitle}
             total={kitStripCounts(cart).total}
             painted={kitStripCounts(cart).painted}
           />

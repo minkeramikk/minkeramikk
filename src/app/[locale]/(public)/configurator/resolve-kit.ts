@@ -30,9 +30,9 @@ export interface ResolvedKit {
   image: string | null;
   /** true when `image` is a custom upload (fills the welcome frame) */
   imageCustom: boolean;
-  /** the featured label of this exact kit (custom label, else the design
-   *  name — same fallback as the strip card). Null: no featured match. */
-  label: { no: string; en: string } | null;
+  /** the featured label of this exact kit (raw label_no/label_en — the card
+   *  fallback stays the strip's job). Null: no featured match. */
+  label: { no: string | null; en: string | null } | null;
 }
 
 export async function resolveKit(raw: string): Promise<ResolvedKit> {
@@ -94,10 +94,7 @@ export async function resolveKit(raw: string): Promise<ResolvedKit> {
     image: featured ? assetUrl(featured.thumbImage) : null,
     imageCustom: featured?.customImage ?? false,
     label: featured
-      ? {
-          no: featured.labelNo ?? featured.designName ?? design.nameNo,
-          en: featured.labelEn ?? featured.designNameEn ?? design.nameEn,
-        }
+      ? { no: featured.labelNo, en: featured.labelEn }
       : null,
   };
 }
