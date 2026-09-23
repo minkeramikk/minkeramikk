@@ -1358,18 +1358,9 @@ export function ConfiguratorClient({
         />
       )}
 
-      {/* R5-KIT T5: the strip on a kit landing, hugging the header full-bleed
-          (the <main> carries px-5 py-7). Thumb = the design round: at 30px a
-          product photo is a grey disc. */}
-      {step === 2 && kitMode && (
-        <div className="-mx-5 -mt-7 mb-5">
-          <KitStrip
-            thumb={<DesignRound layers={previewLayers} className="size-[30px]" />}
-            total={kitCounts.total}
-            painted={kitCounts.painted}
-          />
-        </div>
-      )}
+      {/* R5-KIT T5: the strip on a kit landing, under the stepper, same
+          width (PM 23/9). Thumb = the design round: at 30px a product photo
+          is a grey disc. */}
       <KitWelcome
         open={kitWelcome !== null}
         onOpenChange={(o) => !o && setKitWelcome(null)}
@@ -1403,6 +1394,17 @@ export function ConfiguratorClient({
           className="mb-0 mt-0"
         />
       </div>
+
+      {/* R5-KIT: strip under the stepper, same column width. */}
+      {step === 2 && kitMode && (
+        <div className="mb-4">
+          <KitStrip
+            thumb={<DesignRound layers={previewLayers} className="size-[30px]" />}
+            total={kitCounts.total}
+            painted={kitCounts.painted}
+          />
+        </div>
+      )}
 
       {/* R2-6 A: how-it-works intro — the public root redirects here, so step 1
           IS the homepage. Sits directly under the stepper, ABOVE the featured

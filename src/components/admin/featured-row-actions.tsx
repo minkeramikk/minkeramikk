@@ -117,27 +117,7 @@ export function FeaturedRowActions({
 
   // mode === "image" — replace the card image of an existing row
   if (mode === "image") {
-    return (
-      <form
-        action={replaceFeaturedImage}
-        encType="multipart/form-data"
-        className="mt-1.5 flex flex-col items-start gap-1"
-      >
-        <input type="hidden" name="id" value={id} />
-        <FileThumbInput
-          name="customImage"
-          testid="featured-replace-image"
-        />
-        <Button
-          type="submit"
-          size="sm"
-          variant="outline"
-          data-testid="featured-replace-upload"
-        >
-          Upload
-        </Button>
-      </form>
-    );
+    return <ImageReplaceForm id={id} />;
   }
 
   // mode === "delete" — two-stage confirm (F07b)
@@ -185,5 +165,38 @@ export function FeaturedRowActions({
         </p>
       )}
     </div>
+  );
+}
+
+/** Replace-image mini-form: same useActionState pattern as delete, so server
+ *  errors surface under the button instead of failing silently. */
+function ImageReplaceForm({ id }: { id: string }) {
+  const [state, action, pending] = useActionState(
+    replaceFeaturedImage,
+    { error: null } as FeaturedFormState
+  );
+  return (
+    <form
+      action={action}
+      encType="multipart/form-data"
+      className="mt-1.5 flex flex-col items-start gap-1"
+    >
+      <input type="hidden" name="id" value={id} />
+      <FileThumbInput name="customImage" testid="featured-replace-image" />
+      <Button
+        type="submit"
+        size="sm"
+        variant="outline"
+        data-testid="featured-replace-upload"
+        disabled={pending}
+      >
+        {pending ? "Uploading…" : "Upload"}
+      </Button>
+      {state.error && (
+        <p role="alert" className="text-xs text-destructive">
+          {state.error}
+        </p>
+      )}
+    </form>
   );
 }

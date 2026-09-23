@@ -144,7 +144,7 @@ export default async function AdminFeaturedPage() {
         <p className="text-xs text-muted-foreground">
           The card image is composed when you save the entry — if you later
           change a design&apos;s assets, remove and re-add the featured entry
-          to refresh it.
+          to refresh it. Custom images: PNG/JPG/WebP, square, under 4 MB.
         </p>
       </div>
     </AdminShell>

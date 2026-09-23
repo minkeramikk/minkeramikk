@@ -30,16 +30,16 @@ export function KitWelcome({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         data-testid="kit-welcome"
-        className="max-w-[330px] sm:max-w-[360px]"
+        className="max-w-[360px] sm:max-w-[400px]"
       >
         <DialogHeader>
           <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
             {t("eyebrow")}
           </p>
-          <DialogTitle>{t("title", { count: total })}</DialogTitle>
-          <DialogDescription>{t("body")}</DialogDescription>
+          <DialogTitle className="text-[19px]">{t("title", { count: total })}</DialogTitle>
+          <DialogDescription className="text-[13.5px]">{t("body")}</DialogDescription>
         </DialogHeader>
-        <div className="mt-3 grid grid-cols-[auto_auto_1fr] items-center gap-x-2.5 gap-y-2 rounded-[11px] bg-muted px-3 py-2.5">
+        <div className="mt-3 grid grid-cols-[auto_auto_1fr] items-center gap-x-2.5 gap-y-2.5 rounded-[11px] bg-muted px-3.5 py-3">
           {rows.map((r, i) => (
             <span key={`${r.name}-${i}`} className="contents">
               {r.image ? (
@@ -47,15 +47,15 @@ export function KitWelcome({
                 <img
                   src={r.image}
                   alt=""
-                  className="size-9 rounded-full border border-border object-cover grayscale"
+                  className="size-10 rounded-full border border-border object-cover grayscale"
                 />
               ) : (
-                <span className="size-9 rounded-full border border-border bg-card" />
+                <span className="size-10 rounded-full border border-border bg-card" />
               )}
-              <span className="text-[13px] font-semibold tabular-nums">
+              <span className="text-[14.5px] font-semibold tabular-nums">
                 {r.qty}×
               </span>
-              <span className="truncate text-[13px] leading-tight">{r.name}</span>
+              <span className="truncate text-[14.5px] leading-tight">{r.name}</span>
             </span>
           ))}
         </div>

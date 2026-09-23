@@ -158,11 +158,16 @@ export async function addFeatured(
   // replaces it — PM 23/9). If the insert fails afterwards we clean the
   // upload up, whichever thumb it was.
   const id = randomUUID();
-  const custom = await uploadAsset(
-    supabase,
-    formData.get("customImage"),
-    `featured/${id}.custom.webp`
-  );
+  let custom: { path?: string; error?: string };
+  try {
+    custom = await uploadAsset(
+      supabase,
+      formData.get("customImage"),
+      `featured/${id}.custom.webp`
+    );
+  } catch {
+    return { error: "Could not upload the image." };
+  }
   if (custom.error) return { error: custom.error };
   let thumbPath = `featured/${id}.webp`;
   if (!custom.path) {
@@ -311,12 +316,16 @@ export async function updateFeaturedLabel(formData: FormData): Promise<void> {
 
 /** Replace the card image of an existing row (PM 23/9): same bucket, same
  *  `thumb_image` field; the old file is removed (lezione F22: mai orfani).
- *  Errors follow the `updateFeaturedLabel` pattern: silent no-op. */
-export async function replaceFeaturedImage(formData: FormData): Promise<void> {
+ *  Returns `{ error }` like every other featured form action, so the row can
+ *  show the reason instead of failing silently. */
+export async function replaceFeaturedImage(
+  _prev: FeaturedFormState,
+  formData: FormData
+): Promise<FeaturedFormState> {
   const parsed = z.object({ id: z.string().uuid() }).safeParse({
     id: formData.get("id"),
   });
-  if (!parsed.success) return;
+  if (!parsed.success) return { error: "Invalid entry." };
 
   const supabase = await createClient();
   const { data: row } = await supabase
@@ -324,14 +333,20 @@ export async function replaceFeaturedImage(formData: FormData): Promise<void> {
     .select("thumb_image")
     .eq("id", parsed.data.id)
     .maybeSingle();
-  if (!row) return;
+  if (!row) return { error: "Entry not found." };
 
-  const custom = await uploadAsset(
-    supabase,
-    formData.get("customImage"),
-    `featured/${parsed.data.id}.custom.webp`
-  );
-  if (custom.error || !custom.path) return;
+  let custom: { path?: string; error?: string };
+  try {
+    custom = await uploadAsset(
+      supabase,
+      formData.get("customImage"),
+      `featured/${parsed.data.id}.custom.webp`
+    );
+  } catch {
+    return { error: "Could not upload the image." };
+  }
+  if (custom.error) return { error: custom.error };
+  if (!custom.path) return { error: "Choose an image first." };
 
   const { error } = await supabase
     .from("featured_configs")
@@ -339,10 +354,14 @@ export async function replaceFeaturedImage(formData: FormData): Promise<void> {
     .eq("id", parsed.data.id);
   if (error) {
     await supabase.storage.from("assets").remove([custom.path]);
-    return;
+    return { error: "Could not save the new image." };
   }
-  await supabase.storage.from("assets").remove([row.thumb_image]);
+  const { error: rmErr } = await supabase.storage
+    .from("assets")
+    .remove([row.thumb_image]);
+  if (rmErr) return { error: "Image replaced, but the old file could not be removed." };
 
   revalidateTag("featured");
   revalidatePath("/admin/featured");
+  return { error: null };
 }

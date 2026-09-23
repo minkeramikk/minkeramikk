@@ -1346,10 +1346,9 @@ export function CeramicsStep({
         />
       </div>
 
-      {/* R5-KIT T6: the strip on a kit landing, hugging the header full-bleed
-          (the <main> carries px-5 py-7). Thumb = the design round. */}
+      {/* R5-KIT T6: strip under the stepper, same column width (PM 23/9). */}
       {kitMode && (
-        <div className="-mx-5 -mt-7 mb-5">
+        <div className="mb-4">
           <KitStrip
             thumb={<DesignRound layers={designLayers} className="size-[30px]" />}
             total={kitStripCounts(cart).total}
