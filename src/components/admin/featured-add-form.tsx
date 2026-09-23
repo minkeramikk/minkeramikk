@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { FileThumbInput } from "@/components/admin/file-thumb-input";
 import {
   addFeatured,
   previewFeatured,
@@ -33,6 +34,7 @@ export function FeaturedAddForm({ full }: { full: boolean }) {
   return (
     <form
       action={formAction}
+      encType="multipart/form-data"
       data-testid="featured-add-form"
       className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4"
     >
@@ -133,6 +135,10 @@ export function FeaturedAddForm({ full }: { full: boolean }) {
               <label className="text-xs text-muted-foreground">
                 Label EN (optional)
                 <Input name="labelEn" className="mt-1 w-44" maxLength={80} />
+              </label>
+              <label className="text-xs text-muted-foreground">
+                Custom image (optional — replaces the composed thumb)
+                <FileThumbInput name="customImage" />
               </label>
               <Button
                 type="submit"

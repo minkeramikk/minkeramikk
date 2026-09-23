@@ -37,3 +37,4 @@ infrastruttura nuova per una curation.
 allo step 2 via `?step=2&kit=<D>~slug.qty…` (righe senza colori, unpainted).
 Stessa immagine del set equivalente, si distinguono solo per testo; set e kit
 mostrano il prezzo vivo a runtime (`featuredPrice`: stesse righe → stesso prezzo).
+Thumb: pre-composta di default, sostituibile dall'admin con un'immagine caricata (stesso campo `thumb_image`, stesso bucket `assets/featured/`).

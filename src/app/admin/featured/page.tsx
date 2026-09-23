@@ -74,6 +74,14 @@ export default async function AdminFeaturedPage() {
                         alt=""
                         className="size-12 rounded-md border border-border bg-card object-contain"
                       />
+                      <FeaturedRowActions
+                        id={row.id}
+                        isFirst={i === 0}
+                        isLast={i === rows.length - 1}
+                        labelNo={row.labelNo}
+                        labelEn={row.labelEn}
+                        mode="image"
+                      />
                     </td>
                     <td className="px-3 py-2.5">
                       <span

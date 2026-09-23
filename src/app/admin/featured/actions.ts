@@ -12,6 +12,7 @@ import {
   resolveCodeLayers,
 } from "@/lib/catalog/featured-thumb";
 import { decodeSetParam } from "@/lib/cart/set-code";
+import { uploadAsset } from "@/lib/catalog/upload-asset";
 import { assetUrl } from "@/lib/storage";
 import { MAX_FEATURED } from "@/lib/catalog/featured-constants";
 
@@ -153,18 +154,29 @@ export async function addFeatured(
     };
   }
 
-  // thumb FIRST (pre-composed, non-negotiable: the home serves ONE image per
-  // card); if the insert fails afterwards we clean the upload up.
+  // thumb FIRST (pre-composed by default, ADR 0016 §3; a custom upload
+  // replaces it — PM 23/9). If the insert fails afterwards we clean the
+  // upload up, whichever thumb it was.
   const id = randomUUID();
-  const thumbPath = `featured/${id}.webp`;
-  const thumb = await composeFeaturedThumb(supabase, preview.firstCode);
-  if (!thumb) {
-    return { error: "Could not compose the preview image for this entry." };
+  const custom = await uploadAsset(
+    supabase,
+    formData.get("customImage"),
+    `featured/${id}.custom.webp`
+  );
+  if (custom.error) return { error: custom.error };
+  let thumbPath = `featured/${id}.webp`;
+  if (!custom.path) {
+    const thumb = await composeFeaturedThumb(supabase, preview.firstCode);
+    if (!thumb) {
+      return { error: "Could not compose the preview image for this entry." };
+    }
+    const up = await supabase.storage
+      .from("assets")
+      .upload(thumbPath, thumb, { contentType: "image/webp", upsert: true });
+    if (up.error) return { error: "Could not upload the preview image." };
+  } else {
+    thumbPath = custom.path;
   }
-  const up = await supabase.storage
-    .from("assets")
-    .upload(thumbPath, thumb, { contentType: "image/webp", upsert: true });
-  if (up.error) return { error: "Could not upload the preview image." };
 
   const { data: maxRow } = await supabase
     .from("featured_configs")
@@ -292,6 +304,44 @@ export async function updateFeaturedLabel(formData: FormData): Promise<void> {
       label_en: parsed.data.labelEn || null,
     })
     .eq("id", parsed.data.id);
+
+  revalidateTag("featured");
+  revalidatePath("/admin/featured");
+}
+
+/** Replace the card image of an existing row (PM 23/9): same bucket, same
+ *  `thumb_image` field; the old file is removed (lezione F22: mai orfani).
+ *  Errors follow the `updateFeaturedLabel` pattern: silent no-op. */
+export async function replaceFeaturedImage(formData: FormData): Promise<void> {
+  const parsed = z.object({ id: z.string().uuid() }).safeParse({
+    id: formData.get("id"),
+  });
+  if (!parsed.success) return;
+
+  const supabase = await createClient();
+  const { data: row } = await supabase
+    .from("featured_configs")
+    .select("thumb_image")
+    .eq("id", parsed.data.id)
+    .maybeSingle();
+  if (!row) return;
+
+  const custom = await uploadAsset(
+    supabase,
+    formData.get("customImage"),
+    `featured/${parsed.data.id}.custom.webp`
+  );
+  if (custom.error || !custom.path) return;
+
+  const { error } = await supabase
+    .from("featured_configs")
+    .update({ thumb_image: custom.path })
+    .eq("id", parsed.data.id);
+  if (error) {
+    await supabase.storage.from("assets").remove([custom.path]);
+    return;
+  }
+  await supabase.storage.from("assets").remove([row.thumb_image]);
 
   revalidateTag("featured");
   revalidatePath("/admin/featured");
