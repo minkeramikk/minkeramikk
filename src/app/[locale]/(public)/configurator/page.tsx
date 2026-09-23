@@ -13,6 +13,7 @@ import {
   type CodecDesign,
 } from "@/lib/configurator/config-code";
 import { getFeaturedConfigs } from "@/lib/catalog/featured";
+import { decodeKitLabel } from "@/components/ui-domain/kit-strip";
 import { getAdminUser } from "@/lib/auth/admin";
 import { shareAllowed } from "@/lib/auth/share-gate";
 import { paletteWords } from "@/lib/palettes/name-lists";
@@ -100,6 +101,10 @@ export default async function ConfiguratorPage({
     const fromSet = sharedSet?.context
       ? designs.find((d) => d.slug === sharedSet.context!.designSlug)
       : undefined;
+    // R5-KIT fix 8: the strip title at step 3 is the featured label, ridden
+    // in from step 2 as `kitlabel=` (a hand-made link has none → fallback).
+    const rawKitLabel = typeof params.kitlabel === "string" ? params.kitlabel : "";
+    const kitLabel = decodeKitLabel(rawKitLabel);
 
     /**
      * R5-PALETTES task 9: a PaletteBar chip navigates with `?code=<code>` and
@@ -230,6 +235,7 @@ export default async function ConfiguratorPage({
               sharedSet={sharedSet}
               paletteWords={paletteWords()}
               isAdmin={isAdmin}
+              kitLabel={kitLabel}
             />
         </section>
       );

@@ -69,7 +69,7 @@ import {
   DesignSwitch,
   type DesignSwitchChoice,
 } from "@/components/ui-domain/design-switch";
-import { KitStrip, kitStripCounts } from "@/components/ui-domain/kit-strip";
+import { KitStrip, kitStripCounts, encodeKitLabel } from "@/components/ui-domain/kit-strip";
 import { KitWelcome, kitWelcomeRows } from "@/components/ui-domain/kit-welcome";
 
 /** Pagina di ispirazione del cliente (fuori sito, apre in nuova scheda). */
@@ -752,6 +752,7 @@ export function ConfiguratorClient({
     total: number;
     image: string | null;
     imageCustom: boolean;
+    label: { no: string; en: string } | null;
   } | null>(null);
   const kitMode =
     searchParams.get("origin") === "kit" ||
@@ -767,6 +768,7 @@ export function ConfiguratorClient({
         total: kit.lines.reduce((n, l) => n + l.quantity * (l.pieces ?? 1), 0),
         image: kit.image,
         imageCustom: kit.imageCustom,
+        label: kit.label,
       });
     }
     const params = new URLSearchParams(searchParams.toString());
@@ -1101,8 +1103,14 @@ export function ConfiguratorClient({
     // Leaving steps 1–2 IS the explicit choice for a set: `origin=set` stops
     // mattering here. A kit instead survives the whole loop (DS §4): it dies
     // only with a design change (`selectDesign` drops it — no switch renders
-    // in kit-mode anyway).
+    // in kit-mode anyway). The kit label rides a `kitlabel=` param so step 3
+    // — a separate server render — can show it too.
     if (params.get("origin") !== "kit") params.delete("origin");
+    if (params.get("origin") === "kit" && kitWelcome?.label) {
+      params.set("kitlabel", encodeKitLabel(kitWelcome.label));
+    } else {
+      params.delete("kitlabel");
+    }
     if (target === 1) params.delete("step");
     else params.set("step", String(target));
     // R2-2b: carry the note forward only when the design accepts it and the
@@ -1417,6 +1425,11 @@ export function ConfiguratorClient({
               ) : (
                 <DesignRound layers={previewLayers} className="size-[30px]" />
               )
+            }
+            title={
+              kitWelcome?.label
+                ? (locale === "no" ? kitWelcome.label.no : kitWelcome.label.en)
+                : null
             }
             total={kitCounts.total}
             painted={kitCounts.painted}

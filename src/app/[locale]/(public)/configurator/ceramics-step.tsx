@@ -54,7 +54,7 @@ import type { ResolvedSharedSet } from "./resolve-shared-set";
 import { ProductSheet } from "@/components/ui-domain/product-sheet";
 import { AddedSheet } from "@/components/ui-domain/added-sheet";
 import { ShareDialog, type ShareKind } from "@/components/ui-domain/share-dialog";
-import { KitStrip, kitStripCounts } from "@/components/ui-domain/kit-strip";
+import { KitStrip, kitStripCounts, decodeKitLabel } from "@/components/ui-domain/kit-strip";
 import { DesignRound } from "@/components/ui-domain/design-round";
 import { Basket } from "@/components/ui-domain/basket";
 import { NextStepPill, PillIcon } from "@/components/ui-domain/next-step-pill";
@@ -189,6 +189,7 @@ export function CeramicsStep({
   paletteWords,
   // ponytail: optional prop so T3 compiles before T4/T6 wire it
   isAdmin = false,
+  kitLabel = null,
 }: {
   products: CeramicProduct[];
   design: DesignRef;
@@ -218,6 +219,10 @@ export function CeramicsStep({
   paletteWords: PaletteWords;
   /** R5-KIT: real admin gate from the session (page.tsx), replaces `?admin=1`. */
   isAdmin?: boolean;
+  /** R5-KIT fix 8: the featured label of the kit (decoded from `kitlabel=`
+   *  by page.tsx). Null: hand-made link or no featured match — the strip
+   *  keeps the generic fallback. */
+  kitLabel?: { no: string; en: string } | null;
 }) {
   const t = useTranslations("cart");
   // TODO:nb-review NO copy: step3.seriesCount · stickyBar.pieces · stickyBar.unpainted
@@ -996,6 +1001,15 @@ export function CeramicsStep({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot apply on arrival
   }, [sharedSet, hydrated]);
 
+  // R5-KIT fix 8: the strip title is the featured label (decoded from
+  // `kitlabel=` by page.tsx), else the generic fallback.
+  const kitLabelShown = decodeKitLabel(searchParams.get("kitlabel")) ?? kitLabel;
+  const kitTitle =
+    kitLabelShown != null
+      ? locale === "no"
+        ? kitLabelShown.no
+        : kitLabelShown.en
+      : null;
   // R5-KIT T6: kit-mode (mirror of origin=set) — survives refresh and
   // goToStep (which copies every param), dies with selectDesign (there is no
   // switch in kit-mode anyway). Opens the existing drawer once on arrival.
@@ -1351,6 +1365,7 @@ export function CeramicsStep({
         <div className="mb-4">
           <KitStrip
             thumb={<DesignRound layers={designLayers} className="size-[30px]" />}
+            title={kitTitle}
             total={kitStripCounts(cart).total}
             painted={kitStripCounts(cart).painted}
           />
