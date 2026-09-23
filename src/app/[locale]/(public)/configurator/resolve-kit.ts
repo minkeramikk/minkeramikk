@@ -28,10 +28,12 @@ export interface ResolvedKit {
    *  kit (matched on the canonical payload, same normalization as the ADD
    *  strict parse). Null: no match, the welcome keeps today's layout. */
   image: string | null;
+  /** true when `image` is a custom upload (fills the welcome frame) */
+  imageCustom: boolean;
 }
 
 export async function resolveKit(raw: string): Promise<ResolvedKit> {
-  const none: ResolvedKit = { lines: [], unavailable: 0, design: null, pieces: 0, image: null };
+  const none: ResolvedKit = { lines: [], unavailable: 0, design: null, pieces: 0, image: null, imageCustom: false };
   const { designCode, entries, dropped } = decodeKitParam(raw);
   if (entries.length === 0) return { ...none, unavailable: dropped };
 
@@ -87,5 +89,6 @@ export async function resolveKit(raw: string): Promise<ResolvedKit> {
     },
     pieces,
     image: featured ? assetUrl(featured.thumbImage) : null,
+    imageCustom: featured?.customImage ?? false,
   };
 }

@@ -19,6 +19,8 @@ export interface FeaturedStripItem {
   setCount: number | null;
   /** R5-KIT: live price of the pieces (sets and kits); null for design */
   price: { grossCents: number; netCents: number; currency: "NOK" | "EUR" | "GBP" } | null;
+  /** fix 7: custom uploads fill the card frame; composed thumbs stay round */
+  customImage: boolean;
 }
 
 /**
@@ -129,10 +131,16 @@ export function FeaturedStrip({ items }: { items: FeaturedStripItem[] }) {
                 aria-label={`${label(f)} — ${designName(f)}`}
                 className="w-[188px] shrink-0 snap-start overflow-hidden rounded-[13px] border border-border bg-card transition-colors hover:border-ring focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
               >
-                <span className="relative grid h-[128px] place-items-center bg-[color-mix(in_oklab,var(--mk-light),white_40%)]">
+                <span
+                  className={`relative grid h-[128px] place-items-center ${
+                    f.customImage
+                      ? ""
+                      : "bg-[color-mix(in_oklab,var(--mk-light),white_40%)]"
+                  }`}
+                >
                   {(f.kind === "set" || f.kind === "kit") && f.setCount != null && (
                     <span
-                      className={`absolute left-2 top-2 rounded-full px-2 py-0.5 text-[9.5px] font-bold uppercase tracking-[0.06em] ${
+                      className={`absolute left-2 top-2 z-10 rounded-full px-2 py-0.5 text-[9.5px] font-bold uppercase tracking-[0.06em] ${
                         f.kind === "kit"
                           ? "bg-ink text-ink-foreground"
                           : "bg-card text-foreground ring-1 ring-border"
@@ -149,7 +157,11 @@ export function FeaturedStrip({ items }: { items: FeaturedStripItem[] }) {
                     alt=""
                     loading={i < 3 ? "eager" : "lazy"}
                     decoding="async"
-                    className="size-[86px] rounded-full object-cover"
+                    className={
+                      f.customImage
+                        ? "absolute inset-0 size-full object-cover"
+                        : "size-[86px] rounded-full object-cover"
+                    }
                   />
                 </span>
                 <span className="block px-2.5 py-2.5">

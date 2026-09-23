@@ -751,6 +751,7 @@ export function ConfiguratorClient({
     rows: { qty: number; name: string; image?: string }[];
     total: number;
     image: string | null;
+    imageCustom: boolean;
   } | null>(null);
   const kitMode =
     searchParams.get("origin") === "kit" ||
@@ -765,6 +766,7 @@ export function ConfiguratorClient({
         rows: kitWelcomeRows(kit.lines, locale as "no" | "en"),
         total: kit.lines.reduce((n, l) => n + l.quantity * (l.pieces ?? 1), 0),
         image: kit.image,
+        imageCustom: kit.imageCustom,
       });
     }
     const params = new URLSearchParams(searchParams.toString());
@@ -1369,6 +1371,7 @@ export function ConfiguratorClient({
         rows={kitWelcome?.rows ?? []}
         total={kitWelcome?.total ?? 0}
         image={kitWelcome?.image}
+        imageCustom={kitWelcome?.imageCustom}
       />
       {/* CA-2: the top cluster holds ONLY the stepper (orientation + step
           jumps, F18). The advance/back CTAs live in-flow at the END of the

@@ -20,6 +20,7 @@ export function KitWelcome({
   rows,
   total,
   image = null,
+  imageCustom = false,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -27,6 +28,8 @@ export function KitWelcome({
   total: number;
   /** the kit's shop-window image, when a featured row carries this exact kit */
   image?: string | null;
+  /** true when `image` is a custom upload (fills the frame, not round) */
+  imageCustom?: boolean;
 }) {
   const t = useTranslations("kit.welcome");
   return (
@@ -40,12 +43,22 @@ export function KitWelcome({
             {t("eyebrow")}
           </p>
           {image && (
-            <span className="mt-2 mb-3 grid h-[140px] place-items-center rounded-[13px] bg-[color-mix(in_oklab,var(--mk-light),white_40%)]">
+            <span
+              className={`mt-2 mb-3 grid h-[160px] place-items-center overflow-hidden rounded-[13px] ${
+                imageCustom
+                  ? ""
+                  : "bg-[color-mix(in_oklab,var(--mk-light),white_40%)]"
+              }`}
+            >
               {/* eslint-disable-next-line @next/next/no-img-element -- resolved catalog asset */}
               <img
                 src={image}
                 alt=""
-                className="size-[112px] rounded-full border border-border object-cover"
+                className={
+                  imageCustom
+                    ? "size-full object-cover"
+                    : "size-[112px] rounded-full border border-border object-cover"
+                }
               />
             </span>
           )}

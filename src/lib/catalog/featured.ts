@@ -30,6 +30,15 @@ export interface FeaturedRow {
 }
 
 /**
+ * R5-KIT fix 7 — one criterion for "this thumb is a custom upload": customs
+ * are born from `uploadAsset(…, "featured/<id>.custom.webp")` (the token lands
+ * before the extension: `featured/<id>.custom-<tok>.webp`), the composed one
+ * is `featured/<id>.webp`. Customs fill the card/welcome frame; composed
+ * thumbs stay round.
+ */
+export const isCustomThumb = (path: string) => path.includes(".custom");
+
+/**
  * A row re-validated against the LIVE catalog (read side is tolerant,
  * ADR 0016): `valid=false` rows are hidden from the home strip but stay in
  * /admin/featured with the reason. Resolved names feed the label fallback.
@@ -46,6 +55,8 @@ export interface ValidatedFeatured extends FeaturedRow {
   setCount: number | null;
   /** sets and kits only: live price of the pieces (R5-KIT); null for design */
   price: FeaturedPrice | null;
+  /** true when the thumb is a custom upload (fills the frame) */
+  customImage: boolean;
 }
 
 export type PayloadValidation =
@@ -225,9 +236,10 @@ async function loadValidatedFeatured(): Promise<ValidatedFeatured[]> {
 
   return Promise.all(
     rows.map(async (row): Promise<ValidatedFeatured> => {
+      const customImage = isCustomThumb(row.thumbImage);
       const v = await validateFeaturedPayload(row.kind, row.payload);
       if (!v.ok) {
-        return { ...row, valid: false, reason: v.reason, designName: null, designNameEn: null, setCount: null, price: null };
+        return { ...row, valid: false, reason: v.reason, designName: null, designNameEn: null, setCount: null, price: null, customImage };
       }
       const price =
         row.kind === "design"
@@ -245,6 +257,7 @@ async function loadValidatedFeatured(): Promise<ValidatedFeatured[]> {
         designNameEn: v.designNameEn,
         setCount: v.setCount,
         price,
+        customImage,
       };
     })
   );

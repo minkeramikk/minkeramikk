@@ -309,6 +309,7 @@ export default async function ConfiguratorPage({
                 designNameEn: f.designNameEn ?? "",
                 setCount: f.setCount,
                 price: f.price ?? null,
+                customImage: f.customImage,
               }))}
             />
           ) : null
