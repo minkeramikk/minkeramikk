@@ -5,8 +5,9 @@ import { getDesignDetail } from "@/lib/catalog/design-options";
 import { getDesignProducts } from "@/lib/catalog/products";
 import { assetUrl } from "@/lib/storage";
 import { PRODUCT_THUMB_WIDTH } from "@/lib/asset-variants";
-import { decodeKitParam } from "@/lib/cart/kit-code";
+import { decodeKitParam, encodeKitParam } from "@/lib/cart/kit-code";
 import { toKitLines } from "@/lib/cart/kit-lines";
+import { getFeaturedConfigs } from "@/lib/catalog/featured";
 import type { SharedSetLine } from "./resolve-shared-set";
 
 /**
@@ -23,10 +24,14 @@ export interface ResolvedKit {
   unavailable: number;
   design: { slug: string; name: string; nameNo: string; nameEn: string } | null;
   pieces: number;
+  /** the kit's shop-window image, when a kit featured row carries this exact
+   *  kit (matched on the canonical payload, same normalization as the ADD
+   *  strict parse). Null: no match, the welcome keeps today's layout. */
+  image: string | null;
 }
 
 export async function resolveKit(raw: string): Promise<ResolvedKit> {
-  const none: ResolvedKit = { lines: [], unavailable: 0, design: null, pieces: 0 };
+  const none: ResolvedKit = { lines: [], unavailable: 0, design: null, pieces: 0, image: null };
   const { designCode, entries, dropped } = decodeKitParam(raw);
   if (entries.length === 0) return { ...none, unavailable: dropped };
 
@@ -57,6 +62,20 @@ export async function resolveKit(raw: string): Promise<ResolvedKit> {
     (sum, l) => sum + l.quantity * (l.pieces ?? 1),
     0
   );
+  // the welcome shows the kit's shop-window image when it has one: match this
+  // exact kit on the canonical payload (same normalization the admin ADD
+  // parses with — qty already clamped, rows already aggregated). Cached under
+  // `featured`+`catalog`, ~0 queries on hit. Null when no featured row is
+  // this kit (e.g. a hand-made share link).
+  const canonical = encodeKitParam(
+    designCode,
+    entries.map((e) => ({ productSlug: e.productSlug, quantity: e.qty }))
+  );
+  const featured = canonical
+    ? (await getFeaturedConfigs()).find(
+        (f) => f.kind === "kit" && f.valid && f.payload === canonical
+      )
+    : undefined;
   return {
     lines,
     unavailable: dropped + unavailable,
@@ -67,5 +86,6 @@ export async function resolveKit(raw: string): Promise<ResolvedKit> {
       nameEn: design.nameEn,
     },
     pieces,
+    image: featured ? assetUrl(featured.thumbImage) : null,
   };
 }

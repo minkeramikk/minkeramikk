@@ -19,23 +19,36 @@ export function KitWelcome({
   onOpenChange,
   rows,
   total,
+  image = null,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   rows: { qty: number; name: string; image?: string }[];
   total: number;
+  /** the kit's shop-window image, when a featured row carries this exact kit */
+  image?: string | null;
 }) {
   const t = useTranslations("kit.welcome");
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         data-testid="kit-welcome"
-        className="max-w-[360px] sm:max-w-[400px]"
+        className="max-w-[360px] sm:max-w-[420px]"
       >
         <DialogHeader>
           <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
             {t("eyebrow")}
           </p>
+          {image && (
+            <span className="mt-2 mb-3 grid h-[140px] place-items-center rounded-[13px] bg-[color-mix(in_oklab,var(--mk-light),white_40%)]">
+              {/* eslint-disable-next-line @next/next/no-img-element -- resolved catalog asset */}
+              <img
+                src={image}
+                alt=""
+                className="size-[112px] rounded-full border border-border object-cover"
+              />
+            </span>
+          )}
           <DialogTitle className="text-[19px]">{t("title", { count: total })}</DialogTitle>
           <DialogDescription className="text-[13.5px]">{t("body")}</DialogDescription>
         </DialogHeader>

@@ -748,8 +748,9 @@ export function ConfiguratorClient({
   // prop), so reading `kit?.lines` at the mount would show «0 pieces».
   const kitConsumedRef = useRef(false);
   const [kitWelcome, setKitWelcome] = useState<{
-    rows: { qty: number; name: string }[];
+    rows: { qty: number; name: string; image?: string }[];
     total: number;
+    image: string | null;
   } | null>(null);
   const kitMode =
     searchParams.get("origin") === "kit" ||
@@ -763,6 +764,7 @@ export function ConfiguratorClient({
       setKitWelcome({
         rows: kitWelcomeRows(kit.lines, locale as "no" | "en"),
         total: kit.lines.reduce((n, l) => n + l.quantity * (l.pieces ?? 1), 0),
+        image: kit.image,
       });
     }
     const params = new URLSearchParams(searchParams.toString());
@@ -1366,6 +1368,7 @@ export function ConfiguratorClient({
         onOpenChange={(o) => !o && setKitWelcome(null)}
         rows={kitWelcome?.rows ?? []}
         total={kitWelcome?.total ?? 0}
+        image={kitWelcome?.image}
       />
       {/* CA-2: the top cluster holds ONLY the stepper (orientation + step
           jumps, F18). The advance/back CTAs live in-flow at the END of the
@@ -1395,11 +1398,23 @@ export function ConfiguratorClient({
         />
       </div>
 
-      {/* R5-KIT: strip under the stepper, same column width. */}
+      {/* R5-KIT: strip under the stepper, same column width.
+          // ponytail: kit image only where the resolver ran; step 3 shows the design. */}
       {step === 2 && kitMode && (
         <div className="mb-4">
           <KitStrip
-            thumb={<DesignRound layers={previewLayers} className="size-[30px]" />}
+            thumb={
+              kitWelcome?.image ? (
+                // eslint-disable-next-line @next/next/no-img-element -- resolved catalog asset
+                <img
+                  src={kitWelcome.image}
+                  alt=""
+                  className="size-[30px] shrink-0 rounded-full border border-border object-cover"
+                />
+              ) : (
+                <DesignRound layers={previewLayers} className="size-[30px]" />
+              )
+            }
             total={kitCounts.total}
             painted={kitCounts.painted}
           />
