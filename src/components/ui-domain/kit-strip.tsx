@@ -1,7 +1,6 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { cartPieces, unpaintedPieces, type Cart } from "@/lib/cart/cart";
 
 /**
  * R5-KIT — the strip above the step nav on a kit landing: what the kit is,
@@ -40,33 +39,4 @@ export function KitStrip({
       </span>
     </div>
   );
-}
-
-/** The two numbers both kit landings feed `KitStrip` with. */
-export function kitStripCounts(cart: Cart): { total: number; painted: number } {
-  const total = cartPieces(cart);
-  return { total, painted: total - unpaintedPieces(cart) };
-}
-
-/**
- * The kit label rides step 2 → step 3 in the URL (`kitlabel=`), because step 3
- * is a separate server render that never sees the resolver. Base64 of
- * "no\nen" — labels are admin copy, short, and never contain a newline.
- */
-export function encodeKitLabel(label: { no: string; en: string }): string {
-  return btoa(unescape(encodeURIComponent(`${label.no}\n${label.en}`)));
-}
-
-/** Inverse of `encodeKitLabel`; null on anything malformed. */
-export function decodeKitLabel(raw: string | null | undefined): {
-  no: string;
-  en: string;
-} | null {
-  if (!raw) return null;
-  try {
-    const [no, en] = decodeURIComponent(escape(atob(raw))).split("\n");
-    return no && en ? { no, en } : null;
-  } catch {
-    return null;
-  }
 }

@@ -69,7 +69,8 @@ import {
   DesignSwitch,
   type DesignSwitchChoice,
 } from "@/components/ui-domain/design-switch";
-import { KitStrip, kitStripCounts, encodeKitLabel } from "@/components/ui-domain/kit-strip";
+import { KitStrip } from "@/components/ui-domain/kit-strip";
+import { encodeKitLabel, kitStripCounts } from "@/lib/cart/kit-label";
 import { KitWelcome, kitWelcomeRows } from "@/components/ui-domain/kit-welcome";
 
 /** Pagina di ispirazione del cliente (fuori sito, apre in nuova scheda). */

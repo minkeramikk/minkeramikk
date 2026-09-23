@@ -13,7 +13,7 @@ import {
   type CodecDesign,
 } from "@/lib/configurator/config-code";
 import { getFeaturedConfigs } from "@/lib/catalog/featured";
-import { decodeKitLabel } from "@/components/ui-domain/kit-strip";
+import { decodeKitLabel } from "@/lib/cart/kit-label";
 import { getAdminUser } from "@/lib/auth/admin";
 import { shareAllowed } from "@/lib/auth/share-gate";
 import { paletteWords } from "@/lib/palettes/name-lists";

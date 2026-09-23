@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { encodeKitLabel, decodeKitLabel } from "./kit-strip";
+import { encodeKitLabel, decodeKitLabel } from "@/lib/cart/kit-label";
 
 describe("kit label codec", () => {
   it("round-trips a bilingual label", () => {
