@@ -1094,10 +1094,11 @@ export function ConfiguratorClient({
   function goToStep(target: 1 | 2 | 3) {
     const params = new URLSearchParams(searchParams.toString());
     params.set("design", selected.slug);
-    // Leaving steps 1–2 IS the explicit choice: whatever brought the design in
-    // (a shared set landing marks it `origin=set`, a kit `origin=kit`) stops
-    // mattering here.
-    params.delete("origin");
+    // Leaving steps 1–2 IS the explicit choice for a set: `origin=set` stops
+    // mattering here. A kit instead survives the whole loop (DS §4): it dies
+    // only with a design change (`selectDesign` drops it — no switch renders
+    // in kit-mode anyway).
+    if (params.get("origin") !== "kit") params.delete("origin");
     if (target === 1) params.delete("step");
     else params.set("step", String(target));
     // R2-2b: carry the note forward only when the design accepts it and the

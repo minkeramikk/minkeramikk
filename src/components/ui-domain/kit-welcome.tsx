@@ -39,25 +39,23 @@ export function KitWelcome({
           <DialogTitle>{t("title", { count: total })}</DialogTitle>
           <DialogDescription>{t("body")}</DialogDescription>
         </DialogHeader>
-        <div className="mt-3 flex flex-wrap items-center gap-2 rounded-[11px] bg-muted px-2.5 py-2">
+        <div className="mt-3 grid grid-cols-[auto_auto_1fr] items-center gap-x-2.5 gap-y-2 rounded-[11px] bg-muted px-3 py-2.5">
           {rows.map((r, i) => (
-            <span key={`${r.name}-${i}`} className="flex items-center gap-1.5">
-              {i > 0 && <span className="text-muted-foreground">·</span>}
-              <span className="flex items-center gap-1.5 text-[11.5px]">
-                {r.image ? (
-                  // eslint-disable-next-line @next/next/no-img-element -- resolved catalog asset
-                  <img
-                    src={r.image}
-                    alt=""
-                    className="size-7 rounded-full border border-border object-cover grayscale"
-                  />
-                ) : (
-                  <span className="size-7 rounded-full border border-border bg-card" />
-                )}
-                <span className="leading-tight">
-                  {r.qty}× {r.name}
-                </span>
+            <span key={`${r.name}-${i}`} className="contents">
+              {r.image ? (
+                // eslint-disable-next-line @next/next/no-img-element -- resolved catalog asset
+                <img
+                  src={r.image}
+                  alt=""
+                  className="size-9 rounded-full border border-border object-cover grayscale"
+                />
+              ) : (
+                <span className="size-9 rounded-full border border-border bg-card" />
+              )}
+              <span className="text-[13px] font-semibold tabular-nums">
+                {r.qty}×
               </span>
+              <span className="truncate text-[13px] leading-tight">{r.name}</span>
             </span>
           ))}
         </div>
