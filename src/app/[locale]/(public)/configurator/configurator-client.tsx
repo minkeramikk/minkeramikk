@@ -1485,7 +1485,7 @@ export function ConfiguratorClient({
       />
 
       {/* R5-TUTORIAL — 390: the tip lives in a strip, never anchored (DS
-          §3.32). One mount covers both steps 1-2, normal and kit2 alike —
+          §3.32). One mount covers both steps 1-2, normal and kit alike —
           `tip`/`tourTip` already say which copy, if any (kit3 lives on step
           3, `ceramics-step.tsx`, so `tip.sequence` here is never that). */}
       {tourTip && tip && (
@@ -2531,9 +2531,10 @@ export function ConfiguratorClient({
                 onMouseDown={keepFocusWhileTyping}
                 onClick={() => goToStep(1)}
               />
-              {/* R5-TUTORIAL — kit2's tip 3, anchored to this CTA (0.1-1: it
-                  pushes forward, "Go to your ceramics" — a tour should never
-                  send someone to open something that's shut). The flex-sizing
+              {/* R5-TUTORIAL — step2's tip 2, anchored to this CTA (normal
+                  and kit alike now): it pushes forward, "Go to your
+                  ceramics" — a tour should never send someone to open
+                  something that's shut. The flex-sizing
                   classes that used to live on the pill move to this wrapper
                   (`relative` needs a box, and the pill still fills it via
                   `w-full`), so the row's layout is unchanged. */}

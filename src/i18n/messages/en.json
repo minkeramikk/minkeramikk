@@ -418,7 +418,11 @@
       "editColours": "Edit colours",
       "showAll": "Show all {count}",
       "showFewer": "Show fewer",
-      "emptyHint": "No other palettes to switch to yet. Save one from the colour step and it shows up here."
+      "emptyHint": "No other palettes to switch to yet. Save one from the colour step and it shows up here.",
+      "help": "About palettes",
+      "helpClose": "Close",
+      "helpManage": "The colours you pick become a <b>palette</b>. <b>Save it</b> to reuse it on other pieces — up to {max}. Saved ones stay here to switch between.",
+      "helpNow": "This is the palette you're painting with.{saved, plural, =0 {} one {} other { Tap another saved one to switch — the next ceramic you tap comes in those colours.}}"
     },
     "sheet": {
       "trigger": "Palettes",

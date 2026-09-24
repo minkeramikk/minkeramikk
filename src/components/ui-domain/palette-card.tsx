@@ -2,7 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
-import { Brush } from "lucide-react";
+import { Brush, CircleHelp } from "lucide-react";
 import { DesignRound } from "@/components/ui-domain/design-round";
 import { Dots } from "@/components/ui-domain/cart-line-row";
 import { PaletteDedicationLine } from "./palette-chip";
@@ -34,8 +34,65 @@ interface PaletteCardProps {
   now?: NowData;
 }
 
+/**
+ * R5-TUTORIAL round 3 (plan Task D) — the "?" that replaces both the old
+ * standalone save-as-palette hint and passo 2's own tip that used to sit on
+ * this same card (both are gone from the guided tour now): click-for-help,
+ * own local `open` state, no localStorage, no tour state at all. Two call
+ * sites, two copies — `now` (step 3's switch header) explains "this is what
+ * you're painting with"; the library header (step 2, no `now`) explains how
+ * palettes work in general.
+ *
+ * Never collides with the tour's own `Hotspot`: that badge sits on the
+ * card's outer wrapper (top-right corner) and opens ABOVE it; this button
+ * lives in the header row and opens BELOW it.
+ */
+function PaletteHelp({ mode, saved }: { mode: "now" | "manage"; saved: number }) {
+  const t = useTranslations("palettes.card");
+  const [open, setOpen] = useState(false);
+  return (
+    // ponytail: popover only, sheet if 390 clips it — the card is
+    // full-width there already, so the bubble has the room it needs.
+    <span
+      className="relative"
+      onKeyDown={(e) => {
+        if (e.key === "Escape") setOpen(false);
+      }}
+    >
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-label={t("help")}
+        aria-expanded={open}
+        data-testid="palette-help"
+        className="grid size-6 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-primary/10 hover:text-primary"
+      >
+        <CircleHelp className="size-4" aria-hidden />
+      </button>
+      {open && (
+        <span className="absolute left-0 top-full mt-2 z-30 flex w-max max-w-[268px] items-start gap-1.5 rounded-lg border border-primary/30 bg-popover px-2.5 py-2 text-left text-[12px] leading-snug shadow-lg">
+          <span className="min-w-0 flex-1">
+            {mode === "now"
+              ? t.rich("helpNow", { b: (chunks) => <b>{chunks}</b>, saved })
+              : t.rich("helpManage", { b: (chunks) => <b>{chunks}</b>, max: MAX_PALETTES })}
+          </span>
+          <button
+            type="button"
+            onClick={() => setOpen(false)}
+            aria-label={t("helpClose")}
+            className="shrink-0 text-muted-foreground"
+          >
+            ✕
+          </button>
+        </span>
+      )}
+    </span>
+  );
+}
+
 export function PaletteCard({ chips, actions, saved, now }: PaletteCardProps) {
-  // TODO:nb-review sulle 6 chiavi NO di palettes.card (copy nuova, nessuna fonte live-site).
+  // TODO:nb-review su tutte le chiavi NO di palettes.card, incluse le 4 del
+  // popover "?" (round 3, Task D) — copy nuova, nessuna fonte live-site.
   const t = useTranslations("palettes.card");
   const tBar = useTranslations("palettes.bar");
   const [showAll, setShowAll] = useState(false);
@@ -99,6 +156,7 @@ export function PaletteCard({ chips, actions, saved, now }: PaletteCardProps) {
                 {t("switchTo")}
               </span>
               {count}
+              <PaletteHelp mode="now" saved={saved} />
               {slot}
             </div>
             <div className="flex flex-wrap gap-2">{visible}</div>
@@ -121,6 +179,7 @@ export function PaletteCard({ chips, actions, saved, now }: PaletteCardProps) {
               {tBar("eyebrowManage")}
             </span>
             {count}
+            <PaletteHelp mode="manage" saved={saved} />
             {slot}
           </div>
           <div className="flex flex-wrap gap-2">{visible}</div>

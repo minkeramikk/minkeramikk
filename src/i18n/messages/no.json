@@ -417,7 +417,11 @@
       "editColours": "Rediger farger",
       "showAll": "Vis alle {count}",
       "showFewer": "Vis færre",
-      "emptyHint": "Ingen andre paletter å bytte til ennå. Lagre en fra fargesteget, så vises den her."
+      "emptyHint": "Ingen andre paletter å bytte til ennå. Lagre en fra fargesteget, så vises den her.",
+      "help": "Om paletter",
+      "helpClose": "Lukk",
+      "helpManage": "Fargene du velger blir en <b>palett</b>. <b>Lagre den</b> for å bruke den igjen på andre stykker — opptil {max}. Lagrede paletter blir værende her, så du kan bytte mellom dem.",
+      "helpNow": "Dette er paletten du maler med.{saved, plural, =0 {} one {} other { Trykk på en annen lagret palett for å bytte — neste keramikk du trykker på, får de fargene.}}"
     },
     "sheet": {
       "trigger": "Paletter",
