@@ -108,6 +108,32 @@ describe("customerEmail", () => {
     });
     expect(out.html).toContain("«Hei &amp; Åse»");
   });
+
+  // AC4 — the position suffix rides the same line, only when it isn't centre.
+  it("adds the position suffix only when it isn't centre (R5-TEXT-POSITION AC4)", () => {
+    const withPosition = (textPosition: MailItem["textPosition"]) =>
+      customerEmail({
+        name: "Kari",
+        code: "MK-1",
+        locale: "no",
+        items: [
+          {
+            productName: "Flat",
+            quantity: 1,
+            unitPriceCents: 50000,
+            currency: "NOK",
+            configCode: "MK-D-A",
+            customText: "Hei Åse",
+            textPosition,
+          },
+        ],
+        theme: { light: "#eee", dark: "#222", accent: "#933" },
+      });
+
+    expect(withPosition("bottom").html).toContain("«Hei Åse» · Bunn");
+    expect(withPosition("centre").html).not.toContain("· Midten");
+    expect(withPosition(undefined).html).not.toContain("«Hei Åse» · ");
+  });
 });
 
 describe("adminEmail / supplierEmail", () => {

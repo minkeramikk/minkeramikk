@@ -163,6 +163,7 @@ const toMailItem = (i: PaintedOrderItem, idx: number, d: CartDiscount): MailItem
   configCode: i.configCode,
   customNote: i.configSnapshot?.customNote || undefined,
   customText: i.configSnapshot?.customText || undefined,
+  textPosition: i.configSnapshot?.textPosition,
   discountPct: d.perLine[String(idx)]?.pct || undefined,
   discountCents: d.perLine[String(idx)]?.saved.amountCents || undefined,
 });
