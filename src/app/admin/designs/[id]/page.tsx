@@ -21,6 +21,7 @@ import {
   type LayerSlot,
   type SelectedCategory,
 } from "@/lib/configurator/preview";
+import { findTextGroup } from "@/lib/configurator/text-option";
 
 export const dynamic = "force-dynamic";
 
@@ -36,7 +37,7 @@ export default async function EditDesignPage({
     supabase
       .from("designs")
       .select(
-        "id, name, slug, name_no, name_en, description_no, description_en, description_step2_no, description_step2_en, supplier_id, preview_image, sort_order, active, accepts_custom_notes, accepts_custom_text, code, option_categories(id, label_no, label_en, kind, layer_slot, sync_group, sort_order)"
+        "id, name, slug, name_no, name_en, description_no, description_en, description_step2_no, description_step2_en, supplier_id, preview_image, sort_order, active, accepts_custom_notes, accepts_custom_text, text_positions, code, option_categories(id, slug, label_no, label_en, kind, layer_slot, sync_group, sort_order)"
       )
       .eq("id", id)
       .maybeSingle(),
@@ -146,6 +147,18 @@ export default async function EditDesignPage({
     .eq("design_id", id)
     .order("sort_order", { ascending: true });
 
+  // R5-TEXT-POSITION §3.33: the «Tekst» group no longer governs the field (0.1-1)
+  // — it stays in the catalogue, empty, and the tree just labels it as such.
+  const textGroup = findTextGroup(
+    cats.map((c) => ({
+      id: c.id,
+      slug: c.slug,
+      labelNo: c.label_no,
+      labelEn: c.label_en,
+      options: optionsByCat.get(c.id) ?? [],
+    }))
+  );
+
   const categorySlots: CategorySlot[] = cats.map((c) => ({
     id: c.id,
     labelNo: c.label_no ?? "",
@@ -155,6 +168,7 @@ export default async function EditDesignPage({
     syncGroup: c.sync_group,
     sortOrder: c.sort_order ?? 0,
     options: optionsByCat.get(c.id) ?? [],
+    isTextGroup: c.id === textGroup?.id,
   }));
 
   return (
@@ -196,6 +210,7 @@ export default async function EditDesignPage({
                 active: design.active,
                 acceptsCustomNotes: design.accepts_custom_notes,
                 acceptsCustomText: design.accepts_custom_text,
+                textPositions: design.text_positions ?? [],
                 code: design.code,
               }}
             />

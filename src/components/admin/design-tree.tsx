@@ -53,6 +53,9 @@ export interface OptionSlot {
 
 export interface CategorySlot extends CategoryValues {
   options: OptionSlot[];
+  /** R5-TEXT-POSITION: the «Tekst» group — stays in the catalogue empty
+   *  (GARANZIA §7), the tree just labels it so instead of "0 options". */
+  isTextGroup?: boolean;
 }
 
 /** F35: a supplier glaze colour offered in the colour-option picker. */
@@ -758,7 +761,9 @@ function CategoryItem({
         </span>
 
         <span className="ml-auto shrink-0 text-xs text-muted-foreground">
-          {cat.options.length} option{cat.options.length !== 1 ? "s" : ""}
+          {cat.isTextGroup && cat.options.length === 0
+            ? "0 options · kept for code stability"
+            : `${cat.options.length} option${cat.options.length !== 1 ? "s" : ""}`}
         </span>
 
         {cat.options.some((o) => !o.layerImage) && (

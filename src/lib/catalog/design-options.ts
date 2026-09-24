@@ -81,8 +81,7 @@ export interface DesignDetail {
   /**
    * R5-TEXT-POSITION: which of `top`/`bottom` this design offers as an arc
    * inscription (`centre` and `back` are always implicit, never listed
-   * here). Populated from `designs.text_positions` in task 2 — `[]` here
-   * for now so the codec/line-payload wiring compiles and their tests pass.
+   * here). Read straight from `designs.text_positions`.
    */
   textPositions: string[];
   descriptionStep2No: string | null;
@@ -145,7 +144,7 @@ async function loadDesignDetail(slug: string): Promise<DesignDetail | null> {
     const { data: design, error: designErr } = await supabase
       .from("designs")
       .select(
-        "id, slug, code, name, name_no, name_en, accepts_custom_notes, accepts_custom_text, description_step2_no, description_step2_en"
+        "id, slug, code, name, name_no, name_en, accepts_custom_notes, accepts_custom_text, text_positions, description_step2_no, description_step2_en"
       )
       .eq("slug", slug)
       .maybeSingle();
@@ -184,8 +183,7 @@ async function loadDesignDetail(slug: string): Promise<DesignDetail | null> {
     nameEn: design.name_en,
     acceptsCustomNotes: design.accepts_custom_notes ?? false,
     acceptsCustomText: design.accepts_custom_text ?? false,
-    // ponytail: [] until task 2 selects designs.text_positions and maps it here.
-    textPositions: [],
+    textPositions: design.text_positions ?? [],
     descriptionStep2No: design.description_step2_no,
     descriptionStep2En: design.description_step2_en,
     images: (imgRows ?? []).map((r) => r.image),

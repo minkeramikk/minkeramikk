@@ -182,6 +182,9 @@ const designSchema = z.object({
   active: z.coerce.boolean(),
   acceptsCustomNotes: z.coerce.boolean(),
   acceptsCustomText: z.coerce.boolean(),
+  // R5-TEXT-POSITION: top/bottom offered as an arc inscription. Centre and
+  // back are always on and never travel through the form (0.1-5).
+  textPositions: z.array(z.enum(["top", "bottom"])),
 });
 
 export async function saveDesign(
@@ -209,6 +212,7 @@ export async function saveDesign(
     acceptsCustomText:
       formData.get("acceptsCustomText") === "on" ||
       formData.get("acceptsCustomText") === "true",
+    textPositions: formData.getAll("textPositions"),
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
@@ -280,6 +284,7 @@ export async function saveDesign(
     active: d.active,
     accepts_custom_notes: d.acceptsCustomNotes,
     accepts_custom_text: d.acceptsCustomText,
+    text_positions: d.textPositions,
     ...(previewPath ? { preview_image: previewPath } : {}),
   };
 
