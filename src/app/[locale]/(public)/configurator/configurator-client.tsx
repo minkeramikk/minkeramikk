@@ -59,7 +59,7 @@ import type { PreviewLayer } from "@/lib/configurator/preview";
 import { useCartContext } from "@/lib/cart/cart-context";
 import { keyboardUp } from "@/lib/cart/basket-open";
 import { hoverCapable } from "@/lib/pointer";
-import { cartPieces, designLabel, unpaintedPieces } from "@/lib/cart/cart";
+import { designLabel, unpaintedPieces } from "@/lib/cart/cart";
 import { buildConfigLinePayload } from "@/lib/configurator/line-payload";
 import { buildDesignSwitchParams } from "@/lib/configurator/design-switch-params";
 import { paletteMatchingCode } from "@/lib/configurator/save-gate";

@@ -21,6 +21,11 @@ const eslintConfig = [
       // output → never lint them, even after a stale worktree lingers.
       ".claude/**",
       "**/.next/**",
+      // Varco process repo — gitignored, never part of the product, lints
+      // with its own rules. Present as a sibling checkout in some working
+      // copies (mockup JS, etc.); this repo never sees it on a feature
+      // branch, but the ignore stays cheap insurance either way.
+      ".varco/**",
     ],
   },
 ];
