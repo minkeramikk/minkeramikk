@@ -1,8 +1,8 @@
 # minkeramikk/web — dev shortcuts
 #
-# Suite e2e snella (riscritta 2026-06-17). 8 journey ↔ docs/release/ACCEPTANCE.md.
-#   make run-e2e-core   → OGNI PR (bloccante): i 6 journey core (desktop+mobile).
-#   make run-e2e        → suite intera (core + supplier-pdf). La lancia
+# Suite e2e snella (riscritta 2026-06-17, R5-SNELLA 2026-09-24) ↔ docs/release/ACCEPTANCE.md.
+#   make run-e2e-core   → OGNI PR (bloccante): gli 8 journey core (desktop+mobile).
+#   make run-e2e        → suite intera (core + discounts + admin-products). La lancia
 #                         Daniele, VERDE prima di aggiornare `preview` e al go-live.
 #   make test-email     → OPT-IN: un solo ordine che invia email REALI alla casella
 #                         dell'account Resend (default dangeli88.daniele@gmail.com).
@@ -23,9 +23,11 @@ NODE_ACTUAL := $(shell node -v 2>/dev/null | sed -E 's/^v([0-9]+).*/\1/')
 # Casella dedicata per il test invio reale (override: make test-email E2E_EMAIL_TO=...).
 E2E_EMAIL_TO ?= dangeli88.daniele@gmail.com
 
-# CORE = i journey critici (per-PR). supplier-pdf sta nella full.
-CORE_SPECS := e2e/configurator.spec.ts e2e/cart.spec.ts \
-	e2e/order.spec.ts e2e/admin-auth.spec.ts e2e/admin-orders.spec.ts
+# CORE = i journey critici (per-PR). supplier-pdf resta desktop-only (regex in
+# playwright.config.ts): gira nel core, il progetto mobile lo salta da solo.
+CORE_SPECS := e2e/configurator.spec.ts e2e/cart.spec.ts e2e/order.spec.ts \
+	e2e/journey.spec.ts e2e/arrivals.spec.ts e2e/supplier-pdf.spec.ts \
+	e2e/admin-auth.spec.ts e2e/admin-orders.spec.ts
 
 .PHONY: check-node build run-e2e run-e2e-core run-e2e-grep test-email
 
@@ -41,7 +43,7 @@ check-node:
 build: check-node
 	NEXT_PUBLIC_TURNSTILE_SITE_KEY= npm run build
 
-# gate per ogni PR — desktop + mobile dei 6 journey core.
+# gate per ogni PR — desktop + mobile degli 8 journey core.
 # I test taggati @admin-setup sono ESCLUSI dal gate (decisione TL 2026-08-29): sono
 # test-panino che pilotano la UI admin per preparare dati e poi asseriscono su AC del
 # pubblico (chip, toast, flag) — non proteggono un journey, e il piu' grasso sforava i

@@ -1,24 +1,26 @@
 # e2e — suite snella (riscritta 2026-06-17)
 
-Sette **journey** critici, 1:1 con [`docs/release/ACCEPTANCE.md`](../../docs/release/ACCEPTANCE.md).
+Otto **journey** critici, 1:1 con [`docs/release/ACCEPTANCE.md`](../../docs/release/ACCEPTANCE.md).
 La suite verifica gli AC di quel documento — quello è la fonte di verità, non i test.
 
 | Spec | Journey | Note |
 |---|---|---|
 | `configurator.spec.ts` | design → opzioni → ceramica | core |
+| `journey.spec.ts` | R5: step 1 → 2 (palette) → 3 (dipinta, unpaint, Paint) → ordine | core |
+| `arrivals.spec.ts` | ingressi `?set=` (step 3) e `?kit=` (step 2) | core |
 | `cart.spec.ts` | carrello + drawer | core |
 | `order.spec.ts` | invio ordine | core · **nessun invio reale** |
 | `admin-auth.spec.ts` | login/guard admin | core |
 | `admin-orders.spec.ts` | gestione ordini | core · seed via service role |
-| `supplier-pdf.spec.ts` | PDF fornitore | full · desktop-only |
+| `supplier-pdf.spec.ts` | PDF fornitore | core · desktop-only |
 | `order-email.spec.ts` | invio email ordine reale | **opt-in**, `make test-email` |
 | `supplier-email.spec.ts` | PDF fornitore + inoltro reale | **opt-in**, `make test-email` · fornitore usa-e-getta |
 
 ## Comandi
 
 ```
-make run-e2e-core   # per-PR: i 6 journey core (desktop + mobile)
-make run-e2e        # full: core + supplier-pdf
+make run-e2e-core   # per-PR: gli 8 journey core (desktop + mobile)
+make run-e2e        # full: core + discounts + admin-products
 make test-email     # opt-in: UN ordine con email reali alla casella dedicata
 make run-e2e-grep G=cart   # una spec singola
 ```
