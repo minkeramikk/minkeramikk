@@ -34,6 +34,10 @@ const line = (over: Partial<DiscountLineInput> & { id: string }): DiscountLineIn
   unitPriceCents: 74900,
   currency: "NOK",
   quantity: 1,
+  // R5-UNPAINTED: a real code by default — every line here models an
+  // ordinary painted line unless a test deliberately overrides it to
+  // `undefined` to model an unpainted one (the donor-selection tests below).
+  configCode: "MK-DEFAULT",
   ...over,
 });
 
@@ -123,6 +127,23 @@ describe("computeCartDiscount — quantity discounts", () => {
     const r = computeCartDiscount([], config());
     expect(r.subtotal).toEqual(money(0));
     expect(r.total).toEqual(money(0));
+  });
+});
+
+describe("computeCartDiscount — shipping (R5-GARANZIA)", () => {
+  it("charges shipping below the 2.000 NOK threshold", () => {
+    const lines = [line({ id: "a", quantity: 1, unitPriceCents: 180000 })];
+    const r = computeCartDiscount(lines, EMPTY_CONFIG);
+    expect(r.total).toEqual(money(180000));
+    expect(r.shipping).toEqual(money(20000));
+    expect(r.grandTotal).toEqual(money(200000));
+  });
+
+  it("is free at or above the threshold", () => {
+    const lines = [line({ id: "a", quantity: 1, unitPriceCents: 250000 })];
+    const r = computeCartDiscount(lines, EMPTY_CONFIG);
+    expect(r.shipping).toEqual(money(0));
+    expect(r.grandTotal).toEqual(r.total);
   });
 });
 
@@ -339,6 +360,27 @@ describe("activeSuggestions — a list, in the admin's order", () => {
         currentConfigCode: "MK-NOT-IN-CART",
       });
       expect(out.fromLineId).toBe("big");
+    });
+
+    // R5-UNPAINTED: an unpainted line (no configCode) has no design to lend —
+    // it must never be picked as the donor, even when it's the biggest trigger
+    // line. Before the fix, byQty[0] picked it anyway, D3's allowedProduct
+    // (fail-closed, as a real caller's is for a donor with no design) rejected
+    // it, and the WHOLE rule was dropped instead of falling back to the
+    // painted sibling that actually qualifies.
+    it("an unpainted line is never the donor — the painted sibling gets the offer instead", () => {
+      const mixed = [
+        line({ id: "big", quantity: 8, configCode: undefined }), // biggest, but unpainted
+        line({ id: "small", quantity: 2, configCode: "MK-JULETRE" }),
+      ];
+      const [out] = activeSuggestions(mixed, cfg(rules), {
+        ...opts,
+        // mirrors the real allowedProduct: fails closed for a donor with no
+        // design (an unpainted line has no configSnapshot/designSlug to check).
+        allowedProduct: (fromLineId) => fromLineId !== "big",
+      });
+      expect(out).toBeDefined();
+      expect(out.fromLineId).toBe("small");
     });
   });
 });

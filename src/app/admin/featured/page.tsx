@@ -74,18 +74,28 @@ export default async function AdminFeaturedPage() {
                         alt=""
                         className="size-12 rounded-md border border-border bg-card object-contain"
                       />
+                      <FeaturedRowActions
+                        id={row.id}
+                        isFirst={i === 0}
+                        isLast={i === rows.length - 1}
+                        labelNo={row.labelNo}
+                        labelEn={row.labelEn}
+                        mode="image"
+                      />
                     </td>
                     <td className="px-3 py-2.5">
                       <span
                         className={`rounded-md px-2 py-0.5 text-[10.5px] font-bold uppercase ${
-                          row.kind === "set"
+                          row.kind === "kit"
                             ? "bg-ink text-ink-foreground"
-                            : "bg-primary/10 text-primary"
+                            : row.kind === "set"
+                              ? "bg-ink text-ink-foreground"
+                              : "bg-primary/10 text-primary"
                         }`}
                       >
                         {row.kind}
                       </span>
-                      {row.kind === "set" && row.setCount != null && (
+                      {(row.kind === "set" || row.kind === "kit") && row.setCount != null && (
                         <span className="ml-1.5 text-xs text-muted-foreground">
                           · {row.setCount} pcs
                         </span>
@@ -134,7 +144,7 @@ export default async function AdminFeaturedPage() {
         <p className="text-xs text-muted-foreground">
           The card image is composed when you save the entry — if you later
           change a design&apos;s assets, remove and re-add the featured entry
-          to refresh it.
+          to refresh it. Custom images: PNG/JPG/WebP, square, under 4 MB.
         </p>
       </div>
     </AdminShell>

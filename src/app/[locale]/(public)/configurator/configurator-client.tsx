@@ -13,6 +13,14 @@ import {
   findTextGroup,
   isCustomTextOffered,
 } from "@/lib/configurator/text-option";
+import { showsLiveInscription } from "@/lib/configurator/inscription";
+import {
+  allowedPositions,
+  clampPosition,
+  isTextPosition,
+  type TextPosition,
+} from "@/lib/configurator/text-position";
+import { PositionChips } from "@/components/ui-domain/position-chips";
 import { useLaneFades } from "@/lib/configurator/use-lane-fades";
 import {
   ARROW_SAFE_PX,
@@ -21,12 +29,11 @@ import {
   nearestScrollLeft,
 } from "@/lib/configurator/lane-scroll";
 import { PreviewCanvas } from "@/components/ui-domain/preview-canvas";
-import { Stepper } from "@/components/ui-domain/stepper";
+import { Stepper, STEP_NAV_STICKY } from "@/components/ui-domain/stepper";
 import { Swatch } from "@/components/ui-domain/swatch";
 import {
   NextStepPill,
   PillIcon,
-  PILL_SM_UNDER_MD,
 } from "@/components/ui-domain/next-step-pill";
 import { ChevronLeft, Circle } from "lucide-react";
 import { assetUrl } from "@/lib/storage";
@@ -37,6 +44,7 @@ import {
   type SyncCategory,
 } from "@/lib/configurator/state";
 import {
+  codecCategoryCount,
   decodeConfigCode,
   toCodecDesign,
   type CodecDesign,
@@ -44,19 +52,69 @@ import {
 import { pickDefaultOption } from "@/lib/configurator/default-option";
 import { fullRowInsertIndex } from "@/lib/configurator/grid-rows";
 import { keyboardSafeScrollDelta } from "@/lib/configurator/keyboard-safe-scroll";
-import { MAX_CUSTOM_TEXT } from "@/lib/orders/schema";
+import { MAX_CUSTOM_NOTE, MAX_CUSTOM_TEXT } from "@/lib/orders/schema";
 import { cn } from "@/lib/utils";
 import type { DesignDetail } from "@/lib/catalog/design-options";
 import type { PreviewLayer } from "@/lib/configurator/preview";
+import { useCartContext } from "@/lib/cart/cart-context";
+import { keyboardUp } from "@/lib/cart/basket-open";
+import { hoverCapable } from "@/lib/pointer";
+import { designLabel, unpaintedPieces } from "@/lib/cart/cart";
+import { buildConfigLinePayload } from "@/lib/configurator/line-payload";
+import { buildDesignSwitchParams } from "@/lib/configurator/design-switch-params";
+import { paletteMatchingCode } from "@/lib/configurator/save-gate";
+import { stripCustomSegment } from "@/lib/cart/set-code";
+import { nameFor, sortCurrentDesignFirst } from "@/lib/palettes/palettes";
+import type { PaletteWords } from "@/lib/palettes/name-lists";
+import { PaletteCard } from "@/components/ui-domain/palette-card";
+import { PaletteChip } from "@/components/ui-domain/palette-chip";
+import { PaintingStrip } from "@/components/ui-domain/painting-strip";
+import { DesignRound } from "@/components/ui-domain/design-round";
+import {
+  DesignSwitch,
+  type DesignSwitchChoice,
+} from "@/components/ui-domain/design-switch";
+import { KitStrip } from "@/components/ui-domain/kit-strip";
+import { kitStripCounts } from "@/lib/cart/kit-label";
+import {
+  clearKitContext,
+  kitTitle,
+  readKitContext,
+  saveKitContext,
+  type KitContext,
+} from "@/lib/cart/kit-context";
+import { KitWelcome, kitWelcomeRows } from "@/components/ui-domain/kit-welcome";
+import { useTour } from "@/lib/tour/use-tour";
+import { tipFor } from "@/lib/tour/tour";
+import { CoachBar, Hotspot, useTourTip } from "@/components/ui-domain/tour";
 
 /** Pagina di ispirazione del cliente (fuori sito, apre in nuova scheda). */
 const INSPIRATION_URL = "https://www.minkeramikk.no/inspirasjon";
 
 /** R4-POLISH voce 3: tab dei «Fargeønsker» — valgt figur, complementære /
- *  jeg velger selv, note, e (senza gruppo «Tekst») il campo scritta. Non è una
- *  categoria di catalogo, quindi ha una chiave sintetica; costante di modulo,
- *  identità stabile fra i render. */
+ *  jeg velger selv, note. Non è una categoria di catalogo, quindi ha una
+ *  chiave sintetica; costante di modulo, identità stabile fra i render. */
 const WISHES_TAB = "__wishes";
+/**
+ * R5-TEXT-POSITION (fix review visiva 2) — tab «Inscription», sempre
+ * presente quando `detail.acceptsCustomText`, senza conteggio (come
+ * `WISHES_TAB`): il campo scritta + i chip di posizione, e sotto — solo se
+ * ne ha — le opzioni del gruppo catalogo «Tekst». Prima il campo finiva
+ * sotto la tab Tekst quando esisteva (R4-FIX 8), altrimenti sotto
+ * «Fargeønsker»: due posti diversi per la stessa cosa. Un posto solo, ora.
+ */
+const INSCRIPTION_TAB = "__inscription";
+
+/**
+ * R5-DESIGN-SWITCH loader: minimo visibile 500ms a ogni cambio design
+ * (richiesta esplicita 22/9: 650 era troppo lungo). Server locale
+ * risponde in ~100ms, senza minimo le alici non si vedono mai nuotare.
+ * Mai infinito: safety cap 10s (supersede sovrascrive).
+ */
+// ponytail: fisso, non tuning — se il server rallenta il loader copre comunque l'attesa reale
+const LOADER_MIN_MS = 500;
+/** Safety cap: oltre qui il loader muore comunque (con warn in console). */
+const LOADER_SAFETY_CAP_MS = 10000;
 
 export interface DesignChoice {
   id: string;
@@ -148,17 +206,37 @@ function keepClearOfKeyboard(field: HTMLElement) {
 export function ConfiguratorClient({
   designs,
   detailsBySlug,
-  ceramicThumbs = {},
   featuredSlot = null,
+  paletteWords,
+  productCounts = {},
+  // ponytail: optional prop so T3 compiles before T5 wires the landing
+  kit = null,
 }: {
   designs: DesignChoice[];
   detailsBySlug: Record<string, DesignDetail>;
-  /** supplierId → fino a 3 foto di ceramica per l'icona della pillola step 2. */
-  ceramicThumbs?: Record<string, string[]>;
   /** F28: server-rendered featured strip — step 1 only, between stepper and grid. */
   featuredSlot?: React.ReactNode;
+  /**
+   * R5-DESIGN-SWITCH T1: slug → n. ceramiche whitelistate (page.tsx via
+   * `getDesignProducts` per design, cache `catalog`) — la riga desktop mostra
+   * «covers N ceramics» (mockup `:149`).
+   */
+  productCounts?: Record<string, number>;
+  /**
+   * Fix-wave finding 3: `nameFor()`'s default parameter calls `paletteWords()`,
+   * which reads `process.env.MK_PALETTE_WORDS` — fine on the server, always
+   * `undefined` here since this is `"use client"` (Next.js only inlines
+   * `NEXT_PUBLIC_*` into the client bundle, and this must NOT become public,
+   * card §2/§4-bis). The server component that renders us
+   * (`configurator/page.tsx`) resolves `paletteWords()` once and hands the
+   * result down, so an operator's override still reaches the customer's save.
+   */
+  paletteWords: PaletteWords;
+  /** R5-KIT: server-resolved `?kit=` landing (T5 consumes it into the cart). */
+  kit?: import("./resolve-kit").ResolvedKit | null;
 }) {
   const t = useTranslations("configurator");
+  const tKit = useTranslations("kit");
   const locale = useLocale();
   /** Design name in the active locale (falls back to NO, then legacy name). */
   const designName = (d: DesignChoice) =>
@@ -193,13 +271,56 @@ export function ConfiguratorClient({
   const urlSlug = searchParams.get("design");
   const selected =
     designs.find((d) => d.slug === urlSlug) ?? designs[0]; // sort_order=1 default (AC1)
+  // R5-DESIGN-SWITCH loader — UN SOLO STATO: `pending = {slug, startedAt} |
+  // null`. Il canvas mostra il loader se e solo se `pending != null`
+  // (+ `reduced-motion` off). Un solo trigger (`startDesignTransition`,
+  // sotto): `selectDesign` sempre, `loadPalette` solo se il code risolve
+  // un ALTRO design. Stesso design / tap colore → mai loader. Clear unico
+  // nell'effect sotto: design arrivato + minimo visivo passato. Supersede
+  // (nuovo tap) sovrascrive slug + clock. Safety cap 10s: mai infinito.
+  const [pending, setPending] = useState<{
+    slug: string;
+    startedAt: number;
+  } | null>(null);
+  const startDesignTransition = (slug: string) => {
+    setPending({ slug, startedAt: Date.now() });
+  };
+  useEffect(() => {
+    if (pending === null || selected.slug !== pending.slug) return;
+    const elapsed = Date.now() - pending.startedAt;
+    if (elapsed >= LOADER_MIN_MS) {
+      setPending(null);
+    } else {
+      const t = setTimeout(() => {
+        setPending(null);
+      }, LOADER_MIN_MS - elapsed);
+      return () => clearTimeout(t);
+    }
+  }, [selected.slug, pending]);
+  // Safety cap: se il design non arriva mai (navigazione fallita, decode
+  // perso), il loader muore comunque dopo 10s invece di girare all'infinito.
+  useEffect(() => {
+    if (pending === null) return;
+    const t = setTimeout(() => {
+      console.warn("[design-loader] safety cap: clearing stale pending", pending.slug);
+      setPending(null);
+    }, LOADER_SAFETY_CAP_MS);
+    return () => clearTimeout(t);
+  }, [pending]);
   const detail = detailsBySlug[selected.slug];
   /** R4-RESTYLE: la corsia tab è fatta SOLO di gruppi-opzione — «Detaljer» e
    *  «Bilder» non esistono più (i loro contenuti sono in pagina, sopra il
    *  pannello). Quindi la tab attiva è sempre lo slug di una categoria. */
-  const [activeTab, setActiveTab] = useState<string>(
-    detail.categories[0]?.slug ?? ""
-  );
+  // PR3 round 2: `PALETTES_TAB` (the module-level fallback fix wave PR3
+  // finding 11 introduced) is gone with the tab it existed for — the
+  // Palettes tab is no longer in this lane at all, reached instead from a
+  // control above it (see `paletteSheetOpen` below), so there is no longer
+  // a "one tab that always exists" to fall back to. Back to `?? ""`,
+  // exactly as this read before that tab ever existed: a design with zero
+  // categories leaves the (category-only, «Fargeønsker») lane with nothing
+  // selected, same pre-existing edge case this card didn't introduce and
+  // isn't the one to fix.
+  const [activeTab, setActiveTab] = useState<string>(detail.categories[0]?.slug ?? "");
   // design nuovo = categorie nuove: la tab attiva torna alla prima.
   useEffect(() => {
     setActiveTab(detail.categories[0]?.slug ?? "");
@@ -245,8 +366,14 @@ export function ConfiguratorClient({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- key on design only
   }, [selected.slug]);
 
-  // F38: custom inscription. Lives in state + the working URL (text=) only —
-  // never the config code nor the set= link (privacy/lean, like the note).
+  // F38: custom inscription. Lives in state + the working URL (text=), AND
+  // — since task 4 — the config code itself (`buildConfigLinePayload` folds
+  // it into `encodeConfigCode`'s `extras`): identity now, not colours-only.
+  // R5-TEXT-IDENTITY final-review round 2 (finding 5a): this comment used to
+  // say "never the config code", which this branch made false the moment
+  // task 4 landed — AC 6's rule applies to what we wrote today, not just to
+  // pre-existing code. It still never enters the `set=` link (task 3 strips
+  // it before a shared kit is built).
   const [customText, setCustomText] = useState(searchParams.get("text") ?? "");
 
   /** R4-POLISH voce 8: mentre si scrive, il canvas molla lo `sticky`. Con la
@@ -319,17 +446,67 @@ export function ConfiguratorClient({
   );
   const hasSyncGroup = detail.categories.some((c) => c.syncGroup);
 
-  // R4-FIX 8: il campo scritta è governato dal gruppo «Tekst» — euristica sui
-  // nomi + fallback storico, con i suoi unit test, in lib/configurator/text-option.
+  // R4-FIX 8 (superata, fix review visiva 2): il gruppo «Tekst» non governa
+  // più il campo — `findTextGroup` resta solo per riconoscere QUEL gruppo e
+  // togliergli la sua ex tab dedicata (le sue opzioni, se ne ha, vivono
+  // dentro la tab Inscription, vedi sotto).
   const textCategory = useMemo(
     () => findTextGroup(detail.categories),
     [detail]
   );
   const showCustomText = isCustomTextOffered({
     acceptsCustomText: detail.acceptsCustomText,
-    textGroup: textCategory,
-    selectedOptionId: textCategory ? selections[textCategory.slug] : undefined,
   });
+  // Corsie/tab dei gruppi-catalogo veri: mai un gruppo a 0 opzioni (una tab
+  // spenta è una domanda senza risposta), mai il gruppo «Tekst» (assorbito
+  // dentro la tab Inscription qui sotto, con o senza opzioni proprie).
+  const visibleCategories = useMemo(
+    () =>
+      detail.categories.filter(
+        (c) => c.options.length > 0 && c.id !== textCategory?.id
+      ),
+    [detail, textCategory]
+  );
+
+  /* R5-TEXT-LIVE/R5-TEXT-POSITION: la scritta viva si disegna sempre dal
+     codice ora — nessuna eccezione per il gruppo «Tekst» (0.1-1). */
+  const liveInscription = showsLiveInscription({
+    acceptsCustomText: detail.acceptsCustomText,
+    text: customText,
+  })
+    ? customText
+    : undefined;
+
+  /* R5-TEXT-POSITION (post-review revision): dove sta la scritta — NESSUN
+     default, nemmeno Centre: finché il cliente non sceglie un chip resta
+     `undefined` (mai inventato), seed da `?pos=` quando c'è (isTextPosition
+     scarta valori estranei senza rompere). */
+  const [textPosition, setTextPosition] = useState<TextPosition | undefined>(
+    isTextPosition(searchParams.get("pos")) ? (searchParams.get("pos") as TextPosition) : undefined
+  );
+  const positionsOffered = useMemo(
+    () => allowedPositions(detail.textPositions),
+    [detail]
+  );
+  // Un design cambiato/una posizione non più ammessa ricadono su "nessuna
+  // scelta", silenziosamente (0.1-4) — mai un chip acceso su un'opzione
+  // sparita, e mai una scelta inventata al posto suo.
+  useEffect(() => {
+    setTextPosition((pos) => clampPosition(pos, positionsOffered));
+  }, [positionsOffered]);
+  // Post-review revision: senza un default, una scritta scritta ma senza
+  // posizione scelta è uno stato reale (non solo un attimo prima del
+  // click) — blocca l'avanzamento, non lo nasconde. Un design con
+  // `positionsOffered` vuoto è un problema di catalogo (admin lo impedisce
+  // già in salvataggio), non qui: non blocca nulla da solo.
+  const textPositionMissing =
+    showCustomText && customText.trim().length > 0 && positionsOffered.length > 0 && textPosition === undefined;
+  // Reset alla stessa cadenza del testo: design diverso, campo diverso.
+  useEffect(() => {
+    const fromUrl = new URLSearchParams(searchParams.toString()).get("pos");
+    setTextPosition(isTextPosition(fromUrl) ? fromUrl : undefined);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- key on design only
+  }, [selected.slug]);
 
   /* R4-COPY Ⓒ (chiusa) + R4-FIX 7: la didascalia col link alla
      inspirasjonsside. `t.rich` rende il tag <link> del dizionario — nessun HTML
@@ -376,6 +553,12 @@ export function ConfiguratorClient({
         onBlur={() => setTyping(false)}
         aria-label={t("customText.title")}
         aria-describedby="custom-text-helper"
+        // `scroll-mt-14` = header only. TL round 3 made `<PaintingStrip>`
+        // release its own `sticky` at the same moment the canvas does
+        // (`group-data-[typing=1]/step2:static`, wired where the strip
+        // renders) specifically so this stays true instead of growing a
+        // second constant: while typing, the top of the page is STILL just
+        // the header, exactly as it was before the strip existed.
         className="w-full rounded-sm border border-input bg-card p-2 text-base focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring md:text-sm max-md:scroll-mt-14"
       />
       <div className="mt-1 flex items-start justify-between gap-3">
@@ -389,6 +572,34 @@ export function ConfiguratorClient({
         <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
           {t("customText.counter", { count: customText.length, max: MAX_CUSTOM_TEXT })}
         </span>
+      </div>
+      <div className="mt-3">
+        <PositionChips
+          positions={positionsOffered}
+          value={textPosition}
+          onChange={setTextPosition}
+          label={(pos) => t(`customText.position.${pos}`)}
+        />
+        {textPosition === "back" && (
+          // TODO:nb-review — configurator.customText.position.backHelper,
+          // scritta ora in inglese e tradotta senza revisione del cliente.
+          <p
+            data-testid="custom-text-position-back-helper"
+            className="mt-2 text-xs text-muted-foreground"
+          >
+            {t("customText.position.backHelper")}
+          </p>
+        )}
+        {textPositionMissing && (
+          // TODO:nb-review — configurator.customText.position.required,
+          // scritta ora in inglese e tradotta senza revisione del cliente.
+          <p
+            data-testid="custom-text-position-required"
+            className="mt-2 text-xs text-destructive"
+          >
+            {t("customText.position.required")}
+          </p>
+        )}
       </div>
     </section>
   );
@@ -438,10 +649,10 @@ export function ConfiguratorClient({
    *  «Inspirasjonsbilder», in pagina sotto la didascalia del canvas. */
   const hasImages = hasPhotos(detail.images);
   /** Blocchi che restano nel pannello anche sotto md (il tab «Detaljer» non
-   *  esiste più): lås farger, note colore e — senza gruppo «Tekst» — il campo
-   *  scritta. Nessuno dei tre attivo → niente blocco, niente gronda vuota. */
-  const hasPanelExtras =
-    hasSyncGroup || detail.acceptsCustomNotes || (!textCategory && showCustomText);
+   *  esiste più): lås farger, note colore. Il campo scritta ha la sua tab
+   *  dedicata ora (`INSCRIPTION_TAB`), non è più uno di questi. Nessuno dei
+   *  due attivo → niente blocco, niente gronda vuota. */
+  const hasPanelExtras = hasSyncGroup || detail.acceptsCustomNotes;
 
   // R1-FB2: warm the hover-popup images (colour options' layerImage) in idle,
   // desktop-only — first hover shows instantly. Same assetUrl the Swatch
@@ -475,8 +686,6 @@ export function ConfiguratorClient({
     "#cf7b6b",
     "#9bb7d4",
   ];
-  /** Foto ceramica del fornitore del design scelto — icona della pillola step 2. */
-  const ceramics = ceramicThumbs[selected.supplierId] ?? [];
   // ── F15 / QA#3: keep the live preview visible while the option list scrolls ──
   // Desktop: the preview column is sticky (CSS only, md:sticky). Mobile: it scrolls
   // normally with the content. The old mobile collapse-to-thumbnail (zero-height
@@ -493,15 +702,92 @@ export function ConfiguratorClient({
         .filter((d): d is CodecDesign => d !== null),
     [detailsBySlug]
   );
+  // R5-DESIGN-SWITCH AC4: `loadPalette` below needs this BEFORE the F19
+  // effect runs — `buildDesignSwitchParams` resolves it through the same
+  // tolerant codec, and the effect re-resolves it identically on arrival.
+  /**
+   * R5-DESIGN-SWITCH AC4: which design a `?code=` belongs to, via the same
+   * tolerant codec the F19 decode effect uses. Null when it resolves to
+   * nothing — then `buildDesignSwitchParams` sets only `code=` and the effect
+   * handles it exactly like before, so a tap never breaks over bad input.
+   */
+  function designSlugOfCode(code: string): string | null {
+    try {
+      const { designSlug } = decodeConfigCode(
+        code,
+        (c) => codecDesigns.find((d) => d.code === c.toUpperCase()) ?? null
+      );
+      return designSlug;
+    } catch {
+      return null;
+    }
+  }
   // F19: a ?code= deep-link (cart-row "reopen" or a shared link) is decoded once
   // on arrival into the canonical opt_* params, then dropped from the URL.
+  // It also supersedes a stale `pending`: a `?code=` navigation resolves
+  // its own design through the decode below — if it names a DIFFERENT
+  // design than the one `pending` waits for, the old wait is over
+  // (`loadPalette` already started the right one, or the tap stayed on the
+  // same design and no loader runs at all). Same design as pending →
+  // untouched, the normal clear path handles it.
+  //
+  // R5-TEXT-IDENTITY final-review round 2, finding 1 (BLOCKER): this effect
+  // used to destructure only `{ designSlug, selections }` and threw the
+  // decoded `customText` away — page.tsx already seeds step 3's field from
+  // it, step 2 didn't. The live callers are the cart row's «Edit design»
+  // (basket.tsx → `?code=…&step=2`) and `loadPalette` below (same `?code=`
+  // shape). Losing the words here meant: edit a line that had a dedication,
+  // change a colour, continue — the NEW line has no dedication (a silent
+  // loss reaching the order mail and the lab PDF); and a palette saved WITH
+  // a dedication could never be re-activated by tapping its chip, because
+  // `draftCode` (built with an empty `customText`) could never equal the
+  // saved code again — the strip said "Unsaved" forever, and the §3 guard
+  // then hid the save button too (nothing to re-save over).
+  //
+  // `setCustomText` here, not just writing `text=` into the URL: this
+  // effect only re-fires on `searchParams`/`codecDesigns` changes, but nothing
+  // ELSE re-reads `text=` into the live `customText` state unless `selected
+  // .slug` also changes (the OTHER effect, keyed on design) — `loadPalette`/
+  // «Edit design» often stay on the SAME design, so that second effect would
+  // never fire and the field would stay empty despite the URL being correct.
+  // Explicit `?text=` in the incoming URL still wins outright (it's the live
+  // edit) — this only fills in when it's ABSENT, same precedence as page.tsx.
+  //
+  // Unconditional sync when there's no explicit override — INCLUDING down to
+  // "" when the code carries no inscription — not just "fill in if present":
+  // loading a colours-only saved palette right after typing a dedication
+  // into an unrelated draft must clear the stale words, or the newly-loaded
+  // palette's own `draftCode` would carry someone else's leftover text and
+  // never equal the saved code it was just loaded from (the same
+  // "matchedPalette null forever" symptom this finding is about, from a
+  // different angle).
   useEffect(() => {
     const incoming = searchParams.get("code");
     if (!incoming) return;
+    // Un `?code=` con design DIVERSO dal `pending` in volo lo supersede:
+    // la vecchia attesa non arriverà mai (l'URL ora dice un'altra cosa).
+    // `loadPalette` ha già startato il `pending` giusto; per i deep-link
+    // esterni (reopen, shared) che arrivano DURANTE uno switch, si riallinea
+    // qui decodificando — mai clear cieco, mai confronto con design fantasma.
+    try {
+      const { designSlug: decodedSlug } = decodeConfigCode(
+        incoming,
+        (c) => codecDesigns.find((d) => d.code === c.toUpperCase()) ?? null
+      );
+      if (decodedSlug !== selected.slug) startDesignTransition(decodedSlug);
+    } catch {
+      /* undecodable → pending untouched, normal clear path handles it */
+    }
+    const explicitText = searchParams.get("text");
     const params = new URLSearchParams(searchParams.toString());
     params.delete("code");
     try {
-      const { designSlug, selections: sel } = decodeConfigCode(
+      const {
+        designSlug,
+        selections: sel,
+        customText: decodedText,
+        textPosition: decodedPosition,
+      } = decodeConfigCode(
         incoming,
         (c) => codecDesigns.find((d) => d.code === c.toUpperCase()) ?? null
       );
@@ -510,20 +796,464 @@ export function ConfiguratorClient({
         if (key.startsWith("opt_")) params.delete(key);
       for (const [catSlug, optId] of Object.entries(sel))
         params.set(`opt_${catSlug}`, optId);
+      if (explicitText === null) {
+        const seededText = decodedText ?? "";
+        setCustomText(seededText);
+        // Post-review revision: no forced "centre" here either — a shared
+        // link that never carried a position (or one this design has since
+        // dropped) leaves the field genuinely unset, same as a fresh visit.
+        setTextPosition(decodedPosition);
+        if (seededText) {
+          params.set("text", seededText);
+          if (decodedPosition !== undefined) params.set("pos", decodedPosition);
+          else params.delete("pos");
+        } else {
+          params.delete("text");
+          params.delete("pos");
+        }
+      }
     } catch {
       /* invalid code → just drop the param, never crash */
     }
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
-  }, [searchParams, codecDesigns, pathname, router]);
+  }, [searchParams, codecDesigns, pathname, router, selected.slug]);
 
-  function selectDesign(d: DesignChoice) {
+  // ── R5-PALETTES task 8: the manage bar (step 2, desktop) ──
+  // One `usePalettes()` instance for the whole tab, shared via CartProvider
+  // (cart-context.tsx) with the header/step 3 — this screen never touches
+  // localStorage directly.
+  const tPalette = useTranslations("palettes.bar");
+  const {
+    palettes,
+    setActiveCode,
+    save: savePalette,
+    rename: renamePalette,
+    removePalette: deletePalette,
+    setCurrentConfig,
+    setKeyboardOpen: publishKeyboardOpen,
+    cart,
+    hydrated,
+    addMany,
+  } = useCartContext();
+  // R5-KIT T5: one-shot landing — add the resolved lines once (even onto a
+  // non-empty cart: an unpainted row never overwrites anything), show passo 0,
+  // then consume `kit=` and pin `origin=kit` (the kit-mode). Empty kit:
+  // consume silently, no welcome.
+  // The welcome snapshots the resolved lines at apply time: the
+  // router.replace below re-renders the page with `kit = null` (a server
+  // prop), so reading `kit?.lines` at the mount would show «0 pieces».
+  const kitConsumedRef = useRef<string | null>(null);
+  const [kitWelcome, setKitWelcome] = useState<{
+    rows: { qty: number; name: string; image?: string }[];
+    total: number;
+    image: string | null;
+    imageCustom: boolean;
+  } | null>(null);
+  // fix 11: kit-mode ends when everything is painted (PM 23/9) — no unpainted
+  // pieces left means the kit's job is done: the strip goes, «Design ▾» back.
+  const kitMode =
+    (searchParams.get("origin") === "kit" ||
+      Boolean(kit && searchParams.get("kit"))) &&
+    (!hydrated || unpaintedPieces(cart) > 0);
+  // fix 9 (was missing): the lazy kitCtx below must refresh when the apply
+  // effect saves a new context — otherwise the strip keeps the PREVIOUS kit
+  // (or the fallback on first landing).
+  const [kitCtx, setKitCtx] = useState<KitContext | null>(() => readKitContext());
+  const kitClearedRef = useRef(false);
+  useEffect(() => {
+    if (!kit || !hydrated || !searchParams.get("kit")) return;
+    const raw = searchParams.get("kit")!;
+    // one kit at a time, but EVERY kit: a second kit from the home (same
+    // component mounted) applies, shows its own welcome and overwrites the
+    // context with the LAST kit — the counter counts the whole basket anyway.
+    if (kitConsumedRef.current === raw) return;
+    kitConsumedRef.current = raw;
+    if (kit.lines.length > 0) {
+      addMany(kit.lines);
+      setKitWelcome({
+        rows: kitWelcomeRows(kit.lines, locale as "no" | "en"),
+        total: kit.lines.reduce((n, l) => n + l.quantity * (l.pieces ?? 1), 0),
+        image: kit.image,
+        imageCustom: kit.imageCustom,
+      });
+      // the strip + welcome keep the shop-window label/image for the whole
+      // journey (step 3 is a separate server render that never sees the
+      // resolver) — read back lazily below, never per render.
+      const ctx = { label: kit.label, image: kit.image, custom: kit.imageCustom };
+      saveKitContext(ctx);
+      setKitCtx(ctx);
+    }
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("kit");
+    if (kit.design) {
+      params.set("design", kit.design.slug);
+      params.set("step", "2");
+      params.set("origin", "kit");
+    }
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot apply on arrival
+  }, [kit, hydrated]);
+  const kitCounts = kitStripCounts(cart);
+  // R5-TUTORIAL round 3 — `tipFor` (pure, tour.ts) is the ONE place that
+  // decides whether a tip shows; this page never has a `setBanner` (that's
+  // step 3's own), so it's always `setBannerOpen: false` here. Steps 1-2
+  // only, so `sequence` here is only ever "step1" or "step2" — normal and
+  // kit share both, `kit3` lives on step 3.
+  const tour = useTour();
+  const tip = tipFor({
+    state: tour.state,
+    hydrated: tour.hydrated,
+    kitMode,
+    welcomeOpen: kitWelcome !== null,
+    setBannerOpen: false,
+    step,
+  });
+  // `unpaintedPieces`, not the kit's total (painting only starts at step 3,
+  // so they're equal here — same call as `ceramics-step.tsx`'s, for the same
+  // reason). `featured` drives step1.1's "or take a set/kit" second sentence
+  // — only when the shop window actually has one to offer.
+  const tourTip = useTourTip(tip, {
+    count: unpaintedPieces(cart),
+    featured: featuredSlot !== null,
+  });
+  const handleTourNext = () => {
+    if (!tip || !tourTip) return;
+    if (tourTip.last) tour.turnOff();
+    else tour.next(tip.sequence);
+  };
+  // R5-TUTORIAL round 2 (plan Task B) — "active guidance": Next no longer
+  // just changes tour state, it scrolls to + pulses (`.tour-pulse`, reused)
+  // the thing the tip is actually pointing at. The click that does the real
+  // work (pick a design, advance the step) stays the customer's own — this
+  // only makes it visible where `onNext` alone used to do nothing (step 1's
+  // tip persists no counter, so its "Next" was a dead button before this).
+  // Round 3: step 2 now has an active-guidance target of its own (the
+  // options grid, its tip 1) alongside the CTA (tip 2).
+  const step1AnchorRef = useRef<HTMLDivElement>(null);
+  const optionGridAnchorRef = useRef<HTMLDivElement | null>(null);
+  const nextStepAnchorRef = useRef<HTMLDivElement>(null);
+  const [pulseTarget, setPulseTarget] = useState<"step1" | "optionGrid" | "nextStep" | null>(
+    null
+  );
+  function pulse(
+    target: "step1" | "optionGrid" | "nextStep",
+    ref: React.RefObject<HTMLDivElement | null>
+  ) {
+    ref.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    setPulseTarget(target);
+    window.setTimeout(() => setPulseTarget((cur) => (cur === target ? null : cur)), 2000);
+  }
+  const handleTourHighlight = () => {
+    if (!tip) return;
+    if (tip.sequence === "step1" && tip.n === 1) pulse("step1", step1AnchorRef);
+    else if (tip.sequence === "step2" && tip.n === 1) pulse("optionGrid", optionGridAnchorRef);
+    else if (tip.sequence === "step2" && tip.n === 2) pulse("nextStep", nextStepAnchorRef);
+  };
+  const kitShownTitle = kitTitle(kitCtx, locale as "no" | "en", tKit("strip.title"));
+  const kitShownEyebrow = kitTitle(kitCtx, locale as "no" | "en", tKit("welcome.eyebrow"));
+  // fix 11: everything painted → the kit's job is done: clear the persisted
+  // context once (the strip already hides via kitMode above), «Design ▾» back.
+  useEffect(() => {
+    if (
+      !hydrated ||
+      kitClearedRef.current ||
+      searchParams.get("origin") !== "kit" ||
+      unpaintedPieces(cart) > 0
+    ) {
+      return;
+    }
+    kitClearedRef.current = true;
+    clearKitContext();
+    setKitCtx(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot clear on completion
+  }, [hydrated, cart]);
+  /**
+   * R5-BASKET-HOST task 8 (card §3) — the same `typing` that makes the canvas
+   * let go of its sticky also has to keep the basket shut: with the keyboard
+   * up the visual viewport is ~300px and the drawer would be a trap. The
+   * basket lives in the persistent header, not in this tree, so the flag is
+   * published to the cart context, which owns the guard (`basketOpen`,
+   * unit-tested) — no second copy of the rule at the two surfaces that ask to
+   * open.
+   *
+   * `keyboardUp` and not a bare `typing`: this component renders step 1 AND
+   * step 2 (`page.tsx`, no `key`), so leaving step 2 does not unmount it, and
+   * `typing` can stay `true` with no keyboard anywhere — «Tilbake» prevents
+   * the blur ON PURPOSE (`keepFocusWhileTyping`, R4-STEP2-KEYBOARD ③) and the
+   * unmounting input fires none either. Published raw, that latch turns the
+   * header cart icon into a dead button for the rest of the session, on the
+   * step where the drawer is the only basket there is. Same expression as the
+   * two `data-typing` attributes below, same reason; the helper carries the
+   * story so nobody simplifies it back.
+   *
+   * Leaving step 2 also clears the local flag at its source (the field only
+   * exists there), so coming BACK to step 2 does not re-publish a latched
+   * `true`. And the cleanup still matters: the context outlives this screen
+   * (`public-shell.tsx`), so an unmount must not leave the basket shut.
+   *
+   * `hoverCapable()` is the last term, and it is what makes the published
+   * flag honest (PR 2 review finding 6): the guard exists because a phone
+   * with the keyboard up has ~300px of visual viewport left, and on a mouse
+   * device there is no keyboard and no trap — a customer typing an
+   * inscription at 1280 who clicks the header cart to check the total must
+   * get the drawer, not silence. An on-screen keyboard is a property of the
+   * INPUT DEVICE, not of the window width, so this asks the pointer rather
+   * than a breakpoint; a touch laptop keeping the guard is a harmless false
+   * positive, a phone losing it would not be. It is called inside the effect,
+   * i.e. on the client only, so SSR never touches `matchMedia` and there is
+   * no hydration mismatch to explain.
+   */
+  useEffect(() => {
+    if (step !== 2 && typing) setTyping(false);
+  }, [step, typing]);
+  useEffect(() => {
+    publishKeyboardOpen(keyboardUp({ step, typing }) && !hoverCapable());
+    return () => publishKeyboardOpen(false);
+  }, [step, typing, publishKeyboardOpen]);
+  // The DRAFT is exactly what step 3 would turn into a cart line: same
+  // builder, same inputs (card §3), including the inscription and colour
+  // wish now (R5-TEXT-IDENTITY task 4-follow-up) — this is the SAME call
+  // page.tsx makes for step 3, so a config painted from THIS step and one
+  // painted from step 3 get the identical code for the identical visible
+  // configuration. Only the identity belongs here — the offer rule moved
+  // with the guard to `canSaveDraft` below (R5-TEXT-CARRY: offer the Save
+  // for every draft except the already-saved exact one).
+  const draftPayload = useMemo(
+    () =>
+      buildConfigLinePayload(
+        detail,
+        selections,
+        noteMode === "custom" ? noteText : "",
+        showCustomText ? customText : "",
+        textPosition
+      ),
+    [detail, selections, noteMode, noteText, showCustomText, customText, textPosition]
+  );
+  const draftCode = draftPayload.configCode;
+  // The chip that represents "what's on screen right now" — either the
+  // unsaved draft (no match) or an already-saved palette (match). Never
+  // both: showing the same colours twice in the lane would be noise, not
+  // information (card §3/§4-bis).
+  //
+  // R5-TEXT-CARRY — matched on EXACT CODE (same design), not the colours:
+  // the inscription rides inside `draftCode` (`config-code.ts`), so two
+  // saved palettes with the same colours and different dedications are two
+  // different identities — only a byte-identical code is "already saved".
+  // A colours-only lookalike with another dedication is unsaved, and Save is
+  // offered (see `canSaveDraft` below).
+  const matchedPalette = paletteMatchingCode(
+    palettes,
+    draftCode,
+    selected.slug
+  );
+  const [renamingPaletteCode, setRenamingPaletteCode] = useState<string | null>(
+    null
+  );
+  /** PR3 round 2 — the mobile palette sheet's own open/close, mirroring
+   *  ceramics-step.tsx's `paletteSheetOpen` (same `PaletteSheet`, wired at
+   *  this step too now that the removed Palettes tab no longer covers it). */
+  const [paletteSheetOpen, setPaletteSheetOpen] = useState(false);
+  /**
+   * R5-PALETTES task 12 — the ONE "what's on screen" label, mirroring
+   * ceramics-step.tsx's own `paintingLabel` comment: a saved match names it,
+   * else the deterministic `nameFor()` draft label. Computed ONCE so the
+   * mobile palette sheet's trigger dot, the draft chip, the save button and
+   * the save-strip can never drift apart the way the desktop bar's chip and
+   * `saveDraftAsPalette` used to (two separate `nameFor()` calls below,
+   * now one).
+   *
+   * R5-TEXT-IDENTITY follow-up, TL ruling ("the name is noise") — `draftCode`
+   * CARRIES THE INSCRIPTION (identity/Paint need it), but `nameFor()` below
+   * is called on a STRIPPED, colours-only copy of it: the name exists to be
+   * recognised, and a customer who watches it reshuffle on every keystroke
+   * learns it's noise, not identity. Same colours ⇒ same name, whatever is
+   * typed — a debounce would only have hidden that symptom, not the cause
+   * (the code, not the name, is where two dedications of the same colours
+   * tell apart — see `currentDedication` and `PaletteChip`'s own second
+   * line, just below). Card §1's "different dedications ⇒ different
+   * palettes" still holds at the level that matters: the CODE (and so the
+   * saved entry) differs; only the deterministic WORD stopped being one of
+   * the things that differs with it.
+   */
+  // R5-TEXT-CARRY — the draft name NEVER inherits `matchedPalette?.name`
+  // unless the match is exact (`matchedPalette` above already is one: the
+  // same code carries the same dedication, so the same words are also the
+  // field's — `currentDedication` just below). Same colours with another
+  // dedication is no match at all, and it gets a fresh `nameFor()` label —
+  // no borrowed name from a palette whose words it doesn't share.
+  // (Round 4, TL-reported duplicate «Zaffera»: `nameFor()` also gets every
+  // name already saved so it can pick a FREE word instead of repeating one
+  // — the same `palettes` list this bar already reads, so the chip below
+  // and `saveDraftAsPalette` (which reuses `activePaletteName`, never
+  // calls `nameFor()` again) can't disagree with what actually gets saved.)
+  const activePaletteName =
+    matchedPalette?.name ??
+    nameFor(
+      // TL ruling (R5-TEXT-IDENTITY, "the name is noise"): colours-only
+      // input, same `stripCustomSegment` everything else already strips
+      // with — `draftCode` itself is untouched (identity/Paint still need
+      // the inscription), only what `nameFor` hashes changes. This is what
+      // stops the chip renaming itself on every keystroke: same colours,
+      // same name, whatever the customer types.
+      // fix 3: `codecCategoryCount`, not `detail.categories.length` — a
+      // zero-option category (Krabbe's empty «Tekst») never became a code
+      // segment, so counting it here fed `stripCustomSegment` the wrong
+      // expected length and it silently gave up stripping, which is
+      // exactly what made the name flicker on every keystroke.
+      stripCustomSegment(draftCode, codecCategoryCount(detail)),
+      draftPayload.snapshot,
+      paletteWords,
+      palettes.map((p) => p.name)
+    );
+  const activePaletteLayers = matchedPalette?.layers ?? draftPayload.designLayers;
+  /**
+   * R5-TEXT-CARRY — the draft tile shows the field's own words, ALWAYS:
+   * the draft branch renders only while `matchedPalette` is null, i.e.
+   * while no saved palette shares this code — there is no saved palette
+   * whose words these could borrow. (The old colours-match could show the
+   * field over a saved palette's stored words; that state no longer exists:
+   * a different dedication is simply not the matched palette. A saved
+   * palette's OWN chip, elsewhere in this file, still reads its own stored
+   * `p.snapshot.customText` — that tile describes THAT palette, not the
+   * canvas.)
+   */
+  const currentDedication = draftPayload.snapshot.customText;
+  /** The design pattern's own name, for `<PaintingStrip>`'s "· design"
+   *  suffix — same source ceramics-step.tsx's own `designName` reads
+   *  (`designLabel()` on the snapshot), just this step's own snapshot. */
+  const activeDesignName = designLabel(draftPayload.snapshot, locale as "no" | "en") ?? "";
+  /**
+   * R5-TEXT-CARRY — the old card §3 guard (TL ruling: withhold the Save while
+   * the draft's COLOURS already matched a save, dedication aside) is gone,
+   * and with it `draftMatchesSavedColours`: the dedication is identity now,
+   * so a different dedication IS a different palette, unsaved, and Save is
+   * offered. The only already-saved draft is the exact one (`matchedPalette`
+   * above matches on the full code) — saving there is a no-op anyway,
+   * `savePalette` dedups by exact code, LRU 10 unchanged.
+   */
+  const canSaveDraft = !matchedPalette;
+
+  /**
+   * R5-BASKET-HOST task 1 — step 2 publishes the same `CurrentConfig` shape
+   * step 3 does (ceramics-step.tsx), so the header drawer (outside this
+   * subtree, later task) can render its own preview chip. Published ONLY
+   * while this IS step 2 — step 1 publishes nothing on purpose, which is what
+   * keeps the chip dead there — and cleared on unmount or on leaving step 2,
+   * mirroring step 3's own publish/clear effect exactly.
+   *
+   * R5-TEXT-IDENTITY follow-up — `draftPayload.snapshot` now already carries
+   * the inscription/wish (it's built WITH them above), so there is no
+   * separate `paintingSnapshot` merge to publish any more: what the drawer
+   * Paints with and what `draftCode` encodes are finally one object, at one
+   * step, the same way step 3 has always worked.
+   */
+  useEffect(() => {
+    if (step !== 2) return;
+    setCurrentConfig({
+      code: draftPayload.configCode,
+      snapshot: draftPayload.snapshot,
+      layers: activePaletteLayers,
+      designSlug: detail.slug,
+      label: activePaletteName,
+      // Step 2 IS the customer configuring a design they chose — there is no
+      // positional-fallback case here (that only exists on step 3's catalog).
+      explicit: true,
+    });
+    return () => setCurrentConfig(null);
+  }, [step, draftPayload, activePaletteLayers, detail.slug, activePaletteName, setCurrentConfig]);
+
+  function saveDraftAsPalette() {
+    const now = Date.now();
+    savePalette({
+      code: draftCode,
+      name: activePaletteName,
+      designSlug: selected.slug,
+      snapshot: draftPayload.snapshot,
+      layers: draftPayload.designLayers,
+      createdAt: now,
+      usedAt: now,
+    });
+    setActiveCode(draftCode);
+  }
+
+  // Card §C3: a saved chip of THIS design loads by NAVIGATING — step 2's
+  // selections live in the URL (`resolveSelections`), and the `?code=` decode
+  // effect above is the one and only place that turns a code into `opt_*`
+  // params. Setting local state here would be a second, competing source of
+  // truth for the same thing.
+  // R5-TEXT-CARRY — a saved chip of THIS design loads by NAVIGATING, and
+  // the recall must start from the SNAPSHOT, not the field: the `?code=`
+  // decode effect above re-seeds `customText` from the tapped chip's code,
+  // but only when `text=` is ABSENT (`explicitText === null`). A `text=`
+  // left over from typing would win outright as the "live edit" and cover
+  // the recalled palette's own words with the stale ones — so it is dropped
+  // here, exactly like the T2 drawer CTA drops it (`basket-host.ts`).
+  //
+  // `note=` is a different story and stays: the wish enters the code only
+  // as a 4-char hash (`hashNote`, never reversible), so its WORDS still
+  // need the URL to reach the rebuilt snapshot — same reason the decode
+  // effect never touches it.
+  function loadPalette(code: string) {
+    // R5-DESIGN-SWITCH AC4: a dim chip's code belongs to ANOTHER design — the
+    // tap switches design implicitly through this same `?code=` navigation.
+    // `buildDesignSwitchParams` sets `design=` upfront from the decoded code
+    // (via the `codecDesigns` below) and drops the old design's `opt_*`/`text=`;
+    // the F19 decode effect then resolves the selections, same as before.
+    //
+    // Switch implicito = stesso loader del cambio design esplicito: se il
+    // code risolve un ALTRO design, `startDesignTransition` — stesso stato,
+    // stesso minimo, stesso clear. Stesso design → niente loader, solo fade.
+    const targetSlug = designSlugOfCode(code);
+    if (targetSlug !== null && targetSlug !== selected.slug) {
+      startDesignTransition(targetSlug);
+    }
+    const next = buildDesignSwitchParams(searchParams, code, targetSlug);
+    next.set("step", "2");
+    // Fix wave PR3 finding 3: `resetPaletteDraft` a few lines below already
+    // passes this — a phone picks a chip mid-page (the mobile tab lane sits
+    // well past the fold), and without it every tap threw the customer back
+    // to the top. The sticky desktop bar hid the same bug there.
+    router.push(`${pathname}?${next.toString()}`, { scroll: false });
+  }
+
+  /**
+   * PR3 round 2 — the mobile palette sheet's «+ New»: resets the draft to
+   * the DESIGN'S OWN DEFAULTS (`resolveSelections`'s fallback, same
+   * `pickDefaultOption` step 1 already uses on first paint). Deliberately
+   * different from step 3's own «+ New palette» (ceramics-step.tsx), which
+   * reopens step 2 keeping whatever is on screen so it can be tweaked — this
+   * one is explicit: reset, not carry-forward (unsurprising here, we're
+   * already ON step 2). `code=` is dropped too, so a saved match's colours
+   * don't win the next decode. Formerly the removed mobile Palettes tab's
+   * «+ New» chip; same function, now wired to the sheet's `onNewPalette`.
+   */
+  function resetPaletteDraft() {
+    const params = new URLSearchParams(searchParams.toString());
+    for (const key of [...params.keys()]) {
+      if (key.startsWith("opt_")) params.delete(key);
+    }
+    params.delete("code");
+    router.push(`${pathname}?${params.toString()}`, { scroll: false });
+  }
+
+  function selectDesign(d: DesignChoice | DesignSwitchChoice) {
     if (d.slug === selected.slug) return;
+    // kit-mode pins the design: the switch is not rendered there (below).
+    // Cambio design esplicito: navigazione RSC, il canvas cambia solo DOPO
+    // il round-trip — il loader parte subito da qui (`pending`, sopra).
+    startDesignTransition(d.slug);
     const params = new URLSearchParams(searchParams.toString());
     params.set("design", d.slug);
     // a new design resets option selections (different categories)
     for (const key of [...params.keys()]) {
       if (key.startsWith("opt_")) params.delete(key);
     }
+    // R5-DESIGN-SWITCH: a new design starts clean — stale saved-palette code
+    // (`code=`), inscription (`text=`) and the color lock belong to the old
+    // design's categories, so they drop with the options above.
+    params.delete("code");
+    params.delete("text");
+    params.delete("pos");
     params.delete("lock");
     params.delete("note"); // R2-2b: a new design starts without a note
     router.push(`${pathname}?${params.toString()}`, { scroll: false });
@@ -560,11 +1290,18 @@ export function ConfiguratorClient({
   }
 
   function goToStep(target: 1 | 2 | 3) {
+    // Single guard for every way of reaching step 3 (the CTA pill AND the
+    // stepper's direct jump) — a chosen-but-required position is not
+    // optional just because the customer used a different button.
+    if (target === 3 && textPositionMissing) return;
     const params = new URLSearchParams(searchParams.toString());
     params.set("design", selected.slug);
-    // Leaving steps 1–2 IS the explicit choice: whatever brought the design in
-    // (a shared set landing marks it `origin=set`) stops mattering here.
-    params.delete("origin");
+    // Leaving steps 1–2 IS the explicit choice for a set: `origin=set` stops
+    // mattering here. A kit instead survives the whole loop (DS §4): it dies
+    // only with a design change (`selectDesign` drops it — no switch renders
+    // in kit-mode anyway). The label/image ride sessionStorage (kit-context),
+    // so the URL stays clean — step 3 reads them back itself.
+    if (params.get("origin") !== "kit") params.delete("origin");
     if (target === 1) params.delete("step");
     else params.set("step", String(target));
     // R2-2b: carry the note forward only when the design accepts it and the
@@ -579,8 +1316,14 @@ export function ConfiguratorClient({
     // deve portarsi dietro la scritta digitata prima).
     if (showCustomText && customText.trim()) {
       params.set("text", customText.trim());
+      // R5-TEXT-POSITION: rides alongside the text, never without it — and
+      // only written once the customer actually picked one (post-review
+      // revision: there is no silent default any more, not even centre).
+      if (textPosition !== undefined) params.set("pos", textPosition);
+      else params.delete("pos");
     } else {
       params.delete("text");
+      params.delete("pos");
     }
     // CA-6b: default scroll (top) on step change — the new step starts from
     // its beginning; option selects keep scroll:false (same view).
@@ -653,11 +1396,211 @@ export function ConfiguratorClient({
     setNoteMode(order[next]);
   }
 
+  // R5-PALETTES task 8: the lane's chips, leading with "what's on screen"
+  // (draft or, if it matches a save, that save shown active/renamable),
+  // then every OTHER saved palette — including dim ones from another design:
+  // tapping one switches design implicitly (`?code=`, R5-DESIGN-SWITCH AC4),
+  // decoded by the F19 effect above which sets `design` from the code (the
+  // `?design=` params shape is what T1's `selectDesign` writes). Card §4-bis
+  // (added mid-PR): among those "other" palettes, the current design's own
+  // still lead, the rest trail dimmed — a stable sort, not a filter.
+  const otherPaletteChips = sortCurrentDesignFirst(
+    palettes.filter((p) => p.code !== matchedPalette?.code),
+    selected.slug
+  )
+    .map((p) => {
+      const dim = p.designSlug !== selected.slug;
+      if (dim) {
+        const dimDesign = designs.find((d) => d.slug === p.designSlug);
+        return (
+          <PaletteChip
+            key={p.code}
+            code={p.code}
+            name={p.name}
+            dedication={p.snapshot.customText}
+            layers={p.layers}
+            dim
+            dimDesignName={dimDesign ? designName(dimDesign) : p.designSlug}
+            onSelect={() => loadPalette(p.code)}
+            onDelete={() => deletePalette(p.code)}
+          />
+        );
+      }
+      return (
+        <PaletteChip
+          key={p.code}
+          code={p.code}
+          name={p.name}
+          dedication={p.snapshot.customText}
+          layers={p.layers}
+          onSelect={() => loadPalette(p.code)}
+          onDelete={() => deletePalette(p.code)}
+        />
+      );
+    });
+  const leadPaletteChip = matchedPalette ? (
+    <PaletteChip
+      key={matchedPalette.code}
+      code={matchedPalette.code}
+      name={matchedPalette.name}
+    // R5-TEXT-CARRY — `matchedPalette` is an exact-code match now, so the
+    // lead chip IS the saved palette it names: it shows THAT palette's own
+    // stored words (`matchedPalette.snapshot.customText`), the same way
+    // every other saved chip shows its own — no canvas-words override any
+    // more. While the field still holds a stale value (the tick before the
+    // `?code=` effect re-seeds it) the lead tile already names the recalled
+    // palette, and the field follows.
+    dedication={matchedPalette.snapshot.customText}
+      layers={matchedPalette.layers}
+      active
+      renaming={renamingPaletteCode === matchedPalette.code}
+      onRenameStart={() => setRenamingPaletteCode(matchedPalette.code)}
+      onRenameConfirm={(next) => {
+        renamePalette(matchedPalette.code, next);
+        setRenamingPaletteCode(null);
+      }}
+      onRenameCancel={() => setRenamingPaletteCode(null)}
+      onDelete={() => deletePalette(matchedPalette.code)}
+    />
+  ) : (
+    <PaletteChip
+      key="draft"
+      code={draftCode}
+      name={activePaletteName}
+      dedication={currentDedication}
+      layers={draftPayload.designLayers}
+      draft
+    />
+  );
   return (
     // R4-RESTYLE: no `data-editor` hook and no height chain — the globals.css
     // block that locked the viewport is gone. Under md step 2 is an ordinary
     // page scroller whose canvas is `position: sticky`.
-    <div data-testid="configurator">
+    <div
+      data-testid="configurator"
+      // Fix wave B finding 5 (minor) — nothing on this page carried
+      // `scroll-margin-top`, so a keyboard-focused control that scrolls
+      // itself into view lands clear of the in-flow card below
+      // (R5-PALETTE-IN-ACTION T3: the global bar is gone — no 69px sticky
+      // offset any more, same `scroll-mt-24` as T2's step 3).
+      // (step 2 only — the card only mounts then). `*:focus-visible`, not a
+      // fixed id list: any control in the step-2 column can be the one Tab
+      // lands on next.
+      //
+      // TL round 3 follow-up: `<PaintingStrip>` (below) is a SIBLING of the
+      // grid further down, not its descendant, so the grid's own
+      // `group/step2` + `data-typing` (R4-POLISH voce 8, where the canvas
+      // and tab lane release their `sticky` while the customer types) can't
+      // reach it. Same attribute, same `typing` boolean, duplicated onto
+      // THIS ancestor instead of invented twice: the grid keeps its own
+      // copy (its `[&>[data-preview-column]]`/`[&_[data-tabs-bar]]`
+      // selectors are self-referencing and still need it there), and the
+      // strip binds to this outer `group/step2` the same way the nav row
+      // already binds to the grid's inner one — nearest named-group
+      // ancestor wins, no conflict between the two.
+      className={cn(
+        step === 2 && "md:[&_*:focus-visible]:scroll-mt-24",
+        step === 2 && "group/step2"
+      )}
+      data-typing={step === 2 && typing ? "1" : undefined}
+    >
+      {/* R5-PALETTE-IN-ACTION T3: the global palette bar mount is gone —
+          the SAME `PaletteCard` now lives in-flow in the options column
+          (below, between the Text field and the nav row). Mobile keeps its
+          own strip further down, untouched. */}
+
+      {/* TL "menu sopra come step3" (PR3 round 3): step 2's mobile opener
+          moves from floating above the option lane (inside the editor card)
+          to HERE — sticky directly under the header, first thing in the
+          step's own flow, same spot step 3's `paintingStrip` occupies
+          (ceramics-step.tsx). Desktop is unaffected: the component itself is
+          `md:hidden`, same as the bar above. `activePaletteName`/
+          `activeDesignName` are this step's own "what's painting" values —
+          reused here, not recomputed a second time for the strip.
+
+          TL round 3 fix: the canvas/tab lane already release their `sticky`
+          while the customer types (R4-POLISH voce 8, `data-typing`) so the
+          keyboard has somewhere to put the field — this strip is now a
+          THIRD sticky layer and has to join them at the exact same moment,
+          or a field scrolled "clear" under the old rule lands under the
+          strip instead. `group-data-[typing=1]/step2:static` binds to the
+          `group/step2` this file now also carries on the root
+          `data-testid="configurator"` div (this strip's nearest ancestor
+          with that name — see the comment there): same `typing` boolean,
+          same attribute, no second detection mechanism. */}
+      {step === 2 && (
+        <PaintingStrip
+          testId="step2-painting-strip"
+          className="max-md:group-data-[typing=1]/step2:static"
+          designLayers={activePaletteLayers}
+          paintingLabel={activePaletteName}
+          dedication={currentDedication}
+          textPosition={draftPayload.snapshot.textPosition}
+          designName={activeDesignName}
+          palettes={palettes}
+          currentDesignSlug={selected.slug}
+          activeCode={matchedPalette?.code ?? null}
+          draft={!matchedPalette}
+          canSaveDraft={canSaveDraft}
+          locale={locale as "no" | "en"}
+          onPick={(code) => {
+            loadPalette(code);
+            setPaletteSheetOpen(false);
+          }}
+          onNewPalette={() => {
+            resetPaletteDraft();
+            setPaletteSheetOpen(false);
+          }}
+          onSaveDraft={() => {
+            saveDraftAsPalette();
+            setPaletteSheetOpen(false);
+          }}
+          renamingCode={renamingPaletteCode}
+          onRenameStart={(code) => setRenamingPaletteCode(code)}
+          onRenameConfirm={(code, name) => {
+            renamePalette(code, name);
+            setRenamingPaletteCode(null);
+          }}
+          onRenameCancel={() => setRenamingPaletteCode(null)}
+          onDelete={(code) => deletePalette(code)}
+          open={paletteSheetOpen}
+          onOpenChange={setPaletteSheetOpen}
+        />
+      )}
+
+      {/* R5-KIT T5: the strip on a kit landing, under the stepper, same
+          width (PM 23/9). Thumb = the design round: at 30px a product photo
+          is a grey disc. */}
+      <KitWelcome
+        open={kitWelcome !== null}
+        onOpenChange={(o) => !o && setKitWelcome(null)}
+        rows={kitWelcome?.rows ?? []}
+        total={kitWelcome?.total ?? 0}
+        image={kitWelcome?.image}
+        imageCustom={kitWelcome?.imageCustom}
+        eyebrow={kitShownEyebrow}
+        // R5-TUTORIAL 0.1-8 — passo 0: «Show me how» starts the tour at
+        // step 2 (round 3: `step2` is the very same sequence normal
+        // customers get there); «I'll have a look myself» turns tips off
+        // for good.
+        onShowMeHow={() => tour.start("step2")}
+        onLookMyself={() => tour.turnOff()}
+      />
+
+      {/* R5-TUTORIAL — 390: the tip lives in a strip, never anchored (DS
+          §3.32). One mount covers both steps 1-2, normal and kit alike —
+          `tip`/`tourTip` already say which copy, if any (kit3 lives on step
+          3, `ceramics-step.tsx`, so `tip.sequence` here is never that). */}
+      {tourTip && tip && (
+        <CoachBar
+          n={tip.n}
+          text={tourTip.text}
+          last={tourTip.last}
+          onNext={handleTourNext}
+          onHighlight={handleTourHighlight}
+          onOff={() => tour.turnOff()}
+        />
+      )}
       {/* CA-2: the top cluster holds ONLY the stepper (orientation + step
           jumps, F18). The advance/back CTAs live in-flow at the END of the
           options column — no climb back to the top on desktop. Decision closed
@@ -668,7 +1611,9 @@ export function ConfiguratorClient({
           a bar floating over scrolling content; here the panel IS the surface
           and the row is its last, always-visible element (mockup .navB). */}
       <div
-        className={cn("mb-4", step === 2 && "max-md:mb-3")}
+        // R5-POLISH-STEP23 (TL, 22/9): same bar, same spacing, same scroll
+        // behaviour as step 3 — one recipe, `STEP_NAV_STICKY`.
+        className={cn(STEP_NAV_STICKY, step === 2 && "max-md:mb-3")}
         data-testid="step-nav"
       >
         <Stepper
@@ -683,6 +1628,32 @@ export function ConfiguratorClient({
           className="mb-0 mt-0"
         />
       </div>
+
+      {/* R5-KIT fix 8: strip under the stepper, same column width — title
+          and thumb from the persisted shop-window context. */}
+      {step === 2 && kitMode && (
+        <div className="mb-4">
+          <KitStrip
+            thumb={
+              kitCtx?.image ? (
+                // eslint-disable-next-line @next/next/no-img-element -- resolved catalog asset
+                <img
+                  src={kitCtx.image}
+                  alt=""
+                  className={`size-[30px] shrink-0 rounded-full border border-border object-cover ${
+                    kitCtx.custom ? "" : "grayscale"
+                  }`}
+                />
+              ) : (
+                <DesignRound layers={previewLayers} className="size-[30px]" />
+              )
+            }
+            title={kitShownTitle}
+            total={kitCounts.total}
+            painted={kitCounts.painted}
+          />
+        </div>
+      )}
 
       {/* R2-6 A: how-it-works intro — the public root redirects here, so step 1
           IS the homepage. Sits directly under the stepper, ABOVE the featured
@@ -702,7 +1673,11 @@ export function ConfiguratorClient({
         </div>
       )}
 
-      {/* F28: featured strip between the intro and the design grid, home only */}
+      {/* F28: featured strip between the intro and the design grid, home only.
+          R5-TUTORIAL round 3: step 1's tip now ALWAYS anchors to the design
+          grid below (never here) — the vetrina used to carry it, but the
+          screenshot review (24/9) showed the focus landing on sets/kits
+          instead of designs. */}
       {step === 1 && featuredSlot}
 
       <div
@@ -744,7 +1719,26 @@ export function ConfiguratorClient({
         data-typing={step === 2 && typing ? "1" : undefined}
         style={
           step === 2
-            ? ({ "--mk-canvas-h": "clamp(200px,38svh,300px)" } as React.CSSProperties)
+            ? ({
+                "--mk-canvas-h": "clamp(200px,38svh,300px)",
+                // TL "menu sopra come step3": `<PaintingStrip>` is now a
+                // SECOND sticky layer above the canvas (mobile only), so
+                // both the canvas's own `top` and the tab lane's `top` below
+                // (`data-tabs-bar`) need to sit this much further down —
+                // MEASURED (not hand-calculated: this card already paid for
+                // a 68-vs-69px rounding bug once, see `docked-cart-panel`'s
+                // own comment further up), one number here, `calc()`'d into
+                // both instead of typed twice.
+                //
+                // R5-TEXT-IDENTITY (TL, "the name is noise"): the strip
+                // gained a third (dedication) line — checked again, not
+                // assumed: all three lines are `text-[10px]`/`[13.5px]`
+                // with `leading-tight`, and the row's own intrinsic height
+                // (measured, devtools, with a dedication on screen) is
+                // UNCHANGED at 61px — this constant already had the slack
+                // for it, one number, still.
+                "--mk-strip-h": "61px",
+              } as React.CSSProperties)
             : undefined
         }
       >
@@ -792,7 +1786,16 @@ export function ConfiguratorClient({
         <div
           data-preview-column
           className={cn(
-            "z-30 flex min-w-0 flex-col gap-3 md:sticky md:top-4 md:self-start",
+            // R5-PALETTE-IN-ACTION T3: the global bar is gone, so the canvas
+            // has nothing to park under — back to plain `top-4` like step 1
+            // (same fix as T2's `docked-cart-panel` rail).
+            "z-30 flex min-w-0 flex-col gap-3 md:sticky md:self-start",
+            // R5-POLISH-STEP23 (TL, 22/9: «lo sticky di step1 e step2 taglia
+            // un poco il box del disegno, che è la cosa più importante»):
+            // 84px, not 16 — the step bar pins above with a 68px band
+            // (STEP_NAV_STICKY), so the canvas stops 16px BELOW it and keeps
+            // exactly the breathing room `top-4` used to give it.
+            "md:top-[84px]",
             // CA-7 (variant B): design-first on mobile step 1 — the hero is
             // hidden entirely (the design cards double as the preview). It stays
             // MOUNTED (display:none only) so the same PreviewCanvas instance
@@ -820,23 +1823,32 @@ export function ConfiguratorClient({
             // senza bordo il bianco si fonde con la prima card. Costo
             // verticale 0 — `box-sizing: border-box` la tiene dentro
             // `--mk-canvas-h`.
-            // `top-14` = the ink header's `h-14`, which is itself `max-md:sticky
-            // top-0` (site-header.tsx): the canvas parks UNDER it, not behind it.
+            // `top-[calc(3.5rem+var(--mk-strip-h))]` = the ink header's `h-14`
+            // (3.5rem, itself `max-md:sticky top-0`, site-header.tsx) PLUS
+            // `<PaintingStrip>` now sitting between them as its own sticky
+            // layer (TL "menu sopra come step3") — the canvas parks under
+            // BOTH, not just the header. Was a bare `top-14` before the
+            // strip existed; `--mk-strip-h` is declared once, above.
             // R4-POLISH: l'altezza del canvas è pubblicata come `--mk-canvas-h`
             // sul contenitore per essere fonte unica SOLO per questa classe
             // (che la consuma per lo `h-[...]` sopra). Il campo scritta NON la
             // usa: il suo `max-md:scroll-mt-14` (sotto) è l'altezza del solo
             // header ink, apposta senza il canvas — quando il campo ha il
             // focus il canvas ha già mollato lo sticky (`data-typing`), quindi
-            // in alto non resta altro che l'header.
+            // in alto non resta altro che l'header — TL round 3: anche
+            // `<PaintingStrip>` molla allo stesso momento
+            // (`group-data-[typing=1]/step2:static`, cablato dove la striscia
+            // renderizza), quindi questo resta vero esattamente come prima
+            // che la striscia esistesse, nessuna nuova costante da inseguire.
             step === 2 &&
-              "max-md:sticky max-md:top-14 max-md:-mx-5 max-md:h-[var(--mk-canvas-h)] max-md:flex-none max-md:items-center max-md:justify-center max-md:gap-1 max-md:px-5 max-md:pt-2 max-md:border-b max-md:border-border max-md:bg-[var(--mk-canvas)]"
+              "max-md:sticky max-md:top-[calc(3.5rem+var(--mk-strip-h))] max-md:-mx-5 max-md:h-[var(--mk-canvas-h)] max-md:flex-none max-md:items-center max-md:justify-center max-md:gap-1 max-md:px-5 max-md:pt-2 max-md:border-b max-md:border-border max-md:bg-[var(--mk-canvas)]"
           )}
         >
           <div
             data-testid="preview-sticky"
             className={cn(
               "max-md:mx-auto max-md:w-full",
+              step === 2 && "relative",
               // R4-STEP2: in the editor the height is the constraint, so the
               // PreviewCanvas box (aspect-square card by default) becomes a
               // transparent full-size area and the plate — already object-contain
@@ -857,18 +1869,53 @@ export function ConfiguratorClient({
                 inspirasjonsside. `t.rich` rende il tag <link> del dizionario —
                 nessun HTML crudo nei JSON. Nuova scheda: dal configuratore non
                 si esce mai. */}
+            {/* TODO:nb-review — configurator.designSwitch.loaderDesignAlt NO
+                copy is new, unreviewed. */}
+            {/* Daniele (live test): no visible "Loading…" text any more —
+                just the spinning plates. `loadingDesignLabel` below still
+                feeds screen readers. */}
             <PreviewCanvas
               alt={designName(selected)}
+              loadingDesignLabel={t("designSwitch.loaderDesignAlt", {
+                design: designName(
+                  pending
+                    ? (designs.find((d) => d.slug === pending.slug) ?? selected)
+                    : selected
+                ),
+              })}
               caption={previewNote}
               className={cn(step === 2 && "max-md:contents")}
               layers={previewLayers}
+              // Post-review revision: senza una posizione scelta niente arriva
+              // al piatto — mai inventare "centre" solo perché è il default in JS.
+              inscription={textPosition !== undefined ? liveInscription : undefined}
+              inscriptionPosition={textPosition}
+              backLabel={t("customText.position.back")}
+              designKey={selected.slug}
+              pendingDesignKey={pending?.slug ?? null}
             />
+            {/* R5-DESIGN-SWITCH T1 fix: il badge mobile deve ancorarsi al canvas
+                (mockup `:275`), non alla colonna: mount dentro `preview-sticky`
+                (relative su step 2), accanto a `PreviewCanvas`. La riga desktop
+                resta sotto, fuori dal box relativo. */}
+            {step === 2 && !kitMode && (
+              <DesignSwitch
+                designs={designs}
+                currentSlug={selected.slug}
+                productCounts={productCounts}
+                onSelect={selectDesign}
+              />
+            )}
+            {/* R5-KIT T5: the design is fixed by the kit — no switch. */}
+            {step === 2 && kitMode && (
+              <p
+                data-testid="kit-design-fixed"
+                className="mt-2 text-[11px] text-muted-foreground"
+              >
+                {tKit("fixedDesign", { name: designName(selected) })}
+              </p>
+            )}
           </div>
-          {/* R4-FOLLOWUPS Ⓓ: qui stava la riga-riassunto (mockup .sum), una
-              riga sola troncata con «design · categoria: opzione · …». Rimossa:
-              a 390px si troncava quasi subito, e ciò che restava leggibile lo
-              dicono già i dot e il conteggio delle tab qui sotto. Solo mobile —
-              era `max-md:block`, quindi il desktop non cambia di un pixel. */}
         </div>
 
         {/* R4-RESTYLE (c): la didascalia col link alla inspirasjonsside — sotto
@@ -918,10 +1965,32 @@ export function ConfiguratorClient({
         {/* RIGHT: panel swaps with the step */}
         {step === 1 ? (
           <div
-            className="flex min-w-0 flex-col"
+            className={cn(
+              "relative flex min-w-0 flex-col",
+              pulseTarget === "step1" && "tour-pulse rounded-xl"
+            )}
             data-testid="design-step"
             data-supplier-id={selected.supplierId}
+            // R5-TUTORIAL round 3 — the grid is ALWAYS the anchor now, with
+            // or without a featured strip above it (the vetrina used to own
+            // this when present; the 24/9 review moved the focus here for
+            // good — set/kit are the "or…" second sentence, never the
+            // anchor).
+            ref={step1AnchorRef}
           >
+            {/* R5-TUTORIAL round 3 — step 1's tip 1, always on the design
+                grid. Tip 2 (round 4) anchors on the "Continue" pill below
+                instead, once a design is selected. */}
+            {tourTip && tip && tip.sequence === "step1" && tip.n === 1 && (
+              <Hotspot
+                n={1}
+                text={tourTip.text}
+                last={tourTip.last}
+                onNext={handleTourNext}
+                onHighlight={handleTourHighlight}
+                onOff={() => tour.turnOff()}
+              />
+            )}
             <p className="text-[11px] uppercase tracking-[0.06em] text-muted-foreground">
               {t("stepIndicator", { step: 1 })}
             </p>
@@ -963,47 +2032,64 @@ export function ConfiguratorClient({
                           (il teaser sotto la preview e il bottone di fondo griglia
                           sono stati rimossi). Icona = pallini colore, anteprima
                           reale di ciò che si sceglie allo step 2. */}
-                      <NextStepPill
-                        data-testid="next-step-mobile"
-                        className="mt-3 w-full"
-                        caption={t("teaser.nextStep")}
-                        label={t("teaser.colors")}
-                        arrow
-                        icon={
-                          <span className="flex shrink-0" aria-hidden>
-                            {TEASER_PALETTE.map((color, i) => (
-                              <span
-                                key={color}
-                                className={cn(
-                                  "-ml-2.5 size-8 rounded-full first:ml-0 max-lg:-ml-3 max-lg:size-7",
-                                  // Sotto lg la coda sfumata sparisce e i pallini
-                                  // rimpiccioliscono, per lasciare larghezza
-                                  // all'etichetta (AC6). Restano i 4 pieni:
-                                  // l'anteprima della scelta è intatta, si perde
-                                  // solo il "ce n'è dell'altro".
-                                  // La soglia è lg, non sm: a 768 la griglia va a
-                                  // 2 colonne e il blocco torna largo quanto a
-                                  // 390 (~322px) ma coi pallini a misura piena —
-                                  // è il caso PEGGIORE, non un caso intermedio.
-                                  i >= TEASER_CRISP && "max-lg:hidden"
-                                )}
-                                style={{
-                                  background: color,
-                                  ...(i >= TEASER_CRISP
-                                    ? {
-                                        opacity: Math.max(
-                                          0.3,
-                                          0.75 - (i - TEASER_CRISP) * 0.2
-                                        ),
-                                      }
-                                    : {}),
-                                }}
-                              />
-                            ))}
-                          </span>
-                        }
-                        onClick={() => goToStep(2)}
-                      />
+                      {/* R5-TUTORIAL round 4 — step1's new tip 2, anchored to
+                          this pill (the only "advance" CTA step 1 has): hands
+                          off into step2's own tour on Next, same mechanic as
+                          step2's last tip handing off into step3. */}
+                      <div className="relative">
+                        <NextStepPill
+                          data-testid="next-step-mobile"
+                          className="mt-3 w-full"
+                          caption={t("teaser.nextStep")}
+                          label={t("teaser.colors")}
+                          arrow
+                          icon={
+                            <span className="flex shrink-0" aria-hidden>
+                              {TEASER_PALETTE.map((color, i) => (
+                                <span
+                                  key={color}
+                                  className={cn(
+                                    "-ml-2.5 size-8 rounded-full first:ml-0 max-lg:-ml-3 max-lg:size-7",
+                                    // Sotto lg la coda sfumata sparisce e i pallini
+                                    // rimpiccioliscono, per lasciare larghezza
+                                    // all'etichetta (AC6). Restano i 4 pieni:
+                                    // l'anteprima della scelta è intatta, si perde
+                                    // solo il "ce n'è dell'altro".
+                                    // La soglia è lg, non sm: a 768 la griglia va a
+                                    // 2 colonne e il blocco torna largo quanto a
+                                    // 390 (~322px) ma coi pallini a misura piena —
+                                    // è il caso PEGGIORE, non un caso intermedio.
+                                    i >= TEASER_CRISP && "max-lg:hidden"
+                                  )}
+                                  style={{
+                                    background: color,
+                                    ...(i >= TEASER_CRISP
+                                      ? {
+                                          opacity: Math.max(
+                                            0.3,
+                                            0.75 - (i - TEASER_CRISP) * 0.2
+                                          ),
+                                        }
+                                      : {}),
+                                  }}
+                                />
+                              ))}
+                            </span>
+                          }
+                          onClick={() => goToStep(2)}
+                        />
+                        {/* TODO:nb-review — tour.step1.2 */}
+                        {tourTip && tip && tip.sequence === "step1" && tip.n === 2 && (
+                          <Hotspot
+                            n={2}
+                            text={tourTip.text}
+                            last={tourTip.last}
+                            onNext={handleTourNext}
+                            onHighlight={handleTourHighlight}
+                            onOff={() => tour.turnOff()}
+                          />
+                        )}
+                      </div>
                     </div>
                   )}
                 </Fragment>
@@ -1039,6 +2125,13 @@ export function ConfiguratorClient({
           >
             {/* R4-FIX 1: nessun trattino in testa al pannello. Non trascinava
                 niente — affordance falsa, rimossa. */}
+            {/* PR3 round 3 (TL "menu sopra come step3"): the mobile control
+                that used to live HERE, floating above the option lane inside
+                this card, is gone too — moved to `<PaintingStrip>`, sticky
+                directly under the header (see the top of this component's
+                `step === 2` block, mirroring step 3's own strip position).
+                One opener for the sheet, in one place, not a second one
+                surviving in the editor card. */}
             {/* R4-STEP2 (mockup .cats): corsia tab orizzontale — solo mobile.
                 Dot = colore selezionato della categoria, conteggio = opzioni.
                 I ruoli tab esistono solo dove esiste la corsia (isDesktop).
@@ -1055,17 +2148,20 @@ export function ConfiguratorClient({
                 prime lettere delle frasi a sinistra risultavano sbiadite. Il
                 riferimento è questo wrapper, e nient'altro. */}
             {/* R4-FOLLOWUPS Ⓒ: la barra è STICKY subito sotto il canvas
-                (`top` = header 3.5rem + `--mk-canvas-h`, la stessa variabile che
-                dà l'altezza al canvas), su fondo `card` e sopra il contenuto
-                del pannello (`z-20`, sotto il canvas che è `z-30`). Così i
-                titoli delle categorie restano raggiungibili anche a pagina
-                scrollata in fondo, senza tornare su. `sticky` sostituisce
-                `relative`: è comunque un elemento posizionato, quindi le fade
-                `absolute` qui sotto continuano a risolversi su questo wrapper
-                (R4-FIX 5) — e il wrapper è `md:hidden`, non esiste da md in su. */}
+                (`top` = header 3.5rem + `--mk-strip-h` + `--mk-canvas-h`, le
+                stesse variabili che posizionano/dimensionano canvas e strip —
+                TL "menu sopra come step3" ha inserito `--mk-strip-h` come
+                terzo addendo, non un valore nuovo), su fondo `card` e sopra
+                il contenuto del pannello (`z-20`, sotto il canvas che è
+                `z-30`). Così i titoli delle categorie restano raggiungibili
+                anche a pagina scrollata in fondo, senza tornare su. `sticky`
+                sostituisce `relative`: è comunque un elemento posizionato,
+                quindi le fade `absolute` qui sotto continuano a risolversi
+                su questo wrapper (R4-FIX 5) — e il wrapper è `md:hidden`,
+                non esiste da md in su. */}
             <div
               data-tabs-bar
-              className="sticky top-[calc(3.5rem+var(--mk-canvas-h))] z-20 -mx-3 flex-none bg-[var(--mk-canvas)] px-3 md:hidden"
+              className="sticky top-[calc(3.5rem+var(--mk-strip-h)+var(--mk-canvas-h))] z-20 -mx-3 flex-none bg-[var(--mk-canvas)] px-3 md:hidden"
             >
               <div
                 ref={tabsRef}
@@ -1085,7 +2181,7 @@ export function ConfiguratorClient({
                 // segnale che c'è dell'altro.
                 className="flex touch-pan-x snap-x snap-proximity gap-1 overflow-x-auto overscroll-x-contain scroll-smooth scroll-px-11 px-1 pb-0.5 pt-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
               >
-                {detail.categories.map((cat) => {
+                {visibleCategories.map((cat) => {
                   const sel = selections[cat.slug];
                   const selOpt = cat.options.find((o) => o.id === sel);
                   const on = activeTab === cat.slug;
@@ -1127,6 +2223,31 @@ export function ConfiguratorClient({
                     </button>
                   );
                 })}
+                {/* R5-TEXT-POSITION (fix review visiva 2) — dopo le corsie
+                    colore, prima di «Fargeønsker»: senza conteggio, come
+                    quella tab. */}
+                {showCustomText && (
+                  <button
+                    type="button"
+                    id={tabId(INSCRIPTION_TAB)}
+                    role={isDesktop ? undefined : "tab"}
+                    aria-selected={isDesktop ? undefined : activeTab === INSCRIPTION_TAB}
+                    aria-controls={isDesktop ? undefined : tabPanelId(INSCRIPTION_TAB)}
+                    tabIndex={activeTab === INSCRIPTION_TAB ? 0 : -1}
+                    data-testid="category-tab-inscription"
+                    onClick={() => setActiveTab(INSCRIPTION_TAB)}
+                    className={cn(
+                      "flex min-h-11 flex-none snap-start scroll-mx-1 items-center rounded-full px-3.5 text-[12.5px]",
+                      "focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring",
+                      activeTab === INSCRIPTION_TAB
+                        ? "bg-secondary font-semibold text-primary"
+                        : "text-muted-foreground"
+                    )}
+                  >
+                    {/* TODO:nb-review — configurator.tabs.inscription */}
+                    {t("tabs.inscription")}
+                  </button>
+                )}
                 {/* R4-POLISH voce 3: in coda, e SOLO se il design ha davvero
                     qualcosa da metterci. Senza contatore (richiesta cliente):
                     non sono opzioni da contare. */}
@@ -1214,7 +2335,7 @@ export function ConfiguratorClient({
               </p>
             </div>
 
-            {detail.categories.map((cat) => (
+            {visibleCategories.map((cat, catIndex) => (
               <CategoryLane
                 key={cat.id}
                 cat={cat}
@@ -1227,23 +2348,73 @@ export function ConfiguratorClient({
                 onSelect={(optionId) => selectOption(cat.slug, optionId)}
                 onKeyDown={(e) => onRadioKeyDown(e, cat)}
                 t={t}
-                // R4-FIX 9: il campo scritta vive SOTTO il suo gruppo — dentro
-                // il tab Tekst su mobile, sotto il fieldset Tekst su desktop.
-                footer={
-                  textCategory?.id === cat.id && showCustomText
-                    ? customTextField
-                    : null
+                // R5-TEXT-POSITION (fix review visiva 2): il campo scritta ha
+                // la sua tab dedicata ora (sotto), non è più il footer di
+                // nessun gruppo-catalogo.
+                // R5-TUTORIAL round 3 — step 2's tip 1 anchors to the FIRST
+                // category's colour grid (normal AND kit alike now); on
+                // desktop every category is rendered at once (F15), so
+                // "first" is simply index 0.
+                hotspot={
+                  catIndex === 0 && tourTip && tip && tip.sequence === "step2" && tip.n === 1 ? (
+                    <Hotspot
+                      n={1}
+                      text={tourTip.text}
+                      last={tourTip.last}
+                      onNext={handleTourNext}
+                      onHighlight={handleTourHighlight}
+                      onOff={() => tour.turnOff()}
+                    />
+                  ) : null
                 }
+                pulse={catIndex === 0 && pulseTarget === "optionGrid"}
+                gridRef={catIndex === 0 ? optionGridAnchorRef : undefined}
               />
             ))}
+
+            {/* R5-TEXT-POSITION (fix review visiva 2) — un posto solo per la
+                scritta: il campo (+ chip) e, sotto, le opzioni del gruppo
+                catalogo «Tekst» SOLO se ne ha (`findTextGroup` più sopra le
+                ha già tolte dalla corsia normale). Dopo le corsie colore,
+                prima di «Fargeønsker» — stesso `md:contents`/`md:order-2` di
+                una corsia normale su desktop, tab dedicata sotto md. */}
+            {showCustomText && (
+              <div
+                id={tabPanelId(INSCRIPTION_TAB)}
+                role={isDesktop ? undefined : "tabpanel"}
+                aria-labelledby={isDesktop ? undefined : tabId(INSCRIPTION_TAB)}
+                data-testid="step2-inscription"
+                className={cn(
+                  "md:order-2 flex flex-col gap-4",
+                  activeTab !== INSCRIPTION_TAB && "max-md:hidden"
+                )}
+              >
+                {customTextField}
+                {textCategory && textCategory.options.length > 0 && (
+                  <CategoryLane
+                    cat={textCategory}
+                    label={label(textCategory)}
+                    selectedId={selections[textCategory.slug]}
+                    active
+                    isDesktop={isDesktop}
+                    tabId={tabId(textCategory.slug)}
+                    panelId={tabPanelId(textCategory.slug)}
+                    onSelect={(optionId) => selectOption(textCategory.slug, optionId)}
+                    onKeyDown={(e) => onRadioKeyDown(e, textCategory)}
+                    t={t}
+                  />
+                )}
+              </div>
+            )}
 
             {/* R4-POLISH voce 3: il pannello del tab «Fargeønsker». Su desktop
                 `md:contents` lo toglie dal layout e i figli tornano figli
                 diretti del pannello col suo `gap-6` e l'ordine di sempre
                 (`md:order-*`) — desktop invariato. Sotto md raccoglie ciò che
                 non è un gruppo-opzione: lås farger, note colore con «valgt
-                figur», e — senza gruppo «Tekst» — il campo scritta.
-                Niente `overflow`: il pannello non scorre, scorre la pagina (B1). */}
+                figur» (il campo scritta ha la sua tab dedicata ora, vedi
+                sopra). Niente `overflow`: il pannello non scorre, scorre la
+                pagina (B1). */}
             <div
               id={tabPanelId(WISHES_TAB)}
               role={isDesktop ? undefined : "tabpanel"}
@@ -1366,7 +2537,7 @@ export function ConfiguratorClient({
                         ref={noteTextareaRef}
                         data-testid="custom-notes-text"
                         value={noteText}
-                        maxLength={250}
+                        maxLength={MAX_CUSTOM_NOTE}
                         rows={3}
                         onChange={(e) => setNoteText(e.target.value)}
                         placeholder={t("customNotes.placeholder")}
@@ -1382,7 +2553,7 @@ export function ConfiguratorClient({
                           {t("customNotes.helper")}
                         </p>
                         <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
-                          {t("customNotes.counter", { count: noteText.length })}
+                          {t("customNotes.counter", { count: noteText.length, max: MAX_CUSTOM_NOTE })}
                         </span>
                       </div>
                     </div>
@@ -1390,12 +2561,38 @@ export function ConfiguratorClient({
                 </section>
               )}
 
-              {/* R4-FIX 8, fallback: design senza gruppo «Tekst» (oggi tutti,
-                  finché il cliente non lo crea) → il campo resta dov'era, in
-                  fondo al pane, col comportamento storico. */}
-              {!textCategory && showCustomText && (
-                <div className="md:order-3">{customTextField}</div>
-              )}
+            </div>
+
+            {/* R5-NEW-PALETTE: the SAME `PaletteCard` as step 3, in-flow in
+                the options column — after colours + the Text field, before
+                the nav row. Desktop-only (`hidden md:block`); mobile keeps
+                its own `step2-palette-strip` below, untouched. Header: the
+                card's own eyebrow title + ONLY the de-emphasised `h-8` Save,
+                gated on `canSaveDraft = !matchedPalette` — no +New (every
+                option change is already a new draft). */}
+            <div className="relative hidden md:block">
+              <PaletteCard
+                chips={[leadPaletteChip, ...otherPaletteChips]}
+                saved={palettes.length}
+                actions={
+                  canSaveDraft && (
+                    <button
+                      type="button"
+                      data-testid="save-palette"
+                      onClick={saveDraftAsPalette}
+                      className="flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-primary/40 px-3 text-[12px] font-medium text-primary hover:bg-primary/10"
+                    >
+                      {tPalette("save")}
+                    </button>
+                  )
+                }
+              />
+              {/* R5-TUTORIAL round 3 — the palette card is out of the guided
+                  tour entirely (it used to carry passo 2's own tip 2, and a
+                  standalone save-as-palette hint beside it): the screenshot
+                  review (24/9) found customers landing on palettes instead
+                  of the design options. The card's own "?" (palette-card.tsx,
+                  Task D) replaces both. */}
             </div>
 
 
@@ -1435,6 +2632,45 @@ export function ConfiguratorClient({
                 no `viewport-fit=cover`, so there is no safe area to read) — it
                 is in the padding so the row is already correct the day that
                 lands, not because it does something now. */}
+            {/* R5-PALETTES task 12 — «Save as palette» strip (mockup `#sM`'s
+                bottom-of-`Phone()` block, both states). The mockup puts this
+                strip AND the nav row above INSIDE one `sticky bottom-0`
+                container — deliberately NOT followed here, for exactly the
+                reason the comment right above this one already proves with
+                evidence: a bottom-sticky bar is a FIXED bar until it reaches
+                its flow position, and this panel's page continues below the
+                fold, so it would sit on top of the option lane at first
+                paint. This strip goes in normal flow, directly above the nav
+                row — same fix, same place, one paragraph up. Mobile only:
+                desktop's equivalent is the card's own Save action above.
+                `activePaletteName`/`activePaletteLayers` are the SAME values
+                the Palettes tab's dot and draft chip already use — computed
+                once, above.
+                // TODO:nb-review — step2.paletteStripUnsaved / step2.paletteStripSaved */}
+            <div
+              data-testid="step2-palette-strip"
+              className="md:hidden flex min-h-11 items-center gap-2 px-1 pb-2 text-[13px]"
+            >
+              <DesignRound layers={activePaletteLayers} className="size-6" />
+              <span className="min-w-0 flex-1 truncate">
+                <b className="font-semibold">{activePaletteName}</b>{" "}
+                <span className="text-muted-foreground">
+                  {matchedPalette
+                    ? t("step2.paletteStripSaved")
+                    : t("step2.paletteStripUnsaved")}
+                </span>
+              </span>
+              {canSaveDraft && (
+                <button
+                  type="button"
+                  data-testid="save-palette-mobile"
+                  onClick={saveDraftAsPalette}
+                  className="ml-auto flex h-11 shrink-0 items-center justify-center rounded-sm border-2 border-primary bg-primary/10 px-4 text-xs font-semibold"
+                >
+                  {tPalette("save")}
+                </button>
+              )}
+            </div>
             <div
               // R4-STEP2-SHEET: sotto md la riga nav è dentro il foglio, non una
               // barra a sé — stessa campitura `--mk-canvas` del canvas e del
@@ -1463,7 +2699,6 @@ export function ConfiguratorClient({
                 // nessuna classe, quindi la riga affiancata/impilata da md in
                 // su è quella di oggi pixel per pixel (AC6).
                 className={cn(
-                  PILL_SM_UNDER_MD,
                   "justify-center [&>span]:flex-none md:@md:shrink-0 md:@md:justify-start max-md:shrink-0"
                 )}
                 label={t("back")}
@@ -1475,90 +2710,77 @@ export function ConfiguratorClient({
                 onMouseDown={keepFocusWhileTyping}
                 onClick={() => goToStep(1)}
               />
-              <NextStepPill
-                data-testid="next-step"
-                // `@md:` = affiancato: in colonna `flex-basis` sarebbe
-                // l'ALTEZZA (16rem di pillola), e stacked non serve comunque
-                // (`stretch` fa già piena larghezza).
-                // `@max-md:` = AC13, niente ellipsis a 360/390/412: a 360 in
-                // inglese l'etichetta chiedeva 144px in 124. Padding, gap
-                // interno e freccetta si comprimono SOLO in colonna e
-                // restituiscono 16px, le foto (sotto) altri 16 → 8px di
-                // margine sul caso peggiore. Comprimere, non troncare.
-                // R4-STEP2 / AC10: affiancato al Back sotto md il Next ha
-                // ~190px a 360 — con caption, etichetta lunga e tre foto
-                // «Choose ceramics» si troncava (misurato in Chromium: EN@360
-                // labelClipped=true). Nell'editor la pillola diventa quella del
-                // mockup (.navB): SOLO «Neste steg ›». Quindi sotto md sparisce
-                // VISIVAMENTE l'ETICHETTA lunga (`data-pill-label`) e resta la
-                // CAPTION, che prende la taglia da CTA (15px semibold, niente
-                // maiuscoletto).
-                // Ruling finale (rivede quello precedente): `sr-only`, non
-                // `hidden` — così il nome accessibile resta «Choose ceramics»/
-                // «Velg keramikk» (la destinazione vera) invece di ridursi a
-                // «Next step». `sr-only` è `position:absolute`: come `hidden`
-                // non occupa larghezza né genera gap nel flex, quindi il costo
-                // visivo è zero. Da md in su non cambia nulla: caption sopra,
-                // etichetta lunga sotto, foto, freccetta.
-                // Le varianti `@container` sono `md:`-prefissate: sotto md non
-                // competono più con queste.
-                // R4-BTN-SCALE AC5: `sm` SOLO sotto md. La ricetta va PRIMA
-                // degli override di questo call-site: `cn` tiene l'ultimo tra
-                // classi in conflitto, e qui sotto md la caption fa da
-                // etichetta e resta a 15px semibold (mockup .navB) — non deve
-                // scendere ai 10px della caption piccola.
+              {/* R5-TUTORIAL — step2's tip 2, anchored to this CTA (normal
+                  and kit alike now): it pushes forward, "Go to your
+                  ceramics" — a tour should never send someone to open
+                  something that's shut. The flex-sizing
+                  classes that used to live on the pill move to this wrapper
+                  (`relative` needs a box, and the pill still fills it via
+                  `w-full`), so the row's layout is unchanged. */}
+              <div
                 className={cn(
-                  PILL_SM_UNDER_MD,
-                  "md:@max-md:gap-2.5 md:@max-md:p-2.5 md:@max-md:[&>span:last-child]:size-8 md:@md:flex-[1_1_16rem] max-md:flex-1 max-md:[&_[data-pill-label]]:sr-only max-md:[&_[data-pill-caption]]:text-[15px] max-md:[&_[data-pill-caption]]:font-semibold max-md:[&_[data-pill-caption]]:normal-case max-md:[&_[data-pill-caption]]:tracking-normal max-md:[&_[data-pill-caption]]:text-foreground"
+                  "relative md:@md:flex-[1_1_16rem] max-md:flex-1",
+                  pulseTarget === "nextStep" && "tour-pulse rounded-full"
                 )}
-                caption={t("teaser.nextStep")}
-                label={t("teaser.ceramics")}
-                arrow
-                icon={
-                  // Richiesta cliente 2026-07-21: foto REALI di ceramiche, tre
-                  // card quadrate affiancate (com'era il teaser CA-6), non
-                  // un'icona generica. Stessi asset delle miniature dello step 3
-                  // — nessun asset nuovo, nessuna query in più (cache catalogo).
-                  // size-9 (non size-11 come il cerchietto che sostituisce): tre
-                  // quadrati sono ~116px contro i 44 dell'icona singola, e a
-                  // 1280 come a 768 l'etichetta "Velg keramikk" si troncava.
-                  // L'etichetta del CTA primario non si tronca MAI (AC10).
-                  ceramics.length > 0 ? (
-                    <span
-                      className="flex shrink-0 gap-0.5 max-md:hidden @md:gap-1"
-                      aria-hidden
-                    >
-                      {ceramics.map((img) => (
-                        // eslint-disable-next-line @next/next/no-img-element -- catalog art from storage
-                        <img
-                          key={img}
-                          src={assetUrl(img)}
-                          alt=""
-                          loading="lazy"
-                          decoding="async"
-                          data-testid="next-step-ceramic-thumb"
-                          // AC13: a colonna stretta i quadrati scendono a 28px
-                          // (e il loro gap a 2px) — 16px restituiti
-                          // all'etichetta, che a 360 in inglese ne mancava 20.
-                          // Restano leggibili: sono decorativi (aria-hidden),
-                          // il touch target è tutta la pillola.
-                          className="size-7 rounded-sm border border-border bg-card object-contain @md:size-9"
-                        />
-                      ))}
-                    </span>
-                  ) : (
-                    // Fornitore senza foto prodotto: si ricade sull'icona neutra
-                    // invece di lasciare la pillola monca.
-                    // R4-STEP2: come le foto, il cerchietto di ripiego sparisce
-                    // sotto md — l'editor vuole la pillola nuda del mockup.
+                ref={nextStepAnchorRef}
+              >
+                <NextStepPill
+                  data-testid="next-step"
+                  // `@md:` = affiancato: in colonna `flex-basis` sarebbe
+                  // l'ALTEZZA (16rem di pillola), e stacked non serve comunque
+                  // (`stretch` fa già piena larghezza).
+                  // `@max-md:` = AC13, niente ellipsis a 360/390/412: a 360 in
+                  // inglese l'etichetta chiedeva 144px in 124. Padding, gap
+                  // interno e freccetta si comprimono SOLO in colonna e
+                  // restituiscono 16px, le foto (sotto) altri 16 → 8px di
+                  // margine sul caso peggiore. Comprimere, non troncare.
+                  // R4-STEP2 / AC10: affiancato al Back sotto md il Next ha
+                  // ~190px a 360 — con caption, etichetta lunga e tre foto
+                  // «Choose ceramics» si troncava. Da allora le foto sono
+                  // sparite (R5-POLISH-STEP23) e la pillola è tutta la riga:
+                  // lo spazio c'è.
+                  // R5-POLISH-STEP23 (TL, 22/9): «il copy deve essere pick your
+                  // ceramics». Quindi sotto md si nasconde la CAPTION («Next
+                  // step», che non dice dove si va) e resta l'ETICHETTA, la
+                  // destinazione vera — l'opposto della regola R4-STEP2, che il
+                  // TL ha rovesciato. `sr-only` e non `hidden`: il nome
+                  // accessibile resta «Next step · Pick your ceramics» e il
+                  // costo visivo è zero (`position:absolute`).
+                  // Se un giorno una lingua non ci sta, il rimedio è il copy
+                  // corto («Pick ceramics», parole del TL), non il troncamento:
+                  // l'etichetta ha già `truncate` come rete di sicurezza.
+                  // Da md in su non cambia nulla: caption sopra, etichetta
+                  // sotto, freccetta.
+                  // Le varianti `@container` sono `md:`-prefissate: sotto md non
+                  // competono più con queste.
+                  className={cn(
+                    "w-full max-md:[&_[data-pill-caption]]:sr-only max-md:[&_[data-pill-label]]:text-center"
+                  )}
+                  caption={t("teaser.nextStep")}
+                  label={t("teaser.ceramics")}
+                  arrow
+                  icon={
                     <PillIcon className="max-md:hidden">
-                      <Circle className="size-5 fill-muted stroke-muted-foreground/50" />
+                      <Circle className="size-5 fill-primary-foreground/30 stroke-primary-foreground" />
                     </PillIcon>
-                  )
-                }
-                onMouseDown={keepFocusWhileTyping}
-                onClick={() => goToStep(3)}
-              />
+                  }
+                  onMouseDown={keepFocusWhileTyping}
+                  onClick={() => goToStep(3)}
+                  disabled={textPositionMissing}
+                />
+                {/* R5-TUTORIAL round 3 — step 2's tip 2 (normal and kit
+                    alike): "pick your ceramics", on this CTA. */}
+                {tourTip && tip && tip.sequence === "step2" && tip.n === 2 && (
+                  <Hotspot
+                    n={2}
+                    text={tourTip.text}
+                    last={tourTip.last}
+                    onNext={handleTourNext}
+                    onHighlight={handleTourHighlight}
+                    onOff={() => tour.turnOff()}
+                  />
+                )}
+              </div>
             </div>
             </div>
           </div>
@@ -1588,7 +2810,9 @@ function CategoryLane({
   onSelect,
   onKeyDown,
   t,
-  footer = null,
+  hotspot = null,
+  pulse = false,
+  gridRef,
 }: {
   cat: DesignDetail["categories"][number];
   label: string;
@@ -1600,12 +2824,20 @@ function CategoryLane({
   onSelect: (optionId: string) => void;
   onKeyDown: (e: React.KeyboardEvent<HTMLDivElement>) => void;
   t: ReturnType<typeof useTranslations>;
-  /** R4-FIX 9: contenuto appeso sotto la corsia — oggi il campo scritta del
-   *  gruppo Tekst, che deve stare dentro il suo tab (mobile) e sotto il suo
-   *  fieldset (desktop). */
-  footer?: React.ReactNode;
+  /** R5-TUTORIAL round 3 — step 2's tip 1, only on the first category. */
+  hotspot?: React.ReactNode;
+  /** R5-TUTORIAL round 3 — "active guidance": pulses the grid itself, same
+   *  `.tour-pulse` recipe as step 1's design grid / the next-step CTA. */
+  pulse?: boolean;
+  /** R5-TUTORIAL round 3 — lets the parent scroll THIS category's grid into
+   *  view (only ever passed for the first category, the tip's own anchor). */
+  gridRef?: React.RefObject<HTMLDivElement | null>;
 }) {
   const laneRef = useRef<HTMLDivElement>(null);
+  function setLaneRef(el: HTMLDivElement | null) {
+    laneRef.current = el;
+    if (gridRef) gridRef.current = el;
+  }
   // dep con `active`: al cambio tab la corsia passa da display:none a visibile e
   // le fade vanno ricalcolate SUBITO, non per il rimbalzo del ResizeObserver.
   const fades = useLaneFades(laneRef, `${active}:${cat.id}`);
@@ -1720,14 +2952,15 @@ function CategoryLane({
         // F15: da md in su griglia verticale che va a capo — ogni opzione
         // visibile, nessuno scroller orizzontale (supera il carosello F02).
         <div
-          ref={laneRef}
+          ref={setLaneRef}
           role="radiogroup"
           aria-label={label}
           onKeyDown={onKeyDown}
           data-testid="option-grid"
           className={cn(
             // desktop (F15): invariato
-            "flex flex-wrap gap-2.5",
+            "relative flex flex-wrap gap-2.5",
+            pulse && "tour-pulse rounded-xl",
             // mobile (mockup `.opts`): corsia orizzontale con snap e peek
             // R4-FIX 6: `scroll-px` (non solo `-pl-`) — con lo snap, l'ULTIMA
             // card si fermava incollata al bordo destro. Niente `flex-1`: la
@@ -1792,14 +3025,16 @@ function CategoryLane({
               </span>
             </div>
           ))}
+          {hotspot}
         </div>
       ) : (
         <div
-          ref={laneRef}
+          ref={setLaneRef}
           data-testid="option-grid"
           className={cn(
             // desktop: invariato
-            "grid grid-cols-3 gap-2.5 sm:grid-cols-4",
+            "relative grid grid-cols-3 gap-2.5 sm:grid-cols-4",
+            pulse && "tour-pulse rounded-xl",
             // mobile: stessa corsia orizzontale delle opzioni colore.
             // R4-FIX 6 (corsia «Dyr»): erano queste tre utility a far sbordare
             // le card. `flex-1` + `min-h-0` davano alla corsia l'altezza che
@@ -1832,6 +3067,7 @@ function CategoryLane({
               className="max-md:w-20 max-md:flex-none max-md:snap-start max-md:px-2 max-md:py-2 max-md:[&_[data-option-label]]:truncate max-md:[&_[data-option-label]]:text-[10px] max-md:[&_[data-option-label]]:leading-[1.2]"
             />
           ))}
+          {hotspot}
         </div>
       )}
 
@@ -1890,12 +3126,6 @@ function CategoryLane({
         </>
       )}
       </div>
-
-      {/* R4-FIX 9: sotto la corsia — il campo scritta del gruppo Tekst. Fuori dal
-          wrapper delle fade: è testo, non deve sbiadire (R4-FIX 5). */}
-      {footer && (
-        <div className="mt-3 max-md:mt-0 max-md:px-3 max-md:pb-3">{footer}</div>
-      )}
     </fieldset>
   );
 }

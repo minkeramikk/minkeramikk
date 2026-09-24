@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   CODE_ALPHABET,
   ConfigCodeError,
+  codecCategoryCount,
   decodeConfigCode,
   encodeConfigCode,
   normalizeConfigCode,
@@ -163,6 +164,160 @@ describe("config-code — tolerant decode (degenerate cases, never crash)", () =
   });
 });
 
+describe("config-code — text identity backward compatibility (R5-TEXT-IDENTITY task 2, AC 2)", () => {
+  // Codes in TODAY's shape — the ones already sitting in a customer's
+  // localStorage palette, an already-sent share link, or a cart row in an
+  // open session — must decode EXACTLY as they did before this task, and
+  // must never surface a customText. This has to hold before the encoder is
+  // taught anything new, and keep holding after (re-run below the AC 1
+  // tests confirms nothing regressed).
+
+  it("every colour segment present (today's normal shape) → no customText", () => {
+    const decoded = decodeConfigCode("MK-A-A-A", byCode); // design A: 2 categories, 2 segments, nothing more
+    expect(decoded.selections).toEqual({
+      borders: "borders-opt-0",
+      details: "details-opt-0",
+    });
+    expect(decoded.customText).toBeUndefined();
+  });
+
+  it("one colour segment missing (an old short/truncated code) → defaults, no customText", () => {
+    const decoded = decodeConfigCode("MK-A-C", byCode); // only 1 of design A's 2 segments given
+    expect(decoded.selections["borders"]).toBe("borders-opt-2");
+    expect(decoded.selections["details"]).toBe("details-opt-0"); // missing → default
+    expect(decoded.customText).toBeUndefined();
+  });
+
+  it("one extra segment (old trailing noise past the last category) → ignored, no customText", () => {
+    const decoded = decodeConfigCode("MK-E-D-Z-Z-Z", byCode); // striper has 1 category, 3 extra segments
+    expect(decoded.selections).toEqual({ stripes: "stripes-opt-3" });
+    expect(decoded.customText).toBeUndefined();
+  });
+
+  it("property check: every code from today's 2-arg encoder decodes with no customText", () => {
+    const rnd = mulberry32(20260919);
+    for (let i = 0; i < 200; i++) {
+      const design = DESIGNS[Math.floor(rnd() * DESIGNS.length)];
+      const sel = randomFullSelection(design, rnd);
+      const code = encodeConfigCode(design, sel); // no extras — the only shape that existed before task 2
+      expect(decodeConfigCode(code, byCode).customText).toBeUndefined();
+    }
+  });
+});
+
+describe("config-code — inscription identity (R5-TEXT-IDENTITY task 2, AC 1)", () => {
+  const d = byCode("E")!; // striper: 1 category, keeps the fixture short
+  const sel = { stripes: "stripes-opt-1" };
+
+  it("two different inscriptions, same design/selections → two different codes", () => {
+    const code1 = encodeConfigCode(d, sel, { customText: "Til Anna" });
+    const code2 = encodeConfigCode(d, sel, { customText: "Til Kari" });
+    expect(code1).not.toBe(code2);
+  });
+
+  it("the same inscription twice → the same code (determinism, keeps palette names stable)", () => {
+    const code1 = encodeConfigCode(d, sel, { customText: "Gratulerer med dagen" });
+    const code2 = encodeConfigCode(d, sel, { customText: "Gratulerer med dagen" });
+    expect(code1).toBe(code2);
+  });
+
+  it("same colours AND same inscription, two different colour WISHES → two different codes", () => {
+    // This is hashNote doing its job (R5-GARANZIA.md §5): two order lines
+    // with identical colours/inscription but different private wishes must
+    // not silently collapse into "the same configuration".
+    const code1 = encodeConfigCode(d, sel, {
+      customText: "Til Anna",
+      customNote: "litt mer blått, takk",
+    });
+    const code2 = encodeConfigCode(d, sel, {
+      customText: "Til Anna",
+      customNote: "litt mer rosa, takk",
+    });
+    expect(code1).not.toBe(code2);
+  });
+
+  it("no inscription and no wish → byte-identical to the pre-task-2 (2-arg) call", () => {
+    expect(encodeConfigCode(d, sel, {})).toBe(encodeConfigCode(d, sel));
+    expect(encodeConfigCode(d, sel, { customText: "", customNote: "" })).toBe(
+      encodeConfigCode(d, sel)
+    );
+  });
+
+  it("decode recovers the inscription text but never the wish hash (identity only)", () => {
+    const code = encodeConfigCode(d, sel, {
+      customText: "Til Anna",
+      customNote: "litt mer blått, takk",
+    });
+    const decoded = decodeConfigCode(code, byCode);
+    expect(decoded.customText).toBe("Til Anna");
+    expect(decoded).not.toHaveProperty("noteHash");
+  });
+
+  it("a colour wish alone (no inscription) still changes the code, but decodes with no customText", () => {
+    const withWish = encodeConfigCode(d, sel, { customNote: "litt mer blått, takk" });
+    const withoutWish = encodeConfigCode(d, sel);
+    expect(withWish).not.toBe(withoutWish);
+    expect(decodeConfigCode(withWish, byCode).customText).toBeUndefined();
+  });
+});
+
+/**
+ * ADR 0011 amendment (final-review round 2, finding 2 — BLOCKER). A design
+ * that LOSES a category shifts an old code's real last colour segment into
+ * the inscription slot (`parts[cats.length]`, now one shorter). Before the
+ * checksum, an ordinary option code landed on "plausible content" there
+ * roughly 1 time in 4 (measured: 232/961 two-character option codes, and
+ * 7672/29791 three-character ones — reproduced here, not just quoted).
+ * `decodeTextSegment`'s 2-char checksum (text-segment.ts) is what turns
+ * "plausible" into "confirmed"; this suite re-proves the property AT THE
+ * config-code.ts / decodeConfigCode level, which is what a customer's link
+ * actually goes through.
+ */
+describe("config-code — ADR 0011 amendment: a lost category never fabricates an inscription", () => {
+  // A single-category design so the "old" 2-segment code's SECOND segment
+  // is unambiguously the one that would fall into the inscription slot
+  // once the design shrinks to 1 category.
+  const SHRUNK: CodecDesign = {
+    code: "S",
+    slug: "shrink-test",
+    categories: [{ slug: "only", optionCodeToId: { A: "only-opt" }, defaultOptionId: "only-opt" }],
+  };
+  const findShrunk = (c: string) => (c.toUpperCase() === "S" ? SHRUNK : null);
+
+  it("exhaustive: no 2-character option code decodes as a phantom inscription", () => {
+    let phantom = 0;
+    for (const a of CODE_ALPHABET) {
+      for (const b of CODE_ALPHABET) {
+        const decoded = decodeConfigCode(`MK-S-A-${a}${b}`, findShrunk);
+        if (decoded.customText !== undefined) phantom++;
+      }
+    }
+    // Measured before the checksum: 232/961. This is the number the
+    // coordinator asked to see measured again, not argued.
+    expect(phantom).toBe(0);
+  });
+
+  it("exhaustive: no 3-character option code decodes as a phantom inscription", () => {
+    let phantom = 0;
+    for (const a of CODE_ALPHABET) {
+      for (const b of CODE_ALPHABET) {
+        for (const c of CODE_ALPHABET) {
+          const decoded = decodeConfigCode(`MK-S-A-${a}${b}${c}`, findShrunk);
+          if (decoded.customText !== undefined) phantom++;
+        }
+      }
+    }
+    // Measured before the checksum: 7672/29791.
+    expect(phantom).toBe(0);
+  });
+
+  it("a genuine inscription (with its real checksum) still decodes fine on the SAME design shape", () => {
+    const sel = { only: "only-opt" };
+    const code = encodeConfigCode(SHRUNK, sel, { customText: "Til Anna" });
+    expect(decodeConfigCode(code, findShrunk).customText).toBe("Til Anna");
+  });
+});
+
 describe("toCodecDesign defaultOptionId", () => {
   function detail(opts: { id: string; code: string; isDefault?: boolean }[]) {
     return {
@@ -201,5 +356,146 @@ describe("toCodecDesign defaultOptionId", () => {
       ])
     );
     expect(codec?.categories[0]?.optionCodeToId).toEqual({ a: "o1", b: "o2" });
+  });
+});
+
+describe("config-code — text position (R5-TEXT-POSITION task 1, AC1)", () => {
+  const d = byCode("E")!; // striper: 1 category, keeps the fixture short
+  const sel = { stripes: "stripes-opt-1" };
+  const withTopPositions: CodecDesign = { ...d, textPositions: ["top", "bottom"] };
+  // Post-review revision: centre/back are opt-in too, no design offers
+  // every position implicitly any more — a fixture with all four for the
+  // round-trip/back/centre-default cases below.
+  const allPositions: CodecDesign = { ...d, textPositions: ["top", "bottom", "centre", "back"] };
+
+  it("round-trips text+top through the code", () => {
+    const code = encodeConfigCode(withTopPositions, sel, {
+      customText: "Til Anna",
+      textPosition: "top",
+    });
+    const decoded = decodeConfigCode(code, () => withTopPositions);
+    expect(decoded.textPosition).toBe("top");
+    expect(decoded.customText).toBe("Til Anna");
+  });
+
+  it("no textPosition given, design offers centre → centre round-trips like any other position", () => {
+    const code = encodeConfigCode(allPositions, sel, { customText: "Til Anna" });
+    const decoded = decodeConfigCode(code, () => allPositions);
+    expect(decoded.textPosition).toBe("centre");
+  });
+
+  it("no textPosition given, design does NOT offer centre → no textPosition at all", () => {
+    const code = encodeConfigCode(withTopPositions, sel, { customText: "Til Anna" });
+    const decoded = decodeConfigCode(code, () => withTopPositions);
+    expect(decoded.textPosition).toBeUndefined();
+  });
+
+  it("a code from before this task (no position bits set, bit 0 only) decodes as centre only when the design offers it", () => {
+    // Exactly what the OLD 2-arg / customText-only encoder already produced.
+    const code = encodeConfigCode(d, sel, { customText: "Til Anna" });
+    const decoded = decodeConfigCode(code, byCode);
+    expect(decoded.textPosition).toBeUndefined(); // `byCode("E")` doesn't offer centre
+  });
+
+  it("top on a design that doesn't offer top → no textPosition on decode, not invented", () => {
+    const noTop: CodecDesign = { ...d, textPositions: [] };
+    // Encode carries whatever the caller asked for (encode doesn't gate);
+    // decode is what enforces "this design doesn't offer it".
+    const code = encodeConfigCode(withTopPositions, sel, {
+      customText: "Til Anna",
+      textPosition: "top",
+    });
+    const decoded = decodeConfigCode(code, () => noTop);
+    expect(decoded.textPosition).toBeUndefined();
+  });
+
+  it("garbage inscription segment → no customText and no textPosition", () => {
+    // Same shrunk-design trick as the ADR 0011 suite above: an ordinary
+    // option code landing in the inscription slot must not fabricate either.
+    const SHRUNK: CodecDesign = {
+      code: "S",
+      slug: "shrink-test",
+      categories: [{ slug: "only", optionCodeToId: { A: "only-opt" }, defaultOptionId: "only-opt" }],
+      textPositions: ["top", "bottom"],
+    };
+    const decoded = decodeConfigCode("MK-S-A-ZZ", (c) => (c.toUpperCase() === "S" ? SHRUNK : null));
+    expect(decoded.customText).toBeUndefined();
+    expect(decoded.textPosition).toBeUndefined();
+  });
+
+  it("back position round-trips too", () => {
+    const code = encodeConfigCode(allPositions, sel, {
+      customText: "Til Anna",
+      textPosition: "back",
+    });
+    const decoded = decodeConfigCode(code, () => allPositions);
+    expect(decoded.textPosition).toBe("back");
+  });
+});
+
+describe("config-code — a zero-option category never leaves an empty segment (fix 3)", () => {
+  // Krabbe's shape: two real colour categories + the retired «Tekst» group,
+  // kept in the catalogue empty (GARANZIA §7) — `toCodecDesign` must drop it
+  // from the codec entirely, not just skip it while still counting it.
+  function krabbeLikeDetail() {
+    return {
+      code: "K",
+      slug: "krabbe-like",
+      textPositions: ["top", "bottom"],
+      categories: [
+        {
+          slug: "hovedfarge",
+          options: [
+            { id: "hf-1", code: "A", isDefault: true },
+            { id: "hf-2", code: "B" },
+          ],
+        },
+        {
+          slug: "kant",
+          options: [
+            { id: "k-1", code: "C", isDefault: true },
+            { id: "k-2", code: "D" },
+          ],
+        },
+        { slug: "tekst", options: [] }, // the empty group — the bug's source
+      ],
+    };
+  }
+
+  it("a) toCodecDesign drops the empty category; encode never emits a blank segment; decode round-trips", () => {
+    const codec = toCodecDesign(krabbeLikeDetail())!;
+    expect(codec.categories.map((c) => c.slug)).toEqual(["hovedfarge", "kant"]);
+
+    const code = encodeConfigCode(
+      codec,
+      { hovedfarge: "hf-2", kant: "k-1" },
+      { customText: "Til Åse", textPosition: "top" }
+    );
+    expect(code).not.toMatch(/--/);
+
+    const decoded = decodeConfigCode(code, (c) =>
+      c.toUpperCase() === "K" ? codec : null
+    );
+    expect(decoded.selections).toEqual({ hovedfarge: "hf-2", kant: "k-1" });
+    expect(decoded.customText).toBe("Til Åse");
+    expect(decoded.textPosition).toBe("top");
+  });
+
+  it("b) codecCategoryCount matches the codec's real category count, not detail.categories.length", () => {
+    const detail = krabbeLikeDetail();
+    expect(detail.categories.length).toBe(3); // includes the empty Tekst group
+    expect(codecCategoryCount(detail)).toBe(2); // the codec's real count
+  });
+
+  it("c) an old code without the Tekst segment still decodes on the same design (ADR 0011: missing segment → default)", () => {
+    const codec = toCodecDesign(krabbeLikeDetail())!;
+    // Exactly what a code encoded before this fix (or before Tekst even
+    // existed) looks like: two colour segments, no third blank one.
+    const oldCode = "MK-K-B-C";
+    const decoded = decodeConfigCode(oldCode, (c) =>
+      c.toUpperCase() === "K" ? codec : null
+    );
+    expect(decoded.designSlug).toBe("krabbe-like");
+    expect(decoded.selections).toEqual({ hovedfarge: "hf-2", kant: "k-1" });
   });
 });

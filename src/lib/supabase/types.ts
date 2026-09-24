@@ -114,6 +114,7 @@ export type Database = {
           slug: string
           sort_order: number
           supplier_id: string
+          text_positions: string[]
         }
         Insert: {
           accepts_custom_notes?: boolean
@@ -132,6 +133,7 @@ export type Database = {
           slug: string
           sort_order?: number
           supplier_id: string
+          text_positions?: string[]
         }
         Update: {
           accepts_custom_notes?: boolean
@@ -150,6 +152,7 @@ export type Database = {
           slug?: string
           sort_order?: number
           supplier_id?: string
+          text_positions?: string[]
         }
         Relationships: [
           {

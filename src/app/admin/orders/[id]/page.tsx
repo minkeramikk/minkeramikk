@@ -11,6 +11,7 @@ import { timeline } from "@/lib/orders/order-events";
 import {
   buildReplicaSet,
   configuratorPathFromCode,
+  lineNet,
   orderDiscount,
   orderSubtotal,
   orderTotal,
@@ -190,7 +191,7 @@ export default async function OrderDetailPage({
                               <td className="px-3 py-2.5 tabular-nums">{it.quantity}</td>
                               <td className="px-3 py-2.5 text-right font-medium tabular-nums">
                                 {formatMoney(
-                                  orderTotal([it]),
+                                  lineNet([it]),
                                   "en"
                                 )}
                               </td>

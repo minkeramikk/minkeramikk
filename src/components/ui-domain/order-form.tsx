@@ -10,7 +10,7 @@ import { NextStepPill, PillIcon } from "@/components/ui-domain/next-step-pill";
 import { Loader2, Truck } from "lucide-react";
 import type { Cart } from "@/lib/cart/cart";
 import { orderFormSchema } from "@/lib/orders/schema";
-import { encodeSetParam } from "@/lib/cart/set-code";
+import { encodeSetParam, selectionCountOf } from "@/lib/cart/set-code";
 import { cn } from "@/lib/utils";
 
 /**
@@ -20,7 +20,8 @@ import { cn } from "@/lib/utils";
  * orderForm.optional («(valgfritt)») + orderForm.acceptTerms («Jeg har lest og
  * godtar salgsvilkårene og personvernerklæringen») — the consent is the one
  * sentence a customer is legally taken to have read, so Alessio should own its
- * exact wording.
+ * exact wording. R5-UNPAINTED adds order.unpaintedError («Noen deler i
+ * handlekurven er fortsatt umalte — mal dem før du bestiller.»), also new copy.
  *
  * Order form (F05): client-validated with the SAME zod schema as the server,
  * Turnstile token attached. Success → clear cart + redirect to confirmation;
@@ -55,7 +56,12 @@ export function OrderForm({
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [token, setToken] = useState("");
   const [errors, setErrors] = useState<Record<string, boolean>>({});
-  const [status, setStatus] = useState<"idle" | "sending" | "error">("idle");
+  const [status, setStatus] = useState<"idle" | "sending" | "error" | "unpainted">("idle");
+
+  // R5-UNPAINTED: the form is not the place that explains this — step 3's CTA
+  // does («Paint N pieces first»). Here we only make sure it cannot be
+  // submitted: unreachable in the UI, still refused if it is reached.
+  const hasUnpainted = cart.some((l) => l.configCode === null);
 
   function set<K extends keyof typeof form>(k: K, v: string) {
     setForm((f) => ({ ...f, [k]: v }));
@@ -63,6 +69,10 @@ export function OrderForm({
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    if (hasUnpainted) {
+      setStatus("unpainted");
+      return;
+    }
     const parsed = orderFormSchema.safeParse({ ...form, acceptTerms });
     if (!parsed.success) {
       const errs: Record<string, boolean> = {};
@@ -97,7 +107,10 @@ export function OrderForm({
         }),
       });
       if (!res.ok) {
-        setStatus("error");
+        // R5-UNPAINTED: the server's machine code decides which sentence we
+        // show — the sentence itself lives only in the dictionaries.
+        const body = await res.json().catch(() => null);
+        setStatus(body?.error === "unpainted" ? "unpainted" : "error");
         return; // cart preserved
       }
       const { code, total } = (await res.json()) as {
@@ -106,11 +119,14 @@ export function OrderForm({
       };
       // F30-B: carry the set (CA-3 codec) so the confirmation page can recap it
       // with mini-plates + a share link — built BEFORE onSuccess clears the cart.
+      // R5-TEXT-IDENTITY task 3: selectionCount strips each line's
+      // inscription/colour-wish segment before it enters the link.
       const set = encodeSetParam(
         cart.map((l) => ({
           configCode: l.configCode,
           productSlug: l.productSlug,
           quantity: l.quantity,
+          selectionCount: selectionCountOf(l.configSnapshot),
         }))
       );
       onSuccess();
@@ -283,9 +299,9 @@ export function OrderForm({
 
       <Turnstile onToken={setToken} />
 
-      {status === "error" && (
+      {(status === "error" || status === "unpainted") && (
         <p data-testid="order-error" className="text-sm text-destructive">
-          {to("error")}
+          {status === "unpainted" ? to("unpaintedError") : to("error")}
         </p>
       )}
 
@@ -310,7 +326,7 @@ export function OrderForm({
         disabled={status === "sending" || cart.length === 0 || !token}
         icon={
           <PillIcon>
-            <Truck className="size-5 text-primary" />
+            <Truck className="size-5 text-primary-foreground" />
           </PillIcon>
         }
       />

@@ -1,37 +1,26 @@
 "use client";
 
-import { useLocale, useTranslations } from "next-intl";
-import { ShoppingBag, Truck } from "lucide-react";
-import { Link } from "@/i18n/navigation";
+import { useTranslations } from "next-intl";
+import { ShoppingBag } from "lucide-react";
+import { usePathname, useRouter } from "@/i18n/navigation";
+import { useSearchParams } from "next/navigation";
 import {
   Sheet,
-  SheetClose,
   SheetContent,
   SheetDescription,
-  SheetFooter,
   SheetHeader,
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { Button } from "@/components/ui/button";
-import { NextStepPill, PillIcon } from "@/components/ui-domain/next-step-pill";
-import { OrderForm } from "@/components/ui-domain/order-form";
-import { CartLineThumb } from "@/components/ui-domain/cart-line-thumb";
-import { CartLineRecap } from "@/components/ui-domain/cart-line-recap";
-import { SetBadge } from "@/components/ui-domain/set-badge";
-import { CartLinePrice, CartDiscountNudge } from "@/components/ui-domain/cart-discount-row";
-import { CartSuggestion } from "@/components/ui-domain/cart-suggestion";
-import { CartTotals } from "@/components/ui-domain/cart-totals";
+import { Basket, focusFirstUnpaintedRow } from "@/components/ui-domain/basket";
+import { paintFirstHref } from "@/components/ui-domain/basket-host";
 import { useCartContext } from "@/lib/cart/cart-context";
-import { designLabel, itemCount, type CartLine } from "@/lib/cart/cart";
+import { itemCount, unpaintedPieces } from "@/lib/cart/cart";
 import { cn } from "@/lib/utils";
 import { useEffect, useRef, useState } from "react";
-
-/** First selection colour of a line → a small identity chip for the row.
- *  The only place a raw DB hex reaches the UI (catalog data, not theme). */
-function thumbHex(line: CartLine): string | undefined {
-  return line.configSnapshot?.selections.find((s) => s.hex)?.hex ?? undefined;
-}
+import { useTour } from "@/lib/tour/use-tour";
+import { tipFor } from "@/lib/tour/tour";
+import { CoachBar, useTourTip } from "@/components/ui-domain/tour";
 
 /**
  * CartButton + CartDrawer (F16, DESIGN-SYSTEM §3.12). Lives in the public
@@ -39,20 +28,59 @@ function thumbHex(line: CartLine): string | undefined {
  * (shadcn Sheet = Radix Dialog) gives focus-trap, Esc and focus-restore for
  * free. Cart data + mutations come from the shared `useCartContext` (single
  * source: badge, drawer and step 3 stay in sync). No hardcoded colours.
+ *
+ * R5-BASKET-HOST task 5 — «there are not two baskets». Everything below the
+ * `SheetHeader` is `<Basket host="drawer">`, the very component step 3's
+ * right column renders: rows, suggestion, totals, the fixed one-line foot
+ * (total + saved + CTA), the empty state and the checkout form all live
+ * there now. This file is down to what is genuinely the HEADER's: the
+ * trigger with its badge and its warning dot, the sheet shell, and the count
+ * announcement.
  */
 export function CartMenu() {
   const t = useTranslations("cart");
-  const to = useTranslations("order");
-  const locale = useLocale() as "no" | "en";
-  const { cart, hydrated, setQuantity, remove, clear, open, setOpen, discount, discountConfig } =
-    useCartContext();
-  // drawer has two phases: the cart list and the checkout form
-  const [view, setView] = useState<"cart" | "checkout">("cart");
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const { cart, hydrated, open, setOpen, currentConfig, palettes } = useCartContext();
+  const router = useRouter();
+  const pathname = usePathname();
+  /** The working URL the drawer is open over: everything the paint-first
+   *  target has to preserve lives here except the two free-text fields, which
+   *  come off `currentConfig`. See `paintFirstHref`. */
+  const searchParams = useSearchParams();
 
   const count = itemCount(cart);
   // gate count on hydration to avoid SSR/client mismatch (cart starts empty)
   const liveCount = hydrated ? count : 0;
+  // R5-UNPAINTED: pieces, not lines (unpaintedPieces) — the unit the
+  // aria-label below announces, and what the warning dot stands for.
+  const unpainted = hydrated ? unpaintedPieces(cart) : 0;
+
+  // R5-TUTORIAL 0.1-7 — 390, kit3: the open sheet already has a top edge, so
+  // the CoachBar docks there instead of fixing to the viewport foot (DS
+  // §3.32). This mount only ever cares about `sequence === "kit3"` — `step`
+  // is fixed at 3 on purpose (the only step this drawer's own tour reaches;
+  // a step2 tip stays on the page, `configurator-client.tsx`), and there's
+  // no `KitWelcome`/`setBanner` state to read from here (the kit's own
+  // welcome never coincides with kit3 — it's step 2's passo 0 — and a set
+  // landing never sets `origin=kit`, so `kitMode` is false for it).
+  const kitMode = searchParams.get("origin") === "kit" && (!hydrated || unpainted > 0);
+  const tour = useTour();
+  const tip = tipFor({
+    state: tour.state,
+    hydrated: tour.hydrated,
+    kitMode,
+    welcomeOpen: false,
+    setBannerOpen: false,
+    step: 3,
+  });
+  // `saved` — same `palettes.length` `ceramics-step.tsx`'s own PaletteCard
+  // uses — feeds kit3's 2nd tip (remapped to `step3.1`'s plural, Task C).
+  const tourTip = useTourTip(tip, { count: unpainted, saved: palettes.length });
+  const showKit3CoachBar = open && tip?.sequence === "kit3" && tourTip !== null;
+  const handleTourNext = () => {
+    if (!tip || !tourTip) return;
+    if (tourTip.last) tour.turnOff();
+    else tour.next(tip.sequence);
+  };
 
   // R2-6 C: pop the badge when the count GROWS (an item was added) — a mobile
   // cue pointing at the cart. Decorative only; the count is already announced
@@ -73,19 +101,93 @@ export function CartMenu() {
     prevCount.current = count;
   }, [count, hydrated]);
 
-  function handleOpenChange(next: boolean) {
-    setOpen(next);
-    if (!next) setView("cart"); // reset phase when closing
+  /**
+   * Task 5: the drawer is mounted in the PERSISTENT header, so a route change
+   * no longer unmounts it. Until this task the order form lived in this file
+   * and closed the sheet itself on success; it lives in `<Basket>` now and
+   * only knows how to redirect to `/order`, which would leave an open drawer
+   * (showing the freshly cleared, empty basket) sitting over the thank-you
+   * page. One rule here beats a closer threaded through every navigating
+   * child. `setOpen` is a plain state setter, so the mount run is a no-op.
+   */
+  useEffect(() => {
+    setOpen(false);
+  }, [pathname, setOpen]);
+
+  /**
+   * «Paint N pieces first ›» from the drawer. It has to land the customer on a
+   * row they can press Paint on, and since PR 2 there are two answers to
+   * «which rows», decided by whether the step-3 column is on screen:
+   *
+   * - column on screen (from `lg`): close, go to step 3 of whatever design is
+   *   on screen, hand focus to the row there — unchanged behaviour.
+   * - no column (below `lg`): the drawer's own rows are the ONLY rows, because
+   *   task 6 deleted the in-flow copy. So the drawer STAYS OPEN and the focus
+   *   lands on the Paint button already under the customer's thumb. Closing
+   *   would take away the very thing this CTA points at, which is what it did
+   *   between task 6 and this fix.
+   *
+   * The question is asked of the LAYOUT, not of a second copy of its rule: the
+   * column is `hidden lg:block`, so below `lg` it sits in the DOM with no
+   * `offsetParent` — the same "is it on screen" test `focusFirstUnpaintedRow`
+   * applies to the rows themselves. No `matchMedia("64rem")` here to drift out
+   * of step with the class list over there.
+   *
+   * No column element at all means we are not on step 3, and then the push is
+   * the only way to reach a column: that keeps today's behaviour at every
+   * width (below `lg` it arrives at step 3 with nothing focused, the gap
+   * recorded in R5-GARANZIA.md §1 — not this card's to close).
+   *
+   * In the closing branch the focus can't happen in the click: Radix restores
+   * focus to the trigger when the sheet finishes closing, which would undo it,
+   * and while the exit animation runs the drawer's OWN copy of the rows is
+   * still on screen — an unscoped `focusFirstUnpaintedRow` would focus a dying
+   * node. So it rides on `onCloseAutoFocus` (fires once the content is gone,
+   * right after the trigger got focus back) and one frame later, without
+   * preventing Radix's restore: if no row is found, focus stays on the cart
+   * button instead of falling to `<body>`.
+   */
+  const paintFirstRef = useRef(false);
+  function handlePaintFirst() {
+    const column = document.querySelector<HTMLElement>(
+      '[data-testid="docked-cart-panel"]'
+    );
+    if (column && !column.offsetParent) {
+      focusFirstUnpaintedRow(
+        document.querySelector('[data-testid="cart-drawer"]') ?? document
+      );
+      return;
+    }
+    paintFirstRef.current = true;
+    setOpen(false);
+    // Final-review finding 4a: the target is the URL we are ALREADY on with
+    // `code`/`step` set on top of it — not one rebuilt from the code alone.
+    // The code never encodes the note or the inscription (`line-payload.ts`);
+    // those travel as `note=`/`text=` and a from-scratch push dropped them,
+    // so the customer's own words never reached the order mail or the lab
+    // PDF. Even at step 3 the push is NOT a no-op: it rewrites the query (the
+    // comment that used to claim otherwise is what let this through).
+    // `paintFirstHref` — pure, unit-tested in basket.test.ts.
+    router.push(paintFirstHref(searchParams, currentConfig));
   }
 
   return (
     <>
-      <Sheet open={open} onOpenChange={handleOpenChange}>
+      <Sheet open={open} onOpenChange={setOpen}>
         <SheetTrigger asChild>
           <button
             type="button"
             data-testid="cart-button"
-            aria-label={t("button", { count: liveCount })}
+            // R5-UNPAINTED: the header keeps its icon+badge, no text pill (TL
+            // decision) — the unpainted count rides in the aria-label instead,
+            // via a dedicated key — and it stays there now that the sighted
+            // marker below is a dot with no number in it at all (task 7).
+            // TODO:nb-review — cart.buttonUnpainted NO copy is new, unreviewed.
+            aria-label={
+              unpainted > 0
+                ? t("buttonUnpainted", { count: liveCount, unpainted })
+                : t("button", { count: liveCount })
+            }
             aria-haspopup="dialog"
             className="relative -mr-1.5 flex size-11 items-center justify-center rounded-lg text-ink-muted transition-colors hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
           >
@@ -101,14 +203,66 @@ export function CartMenu() {
                 {count}
               </span>
             )}
+            {/* Task 7 (card §4-quinquies, QA 19/9 — option B): a DOT, not a
+                second number. Two unlabelled numbers fought over the same
+                20px bag and neither read at true size; «how many» is not
+                actionable from the header anyway — to act you open the
+                basket, where the count is already in the info box and in
+                «Paint N pieces first». So the badge says one thing: there
+                is something left to finish. The ring is the header's own
+                `--ink`, which is what lifts the dot off the bag's stroke.
+                `--warn` full strength as the ruling asks: it is a graphic,
+                not text (3.6:1 on the header clears the 3:1 that 1.4.11
+                asks of non-text), so the `warn-on-dark` variant the glyph
+                needed for 4.5:1 is not needed here.
+                The count itself is NOT lost: it rides in the button's
+                `aria-label` above, same key as before. */}
+            {hydrated && unpainted > 0 && (
+              <span
+                data-testid="cart-badge-unpainted"
+                aria-hidden
+                className="absolute bottom-1 right-1.5 size-2 rounded-full bg-warn ring-2 ring-ink"
+              />
+            )}
           </button>
         </SheetTrigger>
 
         <SheetContent
           side="right"
           data-testid="cart-drawer"
-          className="w-full! gap-0 p-0 sm:max-w-[380px]!"
+          // 420 (was 380): the unified row's actions line (chip · n/N · Paint)
+          // is what sets the floor now. Full width below `sm` was already
+          // here; the base `Sheet`'s own `w-3/4` is shared with every other
+          // sheet and is not touched.
+          // PR 2 review: AC 4 names ✕ as a required way to close the drawer,
+          // and the shared `Sheet` draws it `size-icon-sm` = 28px. Widened
+          // from the drawer's OWN className (card §2: never touch the shared
+          // component), so every other sheet keeps its 28px.
+          // R5-POLISH-STEP23 (TL, 22/9): white like the step-3 basket panel —
+          // the two hosts of `Basket` now share the surface as well as the
+          // markup, so the drawer never reads as a different component.
+          className="w-full! gap-0 bg-[var(--mk-canvas)] p-0 sm:max-w-[420px]! [&>[data-slot=sheet-close]]:size-11"
+          onCloseAutoFocus={() => {
+            if (!paintFirstRef.current) return;
+            paintFirstRef.current = false;
+            requestAnimationFrame(() => focusFirstUnpaintedRow(document));
+          }}
         >
+          {/* R5-TUTORIAL 0.1-7 — the kit3 CoachBar becomes the sheet's own
+              header band, first child of `SheetContent` (DS §3.32: "il
+              foglio arriva già aperto" — the bar docks to ITS top edge, not
+              the viewport's). Always before `SheetHeader`, never a second
+              strip stacked under it. */}
+          {showKit3CoachBar && tip && tourTip && (
+            <CoachBar
+              inSheet
+              n={tip.n}
+              text={tourTip.text}
+              last={tourTip.last}
+              onNext={handleTourNext}
+              onOff={() => tour.turnOff()}
+            />
+          )}
           <SheetHeader className="border-b border-border p-4">
             <SheetTitle>{t("cartTitle")}</SheetTitle>
             <SheetDescription className="sr-only">
@@ -116,185 +270,22 @@ export function CartMenu() {
             </SheetDescription>
           </SheetHeader>
 
-          {count === 0 ? (
-            <div
-              data-testid="cart-empty"
-              className="flex flex-1 flex-col items-center justify-center gap-4 p-6 text-center"
-            >
-              <p className="text-sm text-muted-foreground">{t("empty")}</p>
-              <SheetClose asChild>
-                <Button asChild variant="outline">
-                  <Link href="/configurator">{t("emptyCta")}</Link>
-                </Button>
-              </SheetClose>
-            </div>
-          ) : view === "cart" ? (
-            <>
-              <div
-                data-testid="cart-list"
-                className="flex-1 overflow-y-auto px-4"
-              >
-                {cart.map((line) => (
-                  <div
-                    key={line.id}
-                    data-testid="cart-line"
-                    className="border-b border-border/60 py-3 last:border-0"
-                  >
-                    <div className="flex gap-3">
-                      <CartLineThumb
-                        layers={line.layers}
-                        hex={thumbHex(line)}
-                        plateImage={line.plateImage}
-                      />
-                      <div className="min-w-0 flex-1">
-                        <p className="flex items-center gap-1.5 text-sm font-medium">
-                          <span className="truncate">
-                            {locale === "no" ? line.productNameNo : line.productNameEn}
-                          </span>
-                          {/* F29: same set marker as the step-3 docked row
-                              (`docked-cart` in ceramics-step.tsx) — the drawer
-                              was the last surface still hiding it. */}
-                          <SetBadge count={line.pieces ?? 1} className="shrink-0" />
-                        </p>
-                        <p className="truncate text-xs text-muted-foreground">
-                          {designLabel(line.configSnapshot, locale) ?? "—"}
-                        </p>
-                        <div className="mt-1.5 flex items-center gap-2">
-                          <div className="flex items-center rounded-sm border border-border">
-                            <button
-                              type="button"
-                              aria-label="-"
-                              onClick={() =>
-                                setQuantity(line.id, line.quantity - 1)
-                              }
-                              className="flex size-11 items-center justify-center sm:size-9"
-                            >
-                              −
-                            </button>
-                            <span className="w-7 text-center text-sm tabular-nums">
-                              {line.quantity}
-                            </span>
-                            <button
-                              type="button"
-                              aria-label="+"
-                              onClick={() =>
-                                setQuantity(line.id, line.quantity + 1)
-                              }
-                              className="flex size-11 items-center justify-center sm:size-9"
-                            >
-                              +
-                            </button>
-                          </div>
-                          <button
-                            type="button"
-                            data-testid="cart-remove"
-                            onClick={() => remove(line.id)}
-                            className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
-                          >
-                            {t("remove")}
-                          </button>
-                        </div>
-                        <CartDiscountNudge
-                          productQty={
-                            line.productId ? discount.qtyByProduct[line.productId] ?? 0 : 0
-                          }
-                          tiers={discountConfig.tiers}
-                          pct={discount.perLine[line.id]?.pct ?? 0}
-                          eligible={discount.perLine[line.id]?.tierEligible ?? false}
-                          pendingDeal={discount.perLine[line.id]?.pendingDeal}
-                        />
-                      </div>
-                      <span className="shrink-0 text-right">
-                        <CartLinePrice
-                          d={discount.perLine[line.id]}
-                          locale={locale}
-                        />
-                      </span>
-                    </div>
-
-                    <div className="mt-2">
-                      <button
-                        type="button"
-                        data-testid="cart-expand"
-                        aria-expanded={expandedId === line.id}
-                        onClick={() =>
-                          setExpandedId((id) => (id === line.id ? null : line.id))
-                        }
-                        className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
-                      >
-                        {expandedId === line.id
-                          ? `${t("line.collapse")} ▴`
-                          : `${t("line.expand")} ▾`}
-                      </button>
-                      {expandedId === line.id && (
-                        <CartLineRecap
-                          line={line}
-                          locale={locale}
-                          editSlot={
-                            <SheetClose asChild>
-                              <Link
-                                href={`/configurator?code=${encodeURIComponent(line.configCode)}&step=2`}
-                                data-testid="cart-edit-design"
-                                className="shrink-0 text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
-                              >
-                                ✎ {t("line.edit")}
-                              </Link>
-                            </SheetClose>
-                          }
-                        />
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <div className="px-4">
-                <CartSuggestion />
-              </div>
-
-              <SheetFooter className="border-t border-border">
-                <CartTotals />
-                {/* R-EXTRA AC8: stessa pillola dello stack step 3
-                    (`docked-checkout` in ceramics-step.tsx) — il drawer era
-                    rimasto l'ultimo punto d'invio ordine col bottone pieno
-                    vecchio. Camioncino e non freccia di avanzamento: l'ordine
-                    parte, non c'è uno step successivo nel wizard
-                    (nota-step3-cart.md). Testid invariato: cart.spec,
-                    order.spec, order-email.spec e evidence.spec lo usano. */}
-                <NextStepPill
-                  data-testid="cart-checkout"
-                  className="w-full"
-                  caption={t("checkoutKicker")}
-                  label={to("title")}
-                  arrow
-                  icon={
-                    <PillIcon>
-                      <Truck className="size-5 text-primary" />
-                    </PillIcon>
-                  }
-                  onClick={() => setView("checkout")}
-                />
-              </SheetFooter>
-            </>
-          ) : (
-            <div className="flex flex-1 flex-col overflow-y-auto p-4">
-              <button
-                type="button"
-                data-testid="cart-back"
-                onClick={() => setView("cart")}
-                className="mb-3 self-start text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
-              >
-                ← {t("backToCart")}
-              </button>
-              <OrderForm
-                cart={cart}
-                onSuccess={() => {
-                  clear();
-                  setOpen(false);
-                }}
-              />
-            </div>
-          )}
+          {/* `Basket`'s drawer host is `h-full` (it owns the scroller and the
+              fixed foot), so it needs a sized flex child to be full OF. */}
+          <div className="min-h-0 flex-1">
+            <Basket
+              host="drawer"
+              currentConfig={currentConfig}
+              // Finding 5: an unpainted row carries no `configSnapshot`, so
+              // without this its «choose colours» chip always pointed at the
+              // bare `/configurator` — step 1 with the catalog's first
+              // design. The URL the drawer is open over knows which design
+              // the customer is looking at.
+              fallbackDesignSlug={searchParams.get("design")}
+              onAddCeramics={() => setOpen(false)}
+              onPaintFirst={handlePaintFirst}
+            />
+          </div>
         </SheetContent>
       </Sheet>
 

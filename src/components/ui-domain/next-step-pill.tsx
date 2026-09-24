@@ -41,25 +41,9 @@ const SIZE: Record<PillSize, string> = {
     "[&_[data-pill-arrow]]:size-7 [&_[data-pill-arrow]]:text-[15px]",
 };
 
-/**
- * Gemello di `SIZE.sm` prefissato `max-md:`, per lo step 2: lì la pillola è
- * `sm` sotto md e quella di oggi sopra (AC5 + AC6), e una prop non ha
- * breakpoint. Passarlo in `className` invece che come `size` tiene AC6
- * letterale: sopra md non si aggiunge NESSUNA classe nuova.
- *
- * Scritto a mano e non derivato da `SIZE.sm`: Tailwind scansiona il sorgente,
- * una classe costruita a runtime non esisterebbe nella CSS. L'allineamento tra
- * le due stringhe è coperto da `next-step-pill.test.ts`, non dalla disciplina.
- */
-export const PILL_SM_UNDER_MD =
-  "max-md:gap-3 max-md:p-2 max-md:[&_[data-pill-icon]]:size-8 " +
-  "max-md:[&_[data-pill-icon]_svg]:size-4 max-md:[&_[data-pill-label]]:text-[14px] " +
-  "max-md:[&_[data-pill-caption]]:text-[10px] max-md:[&_[data-pill-arrow]]:size-7 " +
-  "max-md:[&_[data-pill-arrow]]:text-[15px]";
-
 /** Anello del cerchietto icona — segue la stessa scala di peso della superficie. */
 const ICON_RING: Record<PillVariant, string> = {
-  primary: "border-2 border-primary",
+  primary: "border-2 border-primary-foreground/50",
   secondary: "border-[1.5px] border-primary/60",
   tertiary: "border border-border",
 };
@@ -109,7 +93,9 @@ export function PillIcon({
  * dal back-office (ADR 0008) e deve restare agganciato.
  */
 const SURFACE: Record<PillVariant, string> = {
-  primary: "border-2 border-primary bg-primary/10 hover:bg-primary/20",
+  // R5-POLISH-STEP23 T4 (feedback 6): primary is FILLED — solid --primary,
+  // white type. One family: Order, step 1/2 Next, sticky bar, submit, Unpaint.
+  primary: "border-2 border-primary bg-primary text-primary-foreground hover:bg-primary/90",
   // Stesso fill del terziario (`--card`, il crema di "Del settet"): secondario
   // e terziario si distinguono SOLO per intensità di bordo e testo, così il
   // bottone è identico su qualunque sfondo. Trasparente no: prendeva il colore
@@ -124,7 +110,7 @@ export function NextStepPill({
   caption,
   arrow = false,
   variant = "primary",
-  size = "lg",
+  size = "sm",
   type = "button",
   onClick,
   disabled,
@@ -138,7 +124,14 @@ export function NextStepPill({
    *  — the order form swaps it for a spinner while the order is leaving. */
   arrow?: boolean | React.ReactNode;
   variant?: PillVariant;
-  /** R4-BTN-SCALE: `lg` (default) = la pillola di sempre. `sm` = i tier bassi. */
+  /**
+   * R4-BTN-SCALE gave the pill two sizes. R5-POLISH-STEP23 (TL, 22/9):
+   * «i bottoni next, order ecc devono essere tutti uguali — a volte sono di
+   * dimensione diversa e non ci piace». So the DEFAULT is `sm` now: a new
+   * call-site is uniform with every other pill unless it deliberately asks
+   * for `lg`, instead of being uniform only if someone remembers to pass
+   * the prop. No call-site passes `lg` today.
+   */
   size?: PillSize;
   /** R4-FIX Ⓕ: the order form submits with the pill, so it needs to BE the
    *  submit — a `<button type="button">` inside a form does nothing. Default
@@ -190,7 +183,10 @@ export function NextStepPill({
           // selector. Nothing else changes here.
           <span
             data-pill-caption
-            className="block text-[11px] uppercase tracking-[0.08em] text-foreground/75"
+            className={cn(
+              "block text-[11px] uppercase tracking-[0.08em]",
+              variant === "primary" ? "text-primary-foreground/80" : "text-foreground/75"
+            )}
           >
             {caption}
           </span>
@@ -216,7 +212,12 @@ export function NextStepPill({
           aria-hidden
           // `data-pill-arrow`: aggancio di taglia, come per icona/label/caption.
           data-pill-arrow
-          className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary text-lg leading-none text-primary-foreground"
+          className={cn(
+            "flex size-9 shrink-0 items-center justify-center rounded-full text-lg leading-none",
+            variant === "primary"
+              ? "bg-primary-foreground text-primary"
+              : "bg-primary text-primary-foreground"
+          )}
         >
           {arrow === true ? "›" : arrow}
         </span>

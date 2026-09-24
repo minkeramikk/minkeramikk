@@ -1,7 +1,5 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
-import { Link } from "@/i18n/navigation";
-import { Button } from "@/components/ui/button";
 import { CartLineThumb } from "@/components/ui-domain/cart-line-thumb";
 import { resolveSetPreviews } from "@/lib/orders/set-preview";
 import { getVippsSettings } from "@/lib/orders/vipps.server";
@@ -17,8 +15,6 @@ import {
 } from "@/lib/money/money";
 import { JOURNEY_STEPS } from "@/lib/orders/order-journey";
 import { assetUrl } from "@/lib/storage";
-import { siteUrl } from "@/lib/site";
-import { OrderShareButton } from "./share-button";
 import { CopyValue } from "./copy-code";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -67,7 +63,6 @@ export default async function OrderConfirmationPage({
   const { code, set, total } = await searchParams;
   const locale = rawLocale === "no" ? "no" : "en";
   const t = await getTranslations("order");
-  const ta = await getTranslations("actions");
   const tc = await getTranslations("common");
 
   if (!code) {
@@ -75,9 +70,6 @@ export default async function OrderConfirmationPage({
       <section className="mx-auto max-w-xl py-20 text-center">
         <h1 className="text-2xl font-semibold">{t("emptyTitle")}</h1>
         <p className="mt-3 text-muted-foreground">{t("emptyBody")}</p>
-        <Button asChild className="mt-6 rounded-mk px-8">
-          <Link href="/configurator">{ta("newDesign")}</Link>
-        </Button>
       </section>
     );
   }
@@ -106,11 +98,6 @@ export default async function OrderConfirmationPage({
     : null;
   const saved = netTotal ? subtract(subtotal, netTotal) : money(0, currency);
   const discounted = saved.amountCents > 0;
-
-  // CA-3 landing convention: ?step=3&set=… (set= is only resolved on step 3).
-  const shareUrl = set
-    ? `${siteUrl()}/${locale}/configurator?step=3&set=${set}`
-    : null;
 
   // R4-MAIL-JOURNEY: keys and order come from the shared module, so this page
   // and the emails cannot tell two different stories. The page is stateless by
@@ -386,13 +373,6 @@ export default async function OrderConfirmationPage({
           {tc("email")}
         </a>
       </p>
-
-      <div className="flex flex-wrap justify-center gap-3">
-        {shareUrl && <OrderShareButton url={shareUrl} />}
-        <Button asChild variant="outline" className="rounded-mk px-8">
-          <Link href="/configurator">{ta("newDesign")}</Link>
-        </Button>
-      </div>
     </section>
   );
 }

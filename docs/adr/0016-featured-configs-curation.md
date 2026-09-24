@@ -30,3 +30,11 @@ infrastruttura nuova per una curation.
 - (−) Thumb stale se l'admin cambia gli asset: accettato, refresh = re-save (documentato in UI admin).
 - (−) `payload` UNIQUE case-sensitive → normalizzazione nel parser prima dell'insert.
 - (?) "Popular" data-driven futuro (CA-5/tracking): la tabella può ospitare l'ordinamento automatico senza cambiare schema.
+
+## Amendment 2026-09-23 (R5-KIT)
+
+`kind ∈ {design, set, kit}` (migration 0041): un kit è una featured che atterra
+allo step 2 via `?step=2&kit=<D>~slug.qty…` (righe senza colori, unpainted).
+Stessa immagine del set equivalente, si distinguono solo per testo; set e kit
+mostrano il prezzo vivo a runtime (`featuredPrice`: stesse righe → stesso prezzo).
+Thumb: pre-composta di default, sostituibile dall'admin con un'immagine caricata (stesso campo `thumb_image`, stesso bucket `assets/featured/`).

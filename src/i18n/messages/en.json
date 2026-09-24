@@ -16,10 +16,8 @@
     "email": "bestilling@minkeramikk.no"
   },
   "actions": {
-    "copyCode": "Copy code",
     "copy": "Copy",
-    "copied": "Copied",
-    "newDesign": "Build a new design"
+    "copied": "Copied"
   },
   "nav": {
     "configurator": "Build your design",
@@ -82,6 +80,8 @@
       "tabsLabel": "Categories",
       "tabCount": "{name} ({count})",
       "wishesTab": "Colour wishes",
+      "paletteStripUnsaved": "· unsaved",
+      "paletteStripSaved": "· saved · this palette paints new ceramics",
       "inspirationPhotos": "Inspiration photos",
       "configureHeading": "Configure your design",
       "scrollTabsBack": "Scroll categories back",
@@ -89,6 +89,9 @@
       "scrollOptionsBack": "Scroll options back",
       "scrollOptionsForward": "Scroll options forward",
       "optionsLabel": "Colours and motifs"
+    },
+    "tabs": {
+      "inscription": "Inscription"
     },
     "photos": {
       "photosLabel": "Photos of the design",
@@ -108,9 +111,9 @@
       "close": "Close"
     },
     "stickyBar": {
-      "title": "Your order",
       "pieces": "{count, plural, one {# piece} other {# pieces}}",
-      "saved": "saved {amount}"
+      "saved": "saved {amount}",
+      "unpainted": "{count} unpainted"
     },
     "steps": {
       "design": "1. Design",
@@ -140,7 +143,13 @@
       "title": "Popular designs",
       "curated": "curated by the shop",
       "prev": "Previous",
-      "next": "Next"
+      "next": "Next",
+      "kitBadge": "Kit · {count, plural, one {# piece} other {# pieces}}",
+      "coloursYours": "Colours: <b>yours to choose</b>",
+      "coloursReady": "Colours: ready to order",
+      "buildYourOwn": "Design · build your own",
+      "colourKit": "Colour this kit",
+      "seeSet": "See the set"
     },
     "customNotes": {
       "title": "Your colour notes",
@@ -148,19 +157,32 @@
       "optionCustom": "I'll choose the colours myself",
       "placeholder": "e.g. brown dog with white spots",
       "helper": "Doesn't change the preview — it travels to the workshop with your order.",
-      "counter": "{count}/250",
+      "counter": "{count}/{max}",
       "selectedFigure": "Selected figure"
     },
     "customText": {
       "title": "Text on the ceramic",
-      "helper": "The workshop confirms the final wording before production — it doesn't change the preview.",
-      "counter": "{count}/{max}"
+      "helper": "The preview shows the words and where they sit. The workshop confirms the wording and paints it by hand.",
+      "counter": "{count}/{max}",
+      "position": {
+        "centre": "Centre",
+        "top": "Top",
+        "bottom": "Bottom",
+        "back": "Back",
+        "backHelper": "The back isn't shown in the preview — the workshop paints it there instead.",
+        "required": "Pick where the words go before moving on."
+      }
     },
     "yourSelection": {
-      "kicker": "Your selection",
-      "edit": "Edit colours",
-      "editShort": "Edit",
       "pairCaption": "This ceramic + your design"
+    },
+    "designSwitch": {
+      "label": "Design",
+      "covers": "{count, plural, one {covers # ceramic} other {covers # ceramics}}",
+      "coversShort": "{count, plural, one {# ceramic} other {# ceramics}}",
+      "sheetTitle": "Choose design",
+      "sheetSubtitle": "The colours reload with it",
+      "loaderDesignAlt": "Loading {design}"
     },
     "ladder": {
       "title": "Buy more – save more",
@@ -210,13 +232,17 @@
       "continue": "Keep shopping"
     },
     "cartTitle": "Basket",
+    "chooseColours": "Choose colours in step 2 ›",
     "empty": "Your basket is empty",
     "emptyCta": "Back to the configurator",
+    "addCeramics": "+ Add ceramics",
+    "saved": "−{amount} saved",
     "remove": "Remove",
     "subtotal": "Subtotal",
     "total": "Total price",
     "design": "Design",
     "button": "{count, plural, =0 {Cart, empty} one {Cart, # item} other {Cart, # items}}",
+    "buttonUnpainted": "{count, plural, =0 {Cart, empty} one {Cart, # item} other {Cart, # items}}, {unpainted} unpainted",
     "description": "Review your items and send your order.",
     "viewBasket": "View basket",
     "backToCart": "Back to basket",
@@ -225,8 +251,6 @@
     "insurance": {
       "title": "Insured shipping",
       "included": "Included",
-      "toBeConfirmed": "To be confirmed",
-      "plusShipping": "+ shipping",
       "nudge": "Free shipping over {threshold} — add {amount}",
       "policyShort": "Every shipment is insured. If anything arrives damaged, let us know within 48 hours — we'll replace it free of charge. Tip: film the unboxing if you can.",
       "readMore": "Read more",
@@ -234,7 +258,17 @@
     },
     "itemCount": "{count, plural, =0 {Empty} one {# item} other {# items}}",
     "share": {
-      "button": "Share this set",
+      "button": "Share this basket",
+      "eyebrow": "Admin",
+      "title": "Share this basket",
+      "lead": "Send the basket as it is, or as a kit to paint.",
+      "asSet": "As a set",
+      "asSetHint": "They get exactly these colours. Ready to order.",
+      "asKit": "As a kit",
+      "asKitHint": "Colours stripped. They choose their own, on these pieces.",
+      "priceLine": "{price} · {count, plural, one {# piece} other {# pieces}}",
+      "linkLabel": "Link",
+      "copy": "Copy link",
       "copied": "Link copied",
       "manual": "Copy this link — anyone who opens it finds this set",
       "tooBig": "This set is too big for a link",
@@ -250,11 +284,41 @@
       "unavailable": "{count, plural, one {# item is no longer available} other {# items are no longer available}}"
     },
     "line": {
+      "seePhotos": "See the ceramic",
       "expand": "Show details",
       "collapse": "Hide details",
-      "edit": "Edit design",
       "ceramic": "Ceramic",
-      "customText": "Inscription"
+      "customText": "Inscription",
+      "config": "Config",
+      "palette": "Palette",
+      "price": "Price",
+      "code": "Code",
+      "pieces": "{count, plural, one {# piece} other {# pieces}}"
+    },
+    "unpainted": {
+      "label": "Unpainted",
+      "note": "{count, plural, one {# piece is} other {# pieces are}} still unpainted — choose a palette on the row, then Paint.",
+      "removeAll": "Remove all",
+      "paint": "Paint",
+      "cta": "Paint {count, plural, one {# piece} other {# pieces}} first",
+      "paintCount": "How many to paint",
+      "pickerLabel": "Choose a palette",
+      "notCovered": "{design} doesn't cover this ceramic",
+      "notCoveredSuffix": "· doesn't cover"
+    },
+    "unpaint": {
+      "action": "Unpaint…"
+    },
+    "unpaintDialog": {
+      "eyebrow": "Unpaint",
+      "title": "Take the colours off — keep the ceramic.",
+      "body": "The {unit} go back to <b>unpainted</b> in your basket, same price and discount. Paint them again later.",
+      "unitPiece": "{count, plural, one {piece} other {pieces}}",
+      "unitSet": "{count, plural, one {set} other {sets}}",
+      "howMany": "How many?",
+      "all": "All {n}",
+      "confirm": "Unpaint {n} {unit}",
+      "keepPainted": "Keep them painted"
     },
     "colourBadge": {
       "custom": "Custom colours",
@@ -282,12 +346,33 @@
     "addedWithPct": "Added to your basket · −{pct}%",
     "sheetOffer": {
       "taken": "Added to the basket"
+    },
+    "textPosition": {
+      "top": "Top",
+      "bottom": "Bottom",
+      "back": "Back"
+    }
+  },
+  "kit": {
+    "strip": {
+      "title": "A kit from minkeramikk",
+      "subtitle": "{count, plural, one {# piece} other {# pieces}} · colours to choose",
+      "painted": "{painted} of {total} painted"
+    },
+    "fixedDesign": "Design: {name} — fixed by the kit",
+    "welcome": {
+      "eyebrow": "A kit from minkeramikk",
+      "title": "{count, plural, one {# piece} other {# pieces}}, waiting for your colours",
+      "body": "They're already in your basket. Choose the colours here — once for all of them, or piece by piece.",
+      "show": "Show me how",
+      "self": "I'll have a look myself"
     }
   },
   "order": {
     "title": "Order",
     "sending": "Sending…",
     "error": "Something went wrong. Please try again.",
+    "unpaintedError": "Some pieces in your basket are still unpainted — paint them before you order.",
     "success": "Order sent!",
     "confirmTitle": "Thank you for your order!",
     "confirmLead": "We have received your order. You will get an email shortly with your receipt and payment details.",
@@ -319,8 +404,62 @@
     "recapTotal": "Total",
     "discountLabel": "Discount",
     "contactQuestion": "Questions about your order?",
-    "shareCta": "Share your set",
-    "shareCopied": "Link copied!",
     "pieceCount": "{count, plural, one {# piece} other {# pieces}}"
+  },
+  "palettes": {
+    "chip": {
+      "unsaved": "Unsaved",
+      "rename": "Rename",
+      "renameLabel": "Palette name",
+      "delete": "Delete palette",
+      "confirmDelete": "Delete? Tap again"
+    },
+    "bar": {
+      "eyebrowManage": "Your palettes",
+      "eyebrowPaint": "Painting with",
+      "manageCount": "{count} of {max} saved",
+      "paintHintDraft": "These colours aren't saved yet",
+      "paintHintSaved": "Tap a chip to switch",
+      "save": "Save as palette",
+      "new": "New palette"
+    },
+    "card": {
+      "paintingNow": "Painting now",
+      "switchTo": "Switch to",
+      "editColours": "Edit colours",
+      "showAll": "Show all {count}",
+      "showFewer": "Show fewer",
+      "emptyHint": "No other palettes to switch to yet. Save one from the colour step and it shows up here.",
+      "help": "About palettes",
+      "helpClose": "Close",
+      "helpManage": "The colours you pick become a <b>palette</b>. <b>Save it</b> to reuse it on other pieces — up to {max}. Saved ones stay here to switch between.",
+      "helpNow": "This is the palette you're painting with.{saved, plural, =0 {} one {} other { Tap another saved one to switch — the next ceramic you tap comes in those colours.}}"
+    },
+    "sheet": {
+      "trigger": "Palettes",
+      "newHint": "opens step 2",
+      "hintSaved": "Tap a tile to switch"
+    }
+  },
+  "tour": {
+    "next": "Next ›",
+    "done": "Done",
+    "off": "Turn tips off",
+    "replay": "Show me the tips again",
+    "step1": {
+      "1": "Pick a <b>design</b> and build your own.{featured, select, yes { Or take a ready-made <b>set or kit</b> above.} other {}}",
+      "2": "All set? Tap <b>Continue</b>."
+    },
+    "step2": {
+      "1": "Pick <b>one option per lane</b>. The plate above shows them straight away.",
+      "2": "Done? <b>Go to your ceramics</b>{count, plural, =0 {.} one { — # piece is waiting there, ready to paint.} other { — # pieces are waiting there, ready to paint.}}"
+    },
+    "step3": {
+      "1": "You're painting with <b>this palette</b>.{saved, plural, =0 {} one {} other { Switch to another saved one any time.}}",
+      "2": "<b>Pick your ceramics</b>: tap one, it comes in this palette."
+    },
+    "kit3": {
+      "1": "These <b>{count, plural, one {# piece} other {# pieces}}</b> have no colours yet. <b>Paint</b> them."
+    }
   }
 }

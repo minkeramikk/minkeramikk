@@ -21,6 +21,19 @@ export function isVariantPath(path: string): boolean {
   return VARIANT_SUFFIX_RE.test(path);
 }
 
+/**
+ * R5-POLISH-STEP23: re-point an already-built variant URL at another width.
+ * A cart line bakes `plateImage` at PRODUCT_THUMB_WIDTH when the piece is
+ * added (it is a 48px thumb there), and the basket lightbox then shows that
+ * same URL at ~520px, where 256px is visibly soft. Every width in
+ * `variantWidths` is pre-generated, so the bigger one is a string swap — no
+ * cart migration, and legacy carts get it too. Anything that is not a variant
+ * URL (an F22 CDN seed, a master path) comes back untouched.
+ */
+export function atVariantWidth(url: string, width: number): string {
+  return url.replace(VARIANT_SUFFIX_RE, `@${width}.webp`);
+}
+
 export type AssetClass =
   | "swatches"
   | "animal"

@@ -1,6 +1,19 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { Undo2 } from "lucide-react";
+import {
+  INSCRIPTION_ARC_FONT_SIZE,
+  INSCRIPTION_ARC_RADIUS,
+  INSCRIPTION_CENTER_Y,
+  INSCRIPTION_FIT_PASSES,
+  INSCRIPTION_FONT_SIZE,
+  INSCRIPTION_MAX_WIDTH,
+  arcFit,
+  scaleForLength,
+  shrinkStep,
+} from "@/lib/configurator/inscription";
+import type { TextPosition } from "@/lib/configurator/text-position";
 
 export interface PreviewLayer {
   src: string;
@@ -12,14 +25,35 @@ export interface PreviewLayer {
  * Live design preview (DESIGN-SYSTEM §3.11) — the continuity element of the
  * configurator (F14):
  * - first paint is the composed plate (layers from SSR), never a hole;
- * - changing design cross-fades ~200ms: the OLD layers stay painted until the
- *   NEW ones have loaded, then the new ones fade in and REPLACE them (no stale
- *   layers left behind, no white flash);
+ * - changing design cross-fades gently: the OLD layers stay painted until the
+ *   NEW ones have loaded, then the new ones ease in and REPLACE them (no stale
+ *   layers left behind, no white flash); the loader itself fades out on top
+ *   of the incoming art instead of blinking away;
  * - `prefers-reduced-motion: reduce` → no fade, immediate swap once loaded;
  * - skeleton shows only when there is genuinely nothing to display yet.
  */
 
 const FADE_MS = 200;
+
+/** Loader hold once the new design is ready: the spinner has a trailing fade
+ *  so its exit is as gentle as its entrance. `ease-out` = fast start, soft
+ *  landing — the eye reads "arrived" without a blink. */
+const LOADER_EXIT_MS = 350;
+
+/**
+ * Il riquadro dell'arte dentro il frame. Era un letterale dentro `LayerStack`;
+ * ora lo usano in due (lo stack e la scritta viva) e devono restare la STESSA
+ * scatola, altrimenti la scritta scivola rispetto al piatto.
+ */
+const ART_BOX = "h-[84%] w-[84%]";
+
+/**
+ * `useLayoutEffect` avvisa in SSR, e questo componente renderizza anche lì
+ * (un `?text=` nell'URL arriva già pieno dal server). Il misuratore serve solo
+ * nel browser: in SSR non c'è niente da misurare.
+ */
+const useIsoLayoutEffect =
+  typeof window === "undefined" ? useEffect : useLayoutEffect;
 
 const keyOf = (layers: PreviewLayer[]) => layers.map((l) => l.src).join("|");
 
@@ -37,6 +71,51 @@ function preloadAll(layers: PreviewLayer[]): Promise<void> {
   ).then(() => undefined);
 }
 
+/**
+ * Le alici che girano: SEMPRE questo layer fisso dal bucket vecchio
+ * (URL diretto, voluto: sul bucket live l'oggetto non esiste — 404
+ * NoSuchKey). Non il motivo corrente: quello cambia per design; le alici
+ * sono l'icona fissa dello spinner. `spinplate` verbatim dal mockup, con
+ * il suo guard reduced-motion.
+ */
+const SARDINES_SRC =
+  "https://lfphyfkuuszqazkioxlr.supabase.co/storage/v1/object/public/assets/designs/ansjos-pastatallerken/tree/1-layer@512.webp";
+function SpinnerMotif({ label }: { label?: string }) {
+  return (
+    <div aria-hidden="true" className="spinplate relative h-[62%] w-[62%]">
+      {/* eslint-disable-next-line @next/next/no-img-element -- catalog art from storage, same as LayerStack */}
+      <img
+        src={SARDINES_SRC}
+        alt=""
+        className="absolute inset-0 h-full w-full object-contain"
+        style={{ mixBlendMode: "multiply" }}
+      />
+      {/* Scritta DENTRO il giro: resta ferma al centro mentre le alici
+          ruotano attorno (il padre gira, questo contro-gira alla stessa
+          velocità — tecnica standard per testo stabile su spinner).
+          Stessa veste delle scritte sul piatto (R5-TEXT-LIVE): Lora
+          corsivo — il font che lo studio usa per dipingere. */}
+      {label ? (
+        <span className="spinplate-counter absolute inset-0 grid place-items-center">
+          <span
+            className="block max-w-[70%] text-center text-[13px] leading-snug"
+            style={{
+              fontFamily:
+                'var(--font-inscription), "Times New Roman", Times, serif',
+              fontStyle: "italic",
+              fontWeight: 500,
+              color: "var(--mk-dark)",
+              opacity: 0.78,
+            }}
+          >
+            {label}…
+          </span>
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
 function LayerStack({
   layers,
   alt,
@@ -48,7 +127,7 @@ function LayerStack({
 }) {
   return (
     <div
-      className="relative h-[84%] w-[84%]"
+      className={`relative ${ART_BOX}`}
       style={{
         // R4-CANVAS-WHITE AC7: era 18%. Su fondo caldo leggeva morbida; su
         // `--mk-canvas` (bianco pieno) la stessa ombra diventa un alone grigio
@@ -74,17 +153,347 @@ function LayerStack({
   );
 }
 
+/**
+ * R5-TEXT-LIVE — le parole del cliente sul piatto, mentre le scrive.
+ *
+ * `aria-hidden`: le stesse parole sono nel campo che ha appena scritto, uno
+ * screen reader le direbbe due volte. `pointer-events-none`: è un'anteprima,
+ * non un bersaglio.
+ */
+function Inscription({ text }: { text: string }) {
+  const ref = useRef<HTMLSpanElement>(null);
+  // La rampa sulla lunghezza non ha bisogno del DOM, quindi entra già nel
+  // render: senza, il primo disegno (SSR o idratazione, quando la pagina
+  // arriva con un `?text=`) uscirebbe a corpo pieno e TAGLIATO, per saltare
+  // subito dopo alla misura giusta. La misura la raffina l'effetto, e la
+  // raffina solo in basso.
+  const scale = scaleForLength(Array.from(text).length);
+
+  useIsoLayoutEffect(() => {
+    const el = ref.current;
+    const box = el?.parentElement;
+    // Il quadrato del piatto. Si osserva LUI e non la scatola del testo: la sua
+    // larghezza non dipende dal corpo, quindi la misura non rincorre sé stessa.
+    const square = box?.parentElement;
+    if (!el || !box || !square) return;
+
+    const measure = () => {
+      // Il taglio si accende SOLO da qui. Nell'HTML del server `--fit` non è
+      // ancora stato scritto da nessuno e il blocco può venire più alto del
+      // dovuto: con `overflow:hidden` in classe, quel primo fotogramma
+      // uscirebbe con tre puntini per poi saltare alla misura giusta.
+      el.style.overflow = "hidden";
+
+      let fit = scale;
+      el.style.setProperty("--fit", String(fit));
+
+      // Il blocco deve stare in `INSCRIPTION_MAX_LINES` righe, e una parola
+      // sola non deve mai essere più larga della scatola. Non si calcola: si
+      // guarda com'è venuto e si stringe di un passo, al massimo
+      // `INSCRIPTION_FIT_PASSES` volte. Una formula non c'è, perché quante
+      // righe servano dipende da DOVE cadono gli spazi, e quello lo sa solo il
+      // browser che ha appena mandato il testo a capo.
+      for (let pass = 0; pass < INSCRIPTION_FIT_PASSES; pass++) {
+        const lineHeight = parseFloat(getComputedStyle(el).lineHeight);
+        // Zero = il riquadro è chiuso (`display:none`, vedi sotto); NaN = il
+        // line-height è tornato `normal` e non so quanto è alta una riga. In
+        // entrambi i casi «non so» deve voler dire «non tocco»: con un ripiego
+        // a 1 il conto delle righe direbbe ~20 e il ciclo inchioderebbe ogni
+        // scritta al pavimento, in silenzio.
+        if (!(lineHeight > 0)) break;
+        const next = shrinkStep(fit, {
+          tooWide: el.scrollWidth > el.clientWidth,
+          lines: Math.round(el.scrollHeight / lineHeight),
+        });
+        if (next === null) break;
+        fit = next;
+        el.style.setProperty("--fit", String(fit));
+      }
+    };
+    measure();
+
+    // Il riquadro può valere **zero**: a step 1 su telefono la colonna
+    // dell'anteprima resta montata e solo `display:none` (F14, mai un
+    // rimontaggio). Lì la misura non dice niente di utile, e senza questo
+    // osservatore ci si resterebbe anche dopo, con una dedica lunga troncata
+    // invece che mandata a capo.
+    const ro = new ResizeObserver(measure);
+    ro.observe(square);
+
+    // Il font arriva DOPO. `next/font` serve Lora con `display: swap`, quindi
+    // la prima misura può cadere sul ripiego, che ha le metriche di Times e non
+    // di Lora: il fattore resterebbe cablato su larghezze di glifo sbagliate, e
+    // quando Lora atterra il blocco si riflowa senza che nessuno rimisuri.
+    // Peggio ancora perché il ciclo si ferma al PRIMO fattore che sta: atterra
+    // sempre sul filo delle due righe, cioè nel punto peggiore in cui farsi
+    // cambiare le metriche sotto i piedi. Il riquadro non cambia dimensione
+    // quando cambia un font, quindi il `ResizeObserver` qui non aiuta.
+    let alive = true;
+    document.fonts?.ready.then(() => {
+      if (alive) measure();
+    });
+
+    return () => {
+      alive = false;
+      ro.disconnect();
+    };
+  }, [text, scale]);
+
+  return (
+    <div
+      aria-hidden="true"
+      data-testid="preview-inscription"
+      className="pointer-events-none absolute left-1/2 -translate-x-1/2 -translate-y-1/2 text-center"
+      style={{
+        top: `${INSCRIPTION_CENTER_Y}%`,
+        // Larghezza FISSA, non `max-width`: con un massimo la scatola si
+        // stringe sul testo, quindi «quanto spazio c'è» e «quanto testo c'è»
+        // diventano lo stesso numero — la misura non ha più un muro contro cui
+        // confrontarsi e la riga finisce sempre larga quanto la sua scatola, al
+        // decimo di pixel. Da lì i tre puntini: basta un arrotondamento e il
+        // browser si mangia le ultime lettere. Fissa, il muro è il muro, e
+        // l'aria viene dal ciclo, che stringe di un passo intero (10%) e quindi
+        // non atterra mai sul confine.
+        width: `${INSCRIPTION_MAX_WIDTH}cqmin`,
+      }}
+    >
+      <span
+        ref={ref}
+        // Va a capo, ma solo negli spazi: una parola non si spezza mai a metà
+        // (ruling TL 20/9). Se una parola sola è più larga della scatola, a
+        // rimpicciolirla ci pensa il ciclo di misura, e sotto il pavimento
+        // arrivano i puntini. Attenzione a cosa promette questa riga: i puntini
+        // sono orizzontali, quindi valgono SOLO per una parola sola più larga
+        // della scatola. Un blocco che al pavimento vuole ancora tre righe le
+        // disegna — `INSCRIPTION_MAX_LINES` è un obiettivo del ciclo, non una
+        // garanzia del ritaglio. A quel corpo il blocco resta comunque dentro
+        // la campitura vuota: è una promessa imprecisa, non un pixel fuori.
+        className="block text-ellipsis"
+        style={{
+          // Corsivo vero, non l'italico di un font da interfaccia: quello che
+          // lo studio dipinge è calligrafia. La famiglia è dichiarata una volta
+          // sola, in `layout.tsx`, col perché di quella scelta e non di un'altra.
+          // Il ripiego è Times e non Georgia: a parità di corpo Georgia ha aste
+          // più spesse e occhio più grande, e sul piatto sembrava scritta in
+          // grassetto accanto ai tratti sottili dell'arte.
+          fontFamily: 'var(--font-inscription), "Times New Roman", Times, serif',
+          fontStyle: "italic",
+          fontWeight: 500,
+          color: "var(--mk-dark)",
+          opacity: 0.78,
+          // Il primo fotogramma servito dal server non è misurato: la rampa
+          // conosce la lunghezza, non DOVE cadono gli spazi, che è ciò che
+          // decide quante righe vengono. Una dedica lunga può quindi uscire su
+          // tre righe per un fotogramma, e all'idratazione tornare a due.
+          // Scelta voluta: l'alternativa è partire tutti da
+          // `INSCRIPTION_SCALE_LONG`, che farebbe saltare ANCHE le dediche
+          // corte — il caso comune — per proteggere quello raro. Il blocco a
+          // tre righe resta comunque dentro la campitura vuota (angoli a
+          // ±6,6cqmin, mezza corda 8,79cqmin).
+          // Il fallback è la rampa sulla lunghezza, non 1: al primo disegno `--fit` non è
+          // ancora stato scritto da nessuno, e senza questo una pagina che
+          // arriva con un `?text=` uscirebbe a corpo pieno e TAGLIATA prima
+          // dell'idratazione. La rampa dipende solo dalla lunghezza, quindi il
+          // server la sa già. NON va messo `--fit` dentro `style`: React lo
+          // riapplicherebbe a ogni render del padre, cancellando la misura che
+          // l'effetto (deps `[text]`) non rifarebbe.
+          fontSize: `calc(var(--fit, ${scale}) * ${INSCRIPTION_FONT_SIZE}cqmin)`,
+          lineHeight: 1.2,
+        }}
+      >
+        {text}
+      </span>
+    </div>
+  );
+}
+
+/**
+ * R5-TEXT-POSITION (0.1-6) — Topp/Bunn: la scritta corre sull'arco interno
+ * del piatto, `<textPath>` su un `<svg viewBox="0 0 100 100">` montato nella
+ * STESSA scatola `100cqmin` del centre (sostituisce `<Inscription>`, non la
+ * affianca). Stessa tecnica di misura del centre (mutazione diretta del DOM
+ * in un `useIsoLayoutEffect`, niente stato React per il fattore — altrimenti
+ * ogni render del padre la cancellerebbe): `arcFit` è puro, qui solo si legge
+ * `getComputedTextLength()` e si applica.
+ */
+function ArcInscription({
+  text,
+  position,
+}: {
+  text: string;
+  position: "top" | "bottom";
+}) {
+  const rawId = useId().replace(/[^a-zA-Z0-9]/g, "");
+  const pathId = `inscription-arc-${rawId}`;
+  const textElRef = useRef<SVGTextElement>(null);
+  const textPathRef = useRef<SVGTextPathElement>(null);
+
+  useIsoLayoutEffect(() => {
+    const textEl = textElRef.current;
+    const pathEl = textPathRef.current;
+    if (!textEl || !pathEl) return;
+    let fit = 1;
+    textEl.style.fontSize = String(INSCRIPTION_ARC_FONT_SIZE * fit);
+    for (let pass = 0; pass < INSCRIPTION_FIT_PASSES; pass++) {
+      const next = arcFit(pathEl.getComputedTextLength(), INSCRIPTION_ARC_RADIUS, fit);
+      if (next === fit) break;
+      fit = next;
+      textEl.style.fontSize = String(INSCRIPTION_ARC_FONT_SIZE * fit);
+    }
+  }, [text]);
+
+  // Bunn = lo stesso arco specchiato (sweep-flag 0), stesso verso
+  // sinistra→destra di Topp (testo leggibile, non capovolto).
+  //
+  // Bug misurato dopo la review (R5-TEXT-POSITION, follow-up): con lo stesso
+  // verso del percorso, i glyph di un `<textPath>` si appoggiano SEMPRE dalla
+  // stessa parte della baseline in coordinate assolute (quella verso y più
+  // piccola) — per Topp è il lato del bordo (giusto), per Bunn è il lato del
+  // CENTRO (sbagliato: la scritta finiva a metà piatto, baseline reale
+  // misurata a y≈69 invece di ≈78, la review "troppo alto"). Invertire anche
+  // il verso del percorso sposta i glyph dal lato giusto ma li capovolge
+  // (ogni lettera ruota di 180°, letta com'è resta illeggibile). `side="right"`
+  // (SVG2, Firefox 68+/Chrome 105+/Safari 16.4+) fa esattamente questo senza
+  // capovolgere i glyph: sposta il rendering sull'altro lato della baseline
+  // mantenendo l'orientamento verticale e l'ordine di lettura.
+  // Semicerchio pieno (raggio = metà corda): il punto di partenza e la corda
+  // seguono `INSCRIPTION_ARC_RADIUS` invece di stare cablati, o cambiare il
+  // raggio (review 24/9: 0,60 R → 0,70 R) rompe silenziosamente la geometria.
+  const startX = 50 - INSCRIPTION_ARC_RADIUS;
+  const chord = 2 * INSCRIPTION_ARC_RADIUS;
+  const d = `M ${startX},50 a ${INSCRIPTION_ARC_RADIUS},${INSCRIPTION_ARC_RADIUS} 0 0 ${position === "top" ? 1 : 0} ${chord},0`;
+  const side = position === "bottom" ? "right" : undefined;
+
+  return (
+    <svg
+      viewBox="0 0 100 100"
+      className="pointer-events-none absolute inset-0"
+      aria-hidden="true"
+      data-testid="preview-inscription"
+      data-pos={position}
+    >
+      <path id={pathId} d={d} fill="none" />
+      <text
+        ref={textElRef}
+        style={{
+          fontFamily: 'var(--font-inscription), "Times New Roman", Times, serif',
+          fontStyle: "italic",
+          fontWeight: 500,
+          fill: "var(--mk-dark)",
+          opacity: 0.78,
+          fontSize: String(INSCRIPTION_ARC_FONT_SIZE),
+        }}
+      >
+        <textPath
+          ref={textPathRef}
+          href={`#${pathId}`}
+          startOffset="50%"
+          textAnchor="middle"
+          // `side` è SVG2 (Firefox 68+/Chrome 105+/Safari 16.4+): non ancora
+          // nei tipi di React, da qui il cast isolato a questo solo attributo.
+          {...(side ? ({ side } as React.SVGAttributes<SVGTextPathElement>) : {})}
+        >
+          {text}
+        </textPath>
+      </text>
+    </svg>
+  );
+}
+
+/**
+ * R5-TEXT-POSITION (0.1-7) — Bakside: nessuna anteprima sul piatto (il retro
+ * non è mai inquadrato), una pill lo dice al posto della scritta. `backLabel`
+ * arriva già tradotto dal chiamante (next-intl vive lì, non qui — stesso
+ * schema di `caption`), niente stringa norvegese cablata in un componente
+ * condiviso.
+ */
+/**
+ * R5-TEXT-POSITION (fix review visiva 2, corretto in chat) — Bakside non ha
+ * anteprima sul piatto, ma il testo resta dentro il riquadro del canvas
+ * (sfondo bianco del piatto, non la pagina) — decisione confermata in
+ * review dopo un primo tentativo di spostarla sotto il canvas, scartato.
+ * Il bug vero non era "dentro il frame": era `absolute bottom-3
+ * left-1/2 -translate-x-1/2` senza limite di larghezza, che su un
+ * frame reso rettangolare stretto dall'editor mobile
+ * (`max-md:[&_[data-canvas-frame]]:h-full/w-full`, non più quadrato)
+ * poteva uscire dai bordi con un testo lungo. `inset-x-2` + `max-w-full` +
+ * `truncate` la tengono dentro il riquadro qualunque sia il suo aspect
+ * ratio, invece di fidarsi che resti sempre quadrato.
+ *
+ * `<div>`, non `<p>`: il canvas SPEGNE ogni `<p>` sotto md
+ * (`max-md:[&_p]:hidden`, editor mobile) per via della sua didascalia
+ * duplicata fuori dal componente — un `<p>` qui sparirebbe in silenzio.
+ */
+function BackTag({ text, backLabel }: { text: string; backLabel: string }) {
+  return (
+    <div
+      data-testid="back-tag"
+      className="pointer-events-none absolute inset-x-2 bottom-2 flex max-w-full items-center justify-center gap-1.5 truncate rounded-full bg-[var(--mk-canvas)]/90 px-3 py-1.5 text-[11px] text-foreground shadow-(--shadow-card)"
+    >
+      <Undo2 aria-hidden="true" size={12} className="shrink-0" />
+      <span className="truncate">
+        {backLabel} ·{" "}
+        <span style={{ fontFamily: 'var(--font-inscription), "Times New Roman", Times, serif', fontStyle: "italic" }}>
+          {text}
+        </span>
+      </span>
+    </div>
+  );
+}
+
 export function PreviewCanvas({
   layers,
   caption,
   alt,
+  inscription,
+  inscriptionPosition = "centre",
+  backLabel,
   className,
+  /**
+   * R5-DESIGN-SWITCH T2: the design currently on screen (slug). The loader
+   * fires ONLY when THIS changes: a color tap keeps the same design, so it
+   * stays a plain fade. Absent (callers that never switch design) = never.
+   *
+   * Screen-reader copy for the loader (`role="status"`): passed through
+   * the optional `loadingDesignLabel` prop ("Loading {design}", col nome);
+   * la scritta VISIBILE al centro delle alici è `loadingLabel` (solo
+   * "Loading…", mai il nome). `alt` stays the stable design name.
+   *
+   * `pendingDesignKey`: design già scelto ma non ancora arrivato via
+   * navigazione RSC. Il `designKey` cambia solo DOPO il round-trip — troppo
+   * tardi per dare feedback — quindi il loader si accende subito su questo
+   * (stesso concetto del `S.pendingDesign` del demo kit). Solo cambio
+   * design: tap colore, palette, opzioni non lo settano mai.
+   */
+  designKey,
+  loadingLabel,
+  loadingDesignLabel,
+  pendingDesignKey,
 }: {
   layers: PreviewLayer[];
   /** Rich node, not just text: the configurator caption carries a link. */
   caption?: React.ReactNode;
   alt: string;
+  /**
+   * R5-TEXT-LIVE: la scritta del cliente, già decisa dal chiamante (vedi
+   * `showsLiveInscription`). Assente = anteprima di sempre.
+   */
+  inscription?: string;
+  /**
+   * R5-TEXT-POSITION: dove sta la scritta. `centre` (default) = comportamento
+   * di sempre. `back` non disegna niente sul piatto — vedi `backLabel`.
+   */
+  inscriptionPosition?: TextPosition;
+  /** Solo per `inscriptionPosition="back"`: label già tradotta (es. "Bakside") —
+   *  next-intl vive nel chiamante, non qui, stesso schema di `caption`. */
+  backLabel?: string;
   className?: string;
+  designKey?: string;
+  /** Visibile al centro delle alici: solo "Loading…", mai il nome design. */
+  loadingLabel?: string;
+  /** Solo screen reader (`aria-label`): "Loading {design}", col nome. */
+  loadingDesignLabel?: string;
+  pendingDesignKey?: string | null;
 }) {
   const targetKey = keyOf(layers);
 
@@ -98,12 +507,18 @@ export function PreviewCanvas({
     key: string;
     layers: PreviewLayer[];
   } | null>(null);
+  // Cross-fade interno dei layer (preload + fade): guida solo la
+  // transizione dell'arte. Il loader NON lo decide lui: solo
+  // `pendingDesignKey` (unico stato, nel client). `designKey` resta prop
+  // per coerenza futura, ma nessun confronto show/hide lo legge più.
+  const committedDesign = useRef<string | undefined>(designKey);
   const [fadeIn, setFadeIn] = useState(false);
   const commitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (targetKey === shown.key) {
       setIncoming(null); // back to current set: drop any in-flight overlay
+      if (designKey !== undefined) committedDesign.current = designKey;
       return;
     }
 
@@ -114,6 +529,7 @@ export function PreviewCanvas({
     let cancelled = false;
     preloadAll(layers).then(() => {
       if (cancelled) return;
+      if (designKey !== undefined) committedDesign.current = designKey;
       if (reduce) {
         setShown({ key: targetKey, layers }); // immediate swap (AC4)
         setIncoming(null);
@@ -147,7 +563,45 @@ export function PreviewCanvas({
     };
   }, [incoming, fadeIn]);
 
+  // The loader never blinks away: once `pending` clears upstream, it
+  // overstays one trailing fade so the spinner dissolves on top of the
+  // incoming art instead of cutting to it mid-spin. Skipped on first
+  // mount (pending never existed → no flash) via the ref below.
+  const [loaderLeaving, setLoaderLeaving] = useState(false);
+  const loaderExitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const everLoading = useRef(false);
+  const rawLoaderOn = pendingDesignKey != null;
+  if (rawLoaderOn) everLoading.current = true;
+  useEffect(() => {
+    if (rawLoaderOn) {
+      if (loaderExitTimer.current) clearTimeout(loaderExitTimer.current);
+      setLoaderLeaving(false);
+      return;
+    }
+    if (!everLoading.current) return;
+    setLoaderLeaving(true);
+    loaderExitTimer.current = setTimeout(() => {
+      setLoaderLeaving(false);
+    }, LOADER_EXIT_MS);
+    return () => {
+      if (loaderExitTimer.current) clearTimeout(loaderExitTimer.current);
+    };
+  }, [rawLoaderOn]);
+
   const nothingToShow = shown.layers.length === 0 && !incoming;
+  // Loader visibile in UN SOLO caso: `pendingDesignKey != null` — l'unico
+  // stato, settato dall'unico trigger (`startDesignTransition`: cambio
+  // design esplicito, o palette dim che risolve un altro design). Tap
+  // colore / palette stesso design non lo toccano mai. Il clear sta nel
+  // client (design arrivato + minimo visivo); qui dentro resta solo il
+  // trailing fade d'uscita. `committedDesign` serve più solo al fade
+  // interno, non al confronto show/hide. `reduced-motion` spegne tutto.
+  const reduceMotion =
+    typeof window !== "undefined" &&
+    window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+  const showLoader =
+    !reduceMotion && (rawLoaderOn || loaderLeaving);
+  const loaderFadingOut = !rawLoaderOn && loaderLeaving;
 
   return (
     <div className={className} data-testid="preview-canvas">
@@ -175,12 +629,74 @@ export function PreviewCanvas({
 
         {incoming && (
           <div
-            className="absolute inset-0 flex items-center justify-center transition-opacity"
+            className="absolute inset-0 flex items-center justify-center transition-opacity motion-reduce:transition-none"
             style={{ opacity: fadeIn ? 1 : 0, transitionDuration: `${FADE_MS}ms` }}
             data-testid="preview-incoming"
           >
             <LayerStack layers={incoming.layers} alt={alt} />
           </div>
+        )}
+
+        {/* R5-DESIGN-SWITCH — le alici che girano, solo cambio design
+            (mockup `:57-59` `spinplate` + artifact `Loader` r5-animation).
+            Overlay OPACO (`--mk-canvas` pieno): il vecchio design non resta
+            sullo sfondo, si vedono solo le alici che girano + "Loading".
+            Visibile = solo `loadingLabel`; screen reader = `loadingDesignLabel`
+            (col nome design); `alt` resta il nome stabile. Mai su tap colore;
+            off con `reduced-motion`. Uscita in dissolvenza (`LOADER_EXIT_MS`,
+            ease-out): mai un blink. */}
+        {showLoader && (
+          <div
+            role="status"
+            data-testid="design-loader"
+            aria-label={loadingDesignLabel ?? loadingLabel ?? alt}
+            className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 rounded-lg bg-[var(--mk-canvas)] transition-opacity motion-reduce:transition-none"
+            style={{
+              opacity: loaderFadingOut ? 0 : 1,
+              transitionDuration: `${LOADER_EXIT_MS}ms`,
+              transitionTimingFunction: "ease-out",
+            }}
+          >
+            <SpinnerMotif label={loadingLabel} />
+          </div>
+        )}
+
+        {/* R5-TEXT-LIVE — sopra gli strati, mai sopra lo scheletro. Il
+            quadrato è l'arte CONTENUTA (`100cqmin` del riquadro), non il
+            riquadro: sotto `md` il frame è rettangolare e il piatto ci sta in
+            `object-contain`, quindi la scritta segue il piatto invece che la
+            scatola (AC 4). Contenitore NOMINATO, così un `@container` annidato
+            più avanti non se lo prende. */}
+        {inscription && !nothingToShow && inscriptionPosition !== "back" && (
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+            <div
+              className={`flex items-center justify-center ${ART_BOX}`}
+              // `container-type: size`, NON `inline-size` (che è ciò che
+              // emette `@container/plate`): con `inline-size` l'asse di blocco
+              // non è contenuto e `cqmin` ripiega sull'altezza del VIEWPORT,
+              // cioè vale la larghezza del riquadro. Sul desktop non si vede —
+              // il frame è quadrato — ma nell'editor mobile il riquadro è
+              // 281×244 e la scritta veniva il 15% troppo grande e cadeva al
+              // 70,9% invece che al 68%: l'AC 4 in pieno. Misurato in pagina.
+              style={{ containerType: "size", containerName: "plate" }}
+            >
+              <div className="relative aspect-square w-[100cqmin]">
+                {inscriptionPosition === "top" || inscriptionPosition === "bottom" ? (
+                  <ArcInscription text={inscription} position={inscriptionPosition} />
+                ) : (
+                  <Inscription text={inscription} />
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+        {/* R5-TEXT-POSITION (0.1-7, corretto in review) — Bakside: nessuna
+            anteprima del MOTIVO sul piatto, ma il testo sì, dentro il
+            riquadro (sfondo bianco), sopra lo stack, mai sopra il pulsante
+            design. `backLabel` assente (chiamante non ancora aggiornato) →
+            niente pill: un dato incompleto è meglio di uno rotto. */}
+        {inscription && inscriptionPosition === "back" && backLabel && !nothingToShow && (
+          <BackTag text={inscription} backLabel={backLabel} />
         )}
       </div>
       {caption && (

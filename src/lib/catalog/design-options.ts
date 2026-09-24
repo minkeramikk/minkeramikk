@@ -78,6 +78,12 @@ export interface DesignDetail {
   acceptsCustomNotes: boolean;
   /** F38: shop opted this design into a customer inscription (step-2 field). */
   acceptsCustomText: boolean;
+  /**
+   * R5-TEXT-POSITION (post-review revision): which of the four positions —
+   * centre and back included, none implicit any more — this design offers.
+   * Read straight from `designs.text_positions`.
+   */
+  textPositions: string[];
   descriptionStep2No: string | null;
   descriptionStep2En: string | null;
   images: string[]; // F36: gallery Storage paths, ordered by sort_order
@@ -96,13 +102,14 @@ export interface DesignDetail {
 export async function getDesignDetail(
   slug: string
 ): Promise<DesignDetail | null> {
-  // keyParts version "v2": F36 added `images` + `descriptionStep2No/En` to the
-  // DTO. Without a bump, Vercel's Data Cache keeps serving pre-F36-shaped entries
-  // (no `images` key) for slugs not revalidated since deploy — the client then
-  // crashed on `detail.images.length`. The version segment retires those entries.
+  // keyParts version "v3": R5-TEXT-POSITION added `textPositions` to the DTO.
+  // Without a bump, Vercel's Data Cache keeps serving pre-R5-TEXT-POSITION-shaped
+  // entries (no `textPositions` key) for slugs not revalidated since deploy — the
+  // client then crashed on `detail.textPositions.includes`. Same trap as the F36
+  // `images` bump before it (v1 → v2); the version segment retires stale entries.
   return unstable_cache(
     () => loadDesignDetail(slug),
-    ["design-detail", "v2", slug],
+    ["design-detail", "v3", slug],
     { tags: ["catalog"] }
   )();
 }
@@ -138,7 +145,7 @@ async function loadDesignDetail(slug: string): Promise<DesignDetail | null> {
     const { data: design, error: designErr } = await supabase
       .from("designs")
       .select(
-        "id, slug, code, name, name_no, name_en, accepts_custom_notes, accepts_custom_text, description_step2_no, description_step2_en"
+        "id, slug, code, name, name_no, name_en, accepts_custom_notes, accepts_custom_text, text_positions, description_step2_no, description_step2_en"
       )
       .eq("slug", slug)
       .maybeSingle();
@@ -177,6 +184,7 @@ async function loadDesignDetail(slug: string): Promise<DesignDetail | null> {
     nameEn: design.name_en,
     acceptsCustomNotes: design.accepts_custom_notes ?? false,
     acceptsCustomText: design.accepts_custom_text ?? false,
+    textPositions: design.text_positions ?? [],
     descriptionStep2No: design.description_step2_no,
     descriptionStep2En: design.description_step2_en,
     images: (imgRows ?? []).map((r) => r.image),

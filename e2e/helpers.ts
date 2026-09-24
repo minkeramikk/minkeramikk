@@ -194,7 +194,8 @@ export async function seedTextGroupDesign(
       .select("id")
       .single();
     for (const o of (c.options ?? []) as Record<string, unknown>[]) {
-      const { id: _id, category_id: _cat, ...rest } = o;
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars -- destructured only to exclude them from `rest`
+      const { id, category_id, ...rest } = o;
       await db.from("options").insert({ ...rest, category_id: nc!.id });
     }
   }
@@ -276,25 +277,6 @@ export async function firstActiveDesignWithId(): Promise<DesignRefWithId> {
     .single();
   if (error) throw error;
   return data as DesignRefWithId;
-}
-
-/**
- * R2-2b: second active design (different from the first) — used to check
- * that designs WITHOUT the flag don't show the custom-notes block.
- * Returns null if there is only one active design.
- */
-export async function secondActiveDesignWithId(): Promise<DesignRefWithId | null> {
-  const first = await firstActiveDesignWithId();
-  const { data, error } = await adminClient()
-    .from("designs")
-    .select("id, slug, code, name")
-    .eq("active", true)
-    .neq("id", first.id)
-    .order("sort_order")
-    .limit(1)
-    .maybeSingle();
-  if (error) throw error;
-  return data as DesignRefWithId | null;
 }
 
 /**

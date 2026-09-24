@@ -4,6 +4,30 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* R5-BASKET-HOST card §4-ter — the basket row's full-width/column-2 switch,
+   named so the number lives in ONE place instead of thirteen copies of
+   `@[416px]:`. Bound to the NAMED container `@container/row` (the row's own
+   root, `cart-line-row.tsx`) rather than the nearest unnamed `@container`,
+   so a `@container` nested inside the row later (a picker panel, a future
+   lightbox trigger) can't accidentally steal this query.
+
+   416 is MEASURED, not chosen — re-measure if the chip, the stepper, or
+   either locale's copy changes:
+   - stepper (`sm:h-9` sizing — the only sizing this ever renders at once a
+     container is narrow enough for the switch to matter): 106px
+   - gap between the stepper and the actions group at this tier
+     (`row-wide:gap-1.5`): 6px
+   - actions group (`cart-expand` + dividers + `cart-unpaint` +
+     `cart-remove`), closed-details state, worse of the two locales:
+     220.1875px (`/no/`, "Vis detaljer" — longer than EN's "Show details",
+     213.875px)
+   needed in column 2 = 106 + 6 + 220.1875 = 332.1875px; the container
+   itself needs that plus the 64px thumb and the grid's own 14px
+   `gap-x-3.5` = 410.1875px, rounded up to 416 for rendering margin.
+   Full arithmetic and the cross-container verification table:
+   `.superpowers/sdd/2026-09-19-r5-basket-host/task-2-report.md`. */
+@custom-variant row-wide (@container row (min-width: 416px));
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -21,6 +45,19 @@
   --color-status-delivered: var(--status-delivered);
   --color-status-paid: var(--status-paid);
   --color-discount: var(--discount);
+  /* R5-UNPAINTED: the header's unpainted marker is the first `text-warn`
+     consumer — `--warn` existed only as a raw var (order/page.tsx inlines it
+     via style={}), so it had no Tailwind utility yet. */
+  --color-warn: var(--warn);
+  /* R5-UNPAINTED fix-wave: `--warn` on `--mk-dark` (header) is ~3.6:1, under
+     the 4.5:1 AA floor at 10px. Lightened via color-mix (ADR 0008) — 14% white
+     is the smallest step that clears the floor (~4.53:1 against #2b2330). */
+  --color-warn-on-dark: var(--warn-on-dark);
+  /* Fix round 2 (finding, contrast) — the light-card twin: raw `--warn` on
+     `--card` is ~4.09:1, under the 4.5:1 AA floor for the 12px «○ Unpainted»
+     row label. Same documented text recipe as every other `--warn` surface
+     (DESIGN-SYSTEM §warn), just the light-background half of it. */
+  --color-warn-on-light: var(--warn-on-light);
   --color-sidebar-ring: var(--ring);
   --color-sidebar-border: var(--ink-muted);
   --color-sidebar-accent-foreground: var(--ink-foreground);
@@ -62,6 +99,45 @@
   0% { transform: scale(1); }
   40% { transform: scale(1.35); }
   100% { transform: scale(1); }
+}
+
+/* R5-DESIGN-SWITCH T2: spinning-plate loader on design change — keyframes
+ * from mockup-palettebar.html :57-59, slowed to one turn every 4s so the
+ * sardines read as swimming, not buzzing (explicit user request; mockup
+ * said 1.8s). Reduced-motion is ALSO JS-gated at the call site (no loader
+ * rendered), same double-guard pattern as `cart-pop` above. */
+@keyframes spinplate {
+  to { transform: rotate(360deg); }
+}
+.spinplate {
+  animation: spinplate 4s linear infinite;
+  transform-origin: 50% 50%;
+}
+/* Contro-rotazione per la scritta ferma al centro dello spinner: stesso
+   periodo del giro (4s), verso opposto — resta leggibile mentre le alici
+   ruotano attorno. */
+@keyframes spinplate-counter {
+  to { transform: rotate(-360deg); }
+}
+.spinplate-counter {
+  animation: spinplate-counter 4s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .spinplate { animation: none; }
+  .spinplate-counter { animation: none; }
+}
+
+/* R5-TUTORIAL — the Hotspot badge's pulse (DS §3.32, mockup.html `.hs`):
+ * a ring of shadow breathing outward, nothing that moves the badge itself. */
+@keyframes tour-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--primary) 55%, transparent); }
+  70% { box-shadow: 0 0 0 9px transparent; }
+}
+.tour-pulse {
+  animation: tour-pulse 2s infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .tour-pulse { animation: none; }
 }
 
 /*
@@ -130,6 +206,10 @@
      §2.1). Not a status and not --destructive: nothing has gone wrong, the
      customer simply must not skip the step. Tints via color-mix, as usual. */
   --warn: #b26a00;
+  --warn-on-dark: color-mix(in oklab, var(--warn), white 14%);
+  /* Fix round 2 — DESIGN-SYSTEM's own "Testo" recipe for --warn on a light
+     surface (8.58:1 against --card, measured). */
+  --warn-on-light: color-mix(in oklab, var(--warn), black 30%);
 
   /* shape & elevation */
   --radius: 16px;

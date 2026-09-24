@@ -1,10 +1,11 @@
-import { formatMoney, money, multiply, subtract, type Money } from "@/lib/money/money";
-import { shippingStatus } from "@/lib/cart/shipping";
+import { add, formatMoney, money, multiply, subtract, type Money } from "@/lib/money/money";
+import { shippingFor } from "@/lib/cart/shipping";
 import { hasVippsDetails, type VippsSettings } from "./vipps";
 import { displayName } from "./customer-name";
 import type { SellerIdentity } from "./seller";
 import type { OrderItemInput } from "./schema";
 import type { CartDiscount } from "@/lib/discounts/discount";
+import type { TextPosition } from "@/lib/configurator/text-position";
 
 /**
  * R4-PDF-CLIENTE — il contenuto del riepilogo per il CLIENTE, puro.
@@ -41,6 +42,9 @@ export interface CustomerPdfLabels {
   date: string;
   design: string;
   inscription: string;
+  /** R5-TEXT-POSITION AC4: label for the "Plassering: Topp" line, rendered
+   *  by `customer-pdf.tsx` only when `textPosition !== "centre"`. */
+  position: string;
   colourNote: string;
   product: string;
   qty: string;
@@ -51,8 +55,11 @@ export interface CustomerPdfLabels {
   total: string;
   vatIncluded: string;
   orgNumber: string;
+  /** R5-GARANZIA: title of the shipping row (between discount and total). */
+  shipping: string;
+  /** Value shown on that row at/above the threshold — a known flat fee shows
+   *  the formatted amount instead, no label needed for it. */
   shippingIncluded: string;
-  shippingToBeConfirmed: string;
   shipTo: string;
   payTitle: string;
   payNumberLabel: string;
@@ -74,6 +81,7 @@ const COPY: Record<"no" | "en", CustomerPdfLabels> = {
     date: "Dato",
     design: "Ditt design",
     inscription: "Tekst på keramikken",
+    position: "Plassering", // TODO:nb-review
     colourNote: "Fargenotat",
     product: "Produkt",
     qty: "Antall",
@@ -85,8 +93,8 @@ const COPY: Record<"no" | "en", CustomerPdfLabels> = {
     // «Herav», non il solo «MVA»: il totale la contiene già, non la aspetta.
     vatIncluded: `Herav MVA ${MVA_RATE_PCT} %`,
     orgNumber: "Org.nr.",
-    shippingIncluded: "Frakt og forsikring inkludert",
-    shippingToBeConfirmed: "Frakt bekreftes senere",
+    shipping: "Frakt",
+    shippingIncluded: "Inkludert",
     shipTo: "Leveres til",
     payTitle: "Slik betaler du",
     payNumberLabel: "Vippsnummer",
@@ -101,6 +109,7 @@ const COPY: Record<"no" | "en", CustomerPdfLabels> = {
     date: "Date",
     design: "Your design",
     inscription: "Text on the ceramic",
+    position: "Position",
     colourNote: "Colour note",
     product: "Product",
     qty: "Qty",
@@ -112,8 +121,8 @@ const COPY: Record<"no" | "en", CustomerPdfLabels> = {
     // "Incl.", not a bare "VAT": the total already contains it.
     vatIncluded: `Incl. VAT ${MVA_RATE_PCT}%`,
     orgNumber: "Org. no.",
-    shippingIncluded: "Shipping and insurance included",
-    shippingToBeConfirmed: "Shipping confirmed later",
+    shipping: "Shipping",
+    shippingIncluded: "Included",
     shipTo: "Ship to",
     payTitle: "How to pay",
     payNumberLabel: "Vipps number",
@@ -196,6 +205,11 @@ export interface CustomerPdfDesignBlock {
   name: string | null;
   selections: { label: string; option: string }[];
   customText: string | null;
+  /** R5-TEXT-POSITION AC4: twin of `customText` — null only when there's no
+   *  inscription at all; `centre` is a real, explicit value (0.1-2), not a
+   *  stand-in for "absent". The PDF itself (`customer-pdf.tsx`) renders the
+   *  "Plassering" line only when it isn't `centre`. */
+  textPosition: TextPosition | null;
   customNote: string | null;
   items: CustomerPdfRow[];
   /** Il blocco ha diritto a un'anteprima composita (vedi MAX_COMPOSED_PLATES). */
@@ -212,13 +226,19 @@ export interface CustomerPdfDoc {
   subtotal: string;
   /** Assente quando è zero: una riga «Rabatt 0 kr» è rumore. */
   discount: string | null;
+  /** R5-GARANZIA: il GRAND total — netto + spedizione (`shipping` qui sotto) —
+   *  la stessa cifra che il carrello, la mail e Vipps mostrano. */
   total: string;
   /**
-   * La MVA GIÀ CONTENUTA nel totale. Null quando il negozio non è in
-   * MVA-registeret — che è il default: stamparla senza esserlo è illegale.
+   * La MVA GIÀ CONTENUTA nel netto (non nella spedizione, che non la porta).
+   * Null quando il negozio non è in MVA-registeret — che è il default:
+   * stamparla senza esserlo è illegale.
    */
   vatIncluded: string | null;
-  shippingIncluded: boolean;
+  /** R5-GARANZIA: l'importo fisso sotto soglia (`labels.shipping` la
+   *  intitola), o `labels.shippingIncluded` da soglia — mai più un placeholder
+   *  «si conferma dopo»: la cifra è nota subito. */
+  shipping: string;
   shipTo: {
     name: string;
     address: string | null;
@@ -313,6 +333,7 @@ interface ItemSnapshot {
   selections?: { label: string; option: string; hex: string | null }[];
   customNote?: string;
   customText?: string;
+  textPosition?: TextPosition;
 }
 
 /**
@@ -357,6 +378,9 @@ function designBlocks(
         name,
         selections: (snap?.selections ?? []).map((s) => ({ label: s.label, option: s.option })),
         customText: snap?.customText || null,
+        // R5-TEXT-POSITION 0.1-2: written whenever the text is, `centre`
+        // included — only a missing inscription leaves it null.
+        textPosition: snap?.customText ? (snap.textPosition ?? "centre") : null,
         customNote: snap?.customNote || null,
         items: [],
         showPlate: false,
@@ -374,6 +398,7 @@ function designBlocks(
       name: null,
       selections: [],
       customText: null,
+      textPosition: null,
       customNote: null,
       items: orphans,
       showPlate: false,
@@ -417,6 +442,10 @@ export function buildCustomerPdfDoc(input: CustomerPdfInput): CustomerPdfDoc {
   const seller = sellerLines(input.seller, labels);
   const addr = input.address;
   const hasAddress = Boolean(addr.address || addr.zipcode || addr.city || addr.country);
+  // R5-GARANZIA: la stessa cifra fissa che il carrello e la mail mostrano —
+  // letta sul netto (D5), mai sul lordo.
+  const shipping = shippingFor(discount.total);
+  const grandTotal = add(discount.total, shipping);
 
   return {
     orderCode: code,
@@ -425,11 +454,11 @@ export function buildCustomerPdfDoc(input: CustomerPdfInput): CustomerPdfDoc {
     designs: designBlocks(items, locale, row),
     subtotal: formatMoney(discount.subtotal, locale),
     discount: savedCents > 0 ? formatMoney(money(savedCents, currency), locale) : null,
-    total: formatMoney(discount.total, locale),
+    total: formatMoney(grandTotal, locale),
     vatIncluded: input.seller.vatRegistered
       ? formatMoney(splitVatInclusive(discount.total).vat, locale)
       : null,
-    shippingIncluded: shippingStatus(discount.total).included,
+    shipping: shipping.amountCents === 0 ? labels.shippingIncluded : formatMoney(shipping, locale),
     shipTo: hasAddress
       ? {
           name: displayName(input.customerName),

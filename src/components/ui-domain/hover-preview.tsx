@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type RefObject } from "react";
 import { createPortal } from "react-dom";
+import { hoverCapable } from "@/lib/pointer";
 
 /**
  * Shared hover/focus preview popup (R1-FB4) — the F13 Swatch pattern, verbatim,
@@ -13,12 +14,6 @@ import { createPortal } from "react-dom";
  * Behaviour MUST stay identical for the Swatch (R1-FB4 AC3).
  */
 
-export function hoverCapable(): boolean {
-  return (
-    typeof window !== "undefined" &&
-    window.matchMedia?.("(hover: hover) and (pointer: fine)").matches
-  );
-}
 
 export interface HoverPreviewState {
   open: boolean;

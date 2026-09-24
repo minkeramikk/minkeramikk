@@ -3,15 +3,22 @@ import {
   addManyToCart,
   addToCart,
   cartPieces,
+  clampPaintN,
+  pruneToLive,
   cartTotal,
   itemCount,
+  lineKey,
   lineSubtotal,
+  paintLines,
   removeLine,
+  unpaintedPieces,
+  unpaintLines,
   updateQuantity,
   type Cart,
   type NewCartLine,
 } from "./cart";
 import { formatMoney } from "@/lib/money/money";
+import { encodeConfigCode, type CodecDesign } from "@/lib/configurator/config-code";
 
 const vietriFlat: NewCartLine = {
   productId: "p-flat",
@@ -204,5 +211,339 @@ describe("bundle transaction (R4-upsell, D-C2)", () => {
 
     expect(folded).toHaveLength(1);
     expect(folded[0].quantity).toBe(5);
+  });
+});
+
+describe("unpainted lines", () => {
+  const bare: NewCartLine = { ...vietriFlat, configCode: null, configSnapshot: null };
+
+  it("keys an unpainted line by product", () => {
+    expect(lineKey("p-flat", null)).toBe("p-flat::unpainted");
+  });
+
+  it("merges two unpainted adds of the same product", () => {
+    let cart = addToCart([], { ...bare, quantity: 2 });
+    cart = addToCart(cart, { ...bare, quantity: 3 });
+    expect(cart).toHaveLength(1);
+    expect(cart[0].quantity).toBe(5);
+    expect(cart[0].configCode).toBeNull();
+  });
+
+  it("keeps the unpainted line apart from the painted one", () => {
+    let cart = addToCart([], vietriFlat);
+    cart = addToCart(cart, bare);
+    expect(cart).toHaveLength(2);
+  });
+
+  it("counts unpainted PIECES, sets included", () => {
+    const cart = addToCart(addToCart([], { ...bare, quantity: 2, pieces: 3 }), vietriFlat);
+    expect(unpaintedPieces(cart)).toBe(6);
+  });
+
+  it("counts nothing when every line is painted", () => {
+    expect(unpaintedPieces(addToCart([], vietriFlat))).toBe(0);
+  });
+
+  const CODE = "MK-ALICI-A1";
+  const snap = { designSlug: "alici", designName: "Alici", selections: [] };
+
+  it("paints 2 of 3: a painted line of 2 and an unpainted rest of 1", () => {
+    const cart = paintLines(
+      addToCart([], { ...vietriFlat, configCode: null, configSnapshot: null, quantity: 3 }),
+      "p-flat::unpainted",
+      2,
+      CODE,
+      snap
+    );
+    expect(cart).toHaveLength(2);
+    const painted = cart.find((l) => l.configCode === CODE)!;
+    const rest = cart.find((l) => l.configCode === null)!;
+    expect(painted.quantity).toBe(2);
+    expect(painted.id).toBe(`p-flat::${CODE}`);
+    expect(painted.configSnapshot).toBe(snap);
+    expect(rest.quantity).toBe(1);
+  });
+
+  it("paints into an existing line of the same config instead of a second one", () => {
+    let cart = addToCart([], { ...vietriFlat, configCode: CODE, quantity: 4 });
+    cart = addToCart(cart, { ...vietriFlat, configCode: null, configSnapshot: null, quantity: 2 });
+    cart = paintLines(cart, "p-flat::unpainted", 2, CODE, snap);
+    expect(cart).toHaveLength(1);
+    expect(cart[0].quantity).toBe(6);
+  });
+
+  it("paints all of them: the unpainted line is gone", () => {
+    const cart = paintLines(
+      addToCart([], { ...vietriFlat, configCode: null, configSnapshot: null, quantity: 3 }),
+      "p-flat::unpainted",
+      3,
+      CODE,
+      snap
+    );
+    expect(cart).toHaveLength(1);
+    expect(cart[0].configCode).toBe(CODE);
+  });
+
+  it("never moves more pieces than the line holds", () => {
+    const cart = paintLines(
+      addToCart([], { ...vietriFlat, configCode: null, configSnapshot: null, quantity: 2 }),
+      "p-flat::unpainted",
+      9,
+      CODE,
+      snap
+    );
+    expect(cart).toHaveLength(1);
+    expect(cart[0].quantity).toBe(2);
+  });
+
+  it("unpaints 2 of 4 and fuses with the unpainted line already there", () => {
+    // R5-UNPAINTED test fix: a real plateImage here (the fixture leaves it
+    // undefined) so the assertion below actually falsifies if unpaintLines
+    // ever dropped the field — undefined === undefined would pass either way.
+    let cart = addToCart([], {
+      ...vietriFlat,
+      configCode: CODE,
+      quantity: 4,
+      layers: [{ src: "a.png" }],
+      plateImage: "https://example.test/plate.png",
+    });
+    // same product ⇒ same ceramic photo, painted or not — the pre-existing
+    // bare line carries it too, exactly as a real cart would.
+    cart = addToCart(cart, {
+      ...vietriFlat,
+      configCode: null,
+      configSnapshot: null,
+      quantity: 1,
+      plateImage: "https://example.test/plate.png",
+    });
+    cart = unpaintLines(cart, `p-flat::${CODE}`, 2);
+    expect(cart).toHaveLength(2);
+    const bareLine = cart.find((l) => l.configCode === null)!;
+    expect(bareLine.quantity).toBe(3);
+    expect(bareLine.configSnapshot).toBeNull();
+    expect(bareLine.layers).toBeUndefined();
+    expect(bareLine.plateImage).toBe(cart.find((l) => l.configCode === CODE)!.plateImage);
+    expect(cart.find((l) => l.configCode === CODE)!.quantity).toBe(2);
+  });
+
+  it("never unpaints more pieces than the line holds", () => {
+    const cart = unpaintLines(
+      addToCart([], { ...vietriFlat, configCode: CODE, quantity: 2 }),
+      `p-flat::${CODE}`,
+      9
+    );
+    expect(cart).toHaveLength(1);
+    expect(cart[0].configCode).toBeNull();
+    expect(cart[0].quantity).toBe(2);
+  });
+
+  it("unpaints all of them: the painted line is gone", () => {
+    const cart = unpaintLines(
+      addToCart([], { ...vietriFlat, configCode: CODE, quantity: 3 }),
+      `p-flat::${CODE}`,
+      3
+    );
+    expect(cart).toHaveLength(1);
+    expect(cart[0].configCode).toBeNull();
+  });
+
+  it("does nothing on a line that is already unpainted, or on n ≤ 0", () => {
+    const cart = addToCart([], { ...vietriFlat, configCode: null, configSnapshot: null, quantity: 2 });
+    expect(unpaintLines(cart, "p-flat::unpainted", 1)).toEqual(cart);
+    expect(paintLines(cart, "p-flat::unpainted", 0, CODE, snap)).toEqual(cart);
+    expect(paintLines(cart, "nope", 1, CODE, snap)).toEqual(cart);
+  });
+
+  it("carries the ceramic's size through paint and unpaint", () => {
+    const withSize = {
+      ...vietriFlat,
+      configCode: null,
+      configSnapshot: null,
+      quantity: 2,
+      sizeLabelNo: "Ø 26 cm",
+      sizeLabelEn: "Ø 26 cm",
+    };
+    const cart = paintLines(addToCart([], withSize), "p-flat::unpainted", 1, "MK-A-1", snap);
+    expect(cart.every((l) => l.sizeLabelNo === "Ø 26 cm")).toBe(true);
+  });
+
+  // The row the customer just touched must stay where it was — painting or
+  // unpainting a whole line must not teleport it to the bottom of the basket.
+  describe("array order", () => {
+    const mug = { ...servering, productId: "p-mug", configCode: "design=other" };
+
+    it("painting a fully-unpainted MIDDLE line leaves the painted line at the same index", () => {
+      let cart = addToCart([], vietriFlat); // index 0
+      cart = addToCart(cart, { ...servering, configCode: null, configSnapshot: null, quantity: 3 }); // index 1, unpainted
+      cart = addToCart(cart, mug); // index 2
+      cart = paintLines(cart, lineKey("p-stor", null), 3, CODE, snap);
+      expect(cart).toHaveLength(3);
+      expect(cart[1].productId).toBe("p-stor");
+      expect(cart[1].configCode).toBe(CODE);
+    });
+
+    it("unpainting a fully-painted MIDDLE line leaves the unpainted line at the same index", () => {
+      let cart = addToCart([], vietriFlat); // index 0
+      cart = addToCart(cart, { ...servering, configCode: CODE, quantity: 2 }); // index 1, painted
+      cart = addToCart(cart, mug); // index 2
+      cart = unpaintLines(cart, lineKey("p-stor", CODE), 2);
+      expect(cart).toHaveLength(3);
+      expect(cart[1].productId).toBe("p-stor");
+      expect(cart[1].configCode).toBeNull();
+    });
+
+    it("painting into a destination that already exists does not move that destination", () => {
+      let cart = addToCart([], { ...vietriFlat, configCode: CODE, quantity: 4 }); // index 0, destination
+      cart = addToCart(cart, mug); // index 1
+      cart = addToCart(cart, { ...vietriFlat, configCode: null, configSnapshot: null, quantity: 2 }); // index 2, source
+      cart = paintLines(cart, "p-flat::unpainted", 2, CODE, snap);
+      expect(cart).toHaveLength(2);
+      expect(cart[0].id).toBe(`p-flat::${CODE}`);
+      expect(cart[0].quantity).toBe(6);
+      expect(cart[1].productId).toBe("p-mug");
+    });
+
+    it("a partial paint still leaves the source where it was", () => {
+      let cart = addToCart([], { ...servering, configCode: null, configSnapshot: null, quantity: 3 }); // index 0, source
+      cart = addToCart(cart, vietriFlat); // index 1
+      cart = paintLines(cart, "p-stor::unpainted", 2, CODE, snap);
+      expect(cart).toHaveLength(3);
+      expect(cart[0].id).toBe("p-stor::unpainted");
+      expect(cart[0].quantity).toBe(1);
+      expect(cart[2].id).toBe(`p-stor::${CODE}`);
+    });
+  });
+});
+
+/**
+ * R5-BASKET-HOST fix round 1 — both became shared, exported functions when
+ * `paintN`/`rowPaletteCode` moved out of `Basket` and into the cart context.
+ * Two owners now call them (the provider and each `Basket`), which is exactly
+ * why they are pinned here rather than living twice.
+ */
+describe("pruneToLive", () => {
+  const live = new Set(["a", "b"]);
+
+  it("drops entries whose line is gone", () => {
+    expect(pruneToLive({ a: 1, gone: 2, b: 3 }, live)).toEqual({ a: 1, b: 3 });
+  });
+
+  it("returns the SAME object when nothing is stale", () => {
+    // Identity matters: this is fed straight to setState, and a fresh object
+    // every render would re-render every basket on screen forever.
+    const m = { a: 1, b: 2 };
+    expect(pruneToLive(m, live)).toBe(m);
+  });
+
+  it("empties out when no line survives", () => {
+    expect(pruneToLive({ gone: 1 }, new Set<string>())).toEqual({});
+    // …and an already-empty map is returned untouched, not rebuilt.
+    const empty = {};
+    expect(pruneToLive(empty, new Set<string>())).toBe(empty);
+  });
+
+  it("keeps falsy values — absence is the only thing that prunes", () => {
+    const m = { a: false, b: 0 };
+    expect(pruneToLive(m, live)).toBe(m);
+  });
+});
+
+describe("clampPaintN", () => {
+  it("nothing stored means all of the line's pieces", () => {
+    expect(clampPaintN(undefined, 3)).toBe(3);
+  });
+
+  it("clamps a stored number down when the line shrank", () => {
+    // The trap it exists for: 5 was stored, a partial paint left 2 behind.
+    expect(clampPaintN(5, 2)).toBe(2);
+  });
+
+  it("never goes below one", () => {
+    expect(clampPaintN(0, 4)).toBe(1);
+    expect(clampPaintN(-7, 4)).toBe(1);
+  });
+
+  it("passes an in-range number through", () => {
+    expect(clampPaintN(2, 4)).toBe(2);
+  });
+});
+
+/**
+ * R5-TEXT-IDENTITY, card §2 AC 4 — closes R5-GARANZIA.md §5. NO CHANGE to
+ * `cart.ts` for this: `addToCart`/`lineKey` already key a line's identity on
+ * `configCode` alone, and that is the whole point of moving the customer's
+ * words INTO the code (task 2/4) instead of leaving them only in the
+ * snapshot — two lines that used to look identical to `lineKey` (same
+ * product, same colours, different private words) now simply carry
+ * different codes, and this store's existing merge-or-append logic keeps
+ * them apart on its own.
+ */
+describe("cart store — R5-TEXT-IDENTITY (AC 4)", () => {
+  // 1 category, so the fixture stays tiny — the codec itself is task 2's,
+  // already exhaustively tested in config-code.test.ts.
+  const TEXT_DESIGN: CodecDesign = {
+    code: "T",
+    slug: "text-design",
+    categories: [
+      { slug: "colors", optionCodeToId: { B: "colors-opt-b" }, defaultOptionId: "colors-opt-b" },
+    ],
+  };
+  const SEL = { colors: "colors-opt-b" };
+  const snap = (customText?: string, customNote?: string) => ({
+    designSlug: "text-design",
+    designName: "Text design",
+    selections: [{ label: "Colors", option: "Blue", hex: "#00f" }],
+    ...(customText !== undefined ? { customText } : {}),
+    ...(customNote !== undefined ? { customNote } : {}),
+  });
+  const lineFor = (configCode: string, snapshot: NewCartLine["configSnapshot"]): NewCartLine => ({
+    ...vietriFlat,
+    configCode,
+    configSnapshot: snapshot,
+  });
+
+  it("two lines, same product/colours, different inscriptions → two rows, each keeping its own words", () => {
+    const codeAnna = encodeConfigCode(TEXT_DESIGN, SEL, { customText: "Til Anna" });
+    const codeKari = encodeConfigCode(TEXT_DESIGN, SEL, { customText: "Til Kari" });
+    expect(codeAnna).not.toBe(codeKari); // sanity: task 2's codec really does this
+
+    let cart = addToCart([], lineFor(codeAnna, snap("Til Anna")));
+    cart = addToCart(cart, lineFor(codeKari, snap("Til Kari")));
+
+    expect(cart).toHaveLength(2);
+    expect(cart.map((l) => l.configSnapshot?.customText).sort()).toEqual([
+      "Til Anna",
+      "Til Kari",
+    ]);
+  });
+
+  it("same colours and same inscription, two different colour WISHES → still two rows", () => {
+    const codeBlue = encodeConfigCode(TEXT_DESIGN, SEL, {
+      customText: "Til Anna",
+      customNote: "litt mer blått, takk",
+    });
+    const codePink = encodeConfigCode(TEXT_DESIGN, SEL, {
+      customText: "Til Anna",
+      customNote: "litt mer rosa, takk",
+    });
+    expect(codeBlue).not.toBe(codePink); // hashNote doing its job
+
+    let cart = addToCart([], lineFor(codeBlue, snap("Til Anna", "litt mer blått, takk")));
+    cart = addToCart(cart, lineFor(codePink, snap("Til Anna", "litt mer rosa, takk")));
+
+    expect(cart).toHaveLength(2);
+    expect(cart.map((l) => l.configSnapshot?.customNote).sort()).toEqual([
+      "litt mer blått, takk",
+      "litt mer rosa, takk",
+    ]);
+  });
+
+  it("the SAME inscription twice still merges into one row (determinism preserved)", () => {
+    const code = encodeConfigCode(TEXT_DESIGN, SEL, { customText: "Til Anna" });
+    let cart = addToCart([], lineFor(code, snap("Til Anna")));
+    cart = addToCart(cart, { ...lineFor(code, snap("Til Anna")), quantity: 2 });
+
+    expect(cart).toHaveLength(1);
+    expect(cart[0].quantity).toBe(3); // default 1 + 2
   });
 });

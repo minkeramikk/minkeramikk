@@ -24,6 +24,10 @@ export interface DesignValues {
   active: boolean;
   acceptsCustomNotes: boolean;
   acceptsCustomText: boolean;
+  /** R5-TEXT-POSITION: which of the four positions this design offers
+   *  (post-review revision — none of them, centre/back included, is
+   *  implicit any more). */
+  textPositions: string[];
   code: string | null;
 }
 
@@ -179,6 +183,83 @@ export function DesignForm({
         />
         Accepts custom text (inscription) on the ceramic
       </label>
+
+      {/* R5-TEXT-POSITION §3.33 (post-review revision): none of the four
+          positions is implicit any more — Centre and Back are ordinary
+          checkboxes now, same as Top/Bottom, all travelling through the
+          form. A design can genuinely not offer Centre (measured: Krabbe
+          shouldn't). Leaving every box unchecked while "Accepts custom
+          text" stays on means the field shows with nothing to pick —
+          `saveDesign` below rejects that combination rather than shipping
+          a dead end. */}
+      <fieldset
+        data-testid="design-text-positions"
+        className="flex flex-col gap-1.5 rounded-md border border-input p-3"
+      >
+        <legend className="px-1 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+          Positions offered
+        </legend>
+        <p className="text-xs text-muted-foreground">
+          Max 25 characters, whatever the position. Pick at least one.
+        </p>
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            name="textPositions"
+            value="centre"
+            defaultChecked={design?.textPositions.includes("centre") ?? false}
+            className="size-4 accent-[var(--primary)]"
+            data-testid="design-text-position-centre"
+          />
+          Centre &middot; straight line inside the inner ring
+        </label>
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            name="textPositions"
+            value="top"
+            defaultChecked={design?.textPositions.includes("top") ?? false}
+            className="size-4 accent-[var(--primary)]"
+            data-testid="design-text-position-top"
+          />
+          Top &middot; arc along the upper inner ring
+        </label>
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            name="textPositions"
+            value="bottom"
+            defaultChecked={design?.textPositions.includes("bottom") ?? false}
+            className="size-4 accent-[var(--primary)]"
+            data-testid="design-text-position-bottom"
+          />
+          Bottom &middot; same arc, mirrored
+        </label>
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            name="textPositions"
+            value="back"
+            defaultChecked={design?.textPositions.includes("back") ?? false}
+            className="size-4 accent-[var(--primary)]"
+            data-testid="design-text-position-back"
+          />
+          Back &middot; no preview on the plate
+        </label>
+        <div
+          className="mt-1 rounded-md border p-2.5 text-xs"
+          style={{
+            background: "color-mix(in oklab, var(--warn) 12%, white)",
+            borderColor: "color-mix(in oklab, var(--warn) 34%, white)",
+            color: "color-mix(in oklab, var(--warn), black 30%)",
+          }}
+        >
+          <b className="font-semibold">Layer-based text is retired.</b> The
+          &laquo;Tekst&raquo; option group below stays in the catalogue, empty:
+          removing a category shifts the config codes already in circulation.
+          Do not delete it.
+        </div>
+      </fieldset>
 
       {state.error && (
         <p data-testid="design-error" role="alert" className="text-sm text-destructive">

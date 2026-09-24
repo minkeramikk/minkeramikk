@@ -1,0 +1,11 @@
+{
+  "cookies": [],
+  "origins": [
+    {
+      "origin": "http://localhost:3199",
+      "localStorage": [
+        { "name": "mk-tips-v1", "value": "{\"off\":true,\"seq\":null,\"step\":1}" }
+      ]
+    }
+  ]
+}

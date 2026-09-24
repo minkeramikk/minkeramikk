@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   assetClass,
+  atVariantWidth,
   isVariantPath,
   PRODUCT_CARD_WIDTH,
   PRODUCT_THUMB_WIDTH,
@@ -126,5 +127,24 @@ describe("variantWidths", () => {
     expect(variantWidths("swatches/a3759f.png")).toEqual([96]);
     expect(variantWidths("designs/amalfi/dots/lilla.png")).toEqual([512]);
     expect(variantWidths("misc/x.png")).toEqual([]);
+  });
+});
+
+describe("atVariantWidth", () => {
+  // R5-POLISH-STEP23: a cart line bakes its plate URL at the 48px thumb width
+  // (256) when the piece is added; the lightbox shows that same line at ~520px.
+  // Re-pointing the URL is a string swap because the widths are pre-generated.
+  it("re-points a built variant URL at another width", () => {
+    expect(
+      atVariantWidth("https://x/storage/v1/object/public/assets/products/krus@256.webp", 1024)
+    ).toBe("https://x/storage/v1/object/public/assets/products/krus@1024.webp");
+  });
+
+  it("leaves a URL that is not a variant untouched", () => {
+    // F22 seeds store CDN URLs directly, and a master path has no @width.
+    expect(atVariantWidth("https://cdn.example/plate.png", 1024)).toBe(
+      "https://cdn.example/plate.png"
+    );
+    expect(atVariantWidth("products/krus.png", 1024)).toBe("products/krus.png");
   });
 });

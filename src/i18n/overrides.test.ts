@@ -69,7 +69,7 @@ describe("mergeOverrides", () => {
   });
 
   it("cannot CREATE a key — parity lives in the files, not in the DB", () => {
-    const merged = mergeOverrides(BASE, { "cart.brandNew": "nope" }) as Record<
+    const merged = mergeOverrides(BASE, { "cart.brandNew": "nope" }) as unknown as Record<
       string,
       Record<string, unknown>
     >;
