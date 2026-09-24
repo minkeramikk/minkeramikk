@@ -159,8 +159,9 @@ describe("computeKpis", () => {
     expect(k.newCount).toBe(1);
     expect(k.confirmedCount).toBe(1);
     expect(k.inProductionCount).toBe(1);
-    // 100000 + 100000 + 30000 = 230000 (delivered + cancelled excluded)
-    expect(k.openValue.amountCents).toBe(230000);
+    // net 100000 + 100000 + 30000 = 230000, all three below the 200000 NOK
+    // shipping threshold → +20000 shipping each = 290000 (delivered + cancelled excluded)
+    expect(k.openValue.amountCents).toBe(290000);
   });
 });
 
@@ -303,8 +304,9 @@ describe("computeKpis — v2 buckets", () => {
     expect(k.newCount).toBe(1);
     expect(k.confirmedCount).toBe(1);
     expect(k.inProductionCount).toBe(1);
-    // new + confirmed + in_production (50000 each) + shipped (20000)
-    expect(k.openValue.amountCents).toBe(170000);
+    // new + confirmed + in_production (50000 net + 20000 shipping = 70000 each)
+    // + shipped (20000 net + 20000 shipping = 40000)
+    expect(k.openValue.amountCents).toBe(250000);
   });
 });
 
@@ -334,5 +336,12 @@ describe("order totals with discounts (R4-SCONTI)", () => {
     // A historic order whose 10% was rounded differently: the shop's number wins.
     const items = [it_({ discountPct: 10, discountCents: 60000, discountSource: "tier" })];
     expect(orderTotal(items)).toEqual(money(539200));
+  });
+
+  it("adds shipping when the net total is below the threshold (R5-GARANZIA)", () => {
+    // 1.800 NOK net, no discount → below the 2.000 NOK threshold.
+    const items = [it_({ priceCentsSnapshot: 22500, quantity: 8, discountCents: 0 })];
+    expect(orderSubtotal(items)).toEqual(money(180000));
+    expect(orderTotal(items)).toEqual(money(200000));
   });
 });

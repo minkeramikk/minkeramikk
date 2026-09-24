@@ -3,7 +3,8 @@
  * and no server imports, so it is fully unit-testable. The server fetchers live
  * in `admin-orders.server.ts`; the UI imports both.
  */
-import { money, multiply, subtract, sum, type Currency, type Money } from "@/lib/money/money";
+import { add, money, multiply, subtract, sum, type Currency, type Money } from "@/lib/money/money";
+import { shippingFor } from "@/lib/cart/shipping";
 import {
   decodeConfigCode,
   normalizeConfigCode,
@@ -208,10 +209,21 @@ export function orderDiscount(items: AdminOrderItem[]): Money {
   return sum(items.map((i) => money(i.discountCents, currency)), currency);
 }
 
-/** What the shop actually gets: subtotal − discount. Every existing caller
- *  (detail total, list column, "open orders value" KPI) wants this one. */
-export function orderTotal(items: AdminOrderItem[]): Money {
+/** Net of a set of lines: subtotal − discount, no shipping. Shipping is an
+ *  order-level charge, not a per-line one — use this for a single line's
+ *  own amount (e.g. one row of the order detail table). */
+export function lineNet(items: AdminOrderItem[]): Money {
   return subtract(orderSubtotal(items), orderDiscount(items));
+}
+
+/** What the shop actually gets, shipping included: subtotal − discount +
+ *  shipping. Every existing caller (detail total, list column, "open orders
+ *  value" KPI) wants this one.
+ *  // ponytail: shipping recomputed from today's env — a future threshold
+ *  // change rewrites past orders' totals in admin; add orders.shipping_cents
+ *  // when that day comes */
+export function orderTotal(items: AdminOrderItem[]): Money {
+  return add(lineNet(items), shippingFor(lineNet(items)));
 }
 
 export interface OrderKpis {
