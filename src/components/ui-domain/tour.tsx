@@ -99,6 +99,7 @@ export function Hotspot({
   onNext,
   onHighlight,
   onOff,
+  direction = "up",
 }: {
   n: 1 | 2 | 3;
   text: ReactNode;
@@ -106,6 +107,12 @@ export function Hotspot({
   onNext: () => void;
   onHighlight?: () => void;
   onOff: () => void;
+  /** Daniele (live test): step3 tip1's card sits right under the page's step
+   *  breadcrumb — opening "up" (the default, kept everywhere else so it
+   *  never collides with `PaletteHelp`'s "?" popover opening below) ran the
+   *  bubble straight into the breadcrumb. `"down"` is the one-off escape
+   *  hatch for anchors with no headroom above them. */
+  direction?: "up" | "down";
 }) {
   return (
     <span
@@ -113,7 +120,12 @@ export function Hotspot({
       data-step={n}
       className="absolute -right-2 -top-2 z-30 hidden md:block"
     >
-      <span className="absolute bottom-full right-0 mb-2 flex w-max max-w-[268px] items-start gap-1.5 rounded-lg border border-primary/30 bg-popover px-2.5 py-2 text-left text-[12px] leading-snug shadow-lg">
+      <span
+        className={cn(
+          "absolute right-0 flex w-max max-w-[268px] items-start gap-1.5 rounded-lg border border-primary/30 bg-popover px-2.5 py-2 text-left text-[12px] leading-snug shadow-lg",
+          direction === "down" ? "top-full mt-2" : "bottom-full mb-2"
+        )}
+      >
         <span className="min-w-0 flex-1">{text}</span>
         <TourActions
           last={last}

@@ -1654,6 +1654,7 @@ export function CeramicsStep({
                   last={tourTip.last}
                   onNext={handleTourNext}
                   onOff={() => tour.turnOff()}
+                  direction="down"
                 />
               )}
             </div>
