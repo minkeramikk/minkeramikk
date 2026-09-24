@@ -42,6 +42,14 @@ export function saveKitContext(ctx: KitContext): void {
   }
 }
 
+export function clearKitContext(): void {
+  try {
+    storage()?.removeItem(KEY);
+  } catch {
+    /* nothing to clear anyway */
+  }
+}
+
 export function readKitContext(): KitContext | null {
   try {
     const raw = storage()?.getItem(KEY);

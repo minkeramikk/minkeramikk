@@ -54,7 +54,7 @@ import type { PreviewLayer } from "@/lib/configurator/preview";
 import { useCartContext } from "@/lib/cart/cart-context";
 import { keyboardUp } from "@/lib/cart/basket-open";
 import { hoverCapable } from "@/lib/pointer";
-import { cartPieces, designLabel } from "@/lib/cart/cart";
+import { cartPieces, designLabel, unpaintedPieces } from "@/lib/cart/cart";
 import { buildConfigLinePayload } from "@/lib/configurator/line-payload";
 import { buildDesignSwitchParams } from "@/lib/configurator/design-switch-params";
 import { paletteMatchingCode } from "@/lib/configurator/save-gate";
@@ -72,9 +72,11 @@ import {
 import { KitStrip } from "@/components/ui-domain/kit-strip";
 import { kitStripCounts } from "@/lib/cart/kit-label";
 import {
+  clearKitContext,
   kitTitle,
   readKitContext,
   saveKitContext,
+  type KitContext,
 } from "@/lib/cart/kit-context";
 import { KitWelcome, kitWelcomeRows } from "@/components/ui-domain/kit-welcome";
 
@@ -752,21 +754,32 @@ export function ConfiguratorClient({
   // The welcome snapshots the resolved lines at apply time: the
   // router.replace below re-renders the page with `kit = null` (a server
   // prop), so reading `kit?.lines` at the mount would show «0 pieces».
-  const kitConsumedRef = useRef(false);
+  const kitConsumedRef = useRef<string | null>(null);
   const [kitWelcome, setKitWelcome] = useState<{
     rows: { qty: number; name: string; image?: string }[];
     total: number;
     image: string | null;
     imageCustom: boolean;
   } | null>(null);
+  // fix 11: kit-mode ends when everything is painted (PM 23/9) — no unpainted
+  // pieces left means the kit's job is done: the strip goes, «Design ▾» back.
   const kitMode =
     (searchParams.get("origin") === "kit" ||
       Boolean(kit && searchParams.get("kit"))) &&
-    (!hydrated || cartPieces(cart) > 0);
+    (!hydrated || unpaintedPieces(cart) > 0);
+  // fix 9 (was missing): the lazy kitCtx below must refresh when the apply
+  // effect saves a new context — otherwise the strip keeps the PREVIOUS kit
+  // (or the fallback on first landing).
+  const [kitCtx, setKitCtx] = useState<KitContext | null>(() => readKitContext());
+  const kitClearedRef = useRef(false);
   useEffect(() => {
-    if (!kit || !hydrated || kitConsumedRef.current) return;
-    if (!searchParams.get("kit")) return;
-    kitConsumedRef.current = true;
+    if (!kit || !hydrated || !searchParams.get("kit")) return;
+    const raw = searchParams.get("kit")!;
+    // one kit at a time, but EVERY kit: a second kit from the home (same
+    // component mounted) applies, shows its own welcome and overwrites the
+    // context with the LAST kit — the counter counts the whole basket anyway.
+    if (kitConsumedRef.current === raw) return;
+    kitConsumedRef.current = raw;
     if (kit.lines.length > 0) {
       addMany(kit.lines);
       setKitWelcome({
@@ -778,7 +791,9 @@ export function ConfiguratorClient({
       // the strip + welcome keep the shop-window label/image for the whole
       // journey (step 3 is a separate server render that never sees the
       // resolver) — read back lazily below, never per render.
-      saveKitContext({ label: kit.label, image: kit.image, custom: kit.imageCustom });
+      const ctx = { label: kit.label, image: kit.image, custom: kit.imageCustom };
+      saveKitContext(ctx);
+      setKitCtx(ctx);
     }
     const params = new URLSearchParams(searchParams.toString());
     params.delete("kit");
@@ -791,11 +806,24 @@ export function ConfiguratorClient({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot apply on arrival
   }, [kit, hydrated]);
   const kitCounts = kitStripCounts(cart);
-  // the persisted kit context (label + image for strip + welcome). Lazy: it
-  // only exists after the apply effect above ran, never per render.
-  const [kitCtx] = useState(() => readKitContext());
   const kitShownTitle = kitTitle(kitCtx, locale as "no" | "en", tKit("strip.title"));
   const kitShownEyebrow = kitTitle(kitCtx, locale as "no" | "en", tKit("welcome.eyebrow"));
+  // fix 11: everything painted → the kit's job is done: clear the persisted
+  // context once (the strip already hides via kitMode above), «Design ▾» back.
+  useEffect(() => {
+    if (
+      !hydrated ||
+      kitClearedRef.current ||
+      searchParams.get("origin") !== "kit" ||
+      unpaintedPieces(cart) > 0
+    ) {
+      return;
+    }
+    kitClearedRef.current = true;
+    clearKitContext();
+    setKitCtx(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot clear on completion
+  }, [hydrated, cart]);
   /**
    * R5-BASKET-HOST task 8 (card §3) — the same `typing` that makes the canvas
    * let go of its sticky also has to keep the basket shut: with the keyboard

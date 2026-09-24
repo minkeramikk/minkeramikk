@@ -56,7 +56,7 @@ import { AddedSheet } from "@/components/ui-domain/added-sheet";
 import { ShareDialog, type ShareKind } from "@/components/ui-domain/share-dialog";
 import { KitStrip } from "@/components/ui-domain/kit-strip";
 import { kitStripCounts } from "@/lib/cart/kit-label";
-import { kitTitle, readKitContext } from "@/lib/cart/kit-context";
+import { clearKitContext, kitTitle, readKitContext } from "@/lib/cart/kit-context";
 import { DesignRound } from "@/components/ui-domain/design-round";
 import { Basket } from "@/components/ui-domain/basket";
 import { NextStepPill, PillIcon } from "@/components/ui-domain/next-step-pill";
@@ -1001,16 +1001,35 @@ export function CeramicsStep({
   // R5-KIT fix 8: the strip reads the persisted shop-window context (label +
   // image saved at the step-2 apply). Lazy state: storage only, never per
   // render. No match (hand-made link) → generic fallback + design thumb.
-  const [kitCtx] = useState(() => readKitContext());
+  // fix 9 (was missing): setKitCtx on clear — otherwise the title/thumb stay
+  // stale after completion.
+  const [kitCtx, setKitCtx] = useState(() => readKitContext());
+  const kitClearedRef = useRef(false);
   const tKit = useTranslations("kit");
   const kitShownTitle = kitTitle(kitCtx, locale, tKit("strip.title"));
   // R5-KIT T6: kit-mode (mirror of origin=set) — survives refresh and
   // goToStep (which copies every param), dies with selectDesign (there is no
-  // switch in kit-mode anyway) AND with an emptied basket (fix 10: no pieces
-  // left → no strip, no auto-open). Opens the existing drawer once on arrival.
+  // switch in kit-mode anyway) AND when everything is painted (fix 11: the
+  // kit's job is done → no strip, no auto-open). Opens the existing drawer
+  // once on arrival.
   const kitMode =
     searchParams.get("origin") === "kit" &&
-    (!hydrated || cartPieces(cart) > 0);
+    (!hydrated || unpaintedPieces(cart) > 0);
+  // fix 11: everything painted → clear the persisted context once.
+  useEffect(() => {
+    if (
+      !hydrated ||
+      kitClearedRef.current ||
+      searchParams.get("origin") !== "kit" ||
+      unpaintedPieces(cart) > 0
+    ) {
+      return;
+    }
+    kitClearedRef.current = true;
+    clearKitContext();
+    setKitCtx(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot clear on completion
+  }, [hydrated, cart]);
   const kitOpenedRef = useRef(false);
   useEffect(() => {
     if (!kitMode || !hydrated || kitOpenedRef.current) return;
