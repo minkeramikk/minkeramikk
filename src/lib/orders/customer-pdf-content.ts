@@ -1,5 +1,5 @@
-import { formatMoney, money, multiply, subtract, type Money } from "@/lib/money/money";
-import { shippingStatus } from "@/lib/cart/shipping";
+import { add, formatMoney, money, multiply, subtract, type Money } from "@/lib/money/money";
+import { shippingFor } from "@/lib/cart/shipping";
 import { hasVippsDetails, type VippsSettings } from "./vipps";
 import { displayName } from "./customer-name";
 import type { SellerIdentity } from "./seller";
@@ -55,8 +55,11 @@ export interface CustomerPdfLabels {
   total: string;
   vatIncluded: string;
   orgNumber: string;
+  /** R5-GARANZIA: title of the shipping row (between discount and total). */
+  shipping: string;
+  /** Value shown on that row at/above the threshold — a known flat fee shows
+   *  the formatted amount instead, no label needed for it. */
   shippingIncluded: string;
-  shippingToBeConfirmed: string;
   shipTo: string;
   payTitle: string;
   payNumberLabel: string;
@@ -90,8 +93,8 @@ const COPY: Record<"no" | "en", CustomerPdfLabels> = {
     // «Herav», non il solo «MVA»: il totale la contiene già, non la aspetta.
     vatIncluded: `Herav MVA ${MVA_RATE_PCT} %`,
     orgNumber: "Org.nr.",
-    shippingIncluded: "Frakt og forsikring inkludert",
-    shippingToBeConfirmed: "Frakt bekreftes senere",
+    shipping: "Frakt",
+    shippingIncluded: "Inkludert",
     shipTo: "Leveres til",
     payTitle: "Slik betaler du",
     payNumberLabel: "Vippsnummer",
@@ -118,8 +121,8 @@ const COPY: Record<"no" | "en", CustomerPdfLabels> = {
     // "Incl.", not a bare "VAT": the total already contains it.
     vatIncluded: `Incl. VAT ${MVA_RATE_PCT}%`,
     orgNumber: "Org. no.",
-    shippingIncluded: "Shipping and insurance included",
-    shippingToBeConfirmed: "Shipping confirmed later",
+    shipping: "Shipping",
+    shippingIncluded: "Included",
     shipTo: "Ship to",
     payTitle: "How to pay",
     payNumberLabel: "Vipps number",
@@ -223,13 +226,19 @@ export interface CustomerPdfDoc {
   subtotal: string;
   /** Assente quando è zero: una riga «Rabatt 0 kr» è rumore. */
   discount: string | null;
+  /** R5-GARANZIA: il GRAND total — netto + spedizione (`shipping` qui sotto) —
+   *  la stessa cifra che il carrello, la mail e Vipps mostrano. */
   total: string;
   /**
-   * La MVA GIÀ CONTENUTA nel totale. Null quando il negozio non è in
-   * MVA-registeret — che è il default: stamparla senza esserlo è illegale.
+   * La MVA GIÀ CONTENUTA nel netto (non nella spedizione, che non la porta).
+   * Null quando il negozio non è in MVA-registeret — che è il default:
+   * stamparla senza esserlo è illegale.
    */
   vatIncluded: string | null;
-  shippingIncluded: boolean;
+  /** R5-GARANZIA: l'importo fisso sotto soglia (`labels.shipping` la
+   *  intitola), o `labels.shippingIncluded` da soglia — mai più un placeholder
+   *  «si conferma dopo»: la cifra è nota subito. */
+  shipping: string;
   shipTo: {
     name: string;
     address: string | null;
@@ -433,6 +442,10 @@ export function buildCustomerPdfDoc(input: CustomerPdfInput): CustomerPdfDoc {
   const seller = sellerLines(input.seller, labels);
   const addr = input.address;
   const hasAddress = Boolean(addr.address || addr.zipcode || addr.city || addr.country);
+  // R5-GARANZIA: la stessa cifra fissa che il carrello e la mail mostrano —
+  // letta sul netto (D5), mai sul lordo.
+  const shipping = shippingFor(discount.total);
+  const grandTotal = add(discount.total, shipping);
 
   return {
     orderCode: code,
@@ -441,11 +454,11 @@ export function buildCustomerPdfDoc(input: CustomerPdfInput): CustomerPdfDoc {
     designs: designBlocks(items, locale, row),
     subtotal: formatMoney(discount.subtotal, locale),
     discount: savedCents > 0 ? formatMoney(money(savedCents, currency), locale) : null,
-    total: formatMoney(discount.total, locale),
+    total: formatMoney(grandTotal, locale),
     vatIncluded: input.seller.vatRegistered
       ? formatMoney(splitVatInclusive(discount.total).vat, locale)
       : null,
-    shippingIncluded: shippingStatus(discount.total).included,
+    shipping: shipping.amountCents === 0 ? labels.shippingIncluded : formatMoney(shipping, locale),
     shipTo: hasAddress
       ? {
           name: displayName(input.customerName),

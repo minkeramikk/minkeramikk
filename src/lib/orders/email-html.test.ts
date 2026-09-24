@@ -1,6 +1,8 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import { customerEmail, adminEmail, supplierEmail, type MailItem } from "./email-html";
 import { NO_VIPPS, type VippsSettings } from "./vipps";
+import { formatMoney, money } from "@/lib/money/money";
+import { shippingCost } from "@/lib/cart/shipping";
 import type { ThemeTokens } from "@/lib/theme";
 
 const theme: ThemeTokens = { light: "#fbe9e4", dark: "#2b2330", accent: "#7d4f9c" };
@@ -225,11 +227,9 @@ describe("discounted emails (R4-SCONTI)", () => {
     expect(m.text).toContain("-10%");
   });
 
-  it("D5 — shipping reads the NET total, not the gross: an item whose gross clears the threshold but whose net (after its discount) does not shows 'to be confirmed', never 'included'", () => {
-    // gross = 100 000 øre (exactly the 1 000 NOK default threshold, so a
-    // gross-based read would show it included); net after the 10% discount
-    // is 90 000 øre, below the threshold — D5 says the shop confirms shipping
-    // by hand in that case.
+  it("D5 — shipping reads the NET total, not the gross: an item whose gross clears the threshold but whose net (after its discount) does not gets the flat shipping fee, never 'included'", () => {
+    // gross = 100 000 øre, well below the 2 000 NOK threshold either way; net
+    // after the 10% discount is 90 000 øre — D5 says shipping reads the NET.
     const item: MailItem = {
       productName: "Deluxe tallerken",
       quantity: 1,
@@ -240,9 +240,50 @@ describe("discounted emails (R4-SCONTI)", () => {
       discountCents: 10_000,
     };
     const m = customerEmail({ ...baseParams, items: [item] });
-    expect(m.html).toContain("Beregnes");
-    expect(m.text).toContain("Beregnes");
+    const fee = formatMoney(shippingCost, "no");
+    expect(m.html).toContain(fee);
+    expect(m.text).toContain(fee);
     expect(m.html).not.toContain("Inkludert");
+  });
+
+  it("R5-GARANZIA AC2 — the customer mail's total is the GRAND total (net + shipping), below the threshold", () => {
+    // net 90 000 øre (900 kr), below the 2 000 kr threshold → +200 kr shipping.
+    const item: MailItem = {
+      productName: "Deluxe tallerken",
+      quantity: 1,
+      unitPriceCents: 100_000,
+      currency: "NOK",
+      configCode: "MK-A-b1",
+      discountPct: 10,
+      discountCents: 10_000,
+    };
+    const m = customerEmail({ ...baseParams, items: [item] });
+    const grandTotal = formatMoney(money(90_000 + shippingCost.amountCents), "no");
+    expect(m.text).toContain(`Totalt: ${grandTotal}`);
+    expect(m.html).toContain(grandTotal);
+  });
+
+  it("R5-GARANZIA AC2 — at/above the threshold the total is the net, shipping shows 'Inkludert'", () => {
+    const m = customerEmail({ ...baseParams, items: [discounted] }); // net 5 392,80 kr, above 2 000
+    expect(m.html).toContain("Inkludert");
+    expect(m.text).toContain(`Totalt: ${formatMoney(money(539_280), "no")}`);
+  });
+
+  it("R5-GARANZIA AC2 — the admin mail carries the same shipping fee and grand total as the customer mail", () => {
+    const item: MailItem = {
+      productName: "Deluxe tallerken",
+      quantity: 1,
+      unitPriceCents: 100_000,
+      currency: "NOK",
+      configCode: "MK-A-b1",
+      discountPct: 10,
+      discountCents: 10_000,
+    };
+    const m = adminEmail({ ...baseAdminParams, items: [item] });
+    const grandTotal = formatMoney(money(90_000 + shippingCost.amountCents), "en");
+    expect(m.text).toContain(formatMoney(shippingCost, "en"));
+    expect(m.text).toContain(`Total: ${grandTotal}`);
+    expect(m.html).toContain(grandTotal);
   });
 });
 
@@ -307,8 +348,10 @@ describe("payment block (R4-TAKK-MAIL)", () => {
 
   it("names the amount in the lead sentence, in html AND text (R4-MAIL-COPY Ⓑ)", () => {
     const m = customerEmail({ ...base, locale: "no", vipps: full });
-    // the same total the recap row shows: 2 × 500 kr, nb-NO non-breaking spaces
-    const lead = "Vennligst overfør 1\u00a0000\u00a0kr til oss via Vipps.";
+    // the same GRAND total the recap row shows: 2 × 500 kr net (below the
+    // 2 000 kr threshold) + 200 kr shipping — the Vipps transfer is what
+    // the customer actually owes (R5-GARANZIA).
+    const lead = `Vennligst overfør ${formatMoney(money(100_000 + shippingCost.amountCents), "no")} til oss via Vipps.`;
     expect(m.html).toContain(lead);
     expect(m.text).toContain(lead);
     const en = customerEmail({ ...base, locale: "en", vipps: full });

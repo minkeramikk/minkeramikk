@@ -121,7 +121,6 @@ const s = StyleSheet.create({
   grand: { fontSize: 13, fontFamily: "Helvetica-Bold", width: 84, textAlign: "right" },
   vatLabel: { fontSize: 8.5, color: THEME.muted },
   vatValue: { fontSize: 8.5, color: THEME.muted, width: 84, textAlign: "right" },
-  shipping: { fontSize: 8.5, color: THEME.muted, marginTop: 3 },
 
   pay: {
     marginTop: 18,
@@ -295,6 +294,13 @@ export function CustomerPdfDocument({
                 <Text style={s.totalValue}>-{doc.discount}</Text>
               </View>
             )}
+            {/* R5-GARANZIA: fra lo sconto e il Totale — il Totale la contiene
+                già (`doc.total` è il GRAND total), quindi questa riga è la
+                sola spiegazione di quel che ci è dentro. */}
+            <View style={s.totalRow}>
+              <Text style={s.totalLabel}>{t.shipping}</Text>
+              <Text style={s.totalValue}>{doc.shipping}</Text>
+            </View>
             <View style={s.totalRow}>
               <Text style={s.totalLabel}>{t.total}</Text>
               <Text style={s.grand}>{doc.total}</Text>
@@ -309,9 +315,6 @@ export function CustomerPdfDocument({
                 <Text style={s.vatValue}>{doc.vatIncluded}</Text>
               </View>
             )}
-            <Text style={s.shipping}>
-              {doc.shippingIncluded ? t.shippingIncluded : t.shippingToBeConfirmed}
-            </Text>
           </View>
 
           {/* Il blocco pagamento. Gerarchia INVERSA a quella della mail
