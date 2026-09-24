@@ -46,8 +46,14 @@ interface PaletteCardProps {
  * Never collides with the tour's own `Hotspot`: that badge sits on the
  * card's outer wrapper (top-right corner) and opens ABOVE it; this button
  * lives in the header row and opens BELOW it.
+ *
+ * Exported: `PaletteSheet` (palette-sheet.tsx) is a separate implementation
+ * of the same "current palette" concept for phones, not a wrapper around
+ * this card — its header had no "?" at all until this fix wave. Reusing
+ * this component (not duplicating its markup) keeps the popover's styling/
+ * behaviour byte-for-byte identical between the two surfaces.
  */
-function PaletteHelp({ mode, saved }: { mode: "now" | "manage"; saved: number }) {
+export function PaletteHelp({ mode, saved }: { mode: "now" | "manage"; saved: number }) {
   const t = useTranslations("palettes.card");
   const [open, setOpen] = useState(false);
   return (
