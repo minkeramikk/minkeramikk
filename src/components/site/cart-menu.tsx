@@ -39,7 +39,7 @@ import { CoachBar, useTourTip } from "@/components/ui-domain/tour";
  */
 export function CartMenu() {
   const t = useTranslations("cart");
-  const { cart, hydrated, open, setOpen, currentConfig } = useCartContext();
+  const { cart, hydrated, open, setOpen, currentConfig, palettes } = useCartContext();
   const router = useRouter();
   const pathname = usePathname();
   /** The working URL the drawer is open over: everything the paint-first
@@ -58,10 +58,10 @@ export function CartMenu() {
   // the CoachBar docks there instead of fixing to the viewport foot (DS
   // §3.32). This mount only ever cares about `sequence === "kit3"` — `step`
   // is fixed at 3 on purpose (the only step this drawer's own tour reaches;
-  // a kit2 tip at step 2 stays on the page, `configurator-client.tsx`), and
-  // there's no `KitWelcome`/`setBanner` state to read from here (the kit's
-  // own welcome never coincides with kit3 — it's step 2's passo 0 — and a
-  // set landing never sets `origin=kit`, so `kitMode` is false for it).
+  // a step2 tip stays on the page, `configurator-client.tsx`), and there's
+  // no `KitWelcome`/`setBanner` state to read from here (the kit's own
+  // welcome never coincides with kit3 — it's step 2's passo 0 — and a set
+  // landing never sets `origin=kit`, so `kitMode` is false for it).
   const kitMode = searchParams.get("origin") === "kit" && (!hydrated || unpainted > 0);
   const tour = useTour();
   const tip = tipFor({
@@ -72,7 +72,9 @@ export function CartMenu() {
     setBannerOpen: false,
     step: 3,
   });
-  const tourTip = useTourTip(tip, unpainted);
+  // `saved` — same `palettes.length` `ceramics-step.tsx`'s own PaletteCard
+  // uses — feeds kit3's 2nd tip (remapped to `step3.1`'s plural, Task C).
+  const tourTip = useTourTip(tip, { count: unpainted, saved: palettes.length });
   const showKit3CoachBar = open && tip?.sequence === "kit3" && tourTip !== null;
   const handleTourNext = () => {
     if (!tip || !tourTip) return;

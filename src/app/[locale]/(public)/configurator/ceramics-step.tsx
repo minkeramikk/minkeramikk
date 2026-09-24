@@ -61,7 +61,7 @@ import { DesignRound } from "@/components/ui-domain/design-round";
 import { Basket } from "@/components/ui-domain/basket";
 import { NextStepPill, PillIcon } from "@/components/ui-domain/next-step-pill";
 import { useTour } from "@/lib/tour/use-tour";
-import { tipFor } from "@/lib/tour/tour";
+import { isLastTip, tipFor } from "@/lib/tour/tour";
 import { CoachBar, Hotspot, useTourTip } from "@/components/ui-domain/tour";
 
 export interface CeramicProduct {
@@ -1068,24 +1068,29 @@ export function CeramicsStep({
   });
   // `unpaintedPieces`, not the kit's total: kit3.1 says "these {count} pieces
   // have no colours yet" — as rows get painted, that count should shrink.
-  const tourTip = useTourTip(tip, unpaintedPieces(cart));
+  // `saved` (palettes.length) feeds step3.1's/kit3's-2nd-tip's plural — the
+  // SAME expression the `PaletteCard`'s own `saved` prop already uses below.
+  const tourTip = useTourTip(tip, { count: unpaintedPieces(cart), saved: palettes.length });
   const handleTourNext = () => {
     if (!tip || !tourTip) return;
     if (tourTip.last) tour.turnOff();
     else tour.next(tip.sequence);
   };
-  // R5-TUTORIAL round 2 (plan Task B) — kit3's last tip ("want more? tap a
-  // ceramic") is the one this page adds active guidance to: it already
-  // anchors to `ceramics-grid` (below), so "the right action" IS the anchor
-  // itself — pulse it, no separate target to find. There is no standing
-  // "add to cart" control on this page before a product sheet is open (the
-  // sheet's own `data-testid="add-to-cart"`, product-sheet.tsx:401, doesn't
-  // exist yet at this point) — grepped, not guessed; the grid is the
-  // closest real "right action" to point at pre-click.
+  // R5-TUTORIAL round 2 (plan Task B) — the LAST tip of step3/kit3 ("pick
+  // your ceramics" / "want more? tap a ceramic") is the one this page adds
+  // active guidance to: it already anchors to `ceramics-grid` (below), so
+  // "the right action" IS the anchor itself — pulse it, no separate target
+  // to find. `isLastTip` is the same rule `tour.ts` uses to decide Next vs
+  // Done, reused here rather than re-deriving "is this the grid's tip".
+  // There is no standing "add to cart" control on this page before a
+  // product sheet is open (the sheet's own `data-testid="add-to-cart"`,
+  // product-sheet.tsx:401, doesn't exist yet at this point) — grepped, not
+  // guessed; the grid is the closest real "right action" to point at
+  // pre-click.
   const ceramicsGridRef = useRef<HTMLDivElement>(null);
   const [pulseGrid, setPulseGrid] = useState(false);
   const handleTourHighlight = () => {
-    if (!tip || tip.sequence !== "kit3" || tip.n !== 3) return;
+    if (!tip || !isLastTip(tip)) return;
     ceramicsGridRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
     setPulseGrid(true);
     window.setTimeout(() => setPulseGrid(false), 2000);
@@ -1622,15 +1627,14 @@ export function CeramicsStep({
                 saved={palettes.length}
                 actions={editColoursButton}
               />
-              {/* R5-TUTORIAL — passo 3 normale's one tip (card "non nomina
-                  quale chip è acceso": the NowBlock above already says it)
-                  AND kit3's own tip 2 ("con questa palette, e si cambia")
-                  share this anchor — `n` follows `tip.n`, not a fixed number:
-                  kit3 counts its own three tips 1-3, independent of the
-                  page's step. */}
+              {/* R5-TUTORIAL round 3 — step3's tip 1 ("you're painting with
+                  this palette") AND kit3's tip 2 (same copy, remapped in
+                  `useTourTip`) share this anchor — `n` follows `tip.n`, not a
+                  fixed number: kit3 counts its own three tips 1-3,
+                  independent of the page's step. */}
               {tourTip &&
                 tip &&
-                ((tip.sequence === "normal" && tip.n === 3) ||
+                ((tip.sequence === "step3" && tip.n === 1) ||
                   (tip.sequence === "kit3" && tip.n === 2)) && (
                 <Hotspot
                   n={tip.n}
@@ -1657,10 +1661,16 @@ export function CeramicsStep({
             data-testid="ceramics-grid"
             ref={ceramicsGridRef}
           >
-            {/* R5-TUTORIAL — kit3's tip 3: "want more? tap a ceramic". */}
-            {tourTip && tip && tip.sequence === "kit3" && tip.n === 3 && (
+            {/* R5-TUTORIAL round 3 — step3's tip 2 ("pick your ceramics")
+                AND kit3's tip 3 (same copy, remapped): the grid is already
+                the anchor `handleTourHighlight` pulses for the last tip of
+                either sequence. */}
+            {tourTip &&
+              tip &&
+              ((tip.sequence === "step3" && tip.n === 2) ||
+                (tip.sequence === "kit3" && tip.n === 3)) && (
               <Hotspot
-                n={3}
+                n={tip.n}
                 text={tourTip.text}
                 last={tourTip.last}
                 onNext={handleTourNext}

@@ -7,24 +7,29 @@ import { isLastTip, type TourSequence } from "@/lib/tour/tour";
 
 /**
  * Resolves the currently-showing tip (if any) to its rendered copy —
- * `tour.<sequence>.<n>` in both dictionaries, `<b>` rendered via `t.rich`,
- * `count` fed through for the two keys that pluralise on it (round 2:
- * `kit2.2`, was `kit2.3` before the save-as-palette tip left the sequence —
- * `kit3.1`) and ignored by the rest.
+ * `tour.<sequence>.<n>` in both dictionaries, `<b>` rendered via `t.rich`.
+ * Round 3: `kit3`'s own tips 2-3 have no copy of their own any more — they
+ * reuse `step3.1`/`step3.2` verbatim (the kit's step 3 says the exact same
+ * two things a normal customer's does, `kit3.1` alone is the kit's extra
+ * head). `count`/`featured`/`saved` feed every key that plays with them via
+ * ICU (`t.rich` ignores the ones a given key doesn't reference).
  *
  * TODO:nb-review — every `tour.*` NO string is new copy (DS §3.32), no
  * source on the live site; the client hasn't reviewed it yet.
  */
 export function useTourTip(
   tip: { sequence: TourSequence; n: 1 | 2 | 3 } | null,
-  count: number
+  values: { count?: number; featured?: boolean; saved?: number } = {}
 ): { text: ReactNode; last: boolean } | null {
   const t = useTranslations("tour");
   if (!tip) return null;
+  const key = tip.sequence === "kit3" && tip.n > 1 ? `step3.${tip.n - 1}` : `${tip.sequence}.${tip.n}`;
   return {
-    text: t.rich(`${tip.sequence}.${tip.n}`, {
+    text: t.rich(key, {
       b: (chunks) => <b>{chunks}</b>,
-      count,
+      count: values.count ?? 0,
+      featured: values.featured ? "yes" : "no",
+      saved: values.saved ?? 0,
     }),
     last: isLastTip(tip),
   };

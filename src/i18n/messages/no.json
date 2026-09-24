@@ -437,10 +437,12 @@
       "1": "Velg <b>én farge per rad</b>. Fatet over viser dem med en gang.",
       "2": "Ferdig? <b>Gå til keramikken din</b>{count, plural, =0 {.} one { — # stykke venter der, klart til å males.} other { — # stykker venter der, klare til å males.}}"
     },
+    "step3": {
+      "1": "Du maler med <b>denne paletten</b>.{saved, plural, =0 {} one {} other { Bytt til en annen lagret når som helst.}}",
+      "2": "<b>Velg keramikken din</b>: trykk på en, den får denne paletten."
+    },
     "kit3": {
-      "1": "Disse <b>{count, plural, one {# stykket} other {# stykkene}}</b> har ingen farger ennå. <b>Mal</b> dem.",
-      "2": "De får <b>denne paletten</b> — bytt den når som helst, og mal på nytt.",
-      "3": "Vil du ha mer? Trykk på en keramikk: den får de samme fargene."
+      "1": "Disse <b>{count, plural, one {# stykket} other {# stykkene}}</b> har ingen farger ennå. <b>Mal</b> dem."
     }
   }
 }

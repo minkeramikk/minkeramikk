@@ -438,10 +438,12 @@
       "1": "Pick <b>one colour per lane</b>. The plate above shows them straight away.",
       "2": "Done? <b>Go to your ceramics</b>{count, plural, =0 {.} one { — # piece is waiting there, ready to paint.} other { — # pieces are waiting there, ready to paint.}}"
     },
+    "step3": {
+      "1": "You're painting with <b>this palette</b>.{saved, plural, =0 {} one {} other { Switch to another saved one any time.}}",
+      "2": "<b>Pick your ceramics</b>: tap one, it comes in this palette."
+    },
     "kit3": {
-      "1": "These <b>{count, plural, one {# piece} other {# pieces}}</b> have no colours yet. <b>Paint</b> them.",
-      "2": "They get <b>this palette</b> — switch it any time, then paint again.",
-      "3": "Want more? Tap a ceramic: it comes in the same colours."
+      "1": "These <b>{count, plural, one {# piece} other {# pieces}}</b> have no colours yet. <b>Paint</b> them."
     }
   }
 }
