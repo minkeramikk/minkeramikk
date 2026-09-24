@@ -21,7 +21,7 @@ import {
 } from "@/lib/discounts/discount";
 import { buildSuggestionLine } from "@/lib/discounts/suggestion-line";
 import { designProductIds } from "@/lib/catalog/design-products-action";
-import type { BasketHost } from "@/components/ui-domain/basket-host";
+import { canPaintWith, type BasketHost } from "@/components/ui-domain/basket-host";
 import {
   clampPaintN,
   pruneToLive,
@@ -187,6 +187,13 @@ type CartApi = ReturnType<typeof useCart> &
      * a line this cart does not hold (step 3 answers for its own projected line).
      */
     allowedProduct: (fromLineId: string, productId: string) => boolean;
+    /**
+     * Bug fix (24/9) — may a palette whose design is `designSlug` paint
+     * `productId`? `false` while the coverage map is still loading, same
+     * caution `allowedProduct` already takes. See `canPaintWith`
+     * (`basket-host.ts`).
+     */
+    canPaint: (designSlug: string | null | undefined, productId: string) => boolean;
   };
 
 const CartContext = createContext<CartApi | null>(null);
@@ -309,13 +316,26 @@ export function CartProvider({
    * `null` means "we do not know yet", and the lookup below answers `false` to
    * everything until it does: an offer the workshop cannot make must never
    * flash on screen while the answer is in flight.
+   *
+   * Bug fix (24/9): also loaded for the design ON SCREEN (`currentConfig`)
+   * and every SAVED palette's design — `canPaint` below (Paint's own coverage
+   * gate) needs both, and this hook already reads `palettes` for the spread
+   * a few lines down, so no second fetch/subscription.
    */
   const designSlugs = useMemo(
     () =>
-      [...new Set(cart.cart.map((l) => l.configSnapshot?.designSlug).filter(Boolean))]
+      [
+        ...new Set(
+          [
+            ...cart.cart.map((l) => l.configSnapshot?.designSlug),
+            currentConfig?.designSlug,
+            ...palettes.palettes.map((p) => p.designSlug),
+          ].filter(Boolean)
+        ),
+      ]
         .sort()
         .join(","),
-    [cart.cart]
+    [cart.cart, currentConfig, palettes.palettes]
   );
   const [designProducts, setDesignProducts] = useState<Record<string, string[]> | null>(
     null
@@ -341,6 +361,43 @@ export function CartProvider({
       return slug ? (designProducts?.[slug]?.includes(productId) ?? false) : false;
     },
     [cart.cart, designProducts]
+  );
+
+  /**
+   * Bug fix (24/9) — does the design behind `designSlug` actually cover
+   * `productId`? Same map as `allowedProduct` above, pure lookup pulled out
+   * (`canPaintWith`, `basket-host.ts`) so it can be unit-tested without React.
+   * `paint` below is the domain guard: every caller of it — the row's own
+   * Paint button included — goes through this, not just the UI paths that
+   * happen to also check it before rendering.
+   */
+  const canPaint = useCallback(
+    (designSlug: string | null | undefined, productId: string) =>
+      canPaintWith(designProducts, designSlug, productId),
+    [designProducts]
+  );
+
+  /**
+   * Wraps `cart.paint` (the raw hook) with the same coverage check: a design
+   * whose palette doesn't cover this line's product must never reach
+   * `paintLines`, no matter which caller asked (repro: Striper DAN painting
+   * a Taco set). Placed later in the `value` object below so it wins over
+   * `...cart`'s own `paint` — same "later key wins the spread" rule the
+   * `SharedKeys` guard above documents.
+   */
+  const paint = useCallback(
+    (
+      lineId: string,
+      n: number,
+      configCode: string,
+      configSnapshot: ConfigSnapshot | null,
+      layers?: CartLayer[]
+    ) => {
+      const line = cart.cart.find((l) => l.id === lineId);
+      if (!line || !canPaint(configSnapshot?.designSlug, line.productId)) return;
+      cart.paint(lineId, n, configCode, configSnapshot, layers);
+    },
+    [cart, canPaint]
   );
 
   const suggestions = useMemo(
@@ -441,6 +498,8 @@ export function CartProvider({
       paintNFor,
       acceptSuggestion,
       allowedProduct,
+      canPaint,
+      paint,
     }),
     [
       cart,
@@ -461,6 +520,8 @@ export function CartProvider({
       paintNFor,
       acceptSuggestion,
       allowedProduct,
+      canPaint,
+      paint,
     ]
   );
 

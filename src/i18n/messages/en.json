@@ -302,7 +302,9 @@
       "paint": "Paint",
       "cta": "Paint {count, plural, one {# piece} other {# pieces}} first",
       "paintCount": "How many to paint",
-      "pickerLabel": "Choose a palette"
+      "pickerLabel": "Choose a palette",
+      "notCovered": "{design} doesn't cover this ceramic",
+      "notCoveredSuffix": "· doesn't cover"
     },
     "unpaint": {
       "action": "Unpaint…"

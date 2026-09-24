@@ -12,6 +12,7 @@ import {
 } from "@/components/ui-domain/basket-host";
 import {
   clampPaintN,
+  designLabel,
   itemCount,
   pruneToLive,
   unpaintedPieces,
@@ -172,6 +173,7 @@ export function Basket({
     setRowPalette,
     setPaintN,
     paintNFor,
+    canPaint,
   } = useCartContext();
   /**
    * R5-TEXT-CARRY — which saved palette (if any) IS the config on screen:
@@ -369,6 +371,17 @@ export function Basket({
                 // agree on the exact same palette, or the button could paint
                 // something other than what the row just showed.
                 const thumb = rowThumb(line);
+                // Bug fix (24/9) — the design behind `thumb` (whatever Paint
+                // would actually apply, untouched or explicitly picked) must
+                // cover THIS line's own product, or Paint silently paints a
+                // ceramic the design never shipped on (repro: Striper DAN ×
+                // Taco set). `thumb.snapshot` is null only when there is no
+                // configuration on screen at all — then `paintTarget.kind`
+                // is already "none" and the row has no Paint button to block.
+                const paintBlocked =
+                  thumb.snapshot && !canPaint(thumb.snapshot.designSlug, line.productId)
+                    ? (designLabel(thumb.snapshot, locale) ?? thumb.label)
+                    : null;
                 return (
                   <CartLineRow
                     key={line.id}
@@ -394,6 +407,14 @@ export function Basket({
                     currentThumb={thumb}
                     palettes={palettes}
                     currentDesignSlug={currentConfig?.designSlug ?? ""}
+                    // Bug fix (24/9) — the design behind `thumb` right now
+                    // doesn't cover this line's product: the Paint button
+                    // goes inert and says why (see the doc comment above).
+                    paintBlocked={paintBlocked}
+                    // Bug fix (24/9) — the inline picker's own pills each
+                    // check coverage against THEIR OWN design (not the
+                    // row's current thumb), since picking one changes it.
+                    canPaint={(designSlug) => canPaint(designSlug, line.productId)}
                     pickerOpen={!!pickerOpenId[line.id]}
                     onTogglePicker={() =>
                       setPickerOpenId((m) => ({ ...m, [line.id]: !m[line.id] }))

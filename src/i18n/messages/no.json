@@ -301,7 +301,9 @@
       "paint": "Mal",
       "cta": "Mal {count} stk først",
       "paintCount": "Hvor mange å male",
-      "pickerLabel": "Velg en palett"
+      "pickerLabel": "Velg en palett",
+      "notCovered": "{design} dekker ikke denne keramikken",
+      "notCoveredSuffix": "· dekker ikke"
     },
     "unpaint": {
       "action": "Gjør umalt…"
