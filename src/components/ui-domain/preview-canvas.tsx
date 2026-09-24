@@ -356,7 +356,12 @@ function ArcInscription({
   // (SVG2, Firefox 68+/Chrome 105+/Safari 16.4+) fa esattamente questo senza
   // capovolgere i glyph: sposta il rendering sull'altro lato della baseline
   // mantenendo l'orientamento verticale e l'ordine di lettura.
-  const d = `M 21.71,50 a ${INSCRIPTION_ARC_RADIUS},${INSCRIPTION_ARC_RADIUS} 0 0 ${position === "top" ? 1 : 0} 56.58,0`;
+  // Semicerchio pieno (raggio = metà corda): il punto di partenza e la corda
+  // seguono `INSCRIPTION_ARC_RADIUS` invece di stare cablati, o cambiare il
+  // raggio (review 24/9: 0,60 R → 0,70 R) rompe silenziosamente la geometria.
+  const startX = 50 - INSCRIPTION_ARC_RADIUS;
+  const chord = 2 * INSCRIPTION_ARC_RADIUS;
+  const d = `M ${startX},50 a ${INSCRIPTION_ARC_RADIUS},${INSCRIPTION_ARC_RADIUS} 0 0 ${position === "top" ? 1 : 0} ${chord},0`;
   const side = position === "bottom" ? "right" : undefined;
 
   return (

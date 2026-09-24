@@ -138,7 +138,7 @@ describe("arcFit", () => {
   });
 
   it("the starting font-size and fill are the measured/agreed constants", () => {
-    expect(INSCRIPTION_ARC_RADIUS).toBe(28.29);
+    expect(INSCRIPTION_ARC_RADIUS).toBe(33.0);
     expect(INSCRIPTION_ARC_FILL).toBe(0.8);
     expect(INSCRIPTION_ARC_FONT_SIZE).toBeGreaterThan(0);
   });
