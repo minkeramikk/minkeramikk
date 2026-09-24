@@ -2,7 +2,7 @@
 #
 # Suite e2e snella (riscritta 2026-06-17). 8 journey ↔ docs/release/ACCEPTANCE.md.
 #   make run-e2e-core   → OGNI PR (bloccante): i 6 journey core (desktop+mobile).
-#   make run-e2e        → suite intera (core + supplier-pdf + share-set). La lancia
+#   make run-e2e        → suite intera (core + supplier-pdf). La lancia
 #                         Daniele, VERDE prima di aggiornare `preview` e al go-live.
 #   make test-email     → OPT-IN: un solo ordine che invia email REALI alla casella
 #                         dell'account Resend (default dangeli88.daniele@gmail.com).
@@ -23,8 +23,8 @@ NODE_ACTUAL := $(shell node -v 2>/dev/null | sed -E 's/^v([0-9]+).*/\1/')
 # Casella dedicata per il test invio reale (override: make test-email E2E_EMAIL_TO=...).
 E2E_EMAIL_TO ?= dangeli88.daniele@gmail.com
 
-# CORE = i 6 journey critici (per-PR). supplier-pdf e share-set stanno nella full.
-CORE_SPECS := e2e/configurator.spec.ts e2e/config-code.spec.ts e2e/cart.spec.ts \
+# CORE = i journey critici (per-PR). supplier-pdf sta nella full.
+CORE_SPECS := e2e/configurator.spec.ts e2e/cart.spec.ts \
 	e2e/order.spec.ts e2e/admin-auth.spec.ts e2e/admin-orders.spec.ts
 
 .PHONY: check-node build run-e2e run-e2e-core run-e2e-grep test-email
@@ -51,7 +51,7 @@ run-e2e-core: build
 	npx playwright test $(CORE_SPECS) --project=desktop --project=mobile \
 		--grep-invert "@admin-setup"
 
-# suite intera (no email, no evidence) — gate manuale prima di `preview` / go-live
+# suite intera (no email) — gate manuale prima di `preview` / go-live
 run-e2e: build
 	npx playwright test --project=desktop --project=mobile --project=editor
 

@@ -6,16 +6,13 @@ La suite verifica gli AC di quel documento — quello è la fonte di verità, no
 | Spec | Journey | Note |
 |---|---|---|
 | `configurator.spec.ts` | design → opzioni → ceramica | core |
-| `config-code.spec.ts` | codice configurazione | core |
 | `cart.spec.ts` | carrello + drawer | core |
 | `order.spec.ts` | invio ordine | core · **nessun invio reale** |
 | `admin-auth.spec.ts` | login/guard admin | core |
 | `admin-orders.spec.ts` | gestione ordini | core · seed via service role |
 | `supplier-pdf.spec.ts` | PDF fornitore | full · desktop-only |
-| `share-set.spec.ts` | share your set (CA-3) | rimossa (R5-GARANZIA) |
 | `order-email.spec.ts` | invio email ordine reale | **opt-in**, `make test-email` |
 | `supplier-email.spec.ts` | PDF fornitore + inoltro reale | **opt-in**, `make test-email` · fornitore usa-e-getta |
-| `evidence.spec.ts` | screenshot per il cliente | tooling, non gate |
 
 ## Comandi
 
