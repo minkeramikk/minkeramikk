@@ -35,7 +35,7 @@ import {
   NextStepPill,
   PillIcon,
 } from "@/components/ui-domain/next-step-pill";
-import { ChevronLeft, Circle, Undo2 } from "lucide-react";
+import { ChevronLeft, Circle } from "lucide-react";
 import { assetUrl } from "@/lib/storage";
 import { getPreviewLayers, type SelectedCategory } from "@/lib/configurator/preview";
 import {
@@ -91,10 +91,18 @@ import { CoachBar, Hotspot, useTourTip } from "@/components/ui-domain/tour";
 const INSPIRATION_URL = "https://www.minkeramikk.no/inspirasjon";
 
 /** R4-POLISH voce 3: tab dei «Fargeønsker» — valgt figur, complementære /
- *  jeg velger selv, note, e (senza gruppo «Tekst») il campo scritta. Non è una
- *  categoria di catalogo, quindi ha una chiave sintetica; costante di modulo,
- *  identità stabile fra i render. */
+ *  jeg velger selv, note. Non è una categoria di catalogo, quindi ha una
+ *  chiave sintetica; costante di modulo, identità stabile fra i render. */
 const WISHES_TAB = "__wishes";
+/**
+ * R5-TEXT-POSITION (fix review visiva 2) — tab «Inscription», sempre
+ * presente quando `detail.acceptsCustomText`, senza conteggio (come
+ * `WISHES_TAB`): il campo scritta + i chip di posizione, e sotto — solo se
+ * ne ha — le opzioni del gruppo catalogo «Tekst». Prima il campo finiva
+ * sotto la tab Tekst quando esisteva (R4-FIX 8), altrimenti sotto
+ * «Fargeønsker»: due posti diversi per la stessa cosa. Un posto solo, ora.
+ */
+const INSCRIPTION_TAB = "__inscription";
 
 /**
  * R5-DESIGN-SWITCH loader: minimo visibile 500ms a ogni cambio design
@@ -437,8 +445,10 @@ export function ConfiguratorClient({
   );
   const hasSyncGroup = detail.categories.some((c) => c.syncGroup);
 
-  // R4-FIX 8: il campo scritta è governato dal gruppo «Tekst» — euristica sui
-  // nomi + fallback storico, con i suoi unit test, in lib/configurator/text-option.
+  // R4-FIX 8 (superata, fix review visiva 2): il gruppo «Tekst» non governa
+  // più il campo — `findTextGroup` resta solo per riconoscere QUEL gruppo e
+  // togliergli la sua ex tab dedicata (le sue opzioni, se ne ha, vivono
+  // dentro la tab Inscription, vedi sotto).
   const textCategory = useMemo(
     () => findTextGroup(detail.categories),
     [detail]
@@ -446,6 +456,16 @@ export function ConfiguratorClient({
   const showCustomText = isCustomTextOffered({
     acceptsCustomText: detail.acceptsCustomText,
   });
+  // Corsie/tab dei gruppi-catalogo veri: mai un gruppo a 0 opzioni (una tab
+  // spenta è una domanda senza risposta), mai il gruppo «Tekst» (assorbito
+  // dentro la tab Inscription qui sotto, con o senza opzioni proprie).
+  const visibleCategories = useMemo(
+    () =>
+      detail.categories.filter(
+        (c) => c.options.length > 0 && c.id !== textCategory?.id
+      ),
+    [detail, textCategory]
+  );
 
   /* R5-TEXT-LIVE/R5-TEXT-POSITION: la scritta viva si disegna sempre dal
      codice ora — nessuna eccezione per il gruppo «Tekst» (0.1-1). */
@@ -628,10 +648,10 @@ export function ConfiguratorClient({
    *  «Inspirasjonsbilder», in pagina sotto la didascalia del canvas. */
   const hasImages = hasPhotos(detail.images);
   /** Blocchi che restano nel pannello anche sotto md (il tab «Detaljer» non
-   *  esiste più): lås farger, note colore e — senza gruppo «Tekst» — il campo
-   *  scritta. Nessuno dei tre attivo → niente blocco, niente gronda vuota. */
-  const hasPanelExtras =
-    hasSyncGroup || detail.acceptsCustomNotes || (!textCategory && showCustomText);
+   *  esiste più): lås farger, note colore. Il campo scritta ha la sua tab
+   *  dedicata ora (`INSCRIPTION_TAB`), non è più uno di questi. Nessuno dei
+   *  due attivo → niente blocco, niente gronda vuota. */
+  const hasPanelExtras = hasSyncGroup || detail.acceptsCustomNotes;
 
   // R1-FB2: warm the hover-popup images (colour options' layerImage) in idle,
   // desktop-only — first hover shows instantly. Same assetUrl the Swatch
@@ -1892,30 +1912,6 @@ export function ConfiguratorClient({
           </div>
         </div>
 
-        {/* R5-TEXT-POSITION (fix review visiva 2) — stesso motivo del
-            `preview-note-mobile` qui sotto: dentro `PreviewCanvas` ogni `<p>`
-            è spento sotto md (`max-md:[&_p]:hidden`, editor mobile ha il suo
-            canvas a schermo intero senza spazio per didascalie), quindi il
-            `BackTag` desktop non arriva mai qui. Stessa riga, duplicata. */}
-        {step === 2 && textPosition === "back" && liveInscription && (
-          <p
-            data-testid="back-tag-mobile"
-            className="mt-2.5 flex items-center justify-center gap-1.5 text-[11px] text-muted-foreground md:hidden"
-          >
-            <Undo2 aria-hidden="true" size={12} />
-            <span>
-              {t("customText.position.back")} ·{" "}
-              <span
-                style={{
-                  fontFamily: 'var(--font-inscription), "Times New Roman", Times, serif',
-                  fontStyle: "italic",
-                }}
-              >
-                {liveInscription}
-              </span>
-            </span>
-          </p>
-        )}
         {/* R4-RESTYLE (c): la didascalia col link alla inspirasjonsside — sotto
             il canvas e SCORRE VIA (il canvas resta). Stesso nodo `t.rich` della
             caption desktop, che sotto md è spenta dentro `PreviewCanvas`. */}
@@ -2179,7 +2175,7 @@ export function ConfiguratorClient({
                 // segnale che c'è dell'altro.
                 className="flex touch-pan-x snap-x snap-proximity gap-1 overflow-x-auto overscroll-x-contain scroll-smooth scroll-px-11 px-1 pb-0.5 pt-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
               >
-                {detail.categories.map((cat) => {
+                {visibleCategories.map((cat) => {
                   const sel = selections[cat.slug];
                   const selOpt = cat.options.find((o) => o.id === sel);
                   const on = activeTab === cat.slug;
@@ -2221,6 +2217,31 @@ export function ConfiguratorClient({
                     </button>
                   );
                 })}
+                {/* R5-TEXT-POSITION (fix review visiva 2) — dopo le corsie
+                    colore, prima di «Fargeønsker»: senza conteggio, come
+                    quella tab. */}
+                {showCustomText && (
+                  <button
+                    type="button"
+                    id={tabId(INSCRIPTION_TAB)}
+                    role={isDesktop ? undefined : "tab"}
+                    aria-selected={isDesktop ? undefined : activeTab === INSCRIPTION_TAB}
+                    aria-controls={isDesktop ? undefined : tabPanelId(INSCRIPTION_TAB)}
+                    tabIndex={activeTab === INSCRIPTION_TAB ? 0 : -1}
+                    data-testid="category-tab-inscription"
+                    onClick={() => setActiveTab(INSCRIPTION_TAB)}
+                    className={cn(
+                      "flex min-h-11 flex-none snap-start scroll-mx-1 items-center rounded-full px-3.5 text-[12.5px]",
+                      "focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring",
+                      activeTab === INSCRIPTION_TAB
+                        ? "bg-secondary font-semibold text-primary"
+                        : "text-muted-foreground"
+                    )}
+                  >
+                    {/* TODO:nb-review — configurator.tabs.inscription */}
+                    {t("tabs.inscription")}
+                  </button>
+                )}
                 {/* R4-POLISH voce 3: in coda, e SOLO se il design ha davvero
                     qualcosa da metterci. Senza contatore (richiesta cliente):
                     non sono opzioni da contare. */}
@@ -2308,7 +2329,7 @@ export function ConfiguratorClient({
               </p>
             </div>
 
-            {detail.categories.map((cat, catIndex) => (
+            {visibleCategories.map((cat, catIndex) => (
               <CategoryLane
                 key={cat.id}
                 cat={cat}
@@ -2321,13 +2342,9 @@ export function ConfiguratorClient({
                 onSelect={(optionId) => selectOption(cat.slug, optionId)}
                 onKeyDown={(e) => onRadioKeyDown(e, cat)}
                 t={t}
-                // R4-FIX 9: il campo scritta vive SOTTO il suo gruppo — dentro
-                // il tab Tekst su mobile, sotto il fieldset Tekst su desktop.
-                footer={
-                  textCategory?.id === cat.id && showCustomText
-                    ? customTextField
-                    : null
-                }
+                // R5-TEXT-POSITION (fix review visiva 2): il campo scritta ha
+                // la sua tab dedicata ora (sotto), non è più il footer di
+                // nessun gruppo-catalogo.
                 // R5-TUTORIAL round 3 — step 2's tip 1 anchors to the FIRST
                 // category's colour grid (normal AND kit alike now); on
                 // desktop every category is rendered at once (F15), so
@@ -2349,13 +2366,49 @@ export function ConfiguratorClient({
               />
             ))}
 
+            {/* R5-TEXT-POSITION (fix review visiva 2) — un posto solo per la
+                scritta: il campo (+ chip) e, sotto, le opzioni del gruppo
+                catalogo «Tekst» SOLO se ne ha (`findTextGroup` più sopra le
+                ha già tolte dalla corsia normale). Dopo le corsie colore,
+                prima di «Fargeønsker» — stesso `md:contents`/`md:order-2` di
+                una corsia normale su desktop, tab dedicata sotto md. */}
+            {showCustomText && (
+              <div
+                id={tabPanelId(INSCRIPTION_TAB)}
+                role={isDesktop ? undefined : "tabpanel"}
+                aria-labelledby={isDesktop ? undefined : tabId(INSCRIPTION_TAB)}
+                data-testid="step2-inscription"
+                className={cn(
+                  "md:order-2 flex flex-col gap-4",
+                  activeTab !== INSCRIPTION_TAB && "max-md:hidden"
+                )}
+              >
+                {customTextField}
+                {textCategory && textCategory.options.length > 0 && (
+                  <CategoryLane
+                    cat={textCategory}
+                    label={label(textCategory)}
+                    selectedId={selections[textCategory.slug]}
+                    active
+                    isDesktop={isDesktop}
+                    tabId={tabId(textCategory.slug)}
+                    panelId={tabPanelId(textCategory.slug)}
+                    onSelect={(optionId) => selectOption(textCategory.slug, optionId)}
+                    onKeyDown={(e) => onRadioKeyDown(e, textCategory)}
+                    t={t}
+                  />
+                )}
+              </div>
+            )}
+
             {/* R4-POLISH voce 3: il pannello del tab «Fargeønsker». Su desktop
                 `md:contents` lo toglie dal layout e i figli tornano figli
                 diretti del pannello col suo `gap-6` e l'ordine di sempre
                 (`md:order-*`) — desktop invariato. Sotto md raccoglie ciò che
                 non è un gruppo-opzione: lås farger, note colore con «valgt
-                figur», e — senza gruppo «Tekst» — il campo scritta.
-                Niente `overflow`: il pannello non scorre, scorre la pagina (B1). */}
+                figur» (il campo scritta ha la sua tab dedicata ora, vedi
+                sopra). Niente `overflow`: il pannello non scorre, scorre la
+                pagina (B1). */}
             <div
               id={tabPanelId(WISHES_TAB)}
               role={isDesktop ? undefined : "tabpanel"}
@@ -2502,12 +2555,6 @@ export function ConfiguratorClient({
                 </section>
               )}
 
-              {/* R4-FIX 8, fallback: design senza gruppo «Tekst» (oggi tutti,
-                  finché il cliente non lo crea) → il campo resta dov'era, in
-                  fondo al pane, col comportamento storico. */}
-              {!textCategory && showCustomText && (
-                <div className="md:order-3">{customTextField}</div>
-              )}
             </div>
 
             {/* R5-NEW-PALETTE: the SAME `PaletteCard` as step 3, in-flow in
@@ -2756,7 +2803,6 @@ function CategoryLane({
   onSelect,
   onKeyDown,
   t,
-  footer = null,
   hotspot = null,
   pulse = false,
   gridRef,
@@ -2771,10 +2817,6 @@ function CategoryLane({
   onSelect: (optionId: string) => void;
   onKeyDown: (e: React.KeyboardEvent<HTMLDivElement>) => void;
   t: ReturnType<typeof useTranslations>;
-  /** R4-FIX 9: contenuto appeso sotto la corsia — oggi il campo scritta del
-   *  gruppo Tekst, che deve stare dentro il suo tab (mobile) e sotto il suo
-   *  fieldset (desktop). */
-  footer?: React.ReactNode;
   /** R5-TUTORIAL round 3 — step 2's tip 1, only on the first category. */
   hotspot?: React.ReactNode;
   /** R5-TUTORIAL round 3 — "active guidance": pulses the grid itself, same
@@ -3077,12 +3119,6 @@ function CategoryLane({
         </>
       )}
       </div>
-
-      {/* R4-FIX 9: sotto la corsia — il campo scritta del gruppo Tekst. Fuori dal
-          wrapper delle fade: è testo, non deve sbiadire (R4-FIX 5). */}
-      {footer && (
-        <div className="mt-3 max-md:mt-0 max-md:px-3 max-md:pb-3">{footer}</div>
-      )}
     </fieldset>
   );
 }

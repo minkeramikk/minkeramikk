@@ -91,6 +91,9 @@
       "scrollOptionsForward": "Scroll options forward",
       "optionsLabel": "Colours and motifs"
     },
+    "tabs": {
+      "inscription": "Inscription"
+    },
     "photos": {
       "photosLabel": "Photos of the design",
       "previousPhoto": "Previous photo",

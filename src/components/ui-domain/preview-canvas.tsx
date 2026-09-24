@@ -408,24 +408,36 @@ function ArcInscription({
  * condiviso.
  */
 /**
- * R5-TEXT-POSITION (fix review visiva 2) — Bakside non ha anteprima sul
- * piatto, ma la pill che lo diceva stava DENTRO il frame (`absolute
- * bottom-3`), sopra lo stack: usciva dal canvas sugli aspect ratio stretti
- * (editor mobile) e copriva l'arte. Ora è una riga sotto il canvas, stesso
- * slot della didascalia (`caption`, «This is an illustration…»), sopra di
- * essa — mai più dentro il frame, niente box.
+ * R5-TEXT-POSITION (fix review visiva 2, corretto in chat) — Bakside non ha
+ * anteprima sul piatto, ma il testo resta dentro il riquadro del canvas
+ * (sfondo bianco del piatto, non la pagina) — decisione confermata in
+ * review dopo un primo tentativo di spostarla sotto il canvas, scartato.
+ * Il bug vero non era "dentro il frame": era `absolute bottom-3
+ * left-1/2 -translate-x-1/2` senza limite di larghezza, che su un
+ * frame reso rettangolare stretto dall'editor mobile
+ * (`max-md:[&_[data-canvas-frame]]:h-full/w-full`, non più quadrato)
+ * poteva uscire dai bordi con un testo lungo. `inset-x-2` + `max-w-full` +
+ * `truncate` la tengono dentro il riquadro qualunque sia il suo aspect
+ * ratio, invece di fidarsi che resti sempre quadrato.
+ *
+ * `<div>`, non `<p>`: il canvas SPEGNE ogni `<p>` sotto md
+ * (`max-md:[&_p]:hidden`, editor mobile) per via della sua didascalia
+ * duplicata fuori dal componente — un `<p>` qui sparirebbe in silenzio.
  */
 function BackTag({ text, backLabel }: { text: string; backLabel: string }) {
   return (
-    <p data-testid="back-tag" className="mt-3 flex items-center justify-center gap-1.5 text-[11px] text-muted-foreground">
-      <Undo2 aria-hidden="true" size={12} />
-      <span>
+    <div
+      data-testid="back-tag"
+      className="pointer-events-none absolute inset-x-2 bottom-2 flex max-w-full items-center justify-center gap-1.5 truncate rounded-full bg-[var(--mk-canvas)]/90 px-3 py-1.5 text-[11px] text-foreground shadow-(--shadow-card)"
+    >
+      <Undo2 aria-hidden="true" size={12} className="shrink-0" />
+      <span className="truncate">
         {backLabel} ·{" "}
         <span style={{ fontFamily: 'var(--font-inscription), "Times New Roman", Times, serif', fontStyle: "italic" }}>
           {text}
         </span>
       </span>
-    </p>
+    </div>
   );
 }
 
@@ -678,16 +690,15 @@ export function PreviewCanvas({
             </div>
           </div>
         )}
+        {/* R5-TEXT-POSITION (0.1-7, corretto in review) — Bakside: nessuna
+            anteprima del MOTIVO sul piatto, ma il testo sì, dentro il
+            riquadro (sfondo bianco), sopra lo stack, mai sopra il pulsante
+            design. `backLabel` assente (chiamante non ancora aggiornato) →
+            niente pill: un dato incompleto è meglio di uno rotto. */}
+        {inscription && inscriptionPosition === "back" && backLabel && !nothingToShow && (
+          <BackTag text={inscription} backLabel={backLabel} />
+        )}
       </div>
-      {/* R5-TEXT-POSITION (0.1-7, fix review visiva 2) — Bakside: nessuna
-          anteprima sul piatto, solo una riga di didascalia SOTTO il canvas
-          (mai dentro il frame — vedi `BackTag`). `backLabel` assente
-          (chiamante non ancora aggiornato) → niente riga: un dato
-          incompleto è meglio di uno rotto. Sopra `caption`, quando c'è
-          anche lei. */}
-      {inscription && inscriptionPosition === "back" && backLabel && !nothingToShow && (
-        <BackTag text={inscription} backLabel={backLabel} />
-      )}
       {caption && (
         <p className="mt-3 text-center text-xs italic text-muted-foreground">
           {caption}

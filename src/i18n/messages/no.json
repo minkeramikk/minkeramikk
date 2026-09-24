@@ -90,6 +90,9 @@
       "scrollOptionsForward": "Bla alternativer fremover",
       "optionsLabel": "Farger og motiv"
     },
+    "tabs": {
+      "inscription": "Inskripsjon"
+    },
     "photos": {
       "photosLabel": "Bilder av designet",
       "previousPhoto": "Forrige bilde",
