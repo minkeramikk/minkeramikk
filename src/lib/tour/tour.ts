@@ -9,9 +9,10 @@
  * `kit3` — `step1`/`step2` are IDENTICAL for normal and kit, not two
  * variants of the same idea any more.
  *
- * - `step1`: 1 tip, always anchored to the design grid. Its "Next" never
- *   advances anything (there is no counter to bump) and never turns tips
- *   off — doing so would also silence step 2's own tip.
+ * - `step1`: 2 tips (the design grid, then "tap Continue" on the pill). Its
+ *   last tip hands off straight into step 2 without ever going through
+ *   "off" — going through "off" would also silence step 2's own tip
+ *   (`tipFor`'s `state.off` guard is global).
  * - `step2`: 2 tips (options, then "go to your ceramics"). Its last tip
  *   hands off straight into step 3 without ever going through "off".
  * - `step3` / `kit3`: 2 / 3 tips. Their last tip is Done — off for good.
@@ -40,7 +41,7 @@ const SEQUENCES: readonly TourSequence[] = ["step1", "step2", "step3", "kit3"];
 
 /** How many tips each sequence has — the one place `next`/`isLastTip` read
  *  "is this the last one" from. */
-const TIPS: Record<TourSequence, number> = { step1: 1, step2: 2, step3: 2, kit3: 3 };
+const TIPS: Record<TourSequence, number> = { step1: 2, step2: 2, step3: 2, kit3: 3 };
 
 function isTourSequence(v: unknown): v is TourSequence {
   return typeof v === "string" && (SEQUENCES as readonly string[]).includes(v);
@@ -102,20 +103,19 @@ export function tipFor(i: {
 }
 
 /**
- * Advances a sequence's own tip. `step1` persists nothing — one tip, no
- * counter, Next is a no-op (and never turns anything off — that would also
- * silence step 2). `step2`'s last tip hands off straight to step 3
- * (`seq: null`, so `tipFor` re-derives `step3`/`kit3` fresh, starting at 1)
- * without ever going through `off`. `step3`/`kit3`'s last tip is Done: it
- * turns tips off for good.
+ * Advances a sequence's own tip. `step1` and `step2`'s last tip hand off
+ * straight into the next step (`seq: null`, so `tipFor` re-derives
+ * `step2`/`step3`/`kit3` fresh, starting at 1) without ever going through
+ * `off` — going through `off` is global and would also silence whatever
+ * comes next. `step3`/`kit3`'s last tip is Done: it turns tips off for good,
+ * there being no further step.
  */
 export function next(state: TourState, sequence: TourSequence): TourState {
-  if (sequence === "step1") return state;
   const current = state.seq === sequence ? state.step : 1;
   if (current < TIPS[sequence]) {
     return { off: false, seq: sequence, step: current + 1 };
   }
-  if (sequence === "step2") {
+  if (sequence === "step1" || sequence === "step2") {
     return { off: false, seq: null, step: 1 };
   }
   return turnOff(state);
@@ -128,8 +128,8 @@ export function turnOff(state: TourState): TourState {
 
 /**
  * Does this tip's Next button read "Done" and end the tour? Only `step3`
- * and `kit3` ever finish something — `step1` never advances and `step2`
- * hands off into step 3 instead of ending.
+ * and `kit3` ever finish something — `step1` and `step2` hand off into the
+ * next step instead of ending, so their last tip still reads "Next".
  */
 export function isLastTip(tip: { sequence: TourSequence; n: number }): boolean {
   return (

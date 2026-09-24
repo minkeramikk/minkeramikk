@@ -49,15 +49,29 @@ describe("TOUR_KEY", () => {
   });
 });
 
-describe("tipFor — step 1: a single tip, Next is a no-op", () => {
-  it("shows the one step1 tip", () => {
+describe("tipFor/next — step 1: 1 → 2 → hand-off to step 2 (no off in between)", () => {
+  it("shows the first step1 tip", () => {
     expect(ask(1)).toEqual({ sequence: "step1", n: 1 });
   });
 
-  it("next() never advances step1 — one tip only, Next must not turn it off", () => {
+  it("next() advances step1 from 1 to 2 — no longer a no-op", () => {
     const state = start("step1");
-    expect(next(state, "step1")).toEqual(state);
-    expect(ask(1, { state: next(state, "step1") })).toEqual({ sequence: "step1", n: 1 });
+    const advanced = next(state, "step1");
+    expect(advanced).toEqual({ off: false, seq: "step1", step: 2 });
+    expect(ask(1, { state: advanced })).toEqual({ sequence: "step1", n: 2 });
+  });
+
+  it("next() from step1's last tip hands off to step2/1 without ever going through off", () => {
+    let state = start("step1");
+    state = next(state, "step1");
+    state = next(state, "step1");
+    expect(state).toEqual({ off: false, seq: null, step: 1 });
+    expect(ask(2, { state })).toEqual({ sequence: "step2", n: 1 });
+  });
+
+  it("neither step1 tip is ever last — Next never reads Done there", () => {
+    expect(isLastTip({ sequence: "step1", n: 1 })).toBe(false);
+    expect(isLastTip({ sequence: "step1", n: 2 })).toBe(false);
   });
 
   it("shows nothing once off", () => {
@@ -118,6 +132,10 @@ describe("tipFor/next — step 3: 1 → 2 → off (Done)", () => {
 describe("tipFor — kit", () => {
   it("a kit never lands a tour on step 1 (the welcome IS its passo 0)", () => {
     expect(ask(1, { kitMode: true, state: start("step2") })).toBeNull();
+  });
+
+  it("kit skips step1 regardless of step1's own tip count", () => {
+    expect(ask(1, { kitMode: true, state: next(start("step1"), "step1") })).toBeNull();
   });
 
   it("welcome open → no tip at all, even in kit-mode", () => {
