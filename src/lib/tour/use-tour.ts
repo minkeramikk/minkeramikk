@@ -25,11 +25,23 @@ function persist(state: TourState) {
   // to the page that's actually showing the tip) never hears it. One custom
   // event, dispatched after every mutation, closes that gap with no new
   // dependency and no context.
-  try {
-    window.dispatchEvent(new Event(TOUR_SYNC_EVENT));
-  } catch {
-    /* non-browser environment (SSR/tests) — nothing to sync there */
-  }
+  //
+  // Deferred a tick (`queueMicrotask`): `persist` runs INSIDE the `setState`
+  // updater below, i.e. during React's render for whichever component just
+  // called `next`/`turnOff`/`start`. A synchronous `dispatchEvent` here would
+  // reach the OTHER `useTour()` mount's listener (`onSync`) and call ITS
+  // `setState` mid-render of the FIRST component — exactly the "Cannot
+  // update a component while rendering a different component" warning
+  // (caught testing Task E's header button next to the page's own tour
+  // mount). One microtask later, React's current render/commit is done and
+  // the sync is an ordinary, later event again.
+  queueMicrotask(() => {
+    try {
+      window.dispatchEvent(new Event(TOUR_SYNC_EVENT));
+    } catch {
+      /* non-browser environment (SSR/tests) — nothing to sync there */
+    }
+  });
 }
 
 /**
