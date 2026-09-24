@@ -204,7 +204,7 @@ export default async function ConfiguratorPage({
         selById,
         customNote,
         customText,
-        clampPosition(textPosition ?? "centre", allowedPositions(detail.textPositions))
+        clampPosition(textPosition, allowedPositions(detail.textPositions))
       );
 
       // No <Suspense> around the client steps: the page already awaits all

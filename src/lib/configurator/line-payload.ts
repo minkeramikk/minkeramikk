@@ -60,10 +60,12 @@ export interface ConfigLinePayload {
  *   Dropped entirely when empty (no "studio default" for text).
  * @param textPosition R5-TEXT-POSITION — where the inscription sits. Only
  *   ever stored alongside `customText` (0.1-3: a position with no text has
- *   nowhere to live), `centre` included: a text-enabled design ALWAYS gets a
- *   position once it gets text, even when the caller didn't pass one.
- *   Clamped against `detail.textPositions` here, so a stale/forged value
- *   never asks for an arc this design doesn't offer.
+ *   nowhere to live). Post-review revision: no forced default any more —
+ *   `centre` is opt-in like every other position, so a design that doesn't
+ *   offer it (or a caller that hasn't asked the customer to pick yet) simply
+ *   omits the field until a real, offered value shows up. Clamped against
+ *   `detail.textPositions` here, so a stale/forged value never asks for an
+ *   arc (or a centre) this design doesn't offer.
  */
 export function withCustomFields(
   snapshot: ConfigSnapshot,
@@ -82,7 +84,8 @@ export function withCustomFields(
   if (detail.acceptsCustomNotes) merged.customNote = (customNote ?? "").trim();
   if (cleanedText) {
     merged.customText = cleanedText;
-    merged.textPosition = clampPosition(textPosition ?? "centre", allowedPositions(detail.textPositions));
+    const clamped = clampPosition(textPosition, allowedPositions(detail.textPositions));
+    if (clamped !== undefined) merged.textPosition = clamped;
   }
   return merged;
 }

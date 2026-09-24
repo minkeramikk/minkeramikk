@@ -79,9 +79,9 @@ export interface DesignDetail {
   /** F38: shop opted this design into a customer inscription (step-2 field). */
   acceptsCustomText: boolean;
   /**
-   * R5-TEXT-POSITION: which of `top`/`bottom` this design offers as an arc
-   * inscription (`centre` and `back` are always implicit, never listed
-   * here). Read straight from `designs.text_positions`.
+   * R5-TEXT-POSITION (post-review revision): which of the four positions —
+   * centre and back included, none implicit any more — this design offers.
+   * Read straight from `designs.text_positions`.
    */
   textPositions: string[];
   descriptionStep2No: string | null;

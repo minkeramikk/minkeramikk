@@ -456,24 +456,34 @@ export function ConfiguratorClient({
     ? customText
     : undefined;
 
-  /* R5-TEXT-POSITION: dove sta la scritta — Midten di default, seed da
-     `?pos=` (isTextPosition scarta valori estranei senza rompere). */
-  const [textPosition, setTextPosition] = useState<TextPosition>(
-    isTextPosition(searchParams.get("pos")) ? (searchParams.get("pos") as TextPosition) : "centre"
+  /* R5-TEXT-POSITION (post-review revision): dove sta la scritta — NESSUN
+     default, nemmeno Centre: finché il cliente non sceglie un chip resta
+     `undefined` (mai inventato), seed da `?pos=` quando c'è (isTextPosition
+     scarta valori estranei senza rompere). */
+  const [textPosition, setTextPosition] = useState<TextPosition | undefined>(
+    isTextPosition(searchParams.get("pos")) ? (searchParams.get("pos") as TextPosition) : undefined
   );
   const positionsOffered = useMemo(
     () => allowedPositions(detail.textPositions),
     [detail]
   );
-  // Un design cambiato/una posizione non più ammessa ricadono su `centre`,
-  // silenziosamente (0.1-4) — mai un chip acceso su un'opzione sparita.
+  // Un design cambiato/una posizione non più ammessa ricadono su "nessuna
+  // scelta", silenziosamente (0.1-4) — mai un chip acceso su un'opzione
+  // sparita, e mai una scelta inventata al posto suo.
   useEffect(() => {
     setTextPosition((pos) => clampPosition(pos, positionsOffered));
   }, [positionsOffered]);
+  // Post-review revision: senza un default, una scritta scritta ma senza
+  // posizione scelta è uno stato reale (non solo un attimo prima del
+  // click) — blocca l'avanzamento, non lo nasconde. Un design con
+  // `positionsOffered` vuoto è un problema di catalogo (admin lo impedisce
+  // già in salvataggio), non qui: non blocca nulla da solo.
+  const textPositionMissing =
+    showCustomText && customText.trim().length > 0 && positionsOffered.length > 0 && textPosition === undefined;
   // Reset alla stessa cadenza del testo: design diverso, campo diverso.
   useEffect(() => {
     const fromUrl = new URLSearchParams(searchParams.toString()).get("pos");
-    setTextPosition(isTextPosition(fromUrl) ? fromUrl : "centre");
+    setTextPosition(isTextPosition(fromUrl) ? fromUrl : undefined);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- key on design only
   }, [selected.slug]);
 
@@ -557,6 +567,16 @@ export function ConfiguratorClient({
             className="mt-2 text-xs text-muted-foreground"
           >
             {t("customText.position.backHelper")}
+          </p>
+        )}
+        {textPositionMissing && (
+          // TODO:nb-review — configurator.customText.position.required,
+          // scritta ora in inglese e tradotta senza revisione del cliente.
+          <p
+            data-testid="custom-text-position-required"
+            className="mt-2 text-xs text-destructive"
+          >
+            {t("customText.position.required")}
           </p>
         )}
       </div>
@@ -758,11 +778,13 @@ export function ConfiguratorClient({
       if (explicitText === null) {
         const seededText = decodedText ?? "";
         setCustomText(seededText);
-        setTextPosition(decodedPosition ?? "centre");
+        // Post-review revision: no forced "centre" here either — a shared
+        // link that never carried a position (or one this design has since
+        // dropped) leaves the field genuinely unset, same as a fresh visit.
+        setTextPosition(decodedPosition);
         if (seededText) {
           params.set("text", seededText);
-          if (decodedPosition && decodedPosition !== "centre")
-            params.set("pos", decodedPosition);
+          if (decodedPosition !== undefined) params.set("pos", decodedPosition);
           else params.delete("pos");
         } else {
           params.delete("text");
@@ -1242,6 +1264,10 @@ export function ConfiguratorClient({
   }
 
   function goToStep(target: 1 | 2 | 3) {
+    // Single guard for every way of reaching step 3 (the CTA pill AND the
+    // stepper's direct jump) — a chosen-but-required position is not
+    // optional just because the customer used a different button.
+    if (target === 3 && textPositionMissing) return;
     const params = new URLSearchParams(searchParams.toString());
     params.set("design", selected.slug);
     // Leaving steps 1–2 IS the explicit choice for a set: `origin=set` stops
@@ -1265,9 +1291,9 @@ export function ConfiguratorClient({
     if (showCustomText && customText.trim()) {
       params.set("text", customText.trim());
       // R5-TEXT-POSITION: rides alongside the text, never without it — and
-      // only written when it says something (`centre` is the silent default,
-      // same convention as bit 0 in the codec, 0.1-3).
-      if (textPosition !== "centre") params.set("pos", textPosition);
+      // only written once the customer actually picked one (post-review
+      // revision: there is no silent default any more, not even centre).
+      if (textPosition !== undefined) params.set("pos", textPosition);
       else params.delete("pos");
     } else {
       params.delete("text");
@@ -1834,7 +1860,9 @@ export function ConfiguratorClient({
               caption={previewNote}
               className={cn(step === 2 && "max-md:contents")}
               layers={previewLayers}
-              inscription={liveInscription}
+              // Post-review revision: senza una posizione scelta niente arriva
+              // al piatto — mai inventare "centre" solo perché è il default in JS.
+              inscription={textPosition !== undefined ? liveInscription : undefined}
               inscriptionPosition={textPosition}
               backLabel={t("customText.position.back")}
               designKey={selected.slug}
@@ -2660,6 +2688,7 @@ export function ConfiguratorClient({
                   }
                   onMouseDown={keepFocusWhileTyping}
                   onClick={() => goToStep(3)}
+                  disabled={textPositionMissing}
                 />
                 {/* R5-TUTORIAL round 3 — step 2's tip 2 (normal and kit
                     alike): "pick your ceramics", on this CTA. */}

@@ -49,11 +49,13 @@ export interface ConfigSnapshot {
    */
   customText?: string;
   /**
-   * R5-TEXT-POSITION — where `customText` sits on the plate. Twin of
-   * `customText`: written whenever the text is, `centre` included; absent
-   * only on snapshots saved before this card (an old palette in
-   * localStorage, an already-placed order) — readers do `?? "centre"`,
-   * never a different default.
+   * R5-TEXT-POSITION (post-review revision) — where `customText` sits on
+   * the plate. Only ever written once the customer actually picked one from
+   * the positions THIS design offers (none is implicit any more, not even
+   * centre) — the configurator blocks moving on until they do, when a
+   * position is required. Absent on snapshots saved before this card (an
+   * old palette in localStorage, an already-placed order) — those readers
+   * still do `?? "centre"`, the one place that default survives.
    */
   textPosition?: TextPosition;
 }

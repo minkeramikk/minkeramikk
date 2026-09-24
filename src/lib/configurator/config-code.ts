@@ -251,9 +251,12 @@ export function decodeConfigCode(
   const customText = decodedText?.text || undefined; // "" (nothing/garbage) → no field
 
   // R5-TEXT-POSITION: valorized whenever `customText` is, `centre` included
-  // (0.1-2/0.1-3) — never for a garbage/no-inscription decode. Clamped
-  // against what THIS design actually offers (0.1-4): a `top` from a shared
-  // link on a design that dropped `top` falls back to `centre`, silently.
+  // when the design offers it — never for a garbage/no-inscription decode.
+  // Clamped against what THIS design actually offers (post-review revision:
+  // none of the four positions is implicit any more): a `top` from a shared
+  // link on a design that dropped `top`, or a `centre` on a design that
+  // never offered it, drops silently to `undefined` rather than inventing
+  // one — same tolerance the rest of this codec already has (ADR 0011).
   const textPosition =
     customText !== undefined
       ? clampPosition(positionFromFlags(decodedText?.flags ?? 0), allowedPositions(design.textPositions ?? []))

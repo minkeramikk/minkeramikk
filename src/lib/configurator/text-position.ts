@@ -46,20 +46,28 @@ export function flagsForPosition(pos: TextPosition): number {
   return POSITION_BITS[pos];
 }
 
-/** `centre` and `back` are always offered; `top`/`bottom` only when the
- *  design's own `text_positions` column says so (0.1-5) — in a fixed
- *  top-then-bottom order regardless of how `extra` lists them. Unknown
- *  values in `extra` (a stray DB row) are ignored, never surfaced as a chip. */
+/** Every position — `centre` and `back` included — is opt-in per design via
+ *  its `text_positions` column (post-review revision: none of the four is
+ *  implicit any more; a design can genuinely not offer Centre). Always
+ *  returned in the fixed chip order (`TEXT_POSITIONS`), regardless of how
+ *  `extra` lists them. Unknown values in `extra` (a stray DB row) are
+ *  ignored, never surfaced as a chip. */
 export function allowedPositions(extra: readonly string[]): TextPosition[] {
-  const offered: TextPosition[] = (["top", "bottom"] as const).filter((p) => extra.includes(p));
-  return ["centre", ...offered, "back"];
+  return TEXT_POSITIONS.filter((p) => extra.includes(p));
 }
 
-/** `pos` if the design actually offers it, else `centre` (0.1-4): a shared
- *  link asking for a position this design doesn't have doesn't break and
- *  doesn't invent an arc — it just falls back, silently. */
-export function clampPosition(pos: TextPosition, allowed: readonly TextPosition[]): TextPosition {
-  return allowed.includes(pos) ? pos : "centre";
+/** `pos` if the design actually offers it, else `undefined`: there is no
+ *  universal fallback any more (a design can omit `centre`), so an
+ *  unavailable or unset position stays unset rather than silently becoming
+ *  one the design doesn't offer. A shared link asking for a position this
+ *  design doesn't have doesn't break and doesn't invent an arc — it just
+ *  drops it. Historical snapshots/orders predate this field entirely and
+ *  read it with their own `?? "centre"` at display time — unaffected. */
+export function clampPosition(
+  pos: TextPosition | undefined,
+  allowed: readonly TextPosition[]
+): TextPosition | undefined {
+  return pos !== undefined && allowed.includes(pos) ? pos : undefined;
 }
 
 export function isTextPosition(v: unknown): v is TextPosition {

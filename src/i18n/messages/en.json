@@ -167,7 +167,8 @@
         "top": "Top",
         "bottom": "Bottom",
         "back": "Back",
-        "backHelper": "The back isn't shown in the preview — the workshop paints it there instead."
+        "backHelper": "The back isn't shown in the preview — the workshop paints it there instead.",
+        "required": "Pick where the words go before moving on."
       }
     },
     "yourSelection": {

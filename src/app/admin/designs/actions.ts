@@ -182,9 +182,12 @@ const designSchema = z.object({
   active: z.coerce.boolean(),
   acceptsCustomNotes: z.coerce.boolean(),
   acceptsCustomText: z.coerce.boolean(),
-  // R5-TEXT-POSITION: top/bottom offered as an arc inscription. Centre and
-  // back are always on and never travel through the form (0.1-5).
-  textPositions: z.array(z.enum(["top", "bottom"])),
+  // R5-TEXT-POSITION (post-review revision): all four positions — centre and
+  // back included — are opt-in per design now, none implicit any more.
+  textPositions: z.array(z.enum(["top", "bottom", "centre", "back"])),
+}).refine((d) => !d.acceptsCustomText || d.textPositions.length > 0, {
+  message: "Accepts custom text needs at least one position offered",
+  path: ["textPositions"],
 });
 
 export async function saveDesign(

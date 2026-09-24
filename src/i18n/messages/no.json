@@ -166,7 +166,8 @@
         "top": "Topp",
         "bottom": "Bunn",
         "back": "Bakside",
-        "backHelper": "Baksiden vises ikke i forhåndsvisningen — verkstedet maler den der i stedet."
+        "backHelper": "Baksiden vises ikke i forhåndsvisningen — verkstedet maler den der i stedet.",
+        "required": "Velg hvor ordene skal stå før du går videre."
       }
     },
     "yourSelection": {

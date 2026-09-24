@@ -163,7 +163,9 @@ export function PaintingStrip({
             {paintingLabel}{" "}
             <span className="font-normal text-muted-foreground">· {designName}</span>
           </p>
-          <PaletteDedicationLine text={dedication} position={textPosition ?? "centre"} className="max-w-none" />
+          {/* Live state (not a snapshot): no forced "centre" — nothing shows
+              until the customer actually picks a position. */}
+          <PaletteDedicationLine text={dedication} position={textPosition} className="max-w-none" />
         </div>
       </div>
       {/* Fix wave PR3 finding 9: the strip is the sheet's ONE opener — a real

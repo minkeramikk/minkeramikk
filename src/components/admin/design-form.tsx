@@ -24,8 +24,9 @@ export interface DesignValues {
   active: boolean;
   acceptsCustomNotes: boolean;
   acceptsCustomText: boolean;
-  /** R5-TEXT-POSITION: `top`/`bottom` this design offers as an arc inscription
-   *  (`centre`/`back` are always on, never stored here — 0.1-5). */
+  /** R5-TEXT-POSITION: which of the four positions this design offers
+   *  (post-review revision — none of them, centre/back included, is
+   *  implicit any more). */
   textPositions: string[];
   code: string | null;
 }
@@ -183,9 +184,14 @@ export function DesignForm({
         Accepts custom text (inscription) on the ceramic
       </label>
 
-      {/* R5-TEXT-POSITION §3.33: Centre and Back are always on (checked,
-          disabled — nothing to submit for them); Top/Bottom are the only
-          values that travel through the form. */}
+      {/* R5-TEXT-POSITION §3.33 (post-review revision): none of the four
+          positions is implicit any more — Centre and Back are ordinary
+          checkboxes now, same as Top/Bottom, all travelling through the
+          form. A design can genuinely not offer Centre (measured: Krabbe
+          shouldn't). Leaving every box unchecked while "Accepts custom
+          text" stays on means the field shows with nothing to pick —
+          `saveDesign` below rejects that combination rather than shipping
+          a dead end. */}
       <fieldset
         data-testid="design-text-positions"
         className="flex flex-col gap-1.5 rounded-md border border-input p-3"
@@ -194,11 +200,18 @@ export function DesignForm({
           Positions offered
         </legend>
         <p className="text-xs text-muted-foreground">
-          Max 25 characters, whatever the position.
+          Max 25 characters, whatever the position. Pick at least one.
         </p>
-        <label className="flex items-center gap-2 text-sm text-muted-foreground">
-          <input type="checkbox" checked disabled className="size-4" />
-          Centre &middot; always on, straight line inside the inner ring
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            name="textPositions"
+            value="centre"
+            defaultChecked={design?.textPositions.includes("centre") ?? false}
+            className="size-4 accent-[var(--primary)]"
+            data-testid="design-text-position-centre"
+          />
+          Centre &middot; straight line inside the inner ring
         </label>
         <label className="flex items-center gap-2 text-sm">
           <input
@@ -222,9 +235,16 @@ export function DesignForm({
           />
           Bottom &middot; same arc, mirrored
         </label>
-        <label className="flex items-center gap-2 text-sm text-muted-foreground">
-          <input type="checkbox" checked disabled className="size-4" />
-          Back &middot; always on, no preview on the plate
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            name="textPositions"
+            value="back"
+            defaultChecked={design?.textPositions.includes("back") ?? false}
+            className="size-4 accent-[var(--primary)]"
+            data-testid="design-text-position-back"
+          />
+          Back &middot; no preview on the plate
         </label>
         <div
           className="mt-1 rounded-md border p-2.5 text-xs"

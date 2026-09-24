@@ -362,6 +362,10 @@ describe("config-code — text position (R5-TEXT-POSITION task 1, AC1)", () => {
   const d = byCode("E")!; // striper: 1 category, keeps the fixture short
   const sel = { stripes: "stripes-opt-1" };
   const withTopPositions: CodecDesign = { ...d, textPositions: ["top", "bottom"] };
+  // Post-review revision: centre/back are opt-in too, no design offers
+  // every position implicitly any more — a fixture with all four for the
+  // round-trip/back/centre-default cases below.
+  const allPositions: CodecDesign = { ...d, textPositions: ["top", "bottom", "centre", "back"] };
 
   it("round-trips text+top through the code", () => {
     const code = encodeConfigCode(withTopPositions, sel, {
@@ -373,20 +377,26 @@ describe("config-code — text position (R5-TEXT-POSITION task 1, AC1)", () => {
     expect(decoded.customText).toBe("Til Anna");
   });
 
-  it("no textPosition given → centre (the default, written like any other position)", () => {
-    const code = encodeConfigCode(withTopPositions, sel, { customText: "Til Anna" });
-    const decoded = decodeConfigCode(code, () => withTopPositions);
+  it("no textPosition given, design offers centre → centre round-trips like any other position", () => {
+    const code = encodeConfigCode(allPositions, sel, { customText: "Til Anna" });
+    const decoded = decodeConfigCode(code, () => allPositions);
     expect(decoded.textPosition).toBe("centre");
   });
 
-  it("a code from before this task (no position bits set, bit 0 only) decodes as centre", () => {
+  it("no textPosition given, design does NOT offer centre → no textPosition at all", () => {
+    const code = encodeConfigCode(withTopPositions, sel, { customText: "Til Anna" });
+    const decoded = decodeConfigCode(code, () => withTopPositions);
+    expect(decoded.textPosition).toBeUndefined();
+  });
+
+  it("a code from before this task (no position bits set, bit 0 only) decodes as centre only when the design offers it", () => {
     // Exactly what the OLD 2-arg / customText-only encoder already produced.
     const code = encodeConfigCode(d, sel, { customText: "Til Anna" });
     const decoded = decodeConfigCode(code, byCode);
-    expect(decoded.textPosition).toBe("centre");
+    expect(decoded.textPosition).toBeUndefined(); // `byCode("E")` doesn't offer centre
   });
 
-  it("top on a design that doesn't offer top → clamped to centre on decode", () => {
+  it("top on a design that doesn't offer top → no textPosition on decode, not invented", () => {
     const noTop: CodecDesign = { ...d, textPositions: [] };
     // Encode carries whatever the caller asked for (encode doesn't gate);
     // decode is what enforces "this design doesn't offer it".
@@ -395,7 +405,7 @@ describe("config-code — text position (R5-TEXT-POSITION task 1, AC1)", () => {
       textPosition: "top",
     });
     const decoded = decodeConfigCode(code, () => noTop);
-    expect(decoded.textPosition).toBe("centre");
+    expect(decoded.textPosition).toBeUndefined();
   });
 
   it("garbage inscription segment → no customText and no textPosition", () => {
@@ -413,11 +423,11 @@ describe("config-code — text position (R5-TEXT-POSITION task 1, AC1)", () => {
   });
 
   it("back position round-trips too", () => {
-    const code = encodeConfigCode(withTopPositions, sel, {
+    const code = encodeConfigCode(allPositions, sel, {
       customText: "Til Anna",
       textPosition: "back",
     });
-    const decoded = decodeConfigCode(code, () => withTopPositions);
+    const decoded = decodeConfigCode(code, () => allPositions);
     expect(decoded.textPosition).toBe("back");
   });
 });

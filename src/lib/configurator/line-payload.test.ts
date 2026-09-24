@@ -190,9 +190,9 @@ describe("withCustomFields", () => {
 });
 
 describe("R5-TEXT-POSITION: textPosition rides the snapshot alongside customText", () => {
-  it("buildConfigLinePayload writes textPosition, centre included, when there is text", () => {
+  it("buildConfigLinePayload writes textPosition when there is text and the design offers it", () => {
     const { snapshot } = buildConfigLinePayload(
-      design(false, true, ["top", "bottom"]),
+      design(false, true, ["top", "bottom", "centre"]),
       { farge: "o1" },
       "",
       "Hei",
@@ -201,25 +201,30 @@ describe("R5-TEXT-POSITION: textPosition rides the snapshot alongside customText
     expect(snapshot.textPosition).toBe("top");
   });
 
-  it("no textPosition arg given, but there IS text → centre, not absent", () => {
-    const { snapshot } = buildConfigLinePayload(design(false, true), { farge: "o1" }, "", "Hei");
-    expect(snapshot.textPosition).toBe("centre");
-  });
-
-  it("no text at all → no textPosition (nothing to attach it to)", () => {
-    const { snapshot } = buildConfigLinePayload(design(false, true), { farge: "o1" }, "", "");
+  it("no textPosition arg given → no default, not even centre when the design offers it", () => {
+    const { snapshot } = buildConfigLinePayload(
+      design(false, true, ["centre"]),
+      { farge: "o1" },
+      "",
+      "Hei"
+    );
     expect("textPosition" in snapshot).toBe(false);
   });
 
-  it("a position the design doesn't offer is clamped to centre", () => {
+  it("no text at all → no textPosition (nothing to attach it to)", () => {
+    const { snapshot } = buildConfigLinePayload(design(false, true, ["centre"]), { farge: "o1" }, "", "");
+    expect("textPosition" in snapshot).toBe(false);
+  });
+
+  it("a position the design doesn't offer drops silently, no invented fallback", () => {
     const { snapshot } = buildConfigLinePayload(
-      design(false, true, []), // no top/bottom offered
+      design(false, true, []), // offers nothing, not even centre
       { farge: "o1" },
       "",
       "Hei",
       "top"
     );
-    expect(snapshot.textPosition).toBe("centre");
+    expect("textPosition" in snapshot).toBe(false);
   });
 
   it("withCustomFields clears a stale textPosition when the design's text gate is off", () => {

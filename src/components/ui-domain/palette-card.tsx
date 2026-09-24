@@ -151,9 +151,11 @@ export function PaletteCard({ chips, actions, saved, now }: PaletteCardProps) {
                   {now.name}
                 </p>
                 {line.kind === "dedication" ? (
+                  // Live "now" state (not a saved snapshot): no forced
+                  // "centre" — nothing shows until one is actually chosen.
                   <PaletteDedicationLine
                     text={line.text}
-                    position={line.position ?? "centre"}
+                    position={line.position}
                     className="max-w-none text-[10.5px]"
                   />
                 ) : (

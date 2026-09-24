@@ -37,16 +37,21 @@ describe("flagsForPosition / positionFromFlags — round-trip", () => {
 });
 
 describe("allowedPositions", () => {
-  it("centre and back are always allowed, top/bottom only when offered", () => {
-    expect(allowedPositions([])).toEqual(["centre", "back"]);
+  it("nothing configured → nothing offered, not even centre or back", () => {
+    expect(allowedPositions([])).toEqual([]);
   });
 
-  it("adds top/bottom in top,bottom order regardless of input order", () => {
-    expect(allowedPositions(["bottom", "top"])).toEqual(["centre", "top", "bottom", "back"]);
+  it("in chip order (TEXT_POSITIONS), regardless of input order", () => {
+    expect(allowedPositions(["bottom", "top", "back", "centre"])).toEqual([
+      "centre",
+      "top",
+      "bottom",
+      "back",
+    ]);
   });
 
   it("ignores unknown extras", () => {
-    expect(allowedPositions(["left", "top"])).toEqual(["centre", "top", "back"]);
+    expect(allowedPositions(["left", "top"])).toEqual(["top"]);
   });
 });
 
@@ -55,8 +60,12 @@ describe("clampPosition", () => {
     expect(clampPosition("top", ["centre", "top", "back"])).toBe("top");
   });
 
-  it("falls back to centre when not allowed", () => {
-    expect(clampPosition("top", ["centre", "back"])).toBe("centre");
+  it("no longer allowed → undefined, no invented fallback", () => {
+    expect(clampPosition("top", ["centre", "back"])).toBeUndefined();
+  });
+
+  it("unset (undefined) stays unset even when the design offers positions", () => {
+    expect(clampPosition(undefined, ["centre", "top", "back"])).toBeUndefined();
   });
 });
 

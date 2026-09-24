@@ -17,7 +17,9 @@ export function PositionChips({
   label,
 }: {
   positions: readonly TextPosition[];
-  value: TextPosition;
+  /** Post-review revision: no forced default any more — `undefined` means
+   *  the customer hasn't picked one yet, every chip shows unselected. */
+  value: TextPosition | undefined;
   onChange: (pos: TextPosition) => void;
   label: (pos: TextPosition) => string;
 }) {
@@ -51,6 +53,9 @@ export function PositionChips({
     >
       {positions.map((pos) => {
         const selected = pos === value;
+        // Nothing selected yet → the first chip still takes the roving
+        // tabindex, or Tab would skip the whole group entirely.
+        const tabbable = value === undefined ? pos === positions[0] : selected;
         return (
           <button
             key={pos}
@@ -58,7 +63,7 @@ export function PositionChips({
             role="radio"
             aria-checked={selected}
             data-pos={pos}
-            tabIndex={selected ? 0 : -1}
+            tabIndex={tabbable ? 0 : -1}
             onClick={() => onChange(pos)}
             className={cn(
               "h-11 rounded-full border border-input bg-card px-3 text-[12.5px] transition-colors md:h-9 md:text-[13px]",
