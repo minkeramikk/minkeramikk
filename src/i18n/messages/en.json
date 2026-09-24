@@ -252,8 +252,6 @@
     "insurance": {
       "title": "Insured shipping",
       "included": "Included",
-      "toBeConfirmed": "To be confirmed",
-      "plusShipping": "+ shipping",
       "nudge": "Free shipping over {threshold} — add {amount}",
       "policyShort": "Every shipment is insured. If anything arrives damaged, let us know within 48 hours — we'll replace it free of charge. Tip: film the unboxing if you can.",
       "readMore": "Read more",

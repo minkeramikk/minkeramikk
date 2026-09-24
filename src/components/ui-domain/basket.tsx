@@ -18,7 +18,6 @@ import {
 } from "@/lib/cart/cart";
 import { formatMoney } from "@/lib/money/money";
 import { cartSaved } from "@/lib/discounts/discount";
-import { useShippingTotalSuffix } from "@/components/ui-domain/cart-shipping-row";
 import { paletteFor } from "@/lib/palettes/palettes";
 import { paletteMatchingCode } from "@/lib/configurator/save-gate";
 import { Link } from "@/i18n/navigation";
@@ -323,7 +322,6 @@ export function Basket({
   /** The foot's own two numbers (drawer only) — taken from the engine, never
    *  re-added here, so the foot can never disagree with `CartTotals` above. */
   const saved = cartSaved(discount);
-  const totalSuffix = useShippingTotalSuffix(discount.total);
 
   // ── The panel itself, in pieces the two hosts assemble differently ──
   const header = (
@@ -604,18 +602,16 @@ export function Basket({
             )}
           </div>
           {/* The foot, EVERY width (card precisazione 19/9): one line, so
-              «Bestill» can never fall below the fold in a long basket. Net
-              total large, what the basket saves under it, the CTA to its
-              right. Nothing else — `+ frakt` rides on the total itself
-              because it IS the total's own qualifier (same `suffix` the
-              sticky bar and `CartTotals` print), not a second number.
+              «Bestill» can never fall below the fold in a long basket. Grand
+              total large (R5-GARANZIA: net + shipping, the one figure the
+              customer actually pays), what the basket saves under it, the
+              CTA to its right.
               TODO:nb-review — cart.saved NO copy is new, unreviewed. */}
           {!formOpen && (
             <div className="flex shrink-0 items-center gap-3 border-t border-border bg-card px-4 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
               <span className="min-w-0 flex-1">
                 <span className="block text-[17px] font-semibold tabular-nums">
-                  {formatMoney(discount.total, locale)}
-                  {totalSuffix}
+                  {formatMoney(discount.grandTotal, locale)}
                 </span>
                 {saved.amountCents > 0 && (
                   <span className="mt-0.5 block text-[12px] font-medium tabular-nums text-status-paid">

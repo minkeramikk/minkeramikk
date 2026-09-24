@@ -40,10 +40,11 @@ test("AC1: add to cart → badge counts, drawer line shows product + price", asy
   await expect(line).toHaveCount(1);
   await expect(line).toContainText(name);
   await expect(drawer(page).getByTestId("cart-total")).toContainText(/\d[\d\s]*\s*kr/);
-  // R3-B4: insured shipping row — status is either "Inkludert" (≥ threshold) or
-  // "Beregnes" + the nudge; the send is never blocked either way.
+  // R3-B4/R5-GARANZIA: insured shipping row — status is either "Inkludert"
+  // (≥ threshold) or the shipping amount in kr + the nudge; the send is
+  // never blocked either way.
   await expect(drawer(page).getByTestId("cart-shipping-status")).toContainText(
-    /Inkludert|Beregnes/
+    /Inkludert|kr/
   );
   await expect(drawer(page).getByTestId("cart-checkout")).toBeEnabled();
 });

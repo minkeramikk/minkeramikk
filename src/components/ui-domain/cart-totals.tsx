@@ -3,7 +3,7 @@
 import { useLocale, useTranslations } from "next-intl";
 import { formatMoney } from "@/lib/money/money";
 import { useCartContext } from "@/lib/cart/cart-context";
-import { CartShippingRow, useShippingTotalSuffix } from "./cart-shipping-row";
+import { CartShippingRow } from "./cart-shipping-row";
 
 /**
  * R4-SCONTI (DESIGN-SYSTEM §3.22) — the totals block of both cart surfaces,
@@ -27,7 +27,6 @@ export function CartTotals({
   const td = useTranslations("cart.discount");
   const locale = useLocale() as "no" | "en";
   const { discount } = useCartContext();
-  const suffix = useShippingTotalSuffix(discount.total);
   const discounted =
     discount.tierSaved.amountCents > 0 || discount.dealSaved.amountCents > 0;
 
@@ -66,13 +65,12 @@ export function CartTotals({
         </>
       )}
 
-      <CartShippingRow total={discount.total} />
+      <CartShippingRow net={discount.total} shipping={discount.shipping} />
 
       <div className="flex items-center justify-between">
         <span className="text-sm text-muted-foreground">{t("total")}</span>
         <span data-testid={totalTestId} className="text-lg font-semibold tabular-nums">
-          {formatMoney(discount.total, locale)}
-          {suffix}
+          {formatMoney(discount.grandTotal, locale)}
         </span>
       </div>
 

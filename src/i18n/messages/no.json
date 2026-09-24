@@ -251,8 +251,6 @@
     "insurance": {
       "title": "Frakt med forsikring",
       "included": "Inkludert",
-      "toBeConfirmed": "Beregnes",
-      "plusShipping": "+ frakt",
       "nudge": "Fri frakt over {threshold} — legg til {amount}",
       "policyShort": "Alle forsendelser er forsikret. Skulle noe komme frem skadet, gi oss beskjed innen 48 timer — vi erstatter det kostnadsfritt. Tips: film gjerne utpakkingen.",
       "readMore": "Les mer",
