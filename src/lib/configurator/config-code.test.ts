@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   CODE_ALPHABET,
   ConfigCodeError,
+  codecCategoryCount,
   decodeConfigCode,
   encodeConfigCode,
   normalizeConfigCode,
@@ -355,5 +356,146 @@ describe("toCodecDesign defaultOptionId", () => {
       ])
     );
     expect(codec?.categories[0]?.optionCodeToId).toEqual({ a: "o1", b: "o2" });
+  });
+});
+
+describe("config-code — text position (R5-TEXT-POSITION task 1, AC1)", () => {
+  const d = byCode("E")!; // striper: 1 category, keeps the fixture short
+  const sel = { stripes: "stripes-opt-1" };
+  const withTopPositions: CodecDesign = { ...d, textPositions: ["top", "bottom"] };
+  // Post-review revision: centre/back are opt-in too, no design offers
+  // every position implicitly any more — a fixture with all four for the
+  // round-trip/back/centre-default cases below.
+  const allPositions: CodecDesign = { ...d, textPositions: ["top", "bottom", "centre", "back"] };
+
+  it("round-trips text+top through the code", () => {
+    const code = encodeConfigCode(withTopPositions, sel, {
+      customText: "Til Anna",
+      textPosition: "top",
+    });
+    const decoded = decodeConfigCode(code, () => withTopPositions);
+    expect(decoded.textPosition).toBe("top");
+    expect(decoded.customText).toBe("Til Anna");
+  });
+
+  it("no textPosition given, design offers centre → centre round-trips like any other position", () => {
+    const code = encodeConfigCode(allPositions, sel, { customText: "Til Anna" });
+    const decoded = decodeConfigCode(code, () => allPositions);
+    expect(decoded.textPosition).toBe("centre");
+  });
+
+  it("no textPosition given, design does NOT offer centre → no textPosition at all", () => {
+    const code = encodeConfigCode(withTopPositions, sel, { customText: "Til Anna" });
+    const decoded = decodeConfigCode(code, () => withTopPositions);
+    expect(decoded.textPosition).toBeUndefined();
+  });
+
+  it("a code from before this task (no position bits set, bit 0 only) decodes as centre only when the design offers it", () => {
+    // Exactly what the OLD 2-arg / customText-only encoder already produced.
+    const code = encodeConfigCode(d, sel, { customText: "Til Anna" });
+    const decoded = decodeConfigCode(code, byCode);
+    expect(decoded.textPosition).toBeUndefined(); // `byCode("E")` doesn't offer centre
+  });
+
+  it("top on a design that doesn't offer top → no textPosition on decode, not invented", () => {
+    const noTop: CodecDesign = { ...d, textPositions: [] };
+    // Encode carries whatever the caller asked for (encode doesn't gate);
+    // decode is what enforces "this design doesn't offer it".
+    const code = encodeConfigCode(withTopPositions, sel, {
+      customText: "Til Anna",
+      textPosition: "top",
+    });
+    const decoded = decodeConfigCode(code, () => noTop);
+    expect(decoded.textPosition).toBeUndefined();
+  });
+
+  it("garbage inscription segment → no customText and no textPosition", () => {
+    // Same shrunk-design trick as the ADR 0011 suite above: an ordinary
+    // option code landing in the inscription slot must not fabricate either.
+    const SHRUNK: CodecDesign = {
+      code: "S",
+      slug: "shrink-test",
+      categories: [{ slug: "only", optionCodeToId: { A: "only-opt" }, defaultOptionId: "only-opt" }],
+      textPositions: ["top", "bottom"],
+    };
+    const decoded = decodeConfigCode("MK-S-A-ZZ", (c) => (c.toUpperCase() === "S" ? SHRUNK : null));
+    expect(decoded.customText).toBeUndefined();
+    expect(decoded.textPosition).toBeUndefined();
+  });
+
+  it("back position round-trips too", () => {
+    const code = encodeConfigCode(allPositions, sel, {
+      customText: "Til Anna",
+      textPosition: "back",
+    });
+    const decoded = decodeConfigCode(code, () => allPositions);
+    expect(decoded.textPosition).toBe("back");
+  });
+});
+
+describe("config-code — a zero-option category never leaves an empty segment (fix 3)", () => {
+  // Krabbe's shape: two real colour categories + the retired «Tekst» group,
+  // kept in the catalogue empty (GARANZIA §7) — `toCodecDesign` must drop it
+  // from the codec entirely, not just skip it while still counting it.
+  function krabbeLikeDetail() {
+    return {
+      code: "K",
+      slug: "krabbe-like",
+      textPositions: ["top", "bottom"],
+      categories: [
+        {
+          slug: "hovedfarge",
+          options: [
+            { id: "hf-1", code: "A", isDefault: true },
+            { id: "hf-2", code: "B" },
+          ],
+        },
+        {
+          slug: "kant",
+          options: [
+            { id: "k-1", code: "C", isDefault: true },
+            { id: "k-2", code: "D" },
+          ],
+        },
+        { slug: "tekst", options: [] }, // the empty group — the bug's source
+      ],
+    };
+  }
+
+  it("a) toCodecDesign drops the empty category; encode never emits a blank segment; decode round-trips", () => {
+    const codec = toCodecDesign(krabbeLikeDetail())!;
+    expect(codec.categories.map((c) => c.slug)).toEqual(["hovedfarge", "kant"]);
+
+    const code = encodeConfigCode(
+      codec,
+      { hovedfarge: "hf-2", kant: "k-1" },
+      { customText: "Til Åse", textPosition: "top" }
+    );
+    expect(code).not.toMatch(/--/);
+
+    const decoded = decodeConfigCode(code, (c) =>
+      c.toUpperCase() === "K" ? codec : null
+    );
+    expect(decoded.selections).toEqual({ hovedfarge: "hf-2", kant: "k-1" });
+    expect(decoded.customText).toBe("Til Åse");
+    expect(decoded.textPosition).toBe("top");
+  });
+
+  it("b) codecCategoryCount matches the codec's real category count, not detail.categories.length", () => {
+    const detail = krabbeLikeDetail();
+    expect(detail.categories.length).toBe(3); // includes the empty Tekst group
+    expect(codecCategoryCount(detail)).toBe(2); // the codec's real count
+  });
+
+  it("c) an old code without the Tekst segment still decodes on the same design (ADR 0011: missing segment → default)", () => {
+    const codec = toCodecDesign(krabbeLikeDetail())!;
+    // Exactly what a code encoded before this fix (or before Tekst even
+    // existed) looks like: two colour segments, no third blank one.
+    const oldCode = "MK-K-B-C";
+    const decoded = decodeConfigCode(oldCode, (c) =>
+      c.toUpperCase() === "K" ? codec : null
+    );
+    expect(decoded.designSlug).toBe("krabbe-like");
+    expect(decoded.selections).toEqual({ hovedfarge: "hf-2", kant: "k-1" });
   });
 });

@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { DesignRound } from "@/components/ui-domain/design-round";
 import { deleteTap, disarm } from "@/components/ui-domain/delete-confirm";
 import type { CartLayer } from "@/lib/cart/cart";
+import type { TextPosition } from "@/lib/configurator/text-position";
 import { cn } from "@/lib/utils";
 
 /**
@@ -322,15 +323,27 @@ export function PaletteChip({
  */
 export function PaletteDedicationLine({
   text,
+  position,
   className,
 }: {
   text?: string;
+  /** DS §3.33 — renders " · Top"/"Bottom"/"Back" after the quote, `centre`
+   *  (the default, and anything absent) stays mute. Poppins, not italic:
+   *  this is a fact about the piece, not part of the dedication itself. */
+  position?: TextPosition;
   className?: string;
 }) {
+  const t = useTranslations("cart.textPosition");
   if (!text) return null;
   return (
     <span className={cn("block max-w-[108px] truncate text-[10px] text-muted-foreground", className)}>
       «{text}»
+      {position && position !== "centre" && (
+        <span data-testid="custom-text-position" className="not-italic">
+          {" "}
+          · {t(position)}
+        </span>
+      )}
     </span>
   );
 }

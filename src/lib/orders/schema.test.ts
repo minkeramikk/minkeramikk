@@ -130,7 +130,7 @@ describe("cleanCustomText (untrusted read path — TL mandate 1+2)", () => {
   });
 });
 
-function payloadWithText(customText: unknown) {
+function payloadWithText(customText: unknown, textPosition?: unknown) {
   return {
     customerName: "A",
     email: "a@b.no",
@@ -152,7 +152,10 @@ function payloadWithText(customText: unknown) {
         currency: "NOK" as const,
         quantity: 1,
         configCode: "MK-x",
-        configSnapshot: { designSlug: "d", designName: "D", selections: [], customText },
+        configSnapshot:
+          textPosition === undefined
+            ? { designSlug: "d", designName: "D", selections: [], customText }
+            : { designSlug: "d", designName: "D", selections: [], customText, textPosition },
       },
     ],
   };
@@ -199,6 +202,23 @@ describe("orderPayloadSchema — customText sanitisation (F38 AC3/AC5)", () => {
     expect(
       orderPayloadSchema.safeParse(payloadWithText("😀".repeat(26))).success
     ).toBe(false);
+  });
+});
+
+describe("orderPayloadSchema — textPosition (R5-TEXT-POSITION AC1)", () => {
+  it("accepts each of the four known positions", () => {
+    for (const pos of ["centre", "top", "bottom", "back"]) {
+      expect(orderPayloadSchema.safeParse(payloadWithText("Hei", pos)).success).toBe(true);
+    }
+  });
+
+  it("rejects a value outside the enum (a forged/garbage position)", () => {
+    expect(orderPayloadSchema.safeParse(payloadWithText("Hei", "left")).success).toBe(false);
+  });
+
+  it("accepts a snapshot without a textPosition (back-compatible)", () => {
+    const result = orderPayloadSchema.safeParse(payloadWithText("Hei"));
+    expect(result.success).toBe(true);
   });
 });
 

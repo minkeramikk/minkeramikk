@@ -9,6 +9,7 @@ import {
   StyleSheet,
 } from "@react-pdf/renderer";
 import type { LabPdfDoc } from "./lab-pdf-content";
+import type { TextPosition } from "@/lib/configurator/text-position";
 
 /**
  * Production-order PDF layout (F08), matching docs/preview/06-lab-pdf.html.
@@ -76,6 +77,7 @@ const s = StyleSheet.create({
   code: { fontSize: 9, color: THEME.accent, marginTop: 6, fontFamily: "Helvetica-Bold" },
   note: { marginTop: 4, fontSize: 9, color: THEME.muted },
   customText: { marginTop: 4, fontSize: 11, fontWeight: 700, color: THEME.ink },
+  positionNote: { fontWeight: 400, color: THEME.muted },
   foot: {
     position: "absolute",
     bottom: 0,
@@ -102,6 +104,26 @@ const s = StyleSheet.create({
   shipLine: { fontSize: 10, color: THEME.ink, marginTop: 1 },
   shipMuted: { fontSize: 9, color: THEME.muted, marginTop: 3 },
 });
+
+/**
+ * R5-TEXT-POSITION AC4: the always-present "POSITION: …" line — pure, so it's
+ * unit-testable without rendering a PDF. Unlike the customer PDF/mail (which
+ * hide `centre`, it's the default), the workshop has no preview to fall back
+ * on, so every position — `centre` included — gets stated.
+ */
+export function positionLine(position: TextPosition): { label: string; note: string } {
+  switch (position) {
+    case "top":
+      return { label: "TOP", note: "arc along the upper inner ring, as previewed" };
+    case "bottom":
+      return { label: "BOTTOM", note: "same arc, mirrored" };
+    case "back":
+      return { label: "BACK", note: "on the back, no preview" };
+    case "centre":
+    default:
+      return { label: "CENTRE", note: "straight line inside the inner ring" };
+  }
+}
 
 export interface LabPdfRenderItem {
   item: LabPdfDoc["items"][number];
@@ -230,7 +252,16 @@ export function LabPdfDocument({
                 </Text>
               )}
               {item.customText ? (
-                <Text style={s.customText}>TEXT ON THE PRODUCT: «{item.customText}»</Text>
+                <>
+                  <Text style={s.customText}>TEXT ON THE PRODUCT: «{item.customText}»</Text>
+                  <Text style={s.customText}>
+                    POSITION: {positionLine(item.textPosition ?? "centre").label}
+                    <Text style={s.positionNote}>
+                      {" "}
+                      · {positionLine(item.textPosition ?? "centre").note}
+                    </Text>
+                  </Text>
+                </>
               ) : null}
             </View>
           </View>

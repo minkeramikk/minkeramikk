@@ -4,13 +4,16 @@ import {
   decodeSetParam,
   encodeSetParam,
   selectionCountOf,
+  stripCustomSegment,
   SET_FIELD_SEP,
   SET_MAX_LINES,
   SET_ROW_SEP,
 } from "./set-code";
 import {
   CODE_ALPHABET,
+  codecCategoryCount,
   encodeConfigCode,
+  toCodecDesign,
   type CodecDesign,
 } from "@/lib/configurator/config-code";
 
@@ -322,5 +325,44 @@ describe("clampQty", () => {
     expect(clampQty(0)).toBe(1);
     expect(clampQty(2.9)).toBe(2);
     expect(clampQty(100)).toBe(99);
+  });
+});
+
+describe("stripCustomSegment — a zero-option category never miscounts (fix 3)", () => {
+  // Krabbe's real shape: 2 colour categories + the empty «Tekst» group.
+  // `codecCategoryCount` (not `detail.categories.length`, which would be 3)
+  // is what a caller must pass as `selectionCount`.
+  const detail = {
+    code: "K",
+    slug: "krabbe-like",
+    categories: [
+      { slug: "hovedfarge", options: [{ id: "hf-1", code: "A", isDefault: true }] },
+      { slug: "kant", options: [{ id: "k-1", code: "B", isDefault: true }] },
+      { slug: "tekst", options: [] },
+    ],
+  };
+  const codec = toCodecDesign(detail)!;
+  const sel = { hovedfarge: "hf-1", kant: "k-1" };
+
+  it("b) two different texts strip to the exact same colours-only prefix", () => {
+    const count = codecCategoryCount(detail);
+    expect(count).toBe(2); // not 3 — the empty Tekst group doesn't count
+
+    const codeA = encodeConfigCode(codec, sel, { customText: "Til Åse" });
+    const codeB = encodeConfigCode(codec, sel, { customText: "Til en helt annen person" });
+    expect(codeA).not.toBe(codeB); // the fixture really does carry different text
+
+    const strippedA = stripCustomSegment(codeA, count);
+    const strippedB = stripCustomSegment(codeB, count);
+    expect(strippedA).toBe(strippedB);
+    expect(strippedA).toBe(encodeConfigCode(codec, sel)); // == the colours-only code
+  });
+
+  it("the buggy count (detail.categories.length, 3) fails to strip — this is the bug being fixed", () => {
+    const codeA = encodeConfigCode(codec, sel, { customText: "Til Åse" });
+    // With the wrong count (3), `stripCustomSegment` expects a 4th segment
+    // past the colours that doesn't exist at that index — it looks one
+    // position too far right and never finds/strips the real inscription.
+    expect(stripCustomSegment(codeA, detail.categories.length)).toBe(codeA);
   });
 });

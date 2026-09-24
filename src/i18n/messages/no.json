@@ -90,6 +90,9 @@
       "scrollOptionsForward": "Bla alternativer fremover",
       "optionsLabel": "Farger og motiv"
     },
+    "tabs": {
+      "inscription": "Inskripsjon"
+    },
     "photos": {
       "photosLabel": "Bilder av designet",
       "previousPhoto": "Forrige bilde",
@@ -160,8 +163,15 @@
     "customText": {
       "title": "Tekst på keramikken",
       "helper": "Forhåndsvisningen viser ordene og hvor de står. Verkstedet bekrefter teksten og maler den for hånd.",
-      "helperLayered": "Verkstedet bekrefter den endelige teksten før produksjon — endrer ikke forhåndsvisningen.",
-      "counter": "{count}/{max}"
+      "counter": "{count}/{max}",
+      "position": {
+        "centre": "Midten",
+        "top": "Topp",
+        "bottom": "Bunn",
+        "back": "Bakside",
+        "backHelper": "Baksiden vises ikke i forhåndsvisningen — verkstedet maler den der i stedet.",
+        "required": "Velg hvor ordene skal stå før du går videre."
+      }
     },
     "yourSelection": {
       "pairCaption": "Denne keramikken + ditt design"
@@ -336,6 +346,11 @@
     "addedWithPct": "Lagt i handlekurven · −{pct} %",
     "sheetOffer": {
       "taken": "Lagt i handlekurven"
+    },
+    "textPosition": {
+      "top": "Topp",
+      "bottom": "Bunn",
+      "back": "Bakside"
     }
   },
   "kit": {

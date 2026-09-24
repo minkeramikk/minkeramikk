@@ -91,6 +91,9 @@
       "scrollOptionsForward": "Scroll options forward",
       "optionsLabel": "Colours and motifs"
     },
+    "tabs": {
+      "inscription": "Inscription"
+    },
     "photos": {
       "photosLabel": "Photos of the design",
       "previousPhoto": "Previous photo",
@@ -161,8 +164,15 @@
     "customText": {
       "title": "Text on the ceramic",
       "helper": "The preview shows the words and where they sit. The workshop confirms the wording and paints it by hand.",
-      "helperLayered": "The workshop confirms the final wording before production — it doesn't change the preview.",
-      "counter": "{count}/{max}"
+      "counter": "{count}/{max}",
+      "position": {
+        "centre": "Centre",
+        "top": "Top",
+        "bottom": "Bottom",
+        "back": "Back",
+        "backHelper": "The back isn't shown in the preview — the workshop paints it there instead.",
+        "required": "Pick where the words go before moving on."
+      }
     },
     "yourSelection": {
       "pairCaption": "This ceramic + your design"
@@ -337,6 +347,11 @@
     "addedWithPct": "Added to your basket · −{pct}%",
     "sheetOffer": {
       "taken": "Added to the basket"
+    },
+    "textPosition": {
+      "top": "Top",
+      "bottom": "Bottom",
+      "back": "Back"
     }
   },
   "kit": {

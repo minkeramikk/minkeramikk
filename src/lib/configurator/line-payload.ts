@@ -20,6 +20,7 @@ import { pickDefaultOption } from "./default-option";
 import { getPreviewLayers } from "./preview";
 import { assetUrl } from "@/lib/storage";
 import { cleanCustomText } from "@/lib/orders/schema";
+import { allowedPositions, clampPosition, type TextPosition } from "./text-position";
 
 export interface ConfigLinePayload {
   snapshot: ConfigSnapshot;
@@ -57,12 +58,21 @@ export interface ConfigLinePayload {
  * @param customText F38 — untrusted URL input, so `cleanCustomText` re-sanitises
  *   and re-truncates here: this is the single choke point for that read path.
  *   Dropped entirely when empty (no "studio default" for text).
+ * @param textPosition R5-TEXT-POSITION — where the inscription sits. Only
+ *   ever stored alongside `customText` (0.1-3: a position with no text has
+ *   nowhere to live). Post-review revision: no forced default any more —
+ *   `centre` is opt-in like every other position, so a design that doesn't
+ *   offer it (or a caller that hasn't asked the customer to pick yet) simply
+ *   omits the field until a real, offered value shows up. Clamped against
+ *   `detail.textPositions` here, so a stale/forged value never asks for an
+ *   arc (or a centre) this design doesn't offer.
  */
 export function withCustomFields(
   snapshot: ConfigSnapshot,
-  detail: Pick<DesignDetail, "acceptsCustomNotes" | "acceptsCustomText">,
+  detail: Pick<DesignDetail, "acceptsCustomNotes" | "acceptsCustomText" | "textPositions">,
   customNote?: string,
-  customText?: string
+  customText?: string,
+  textPosition?: TextPosition
 ): ConfigSnapshot {
   const cleanedText = detail.acceptsCustomText ? cleanCustomText(customText ?? "") : "";
   // Cleared first: a gate that is OFF must leave nothing behind, or a
@@ -70,8 +80,13 @@ export function withCustomFields(
   const merged: ConfigSnapshot = { ...snapshot };
   delete merged.customNote;
   delete merged.customText;
+  delete merged.textPosition;
   if (detail.acceptsCustomNotes) merged.customNote = (customNote ?? "").trim();
-  if (cleanedText) merged.customText = cleanedText;
+  if (cleanedText) {
+    merged.customText = cleanedText;
+    const clamped = clampPosition(textPosition, allowedPositions(detail.textPositions));
+    if (clamped !== undefined) merged.textPosition = clamped;
+  }
   return merged;
 }
 
@@ -95,12 +110,16 @@ export function withCustomFields(
  *   into `encodeConfigCode`, so the SAME configuration with a different
  *   inscription is a DIFFERENT code — the code is identity now, the
  *   snapshot is still what the order mail and the lab PDF read.
+ * @param textPosition R5-TEXT-POSITION — see `withCustomFields`; fed into
+ *   `encodeConfigCode` too, read off the already-gated snapshot value (never
+ *   the raw param) so the code can never disagree with the snapshot.
  */
 export function buildConfigLinePayload(
   detail: DesignDetail,
   selById: Record<string, string>,
   customNote?: string,
-  customText?: string
+  customText?: string,
+  textPosition?: TextPosition
 ): ConfigLinePayload {
   const pick = (c: DesignDetail["categories"][number]) =>
     c.options.find((o) => o.id === selById[c.slug]) ?? pickDefaultOption(c.options);
@@ -123,7 +142,8 @@ export function buildConfigLinePayload(
     },
     detail,
     customNote,
-    customText
+    customText,
+    textPosition
   );
 
   const normalized: Record<string, string> = {};
@@ -140,6 +160,7 @@ export function buildConfigLinePayload(
     ? encodeConfigCode(codec, normalized, {
         customText: snapshot.customText,
         customNote: snapshot.customNote,
+        textPosition: snapshot.textPosition,
       })
     : `MK-${detail.slug}`;
 

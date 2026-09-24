@@ -83,6 +83,27 @@ describe("buildCustomerPdfDoc", () => {
     expect(doc().designs[0].customText).toBeNull();
   });
 
+  // AC4 — «Plassering» rende SOLO quando ≠ centre (customer-pdf.tsx); a livello
+  // di dati il blocco porta sempre il valore giusto, `centre` incluso quando lo
+  // snapshot lo dice esplicitamente, e null quando non c'è iscrizione affatto.
+  it("AC4 — il blocco porta la posizione dello snapshot, default centre col solo testo", () => {
+    const top = doc({
+      items: [
+        item({
+          configSnapshot: { ...item().configSnapshot, customText: "Til mamma", textPosition: "top" } as never,
+        }),
+      ],
+    });
+    expect(top.designs[0].textPosition).toBe("top");
+
+    const centreImplicit = doc({
+      items: [item({ configSnapshot: { ...item().configSnapshot, customText: "Til mamma" } as never })],
+    });
+    expect(centreImplicit.designs[0].textPosition).toBe("centre");
+
+    expect(doc().designs[0].textPosition).toBeNull();
+  });
+
   // AC3 — la lista FUORI. NON si vietano sottostringhe generiche: i contatti e
   // il brand del negozio sono nella lista DENTRO (card §Cosa), quindi vietare
   // "@minkeramikk" metterebbe il test contro la card, e "gram" colpirebbe

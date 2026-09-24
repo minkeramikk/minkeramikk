@@ -12,6 +12,12 @@ import {
   toCodecDesign,
   type CodecDesign,
 } from "@/lib/configurator/config-code";
+import {
+  allowedPositions,
+  clampPosition,
+  isTextPosition,
+  type TextPosition,
+} from "@/lib/configurator/text-position";
 import { getFeaturedConfigs } from "@/lib/catalog/featured";
 import { getAdminUser } from "@/lib/auth/admin";
 import { shareAllowed } from "@/lib/auth/share-gate";
@@ -121,6 +127,8 @@ export default async function ConfiguratorPage({
       /** R5-TEXT-IDENTITY task 4: present when `?code=` itself carries an
        *  inscription — seeds the field below when `?text=` is absent. */
       customText?: string;
+      /** R5-TEXT-POSITION: rides alongside `customText`, `centre` included. */
+      textPosition?: TextPosition;
     } | null = null;
     if (rawCode) {
       const allDetails = await Promise.all(designs.map((d) => getDesignDetail(d.slug)));
@@ -184,11 +192,19 @@ export default async function ConfiguratorPage({
       const rawText =
         typeof params.text === "string" ? params.text : decodedCode?.customText ?? "";
       const customText = detail.acceptsCustomText ? rawText : "";
+      // R5-TEXT-POSITION: same precedence as `?text=`/`decodedCode.customText`
+      // above — explicit `?pos=` wins, `?code=`'s decode fills in only when
+      // absent, `withCustomFields` clamps against this design regardless.
+      const rawPos = typeof params.pos === "string" ? params.pos : undefined;
+      const textPosition = isTextPosition(rawPos)
+        ? rawPos
+        : decodedCode?.textPosition;
       const { snapshot, configCode, designLayers } = buildConfigLinePayload(
         detail,
         selById,
         customNote,
-        customText
+        customText,
+        clampPosition(textPosition, allowedPositions(detail.textPositions))
       );
 
       // No <Suspense> around the client steps: the page already awaits all

@@ -2,6 +2,30 @@ import "server-only";
 
 import { Document, Page, View, Text, Image, Link, StyleSheet } from "@react-pdf/renderer";
 import type { CustomerPdfDoc } from "./customer-pdf-content";
+import type { TextPosition } from "@/lib/configurator/text-position";
+
+/**
+ * R5-TEXT-POSITION AC4: the position's own name + a short clarification of
+ * what it means on the plate, one pair per non-centre position. `centre` is
+ * never looked up here — `customer-pdf.tsx` only renders this line when the
+ * block's `textPosition !== "centre"` (0.1-9): the customer already sees the
+ * word in the middle of the plate, no line needed to say so.
+ *
+ * TODO:nb-review — the NO wording below (name matches the already-approved
+ * `cart.textPosition.*` keys; the clarifications are new and unreviewed).
+ */
+const POSITION_COPY: Record<"no" | "en", Record<Exclude<TextPosition, "centre">, [string, string]>> = {
+  no: {
+    top: ["Topp", "buet langs den øvre ringen"],
+    bottom: ["Bunn", "buet langs den nedre ringen, speilvendt"],
+    back: ["Bakside", "vises ikke i forhåndsvisningen"],
+  },
+  en: {
+    top: ["Top", "arced along the upper ring, as previewed"],
+    bottom: ["Bottom", "arced along the lower ring, mirrored"],
+    back: ["Back", "not shown in the preview"],
+  },
+};
 
 /**
  * R4-PDF-CLIENTE — il riepilogo per il CLIENTE: A4, layout PROPRIO.
@@ -74,6 +98,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 9,
   },
   noteText: { fontSize: 9.5 },
+  noteTextMuted: { fontSize: 9.5, color: THEME.muted },
 
   table: { marginTop: 16, borderTopWidth: 1, borderTopColor: THEME.border },
   tr: {
@@ -213,6 +238,19 @@ export function CustomerPdfDocument({
                 <View style={s.note} wrap={false}>
                   <Text style={s.sectionLabel}>{t.inscription}</Text>
                   <Text style={s.noteText}>«{block.customText}»</Text>
+                  {/* R5-TEXT-POSITION AC4: only when it isn't centre (0.1-9) —
+                      centre is already obvious from the plate itself. */}
+                  {block.textPosition && block.textPosition !== "centre" && (
+                    <Text style={s.noteText}>
+                      {t.position}:{" "}
+                      <Text style={{ fontFamily: "Helvetica-Bold" }}>
+                        {POSITION_COPY[doc.locale][block.textPosition][0]}
+                      </Text>{" "}
+                      <Text style={s.noteTextMuted}>
+                        ({POSITION_COPY[doc.locale][block.textPosition][1]})
+                      </Text>
+                    </Text>
+                  )}
                 </View>
               )}
               {block.customNote && (

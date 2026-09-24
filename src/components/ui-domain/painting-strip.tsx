@@ -5,6 +5,7 @@ import { DesignRound } from "@/components/ui-domain/design-round";
 import { PaletteDedicationLine } from "@/components/ui-domain/palette-chip";
 import { PaletteSheet } from "@/components/ui-domain/palette-sheet";
 import type { CartLayer } from "@/lib/cart/cart";
+import type { TextPosition } from "@/lib/configurator/text-position";
 import type { Palette } from "@/lib/palettes/palettes";
 import { cn } from "@/lib/utils";
 
@@ -44,6 +45,9 @@ export interface PaintingStripProps {
    * renamed there because the sheet only renders it on the draft tile.
    */
   dedication?: string;
+  /** DS §3.33 — rides alongside `dedication`, same source (the live field,
+   *  not a saved snapshot). Absent/`centre` stays mute. */
+  textPosition?: TextPosition;
   /** The design pattern's own name, shown as the "· design" suffix. */
   designName: string;
   palettes: Palette[];
@@ -95,6 +99,7 @@ export function PaintingStrip({
   designLayers,
   paintingLabel,
   dedication,
+  textPosition,
   designName,
   palettes,
   currentDesignSlug,
@@ -158,7 +163,9 @@ export function PaintingStrip({
             {paintingLabel}{" "}
             <span className="font-normal text-muted-foreground">· {designName}</span>
           </p>
-          <PaletteDedicationLine text={dedication} className="max-w-none" />
+          {/* Live state (not a snapshot): no forced "centre" — nothing shows
+              until the customer actually picks a position. */}
+          <PaletteDedicationLine text={dedication} position={textPosition} className="max-w-none" />
         </div>
       </div>
       {/* Fix wave PR3 finding 9: the strip is the sheet's ONE opener — a real

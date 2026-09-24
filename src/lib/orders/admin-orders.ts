@@ -15,6 +15,7 @@ import {
   isOrderStatus,
   type OrderStatus,
 } from "./order-status";
+import type { TextPosition } from "@/lib/configurator/text-position";
 
 /** Human-readable configuration summary stored on the line (F03 snapshot). */
 export interface OrderConfigSnapshot {
@@ -27,6 +28,8 @@ export interface OrderConfigSnapshot {
   customNote?: string;
   /** F38 — customer inscription; see ConfigSnapshot.customText. */
   customText?: string;
+  /** R5-TEXT-POSITION — where `customText` sits; see ConfigSnapshot.textPosition. */
+  textPosition?: TextPosition;
 }
 
 export interface AdminOrderItem {

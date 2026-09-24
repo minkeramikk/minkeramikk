@@ -15,6 +15,7 @@ import { hasVippsDetails, type VippsSettings } from "./vipps";
 import { displayName } from "./customer-name";
 import { JOURNEY_STEPS } from "./order-journey";
 import type { ThemeTokens } from "@/lib/theme";
+import type { TextPosition } from "@/lib/configurator/text-position";
 
 export interface MailItem {
   productName: string;
@@ -26,6 +27,10 @@ export interface MailItem {
   customNote?: string;
   /** F38: customer inscription on the ceramic. Rendered escaped, only when non-empty. */
   customText?: string;
+  /** R5-TEXT-POSITION AC4: where the inscription sits. Rendered as a suffix
+   *  after `customText` only when it isn't `centre` — that's already the
+   *  default and needs no callout (0.1-9). */
+  textPosition?: TextPosition;
   /** R4-SCONTI: the discount FROZEN on the order line (ADR 0022). Absent on a
    *  full-price line and on every order created before the card. */
   discountPct?: number;
@@ -143,6 +148,7 @@ export function shell(
 function itemsTable(items: MailItem[], theme: ThemeTokens, locale: "no" | "en") {
   const noteLabel = COPY[locale].noteLabel;
   const textLabel = COPY[locale].textLabel;
+  const positionLabels = COPY[locale].positionLabels;
   const rows = items
     .map(
       (i) => `<tr>
@@ -161,7 +167,11 @@ function itemsTable(items: MailItem[], theme: ThemeTokens, locale: "no" | "en") 
           i.customText
             ? `<br><span style="font-size:12px;font-weight:600;opacity:.85;">${esc(
                 textLabel
-              )}: «${esc(i.customText)}»</span>`
+              )}: «${esc(i.customText)}»${
+                i.textPosition && i.textPosition !== "centre"
+                  ? ` · ${esc(positionLabels[i.textPosition])}`
+                  : ""
+              }</span>`
             : ""
         }</td>
       <td style="padding:8px 0;border-bottom:1px solid ${esc(
@@ -390,6 +400,12 @@ const COPY = {
       "Rabatten er veiledende — vi bekrefter endelig pris sammen med bestillingen.", // TODO:nb-review
     noteLabel: "Din beskjed til verkstedet", // TODO:nb-review
     textLabel: "Tekst på keramikken", // TODO:nb-review
+    // R5-TEXT-POSITION AC4: same words as the already-approved
+    // `cart.textPosition.*` keys (configurator-client.tsx), not a new set.
+    positionLabels: { top: "Topp", bottom: "Bunn", back: "Bakside" } as Record<
+      Exclude<TextPosition, "centre">,
+      string
+    >,
     legalIntro:
       "For mer om salgsvilkår og personvern — inkludert hvordan vi behandler personopplysninger — se våre",
     legalTerms: "salgsvilkår",
@@ -425,6 +441,10 @@ const COPY = {
       "Discounts shown are indicative — we confirm the final price with your order.",
     noteLabel: "Your note to the workshop",
     textLabel: "Inscription on the ceramic",
+    positionLabels: { top: "Top", bottom: "Bottom", back: "Back" } as Record<
+      Exclude<TextPosition, "centre">,
+      string
+    >,
     legalIntro:
       "For more on our sales terms and privacy — including how we handle your personal data — see our",
     legalTerms: "Terms of Sale",

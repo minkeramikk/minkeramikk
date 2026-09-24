@@ -312,7 +312,22 @@ export function CeramicsStep({
       // `stripCustomSegment` everything else already strips with (no
       // second stripping helper) — `code` keeps the inscription for
       // identity/Paint, only the NAME's input is colours-only.
-      stripCustomSegment(configCode, snapshot.selections.length),
+      //
+      // fix 3: `snapshot.selections.length` counts a zero-option category
+      // (Krabbe's empty «Tekst») that never became a code segment
+      // (`toCodecDesign` drops it) — the count was one too high, so
+      // `stripCustomSegment` silently gave up, and the un-stripped code
+      // renamed the palette on every keystroke. `codecCategoryCount` is
+      // the right count, but it needs a `DesignDetail`-shaped object this
+      // component doesn't have (only `design: DesignRef`, no categories) —
+      // `selections` was already built one entry per category
+      // (`line-payload.ts`), so filtering out the blank one (`option: ""`,
+      // exactly what a category with no options to pick from produces) is
+      // the same count without threading a new prop through.
+      stripCustomSegment(
+        configCode,
+        snapshot.selections.filter((s) => s.option).length
+      ),
       snapshot,
       paletteWords,
       palettes.map((p) => p.name)
@@ -1211,6 +1226,7 @@ export function CeramicsStep({
       designLayers={designLayers}
       paintingLabel={paintingLabel}
       dedication={currentDedication}
+      textPosition={snapshot.textPosition}
       designName={designName}
       palettes={palettes}
       currentDesignSlug={design.slug}
@@ -1632,6 +1648,7 @@ export function CeramicsStep({
                   layers: designLayers,
                   name: paintingLabel,
                   dedication: currentDedication,
+                  textPosition: snapshot.textPosition,
                   designName,
                   hexes: paletteHexes(snapshot),
                 }}

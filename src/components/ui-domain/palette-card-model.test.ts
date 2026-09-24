@@ -24,6 +24,18 @@ describe("palette card model", () => {
     expect(nowSecondLine("   ", "Amalfi")).toEqual({ kind: "design", text: "Amalfi" });
   });
 
+  it("nowSecondLine: position rides along with the dedication (DS §3.33)", () => {
+    expect(nowSecondLine("Til mamma", "Amalfi", "top")).toEqual({
+      kind: "dedication",
+      text: "Til mamma",
+      position: "top",
+    });
+  });
+
+  it("nowSecondLine: no dedication → no position, even if one is passed", () => {
+    expect(nowSecondLine(undefined, "Amalfi", "top")).toEqual({ kind: "design", text: "Amalfi" });
+  });
+
   it("paletteHexes drops null", () => {
     const sel = (hex: string | null) => ({ label: "l", option: "o", hex });
     expect(paletteHexes({ selections: [sel("#a00"), sel(null), sel("#0a0")] })).toEqual(["#a00", "#0a0"]);

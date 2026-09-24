@@ -13,6 +13,7 @@ import { formatSelections } from "@/lib/configurator/readable-selections";
 import { sortCurrentDesignFirst, type Palette } from "@/lib/palettes/palettes";
 import { paletteMatchingCode } from "@/lib/configurator/save-gate";
 import type { LineDiscount } from "@/lib/discounts/discount";
+import type { TextPosition } from "@/lib/configurator/text-position";
 import { cn } from "@/lib/utils";
 
 /**
@@ -134,6 +135,9 @@ export function CartLineRow({
      * own pick for the active pill).
      */
     dedication?: string;
+    /** DS §3.33 — rides alongside `dedication`, same source, same rule:
+     *  `?? "centre"` only at the read site, never a second default here. */
+    textPosition?: TextPosition;
     hexes: string[];
     code: string;
     /** R5-TEXT-CARRY: how many colour segments `code` has — carried for the
@@ -513,7 +517,11 @@ export function CartLineRow({
                       width it needs at 390. */}
                   <span className="flex min-w-0 flex-col items-start leading-tight">
                     <span className="min-w-0 max-w-full truncate">{currentThumb.label}</span>
-                    <PaletteDedicationLine text={currentThumb.dedication} className="max-w-full" />
+                    <PaletteDedicationLine
+                      text={currentThumb.dedication}
+                      position={currentThumb.textPosition ?? "centre"}
+                      className="max-w-full"
+                    />
                   </span>
                   {hasPalettes && (
                     <span aria-hidden className="shrink-0 text-muted-foreground">
@@ -777,7 +785,10 @@ export function CartLineRow({
                       · {designLabel(p.snapshot, locale) ?? p.designSlug}
                     </span>
                   ) : (
-                    <PaletteDedicationLine text={active ? currentThumb.dedication : p.snapshot.customText} />
+                    <PaletteDedicationLine
+                      text={active ? currentThumb.dedication : p.snapshot.customText}
+                      position={(active ? currentThumb.textPosition : p.snapshot.textPosition) ?? "centre"}
+                    />
                   )}
                 </span>
               </button>

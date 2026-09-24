@@ -10,6 +10,7 @@ import { PaletteDedicationLine } from "./palette-chip";
 import { MAX_PALETTES } from "@/lib/palettes/palettes";
 import { capLane, nowSecondLine, SWITCH_CAP } from "./palette-card-model";
 import type { CartLayer } from "@/lib/cart/cart";
+import type { TextPosition } from "@/lib/configurator/text-position";
 
 /**
  * R5-NEW-PALETTE — DS §3.31: `now` presente = interruttore (step 3),
@@ -20,6 +21,7 @@ interface NowData {
   layers: CartLayer[];
   name: string;
   dedication?: string;
+  textPosition?: TextPosition;
   designName: string;
   hexes: string[];
 }
@@ -133,7 +135,7 @@ export function PaletteCard({ chips, actions, saved, now }: PaletteCardProps) {
     >
       {now &&
         (() => {
-          const line = nowSecondLine(now.dedication, now.designName);
+          const line = nowSecondLine(now.dedication, now.designName, now.textPosition);
           return (
             <div
               data-testid="palette-card-now"
@@ -149,7 +151,13 @@ export function PaletteCard({ chips, actions, saved, now }: PaletteCardProps) {
                   {now.name}
                 </p>
                 {line.kind === "dedication" ? (
-                  <PaletteDedicationLine text={line.text} className="max-w-none text-[10.5px]" />
+                  // Live "now" state (not a saved snapshot): no forced
+                  // "centre" — nothing shows until one is actually chosen.
+                  <PaletteDedicationLine
+                    text={line.text}
+                    position={line.position}
+                    className="max-w-none text-[10.5px]"
+                  />
                 ) : (
                   <p className="truncate text-[10.5px] text-muted-foreground">{line.text}</p>
                 )}

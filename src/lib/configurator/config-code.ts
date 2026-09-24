@@ -15,6 +15,13 @@
 import { pickDefaultOption } from "./default-option";
 import { decodeTextSegment, encodeTextSegment, hashNote } from "./text-segment";
 import { CODE_ALPHABET, CODE_PREFIX } from "./code-alphabet";
+import {
+  allowedPositions,
+  clampPosition,
+  flagsForPosition,
+  positionFromFlags,
+  type TextPosition,
+} from "./text-position";
 
 // Re-exported so today's importers (assign-codes.ts, assign-codes.test.ts,
 // set-code.test.ts) keep reading the alphabet from here, unchanged. The
@@ -36,6 +43,13 @@ export interface CodecDesign {
   slug: string;
   /** categories of this design (any order; the codec sorts by slug) */
   categories: CodecCategory[];
+  /**
+   * R5-TEXT-POSITION: which of `top`/`bottom` this design offers (`centre`
+   * and `back` are always implicit, DesignDetail's own default is `[]`).
+   * Optional so the fixtures/designs that pre-date this task keep compiling
+   * unchanged — `toCodecDesign` and decode both treat a missing value as `[]`.
+   */
+  textPositions?: readonly string[];
 }
 
 /** A resolved selection: design slug + option id per category slug. */
@@ -51,6 +65,15 @@ export interface DecodedSelection {
    * only: it is never surfaced here, so nothing downstream can act on it.
    */
   customText?: string;
+  /**
+   * R5-TEXT-POSITION: where the inscription sits, valorized whenever
+   * `customText` is (`centre` included — the position rides the same
+   * segment as the text, so it's never "unknown", only "not applicable"
+   * when there's no text at all). Clamped against `design.textPositions`
+   * here, in decode, so a shared link asking for a position this design
+   * doesn't offer degrades to `centre` instead of inventing an arc.
+   */
+  textPosition?: TextPosition;
 }
 
 export class ConfigCodeError extends Error {}
@@ -61,6 +84,20 @@ const sorted = (cats: CodecCategory[]) =>
 /**
  * Build a CodecDesign from the DB-shaped design detail. Shared by the UI
  * (encode current code) and decode (findDesignByCode over all designs).
+ *
+ * A category with zero options (R5-TEXT-POSITION: the retired «Tekst» group,
+ * kept in the catalogue empty — GARANZIA §7) never becomes a segment: it has
+ * no default option code to encode, `encodeConfigCode` was emitting `""` for
+ * it, and `"...--..."` collapses to `"...-..."` on `normalizeConfigCode` —
+ * one segment short of what every position-based reader (`decodeConfigCode`,
+ * `stripCustomSegment` via `codecCategoryCount` below) expects, so everything
+ * after it read as the wrong thing (fix 3: this is what made the palette
+ * name change on every keystroke — `nameFor` hashed the un-stripped
+ * inscription because the count was off by one). The filter belongs HERE,
+ * not at each call site: encode, decode, and the category count all read
+ * `CodecDesign.categories`, so filtering once keeps them agreeing by
+ * construction — the alternative (each of the three re-deriving "real"
+ * categories its own way) is exactly how they'd drift apart again.
  */
 export function toCodecDesign(detail: {
   code: string | null;
@@ -69,24 +106,42 @@ export function toCodecDesign(detail: {
     slug: string;
     options: { id: string; code: string | null; isDefault?: boolean }[];
   }[];
+  /** R5-TEXT-POSITION: absent (older callers) reads as `[]`, same as the DB default. */
+  textPositions?: readonly string[];
 }): CodecDesign | null {
   if (!detail.code) return null;
   return {
     code: detail.code,
     slug: detail.slug,
-    categories: detail.categories.map((c) => {
-      const optionCodeToId: Record<string, string> = {};
-      for (const o of c.options) if (o.code) optionCodeToId[o.code] = o.id;
-      // cover/code default = the option flagged is_default, else first-by-sort_order.
-      // The caller passes options pre-sorted, so config codes stay stable (ADR 0011)
-      // when nothing is flagged (pre-R2-1 behaviour preserved).
-      return {
-        slug: c.slug,
-        optionCodeToId,
-        defaultOptionId: pickDefaultOption(c.options)?.id ?? null,
-      };
-    }),
+    textPositions: detail.textPositions ?? [],
+    categories: detail.categories
+      .filter((c) => c.options.length > 0)
+      .map((c) => {
+        const optionCodeToId: Record<string, string> = {};
+        for (const o of c.options) if (o.code) optionCodeToId[o.code] = o.id;
+        // cover/code default = the option flagged is_default, else first-by-sort_order.
+        // The caller passes options pre-sorted, so config codes stay stable (ADR 0011)
+        // when nothing is flagged (pre-R2-1 behaviour preserved).
+        return {
+          slug: c.slug,
+          optionCodeToId,
+          defaultOptionId: pickDefaultOption(c.options)?.id ?? null,
+        };
+      }),
   };
+}
+
+/**
+ * How many colour segments THIS design's code actually has — the count
+ * every `stripCustomSegment(code, selectionCount)` caller with a live
+ * `DesignDetail` (not just a frozen snapshot) must pass. `detail.categories
+ * .length` counts a zero-option category (fix 3's «Tekst») that never
+ * became a segment; this doesn't.
+ */
+export function codecCategoryCount(detail: {
+  categories: { options: unknown[] }[];
+}): number {
+  return detail.categories.filter((c) => c.options.length > 0).length;
 }
 
 /**
@@ -104,7 +159,7 @@ export function toCodecDesign(detail: {
 export function encodeConfigCode(
   design: CodecDesign,
   selections: Record<string, string>,
-  extras?: { customText?: string; customNote?: string }
+  extras?: { customText?: string; customNote?: string; textPosition?: TextPosition }
 ): string {
   const idToCode = (cat: CodecCategory): Record<string, string> => {
     const out: Record<string, string> = {};
@@ -124,7 +179,16 @@ export function encodeConfigCode(
   const parts = [CODE_PREFIX, design.code, ...segments];
 
   const noteHash = extras?.customNote ? hashNote(extras.customNote) : undefined;
-  const textSegment = encodeTextSegment({ text: extras?.customText, noteHash });
+  // R5-TEXT-POSITION (0.1-3): the position rides bits 2-3 ONLY when there's
+  // an inscription to attach it to — a colour wish with no text still gets
+  // its own segment (the noteHash), but always at `centre`'s bits (0), never
+  // a stray position from a caller that also happened to pass one. `.trim()`
+  // here is a cheap pre-check, not the sanitiser: `encodeTextSegment` below
+  // still runs the real `cleanCustomText` to decide `hasText` for itself;
+  // this only decides whether position bits are worth setting at all.
+  const hasCustomText = !!extras?.customText?.trim();
+  const flags = hasCustomText ? flagsForPosition(extras?.textPosition ?? "centre") : 0;
+  const textSegment = encodeTextSegment({ text: extras?.customText, noteHash, flags });
   if (textSegment) parts.push(textSegment); // nothing to say → no segment at all
 
   return parts.join("-");
@@ -215,10 +279,23 @@ export function decodeConfigCode(
   const decodedText = textSeg !== undefined ? decodeTextSegment(textSeg) : null;
   const customText = decodedText?.text || undefined; // "" (nothing/garbage) → no field
 
+  // R5-TEXT-POSITION: valorized whenever `customText` is, `centre` included
+  // when the design offers it — never for a garbage/no-inscription decode.
+  // Clamped against what THIS design actually offers (post-review revision:
+  // none of the four positions is implicit any more): a `top` from a shared
+  // link on a design that dropped `top`, or a `centre` on a design that
+  // never offered it, drops silently to `undefined` rather than inventing
+  // one — same tolerance the rest of this codec already has (ADR 0011).
+  const textPosition =
+    customText !== undefined
+      ? clampPosition(positionFromFlags(decodedText?.flags ?? 0), allowedPositions(design.textPositions ?? []))
+      : undefined;
+
   return {
     designSlug: design.slug,
     selections,
     ...(customText !== undefined ? { customText } : {}),
+    ...(textPosition !== undefined ? { textPosition } : {}),
   };
   // any remaining extra segments (parts beyond cats.length + 1) are ignored
 }

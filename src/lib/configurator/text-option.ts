@@ -1,15 +1,14 @@
 /**
- * R4-FIX 8 — «Tekst på keramikken» come OPZIONE, non come campo sempre acceso.
+ * R4-FIX 8 (superata da R5-TEXT-POSITION, 0.1-1) — «Tekst på keramikken» come
+ * OPZIONE, non come campo sempre acceso.
  *
- * Il campo compare solo quando l'utente, nel gruppo che governa la scritta, ha
- * scelto un'opzione diversa dalla prima (la prima è per convenzione «nessun
- * testo»). Il gruppo si riconosce dal NOME — slug o etichetta NO/EN — perché in
- * catalogo non esiste un flag per questo: il flag pulito in back-office è a
- * backlog, e finché non c'è questa è l'unica informazione disponibile.
- *
- * Fallback esplicito: design con `accepts_custom_text` ma SENZA un gruppo così
- * → campo sempre visibile, cioè il comportamento storico. Meglio un campo di
- * troppo che una scritta che il cliente non può più chiedere.
+ * Il gruppo «Tekst» non governa più il campo: con il flag pulito in
+ * back-office (`acceptsCustomText`, R5-TEXT-POSITION) l'euristica sul nome
+ * del gruppo è superflua, e un gruppo VUOTO (0 opzioni, il caso normale ora
+ * che lo studio non disegna più la parola come layer) avrebbe fatto sparire
+ * il campo — `options[0]` è `undefined`, quindi nessuna opzione è mai
+ * "diversa dalla prima". `findTextGroup` resta solo per l'etichetta
+ * dell'admin tree («0 options · kept for code stability», GARANZIA §7).
  */
 
 /** Nomi accettati per il gruppo-scritta, normalizzati. */
@@ -45,22 +44,11 @@ export function findTextGroup<T extends TextGroupCandidate>(
   );
 }
 
-/**
- * Il campo scritta va mostrato? `selectedOptionId` è la scelta corrente nel
- * gruppo-scritta (da URL/`selections`).
- */
+/** Il campo scritta va mostrato? Solo il flag del design conta ora. */
 export function isCustomTextOffered({
   acceptsCustomText,
-  textGroup,
-  selectedOptionId,
 }: {
   acceptsCustomText: boolean;
-  textGroup: TextGroupCandidate | null;
-  selectedOptionId: string | undefined;
 }): boolean {
-  if (!acceptsCustomText) return false;
-  // niente gruppo → comportamento storico
-  if (!textGroup) return true;
-  const noTextOption = textGroup.options[0]?.id;
-  return Boolean(selectedOptionId) && selectedOptionId !== noTextOption;
+  return acceptsCustomText;
 }

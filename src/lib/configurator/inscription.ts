@@ -1,18 +1,11 @@
 /**
  * R5-TEXT-LIVE (card 6a) — le parole del cliente sul piatto, mentre le scrive.
- *
- * Due decisioni, entrambe della card:
- *
- * 1. UNA sola convenzione di posizione, non un dato per design. La card la
- *    chiedeva nel terzo inferiore; a schermo il TL l'ha spostata al centro
- *    (ruling 20/9, motivato dove sta la costante). Se un design vorrà un punto
- *    suo, è roba della 6b o dell'admin.
- * 2. Dove lo studio ha già disegnato la parola — il gruppo «Tekst», un layer
- *    per posizione — la scritta viva NON si disegna: se ne vedrebbero due.
- *    Lì l'anteprima resta identica a prima, pixel per pixel (AC 2).
+ * Estesa da R5-TEXT-POSITION (0.1-1, 0.1-6): la scritta si disegna SEMPRE dal
+ * codice ora, `centre`/`top`/`bottom`/`back` — la vecchia regola «dove lo
+ * studio ha già disegnato la parola come layer, non disegnare» è cancellata,
+ * il gruppo «Tekst» non governa più niente (vedi `text-option.ts`).
  */
 import { MAX_CUSTOM_TEXT } from "@/lib/orders/schema";
-import { isCustomTextOffered, type TextGroupCandidate } from "./text-option";
 
 /**
  * Geometria, in percentuale del QUADRATO che contiene l'arte del piatto — non
@@ -150,37 +143,67 @@ export function shrinkStep(
   return next < fit ? next : null;
 }
 
-/**
- * Il design porta la parola come layer (il gruppo «Tekst» di Alessio, uno per
- * posizione)? Allora la scritta viva non si disegna, e non è solo un fatto di
- * pixel: è anche ciò che il testo di aiuto sotto al campo può promettere.
- * Un posto solo, così le due cose non possono divergere.
- */
-export function inscriptionIsLayered(
-  textGroup: TextGroupCandidate | null
-): boolean {
-  return textGroup !== null;
-}
-
-/** La scritta viva si disegna? */
+/** La scritta viva si disegna? Stesso cancello del campo (`acceptsCustomText`)
+ *  più del testo vero e proprio — nessun'altra condizione, ora che il gruppo
+ *  «Tekst» non governa più niente (0.1-1). */
 export function showsLiveInscription({
   acceptsCustomText,
-  textGroup,
-  selectedOptionId,
   text,
 }: {
   acceptsCustomText: boolean;
-  textGroup: TextGroupCandidate | null;
-  selectedOptionId: string | undefined;
   text: string;
 }): boolean {
-  // Stesso cancello del campo: se il cliente non può chiedere la scritta, non
-  // c'è niente da mostrare — e il testo in stato può essere rimasto lì da un
-  // altro design.
-  if (!isCustomTextOffered({ acceptsCustomText, textGroup, selectedOptionId }))
-    return false;
-  // Il design modella le posizioni da sé (gruppo «Tekst»): la parola è già
-  // dipinta nel layer che il cliente ha scelto. Le posizioni sono la 6b.
-  if (inscriptionIsLayered(textGroup)) return false;
+  if (!acceptsCustomText) return false;
   return text.trim().length > 0;
+}
+
+/**
+ * R5-TEXT-POSITION (0.1-6, corretto in review visiva 24/9) — geometria
+ * dell'arco Topp/Bunn, in unità del `viewBox="0 0 100 100"` montato dentro
+ * lo stesso quadrato `100cqmin` del centre. Raggio = 0,70 × R del piatto
+ * (R = 47,15, misurato in `inscription.ts` sopra) = 33,0; il centro del
+ * piatto è 50,50. Era 0,60 R (28,29): a schermo la scritta galleggiava a
+ * metà piatto invece di appoggiarsi all'anello — la fascia decorata di
+ * Krabbe parte a 0,79 R, e 0,60 R lasciava troppo margine vuoto in mezzo.
+ * 0,70 R la porta vicino al bordo interno della fascia senza toccarla.
+ */
+export const INSCRIPTION_ARC_RADIUS = 33.0;
+
+/**
+ * Corpo del testo sull'arco, prima del fit, in unità viewBox (100 = lato del
+ * quadrato). Misurato a 390 il 2026-09-24 (tab nuova, editor mobile, Krabbe,
+ * 25 caratteri "Til bestemor med kjaerlig", Topp E Bunn, `getBBox()` contro
+ * il bordo interno della fascia decorata a 0,79 R = 37,25): a 33 di raggio il
+ * margine radiale libero è stretto (~4,25 unità) — 7,5 (partenza chiesta in
+ * review) sbordava vistosamente nella fascia su entrambe le posizioni
+ * (radialToRim ≈ 40,4 su Topp); 4,5 e 4,0 toccavano ancora o quasi (37,54 e
+ * 37,12 contro 37,25). **3,75** resta sotto su entrambe (Topp 36,71, margine
+ * 0,54; Bunn 34,26, margine 2,99 — Bunn ha più margine per via di `side`) sui
+ * 25 caratteri, il caso peggiore. Il testo legge più piccolo del PNG 04
+ * (mockup illustrativo, non a scala) proprio per lo stesso raggio 0,70 R: lo
+ * spazio fisico fra l'arco e la fascia è quello, non c'è margine per un corpo
+ * più grande senza sconfinare — segnalato in review, non deciso qui.
+ */
+export const INSCRIPTION_ARC_FONT_SIZE = 3.75;
+
+/**
+ * Quanto dell'arco (un semicerchio, non l'intero cerchio: il testo corre solo
+ * sulla metà superiore/inferiore) si può riempire prima di dover stringere.
+ * 0,8: un margine ai due capi, come `INSCRIPTION_MAX_WIDTH` per la riga al
+ * centro — mai tutto il semicerchio, o il testo tocca dove l'arco finisce.
+ */
+export const INSCRIPTION_ARC_FILL = 0.8;
+
+/**
+ * Una passata del ciclo di misura per l'arco — stesso ritmo di `shrinkStep`
+ * (stesso passo `INSCRIPTION_SHRINK_STEP`, stesso pavimento
+ * `INSCRIPTION_MIN_FIT`), ma il criterio è la LUNGHEZZA del `textPath`
+ * (`getComputedTextLength()`, misurata dal chiamante) contro la corda
+ * disponibile: `π · radius · fill`. Puro: nessun DOM qui dentro.
+ */
+export function arcFit(textLength: number, radius: number, fit: number): number {
+  const available = Math.PI * radius * INSCRIPTION_ARC_FILL;
+  if (textLength <= available) return fit;
+  const next = Math.max(INSCRIPTION_MIN_FIT, fit * INSCRIPTION_SHRINK_STEP);
+  return next;
 }
