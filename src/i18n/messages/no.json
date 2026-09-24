@@ -432,12 +432,11 @@
     "normal": {
       "1": "<b>Sett og kit</b> er ferdige. Eller velg en <b>design</b> og bygg din egen.",
       "2": "Velg en farge per rad. <b>Lagre den som en palett</b> for å bruke den igjen.",
-      "3": "Trykk på en keramikk: den får paletten som vises <b>over</b>."
+      "3": "Du maler med denne paletten. <b>Velg keramikken din</b>."
     },
     "kit2": {
       "1": "Velg <b>én farge per rad</b>. Fatet over viser dem med en gang.",
-      "2": "Fornøyd? <b>Lagre den som en palett</b> — valgfritt, og du kan ha opptil 10.",
-      "3": "Ferdig? <b>Gå til keramikken din</b> — {count, plural, one {# stykke} other {# stykker}} venter der, klare til å males."
+      "2": "Ferdig? <b>Gå til keramikken din</b> — {count, plural, one {# stykke} other {# stykker}} venter der, klare til å males."
     },
     "kit3": {
       "1": "Disse <b>{count, plural, one {# stykket} other {# stykkene}}</b> har ingen farger ennå. <b>Mal</b> dem.",

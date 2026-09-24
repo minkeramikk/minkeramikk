@@ -1074,6 +1074,22 @@ export function CeramicsStep({
     if (tourTip.last) tour.turnOff();
     else tour.next(tip.sequence);
   };
+  // R5-TUTORIAL round 2 (plan Task B) — kit3's last tip ("want more? tap a
+  // ceramic") is the one this page adds active guidance to: it already
+  // anchors to `ceramics-grid` (below), so "the right action" IS the anchor
+  // itself — pulse it, no separate target to find. There is no standing
+  // "add to cart" control on this page before a product sheet is open (the
+  // sheet's own `data-testid="add-to-cart"`, product-sheet.tsx:401, doesn't
+  // exist yet at this point) — grepped, not guessed; the grid is the
+  // closest real "right action" to point at pre-click.
+  const ceramicsGridRef = useRef<HTMLDivElement>(null);
+  const [pulseGrid, setPulseGrid] = useState(false);
+  const handleTourHighlight = () => {
+    if (!tip || tip.sequence !== "kit3" || tip.n !== 3) return;
+    ceramicsGridRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    setPulseGrid(true);
+    window.setTimeout(() => setPulseGrid(false), 2000);
+  };
 
   // §3.18: sections in the admin's own order; the ungrouped bucket comes last
   // with NO heading.
@@ -1536,6 +1552,7 @@ export function CeramicsStep({
           text={tourTip.text}
           last={tourTip.last}
           onNext={handleTourNext}
+          onHighlight={handleTourHighlight}
           onOff={() => tour.turnOff()}
           style={showStickyBar ? { bottom: "var(--mk-sticky-bar-h)" } : undefined}
         />
@@ -1632,7 +1649,14 @@ export function CeramicsStep({
               used to carry as `pb-3`. In flow it looks the same at rest, but
               it scrolls: the plates now reach the card's bottom border and
               vanish under IT, not under a bare strip of page colour. */}
-          <div className="relative flex flex-col gap-[22px] md:mt-3" data-testid="ceramics-grid">
+          <div
+            className={cn(
+              "relative flex flex-col gap-[22px] md:mt-3",
+              pulseGrid && "tour-pulse rounded-xl"
+            )}
+            data-testid="ceramics-grid"
+            ref={ceramicsGridRef}
+          >
             {/* R5-TUTORIAL — kit3's tip 3: "want more? tap a ceramic". */}
             {tourTip && tip && tip.sequence === "kit3" && tip.n === 3 && (
               <Hotspot
@@ -1640,6 +1664,7 @@ export function CeramicsStep({
                 text={tourTip.text}
                 last={tourTip.last}
                 onNext={handleTourNext}
+                onHighlight={handleTourHighlight}
                 onOff={() => tour.turnOff()}
               />
             )}

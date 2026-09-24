@@ -433,12 +433,11 @@
     "normal": {
       "1": "<b>Sets and kits</b> are ready-made. Or pick a <b>design</b> and build your own.",
       "2": "Pick a colour per lane. <b>Save it as a palette</b> to use it again.",
-      "3": "Tap a ceramic: it comes in the palette shown <b>above</b>."
+      "3": "You're painting with this palette. <b>Choose your ceramics</b>."
     },
     "kit2": {
       "1": "Pick <b>one colour per lane</b>. The plate above shows them straight away.",
-      "2": "Happy with it? <b>Save it as a palette</b> — optional, and you can keep up to 10.",
-      "3": "Done? <b>Go to your ceramics</b> — your {count, plural, one {# piece} other {# pieces}} are waiting there, ready to paint."
+      "2": "Done? <b>Go to your ceramics</b> — your {count, plural, one {# piece} other {# pieces}} are waiting there, ready to paint."
     },
     "kit3": {
       "1": "These <b>{count, plural, one {# piece} other {# pieces}}</b> have no colours yet. <b>Paint</b> them.",

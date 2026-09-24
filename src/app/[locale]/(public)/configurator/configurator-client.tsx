@@ -831,6 +831,25 @@ export function ConfiguratorClient({
     if (tourTip.last) tour.turnOff();
     else tour.next(tip.sequence);
   };
+  // R5-TUTORIAL round 2 (plan Task B) — "active guidance": Next no longer
+  // just changes tour state, it scrolls to + pulses (`.tour-pulse`, reused)
+  // the thing the tip is actually pointing at. The click that does the real
+  // work (pick a design, advance the step) stays the customer's own — this
+  // only makes it visible where `onNext` alone used to do nothing (step 1's
+  // tip persists no counter, so its "Next" was a dead button before this).
+  const step1AnchorRef = useRef<HTMLDivElement>(null);
+  const nextStepAnchorRef = useRef<HTMLDivElement>(null);
+  const [pulseTarget, setPulseTarget] = useState<"step1" | "nextStep" | null>(null);
+  function pulse(target: "step1" | "nextStep", ref: React.RefObject<HTMLDivElement | null>) {
+    ref.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    setPulseTarget(target);
+    window.setTimeout(() => setPulseTarget((cur) => (cur === target ? null : cur)), 2000);
+  }
+  const handleTourHighlight = () => {
+    if (!tip) return;
+    if (tip.n === 1) pulse("step1", step1AnchorRef);
+    else if (tip.n === 2) pulse("nextStep", nextStepAnchorRef);
+  };
   const kitShownTitle = kitTitle(kitCtx, locale as "no" | "en", tKit("strip.title"));
   const kitShownEyebrow = kitTitle(kitCtx, locale as "no" | "en", tKit("welcome.eyebrow"));
   // fix 11: everything painted → the kit's job is done: clear the persisted
@@ -1460,6 +1479,7 @@ export function ConfiguratorClient({
           text={tourTip.text}
           last={tourTip.last}
           onNext={handleTourNext}
+          onHighlight={handleTourHighlight}
           onOff={() => tour.turnOff()}
         />
       )}
@@ -1537,7 +1557,10 @@ export function ConfiguratorClient({
 
       {/* F28: featured strip between the intro and the design grid, home only */}
       {step === 1 && featuredSlot && (
-        <div className="relative">
+        <div
+          className={cn("relative", pulseTarget === "step1" && "tour-pulse rounded-xl")}
+          ref={step1AnchorRef}
+        >
           {featuredSlot}
           {/* R5-TUTORIAL — passo 1 normale, anchored to the featured strip
               (plan §0.1-4). A kit never lands a tour on step 1 (`tipFor`),
@@ -1548,6 +1571,7 @@ export function ConfiguratorClient({
               text={tourTip.text}
               last={tourTip.last}
               onNext={handleTourNext}
+              onHighlight={handleTourHighlight}
               onOff={() => tour.turnOff()}
             />
           )}
@@ -1833,9 +1857,17 @@ export function ConfiguratorClient({
         {/* RIGHT: panel swaps with the step */}
         {step === 1 ? (
           <div
-            className="relative flex min-w-0 flex-col"
+            className={cn(
+              "relative flex min-w-0 flex-col",
+              !featuredSlot && pulseTarget === "step1" && "tour-pulse rounded-xl"
+            )}
             data-testid="design-step"
             data-supplier-id={selected.supplierId}
+            // R5-TUTORIAL round 2 — only THIS mount's ref matters when there's
+            // no featured strip (the Hotspot below is gated the same way); the
+            // featuredSlot wrapper above owns `step1AnchorRef` otherwise, and a
+            // second ref assignment here would silently steal it.
+            ref={!featuredSlot ? step1AnchorRef : undefined}
           >
             {/* R5-TUTORIAL — passo 1 normale, empty-featured fallback (plan
                 §0.1-4): no featured strip to anchor to, so the same tip
@@ -1846,6 +1878,7 @@ export function ConfiguratorClient({
                 text={tourTip.text}
                 last={tourTip.last}
                 onNext={handleTourNext}
+                onHighlight={handleTourHighlight}
                 onOff={() => tour.turnOff()}
               />
             )}
@@ -2372,14 +2405,17 @@ export function ConfiguratorClient({
                   )
                 }
               />
-              {/* R5-TUTORIAL — passo 2 normale (plan NORM[1]) and kit2's own
-                  tip 2 (0.1-1) share this anchor — same card, same spot. */}
-              {tourTip && tip && tip.n === 2 && (
+              {/* R5-TUTORIAL — passo 2 normale's own tip 2 (plan NORM[1]).
+                  Round 2 (plan Task A): kit2 no longer stops here at all —
+                  its own tip 2 is the ex-tip3, anchored at the next-step CTA
+                  below — so this is `sequence === "normal"` only now. */}
+              {tourTip && tip && tip.sequence === "normal" && tip.n === 2 && (
                 <Hotspot
                   n={2}
                   text={tourTip.text}
                   last={tourTip.last}
                   onNext={handleTourNext}
+                  onHighlight={handleTourHighlight}
                   onOff={() => tour.turnOff()}
                 />
               )}
@@ -2506,7 +2542,13 @@ export function ConfiguratorClient({
                   classes that used to live on the pill move to this wrapper
                   (`relative` needs a box, and the pill still fills it via
                   `w-full`), so the row's layout is unchanged. */}
-              <div className="relative md:@md:flex-[1_1_16rem] max-md:flex-1">
+              <div
+                className={cn(
+                  "relative md:@md:flex-[1_1_16rem] max-md:flex-1",
+                  pulseTarget === "nextStep" && "tour-pulse rounded-full"
+                )}
+                ref={nextStepAnchorRef}
+              >
                 <NextStepPill
                   data-testid="next-step"
                   // `@md:` = affiancato: in colonna `flex-basis` sarebbe
@@ -2550,12 +2592,15 @@ export function ConfiguratorClient({
                   onMouseDown={keepFocusWhileTyping}
                   onClick={() => goToStep(3)}
                 />
-                {tourTip && tip && tip.sequence === "kit2" && tip.n === 3 && (
+                {/* R5-TUTORIAL round 2 (plan Task A) — kit2's tip 2 now
+                    (ex-tip3: the save-as-palette tip in between is gone). */}
+                {tourTip && tip && tip.sequence === "kit2" && tip.n === 2 && (
                   <Hotspot
-                    n={3}
+                    n={2}
                     text={tourTip.text}
                     last={tourTip.last}
                     onNext={handleTourNext}
+                    onHighlight={handleTourHighlight}
                     onOff={() => tour.turnOff()}
                   />
                 )}

@@ -8,7 +8,8 @@ import { isLastTip, type TourSequence } from "@/lib/tour/tour";
 /**
  * Resolves the currently-showing tip (if any) to its rendered copy —
  * `tour.<sequence>.<n>` in both dictionaries, `<b>` rendered via `t.rich`,
- * `count` fed through for the two keys that pluralise on it (`kit2.3`,
+ * `count` fed through for the two keys that pluralise on it (round 2:
+ * `kit2.2`, was `kit2.3` before the save-as-palette tip left the sequence —
  * `kit3.1`) and ignored by the rest.
  *
  * TODO:nb-review — every `tour.*` NO string is new copy (DS §3.32), no
@@ -46,18 +47,31 @@ export function useTourTip(
 function TourActions({
   last,
   onNext,
+  onHighlight,
   onOff,
   primaryClassName,
 }: {
   last: boolean;
   onNext: () => void;
+  /** Round 2 (plan Task B) — fired alongside `onNext`, never instead of it:
+   *  the tip's own state transition is unchanged, this just gives the click
+   *  a visible effect where `onNext` alone didn't (step 1's "Next" used to
+   *  do nothing at all — `normal` doesn't persist a step counter). */
+  onHighlight?: () => void;
   onOff: () => void;
   primaryClassName: string;
 }) {
   const t = useTranslations("tour");
   return (
     <>
-      <button type="button" onClick={onNext} className={primaryClassName}>
+      <button
+        type="button"
+        onClick={() => {
+          onHighlight?.();
+          onNext();
+        }}
+        className={primaryClassName}
+      >
         {last ? t("done") : t("next")}
       </button>
       <button
@@ -78,12 +92,14 @@ export function Hotspot({
   text,
   last,
   onNext,
+  onHighlight,
   onOff,
 }: {
   n: 1 | 2 | 3;
   text: ReactNode;
   last: boolean;
   onNext: () => void;
+  onHighlight?: () => void;
   onOff: () => void;
 }) {
   return (
@@ -97,6 +113,7 @@ export function Hotspot({
         <TourActions
           last={last}
           onNext={onNext}
+          onHighlight={onHighlight}
           onOff={onOff}
           primaryClassName="shrink-0 font-semibold text-primary"
         />
@@ -113,6 +130,7 @@ export function CoachBar({
   text,
   last,
   onNext,
+  onHighlight,
   onOff,
   inSheet = false,
   style,
@@ -121,6 +139,7 @@ export function CoachBar({
   text: ReactNode;
   last: boolean;
   onNext: () => void;
+  onHighlight?: () => void;
   onOff: () => void;
   /** DS §3.32: docked at the open basket sheet's top edge instead of the
    *  viewport's — the sheet is already up, so the bar becomes its header. */
@@ -148,6 +167,7 @@ export function CoachBar({
       <TourActions
         last={last}
         onNext={onNext}
+        onHighlight={onHighlight}
         onOff={onOff}
         primaryClassName="shrink-0 rounded-full bg-primary px-3 py-1.5 text-[12px] font-semibold text-primary-foreground"
       />
