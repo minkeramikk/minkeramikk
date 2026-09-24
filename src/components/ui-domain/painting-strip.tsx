@@ -79,6 +79,15 @@ export interface PaintingStripProps {
    *  doesn't exist at step 3, so ceramics-step.tsx simply never passes
    *  this — its render stays byte-for-byte the base classes below). */
   className?: string;
+  /** R5-TUTORIAL round 3 fix wave — the mobile twin of the desktop
+   *  `Hotspot` on `PaletteCard`'s "now" block (ceramics-step.tsx's own
+   *  `(tip.sequence === "step3" && tip.n === 1) || (tip.sequence === "kit3"
+   *  && tip.n === 2)`): same tip, same pulse, just on the "Palettes ▾"
+   *  trigger below `md` since there's no `Hotspot` there. Only the trigger
+   *  gets the ring, not the whole strip — a full-width pulse would be
+   *  oversized. Step 2's call site has no such tip, so it never passes
+   *  this. */
+  tourPulse?: boolean;
 }
 
 export function PaintingStrip({
@@ -104,6 +113,7 @@ export function PaintingStrip({
   open,
   onOpenChange,
   className,
+  tourPulse,
 }: PaintingStripProps) {
   const tPaletteBar = useTranslations("palettes.bar");
   const tSheet = useTranslations("palettes.sheet");
@@ -158,7 +168,8 @@ export function PaintingStrip({
             // (36px) is a mouse-era size, kept only from `sm` up.
             className={cn(
               "ml-auto flex min-h-11 shrink-0 items-center gap-1 rounded-full border bg-card px-3 text-[12.5px] font-medium sm:min-h-9",
-              open ? "border-primary shadow-[0_0_0_1px_var(--ring)]" : "border-border"
+              open ? "border-primary shadow-[0_0_0_1px_var(--ring)]" : "border-border",
+              tourPulse && "tour-pulse"
             )}
           >
             {tSheet("trigger")}

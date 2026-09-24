@@ -1248,6 +1248,16 @@ export function CeramicsStep({
       onDelete={(code) => deletePalette(code)}
       open={paletteSheetOpen}
       onOpenChange={setPaletteSheetOpen}
+      // Fix wave — mobile twin of the desktop `Hotspot` a few hundred lines
+      // down on `PaletteCard`'s "now" block: same tip, same condition,
+      // pulsing the "Palettes ▾" trigger instead since there's no anchored
+      // badge below `md`.
+      tourPulse={Boolean(
+        tourTip &&
+          tip &&
+          ((tip.sequence === "step3" && tip.n === 1) ||
+            (tip.sequence === "kit3" && tip.n === 2))
+      )}
     />
   );
 
