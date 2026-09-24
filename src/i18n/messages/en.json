@@ -424,6 +424,10 @@
       "trigger": "Palettes",
       "newHint": "opens step 2",
       "hintSaved": "Tap a tile to switch"
+    },
+    "saveHint": {
+      "text": "You can save this palette to reuse it on other pieces.",
+      "dismiss": "Dismiss"
     }
   },
   "tour": {

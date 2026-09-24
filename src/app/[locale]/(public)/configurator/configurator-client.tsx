@@ -92,6 +92,12 @@ const INSPIRATION_URL = "https://www.minkeramikk.no/inspirasjon";
  *  identità stabile fra i render. */
 const WISHES_TAB = "__wishes";
 
+/** R5-TUTORIAL round 2 (plan Task C) — the standalone save-as-palette hint's
+ *  OWN localStorage flag, entirely outside `mk-tips-v1`/`tour.ts`: dismiss
+ *  once and it's gone for this visitor, independent of the tour's own
+ *  off/on and never a step in its sequence. */
+const PALETTE_HINT_KEY = "mk-palette-hint-v1";
+
 /**
  * R5-DESIGN-SWITCH loader: minimo visibile 500ms a ogni cambio design
  * (richiesta esplicita 22/9: 650 era troppo lungo). Server locale
@@ -738,6 +744,9 @@ export function ConfiguratorClient({
   // (cart-context.tsx) with the header/step 3 — this screen never touches
   // localStorage directly.
   const tPaletteBar = useTranslations("palettes.bar");
+  // R5-TUTORIAL round 2 (plan Task C) — new copy, unreviewed in NO.
+  // TODO:nb-review — palettes.saveHint.text / palettes.saveHint.dismiss
+  const tPaletteHint = useTranslations("palettes.saveHint");
   const {
     palettes,
     setActiveCode,
@@ -1027,6 +1036,32 @@ export function ConfiguratorClient({
    * `savePalette` dedups by exact code, LRU 10 unchanged.
    */
   const canSaveDraft = !matchedPalette;
+
+  // R5-TUTORIAL round 2 (plan Task C) — a hint pointing at the same Save
+  // button, entirely outside the guided tour: dismiss once, gone for good,
+  // own flag (`PALETTE_HINT_KEY`), never touched by `tour.turnOff()`/`off`
+  // and never a step of any sequence. Shown once there's actually a draft
+  // worth saving (`canSaveDraft` — the same gate the button itself uses),
+  // and not while the tour is ALREADY pointing at this exact spot
+  // (`tip.n === 2` — normal's own tip 2 lives right here too, Task B): two
+  // bubbles on one button would just collide.
+  const [paletteHintDismissed, setPaletteHintDismissed] = useState(true);
+  useEffect(() => {
+    try {
+      setPaletteHintDismissed(window.localStorage.getItem(PALETTE_HINT_KEY) === "1");
+    } catch {
+      /* private mode — the hint just won't show, harmless */
+    }
+  }, []);
+  function dismissPaletteHint() {
+    setPaletteHintDismissed(true);
+    try {
+      window.localStorage.setItem(PALETTE_HINT_KEY, "1");
+    } catch {
+      /* private mode / quota — dismiss still works for this render */
+    }
+  }
+  const showPaletteHint = canSaveDraft && !paletteHintDismissed && !(tip && tip.n === 2);
 
   /**
    * R5-BASKET-HOST task 1 — step 2 publishes the same `CurrentConfig` shape
@@ -2418,6 +2453,29 @@ export function ConfiguratorClient({
                   onHighlight={handleTourHighlight}
                   onOff={() => tour.turnOff()}
                 />
+              )}
+              {/* R5-TUTORIAL round 2 (plan Task C) — the standalone
+                  save-as-palette hint, same anchor as the tour's own tip 2
+                  above (they're gated to never show together). Its own
+                  state, its own dismiss — nothing here touches `tour.ts`. */}
+              {showPaletteHint && (
+                <span
+                  data-testid="palette-save-hint"
+                  className="absolute -right-2 -top-2 z-30 hidden md:block"
+                >
+                  <span className="flex w-max max-w-[268px] items-start gap-1.5 rounded-lg border border-primary/30 bg-popover px-2.5 py-2 text-left text-[12px] leading-snug shadow-lg">
+                    <span className="min-w-0 flex-1">{tPaletteHint("text")}</span>
+                    <button
+                      type="button"
+                      onClick={dismissPaletteHint}
+                      aria-label={tPaletteHint("dismiss")}
+                      data-testid="palette-save-hint-dismiss"
+                      className="shrink-0 text-muted-foreground"
+                    >
+                      ✕
+                    </button>
+                  </span>
+                </span>
               )}
             </div>
 

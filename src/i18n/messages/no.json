@@ -423,6 +423,10 @@
       "trigger": "Paletter",
       "newHint": "åpner steg 2",
       "hintSaved": "Trykk på en rute for å bytte"
+    },
+    "saveHint": {
+      "text": "Du kan lagre denne paletten for å bruke den igjen på andre stykker.",
+      "dismiss": "Lukk"
     }
   },
   "tour": {
