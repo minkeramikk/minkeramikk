@@ -2,6 +2,7 @@ import { useTranslations } from "next-intl";
 import { LocaleSwitcher } from "@/components/site/locale-switcher";
 import { CartMenu } from "@/components/site/cart-menu";
 import { PublicMobileNav } from "@/components/site/public-mobile-nav";
+import { TourReplayButton } from "@/components/site/tour-replay-button";
 
 /** Public ink header (DESIGN-SYSTEM §3.7): brand left, nav + locale right. */
 export function SiteHeader() {
@@ -38,6 +39,9 @@ export function SiteHeader() {
           {/* R4-COPY Ⓔ: the desktop "Bygg din design" link is gone (client
               request) — the header is brand + locale + cart. The mobile drawer
               keeps it: below sm it is the only nav there is. */}
+          {/* R5-TUTORIAL round 2 (plan Task E) — replays wherever you are on
+              /configurator; hides itself everywhere else (own route check). */}
+          <TourReplayButton />
           <LocaleSwitcher />
           <CartMenu />
         </nav>
