@@ -22,6 +22,8 @@ export function KitWelcome({
   image = null,
   imageCustom = false,
   eyebrow,
+  onShowMeHow,
+  onLookMyself,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -33,6 +35,11 @@ export function KitWelcome({
   imageCustom?: boolean;
   /** the resolved shop-window label (caller reads it via `kitTitle`) */
   eyebrow: string;
+  /** R5-TUTORIAL — passo 0: starts the kit2 tour (0.1-8). Optional so this
+   *  component still compiles standalone. */
+  onShowMeHow?: () => void;
+  /** R5-TUTORIAL — passo 0: turns the tour off for good (0.1-8). */
+  onLookMyself?: () => void;
 }) {
   const t = useTranslations("kit.welcome");
   return (
@@ -68,7 +75,13 @@ export function KitWelcome({
           <DialogTitle className="text-[19px]">{t("title", { count: total })}</DialogTitle>
           <DialogDescription className="text-[13.5px]">{t("body")}</DialogDescription>
         </DialogHeader>
-        <div className="mt-3 grid grid-cols-[auto_auto_1fr] items-center gap-x-2.5 gap-y-2.5 rounded-[11px] bg-muted px-3.5 py-3">
+        {/* R5-TUTORIAL round 2 (plan Task D) — the per-row photos become
+            protagonists: bigger (size-10 → size-16, ~64px) and in colour
+            (grayscale dropped), `rounded-xl` instead of round to read as
+            small photo cards rather than avatars. Layout otherwise
+            untouched — same 3-column grid, same qty/name columns, same
+            missing-image placeholder (never invents a photo). */}
+        <div className="mt-3 grid grid-cols-[auto_auto_1fr] items-center gap-x-3 gap-y-3 rounded-[11px] bg-muted px-3.5 py-3">
           {rows.map((r, i) => (
             <span key={`${r.name}-${i}`} className="contents">
               {r.image ? (
@@ -76,10 +89,10 @@ export function KitWelcome({
                 <img
                   src={r.image}
                   alt=""
-                  className="size-10 rounded-full border border-border object-cover grayscale"
+                  className="size-16 rounded-xl border border-border object-cover"
                 />
               ) : (
-                <span className="size-10 rounded-full border border-border bg-card" />
+                <span className="size-16 rounded-xl border border-border bg-card" />
               )}
               <span className="text-[14.5px] font-semibold tabular-nums">
                 {r.qty}×
@@ -93,7 +106,10 @@ export function KitWelcome({
             type="button"
             data-testid="kit-welcome-show"
             className="h-11 rounded-full bg-primary"
-            onClick={() => onOpenChange(false)}
+            onClick={() => {
+              onShowMeHow?.();
+              onOpenChange(false);
+            }}
           >
             {t("show")}
           </Button>
@@ -102,7 +118,10 @@ export function KitWelcome({
             data-testid="kit-welcome-self"
             variant="ghost"
             className="h-10 text-muted-foreground"
-            onClick={() => onOpenChange(false)}
+            onClick={() => {
+              onLookMyself?.();
+              onOpenChange(false);
+            }}
           >
             {t("self")}
           </Button>

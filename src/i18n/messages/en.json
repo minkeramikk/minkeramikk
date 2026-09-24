@@ -173,7 +173,6 @@
       "coversShort": "{count, plural, one {# ceramic} other {# ceramics}}",
       "sheetTitle": "Choose design",
       "sheetSubtitle": "The colours reload with it",
-      "loaderAlt": "Loading",
       "loaderDesignAlt": "Loading {design}"
     },
     "ladder": {
@@ -418,12 +417,37 @@
       "editColours": "Edit colours",
       "showAll": "Show all {count}",
       "showFewer": "Show fewer",
-      "emptyHint": "No other palettes to switch to yet. Save one from the colour step and it shows up here."
+      "emptyHint": "No other palettes to switch to yet. Save one from the colour step and it shows up here.",
+      "help": "About palettes",
+      "helpClose": "Close",
+      "helpManage": "The colours you pick become a <b>palette</b>. <b>Save it</b> to reuse it on other pieces — up to {max}. Saved ones stay here to switch between.",
+      "helpNow": "This is the palette you're painting with.{saved, plural, =0 {} one {} other { Tap another saved one to switch — the next ceramic you tap comes in those colours.}}"
     },
     "sheet": {
       "trigger": "Palettes",
       "newHint": "opens step 2",
       "hintSaved": "Tap a tile to switch"
+    }
+  },
+  "tour": {
+    "next": "Next ›",
+    "done": "Done",
+    "off": "Turn tips off",
+    "replay": "Show me the tips again",
+    "step1": {
+      "1": "Pick a <b>design</b> and build your own.{featured, select, yes { Or take a ready-made <b>set or kit</b> above.} other {}}",
+      "2": "All set? Tap <b>Continue</b>."
+    },
+    "step2": {
+      "1": "Pick <b>one option per lane</b>. The plate above shows them straight away.",
+      "2": "Done? <b>Go to your ceramics</b>{count, plural, =0 {.} one { — # piece is waiting there, ready to paint.} other { — # pieces are waiting there, ready to paint.}}"
+    },
+    "step3": {
+      "1": "You're painting with <b>this palette</b>.{saved, plural, =0 {} one {} other { Switch to another saved one any time.}}",
+      "2": "<b>Pick your ceramics</b>: tap one, it comes in this palette."
+    },
+    "kit3": {
+      "1": "These <b>{count, plural, one {# piece} other {# pieces}}</b> have no colours yet. <b>Paint</b> them."
     }
   }
 }

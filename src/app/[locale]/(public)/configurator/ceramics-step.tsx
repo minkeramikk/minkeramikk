@@ -60,6 +60,9 @@ import { clearKitContext, kitTitle, readKitContext } from "@/lib/cart/kit-contex
 import { DesignRound } from "@/components/ui-domain/design-round";
 import { Basket } from "@/components/ui-domain/basket";
 import { NextStepPill, PillIcon } from "@/components/ui-domain/next-step-pill";
+import { useTour } from "@/lib/tour/use-tour";
+import { isLastTip, tipFor } from "@/lib/tour/tour";
+import { CoachBar, Hotspot, useTourTip } from "@/components/ui-domain/tour";
 
 export interface CeramicProduct {
   id: string;
@@ -250,6 +253,10 @@ export function CeramicsStep({
      *  there is; `openCart` is the same opener the header button uses. */
     setCheckoutHost,
     openCart,
+    /** R5-TUTORIAL: while the drawer is open its own `CoachBar` (kit3 only,
+     *  `cart-menu.tsx`) takes over — the fixed one here never mounts on top
+     *  of the sheet, in or out of kit-mode. */
+    open: cartOpen,
     activeCode,
     setActiveCode,
     save: savePalette,
@@ -1046,6 +1053,51 @@ export function CeramicsStep({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot open on arrival
   }, [kitMode, hydrated]);
 
+  // R5-TUTORIAL — same `tipFor` (pure, tour.ts) steps 1-2 use; step 3 is the
+  // only page that ever has a `setBanner`, so it's the only caller that
+  // passes a real value for it (AC3: a set landing shows nothing). No
+  // `KitWelcome` on this page, so `welcomeOpen` is always false here.
+  const tour = useTour();
+  const tip = tipFor({
+    state: tour.state,
+    hydrated: tour.hydrated,
+    kitMode,
+    welcomeOpen: false,
+    setBannerOpen: setBanner !== null,
+    step: 3,
+  });
+  // `unpaintedPieces`, not the kit's total: kit3.1 says "these {count} pieces
+  // have no colours yet" — as rows get painted, that count should shrink.
+  // `saved` (palettes.length) feeds step3.1's/kit3's-2nd-tip's plural — the
+  // SAME expression the `PaletteCard`'s own `saved` prop already uses below.
+  const tourTip = useTourTip(tip, { count: unpaintedPieces(cart), saved: palettes.length });
+  const handleTourNext = () => {
+    if (!tip || !tourTip) return;
+    if (tourTip.last) tour.turnOff();
+    else tour.next(tip.sequence);
+  };
+  // R5-TUTORIAL round 2 (plan Task B) — the LAST tip of step3/kit3 ("pick
+  // your ceramics" / "want more? tap a ceramic") is the one this page adds
+  // active guidance to: it already anchors to `ceramics-grid` (below), so
+  // "the right action" IS the anchor itself — pulse it, no separate target
+  // to find. `isLastTip` is the same rule `tour.ts` uses to decide Next vs
+  // Done, reused here rather than re-deriving "is this the grid's tip".
+  // There is no standing "add to cart" control on this page before a
+  // product sheet is open (the sheet's own `data-testid="add-to-cart"`,
+  // product-sheet.tsx:401, doesn't exist yet at this point) — grepped, not
+  // guessed; the grid is the closest real "right action" to point at
+  // pre-click.
+  const ceramicsGridRef = useRef<HTMLDivElement>(null);
+  const [pulseGrid, setPulseGrid] = useState(false);
+  const handleTourHighlight = () => {
+    if (!tip || !isLastTip(tip)) return;
+    // Daniele (live test, round 4→5): scrolling on Done was jarring even with
+    // a "fully visible" gate — the grid is taller than the viewport so that
+    // gate was almost always false. Stay put; the pulse is enough.
+    setPulseGrid(true);
+    window.setTimeout(() => setPulseGrid(false), 2000);
+  };
+
   // §3.18: sections in the admin's own order; the ungrouped bucket comes last
   // with NO heading.
   const sections = useMemo(() => groupBySeries(products, locale), [products, locale]);
@@ -1191,6 +1243,16 @@ export function CeramicsStep({
       onDelete={(code) => deletePalette(code)}
       open={paletteSheetOpen}
       onOpenChange={setPaletteSheetOpen}
+      // Fix wave — mobile twin of the desktop `Hotspot` a few hundred lines
+      // down on `PaletteCard`'s "now" block: same tip, same condition,
+      // pulsing the "Palettes ▾" trigger instead since there's no anchored
+      // badge below `md`.
+      tourPulse={Boolean(
+        tourTip &&
+          tip &&
+          ((tip.sequence === "step3" && tip.n === 1) ||
+            (tip.sequence === "kit3" && tip.n === 2))
+      )}
     />
   );
 
@@ -1341,6 +1403,12 @@ export function CeramicsStep({
         // keep clear of it.
         "md:[&_*:focus-visible]:scroll-mt-24"
       )}
+      style={{
+        // R5-TUTORIAL: the step-3 sticky order bar's own height at 390 —
+        // measured in-browser (same recipe as `--mk-strip-h` above), the tour
+        // CoachBar parks above it instead of stacking a second fixed strip.
+        "--mk-sticky-bar-h": "73px",
+      } as React.CSSProperties}
     >
       {/* Fix wave PR3 finding 7: the mockup (`Phone3`) puts `MobStrip`
           directly under the header, above the "Step 3 of 3" kicker — this
@@ -1487,6 +1555,26 @@ export function CeramicsStep({
           a second CTA would compete with it. */}
       {stickyBar}
 
+      {/* R5-TUTORIAL — 390, passo 3 (normal or kit3): the strip parks above
+          the sticky order bar when it's showing (DS §3.32 "mai due strisce
+          impilate in fondo"); `--mk-sticky-bar-h` measured at 390, same
+          recipe as `--mk-strip-h` above. While the drawer is open the kit3
+          CoachBar rides the sheet instead (`cart-menu.tsx`) — this one never
+          mounts on top of it (kit3 nearly always finds the drawer already
+          open on arrival, `openOnKitArrival`, so this fixed one is mostly a
+          fallback for the rare case it isn't). */}
+      {tourTip && tip && !cartOpen && (
+        <CoachBar
+          n={tip.n}
+          text={tourTip.text}
+          last={tourTip.last}
+          onNext={handleTourNext}
+          onHighlight={handleTourHighlight}
+          onOff={() => tour.turnOff()}
+          style={showStickyBar ? { bottom: "var(--mk-sticky-bar-h)" } : undefined}
+        />
+      )}
+
       {/* F21: two-column grid from `lg`. Below it the catalog is the whole
           page and the basket is the header drawer (task 6) — no in-flow
           copy, which is also what closes AC 5 (the rail cannot overflow 768
@@ -1538,7 +1626,7 @@ export function CeramicsStep({
                 the on-screen colours. Desktop-only (`hidden md:block`); the
                 stickiness lives on the block above, so the card itself is
                 static here. */}
-            <div className="hidden md:block">
+            <div className="relative hidden md:block">
               <PaletteCard
                 now={{
                   layers: designLayers,
@@ -1551,6 +1639,24 @@ export function CeramicsStep({
                 saved={palettes.length}
                 actions={editColoursButton}
               />
+              {/* R5-TUTORIAL round 3 — step3's tip 1 ("you're painting with
+                  this palette") AND kit3's tip 2 (same copy, remapped in
+                  `useTourTip`) share this anchor — `n` follows `tip.n`, not a
+                  fixed number: kit3 counts its own three tips 1-3,
+                  independent of the page's step. */}
+              {tourTip &&
+                tip &&
+                ((tip.sequence === "step3" && tip.n === 1) ||
+                  (tip.sequence === "kit3" && tip.n === 2)) && (
+                <Hotspot
+                  n={tip.n}
+                  text={tourTip.text}
+                  last={tourTip.last}
+                  onNext={handleTourNext}
+                  onOff={() => tour.turnOff()}
+                  direction="down"
+                />
+              )}
             </div>
           </div>
 
@@ -1560,7 +1666,31 @@ export function CeramicsStep({
               used to carry as `pb-3`. In flow it looks the same at rest, but
               it scrolls: the plates now reach the card's bottom border and
               vanish under IT, not under a bare strip of page colour. */}
-          <div className="flex flex-col gap-[22px] md:mt-3" data-testid="ceramics-grid">
+          <div
+            className={cn(
+              "relative flex flex-col gap-[22px] md:mt-3",
+              pulseGrid && "tour-pulse rounded-xl"
+            )}
+            data-testid="ceramics-grid"
+            ref={ceramicsGridRef}
+          >
+            {/* R5-TUTORIAL round 3 — step3's tip 2 ("pick your ceramics")
+                AND kit3's tip 3 (same copy, remapped): the grid is already
+                the anchor `handleTourHighlight` pulses for the last tip of
+                either sequence. */}
+            {tourTip &&
+              tip &&
+              ((tip.sequence === "step3" && tip.n === 2) ||
+                (tip.sequence === "kit3" && tip.n === 3)) && (
+              <Hotspot
+                n={tip.n}
+                text={tourTip.text}
+                last={tourTip.last}
+                onNext={handleTourNext}
+                onHighlight={handleTourHighlight}
+                onOff={() => tour.turnOff()}
+              />
+            )}
             {sections.map((s) => (
               <section key={s.label ?? "__ungrouped"} data-testid="ceramics-series">
                 {s.label && (
@@ -1606,9 +1736,24 @@ export function CeramicsStep({
             the other two. Surface = palette-card.tsx:71 verbatim (white
             canvas, primary/20 border). */}
         <div
-          className="hidden min-w-0 rounded-lg border border-primary/20 bg-[var(--mk-canvas)] p-4 lg:mt-16 lg:block lg:sticky lg:top-[131px] lg:self-start"
+          className="relative hidden min-w-0 rounded-lg border border-primary/20 bg-[var(--mk-canvas)] p-4 lg:mt-16 lg:block lg:sticky lg:top-[131px] lg:self-start"
           data-testid="docked-cart-panel"
         >
+          {/* R5-TUTORIAL — kit3's tip 1 ("paint what you have"). Plan
+              ponytail: the ideal anchor is the rail's FIRST unpainted row
+              (`cart-line-row.tsx`'s `data-unpainted`), but threading a slot
+              prop through `Basket` → the one first-unpainted `CartLineRow`
+              is a much bigger diff for the same sentence — the rail's own
+              container says it just as well, badge in the corner. */}
+          {tourTip && tip && tip.sequence === "kit3" && tip.n === 1 && (
+            <Hotspot
+              n={1}
+              text={tourTip.text}
+              last={tourTip.last}
+              onNext={handleTourNext}
+              onOff={() => tour.turnOff()}
+            />
+          )}
           {cartPanel}
         </div>
       </div>

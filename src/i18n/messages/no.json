@@ -172,7 +172,6 @@
       "coversShort": "{count, plural, one {# keramikk} other {# keramikk}}",
       "sheetTitle": "Velg design",
       "sheetSubtitle": "Fargene lastes på nytt",
-      "loaderAlt": "Laster",
       "loaderDesignAlt": "Laster {design}"
     },
     "ladder": {
@@ -417,12 +416,37 @@
       "editColours": "Rediger farger",
       "showAll": "Vis alle {count}",
       "showFewer": "Vis færre",
-      "emptyHint": "Ingen andre paletter å bytte til ennå. Lagre en fra fargesteget, så vises den her."
+      "emptyHint": "Ingen andre paletter å bytte til ennå. Lagre en fra fargesteget, så vises den her.",
+      "help": "Om paletter",
+      "helpClose": "Lukk",
+      "helpManage": "Fargene du velger blir en <b>palett</b>. <b>Lagre den</b> for å bruke den igjen på andre stykker — opptil {max}. Lagrede paletter blir værende her, så du kan bytte mellom dem.",
+      "helpNow": "Dette er paletten du maler med.{saved, plural, =0 {} one {} other { Trykk på en annen lagret palett for å bytte — neste keramikk du trykker på, får de fargene.}}"
     },
     "sheet": {
       "trigger": "Paletter",
       "newHint": "åpner steg 2",
       "hintSaved": "Trykk på en rute for å bytte"
+    }
+  },
+  "tour": {
+    "next": "Neste ›",
+    "done": "Ferdig",
+    "off": "Skru av tips",
+    "replay": "Vis tipsene igjen",
+    "step1": {
+      "1": "Velg en <b>design</b> og bygg din egen.{featured, select, yes { Eller ta et ferdig <b>sett eller kit</b> over.} other {}}",
+      "2": "Klar? Trykk <b>Fortsett</b>."
+    },
+    "step2": {
+      "1": "Velg <b>ett alternativ per rad</b>. Fatet over viser dem med en gang.",
+      "2": "Ferdig? <b>Gå til keramikken din</b>{count, plural, =0 {.} one { — # stykke venter der, klart til å males.} other { — # stykker venter der, klare til å males.}}"
+    },
+    "step3": {
+      "1": "Du maler med <b>denne paletten</b>.{saved, plural, =0 {} one {} other { Bytt til en annen lagret når som helst.}}",
+      "2": "<b>Velg keramikken din</b>: trykk på en, den får denne paletten."
+    },
+    "kit3": {
+      "1": "Disse <b>{count, plural, one {# stykket} other {# stykkene}}</b> har ingen farger ennå. <b>Mal</b> dem."
     }
   }
 }

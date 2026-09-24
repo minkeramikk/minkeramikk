@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/sheet";
 import { deleteTap, disarm } from "@/components/ui-domain/delete-confirm";
 import { DesignRound } from "@/components/ui-domain/design-round";
+import { PaletteHelp } from "@/components/ui-domain/palette-card";
 import { PaletteDedicationLine } from "@/components/ui-domain/palette-chip";
 import { Dots } from "@/components/ui-domain/cart-line-row";
 import { designLabel } from "@/lib/cart/cart";
@@ -167,12 +168,22 @@ export function PaletteSheet({
         className="max-h-[85dvh] gap-3 overflow-y-auto rounded-t-xl pb-[calc(1rem+env(safe-area-inset-bottom))]"
       >
         <SheetHeader className="gap-0.5 pb-0">
-          <SheetTitle>
-            {tBar("eyebrowManage")}{" "}
-            <span className="font-normal text-muted-foreground">
-              · {tBar("manageCount", { count: palettes.length, max: MAX_PALETTES })}
-            </span>
-          </SheetTitle>
+          <div className="flex items-center gap-1.5">
+            <SheetTitle>
+              {tBar("eyebrowManage")}{" "}
+              <span className="font-normal text-muted-foreground">
+                · {tBar("manageCount", { count: palettes.length, max: MAX_PALETTES })}
+              </span>
+            </SheetTitle>
+            {/* R5-TUTORIAL round 3 fix wave — `PaletteCard`'s header got this
+                "?" in Task D; this sheet is a separate implementation of the
+                same "current palette" concept for phones and had none.
+                `mode="manage"`, not "now": this header always reads
+                `eyebrowManage` (never a switcher framing) regardless of
+                which step opened the sheet, so there is no `now`/`manage`
+                split to mirror here beyond that one constant mode. */}
+            <PaletteHelp mode="manage" saved={palettes.length} />
+          </div>
           <SheetDescription>{draft ? tBar("paintHintDraft") : t("hintSaved")}</SheetDescription>
         </SheetHeader>
 

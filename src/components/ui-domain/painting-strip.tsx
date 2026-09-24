@@ -79,6 +79,15 @@ export interface PaintingStripProps {
    *  doesn't exist at step 3, so ceramics-step.tsx simply never passes
    *  this — its render stays byte-for-byte the base classes below). */
   className?: string;
+  /** R5-TUTORIAL round 3 fix wave — the mobile twin of the desktop
+   *  `Hotspot` on `PaletteCard`'s "now" block (ceramics-step.tsx's own
+   *  `(tip.sequence === "step3" && tip.n === 1) || (tip.sequence === "kit3"
+   *  && tip.n === 2)`): same tip, same pulse, just on the "Palettes ▾"
+   *  trigger below `md` since there's no `Hotspot` there. Only the trigger
+   *  gets the ring, not the whole strip — a full-width pulse would be
+   *  oversized. Step 2's call site has no such tip, so it never passes
+   *  this. */
+  tourPulse?: boolean;
 }
 
 export function PaintingStrip({
@@ -104,6 +113,7 @@ export function PaintingStrip({
   open,
   onOpenChange,
   className,
+  tourPulse,
 }: PaintingStripProps) {
   const tPaletteBar = useTranslations("palettes.bar");
   const tSheet = useTranslations("palettes.sheet");
@@ -127,19 +137,29 @@ export function PaintingStrip({
         className
       )}
     >
-      <DesignRound layers={designLayers} className="size-9" />
-      {/* `paintingLabel`, not a second computation — the caller's own one
-          name for "what's painting" (its own file-scoped comment explains
-          where that gets settled once). */}
-      <div className="min-w-0 leading-tight">
-        <p className="text-[10px] uppercase tracking-[0.06em] text-muted-foreground">
-          {tPaletteBar("eyebrowPaint")}
-        </p>
-        <p className="truncate text-[13.5px] font-semibold">
-          {paintingLabel}{" "}
-          <span className="font-normal text-muted-foreground">· {designName}</span>
-        </p>
-        <PaletteDedicationLine text={dedication} className="max-w-none" />
+      {/* Daniele (live test): the tip talks about "this palette" — the
+          painting-with block on the left IS that palette, not the switcher
+          on the right, so the pulse belongs here. */}
+      <div
+        className={cn(
+          "flex min-w-0 items-center gap-2.5 rounded-lg",
+          tourPulse && "tour-pulse"
+        )}
+      >
+        <DesignRound layers={designLayers} className="size-9" />
+        {/* `paintingLabel`, not a second computation — the caller's own one
+            name for "what's painting" (its own file-scoped comment explains
+            where that gets settled once). */}
+        <div className="min-w-0 leading-tight">
+          <p className="text-[10px] uppercase tracking-[0.06em] text-muted-foreground">
+            {tPaletteBar("eyebrowPaint")}
+          </p>
+          <p className="truncate text-[13.5px] font-semibold">
+            {paintingLabel}{" "}
+            <span className="font-normal text-muted-foreground">· {designName}</span>
+          </p>
+          <PaletteDedicationLine text={dedication} className="max-w-none" />
+        </div>
       </div>
       {/* Fix wave PR3 finding 9: the strip is the sheet's ONE opener — a real
           `SheetTrigger` (not a hand-rolled button) gets `aria-haspopup`,

@@ -79,6 +79,9 @@ import {
   type KitContext,
 } from "@/lib/cart/kit-context";
 import { KitWelcome, kitWelcomeRows } from "@/components/ui-domain/kit-welcome";
+import { useTour } from "@/lib/tour/use-tour";
+import { tipFor } from "@/lib/tour/tour";
+import { CoachBar, Hotspot, useTourTip } from "@/components/ui-domain/tour";
 
 /** Pagina di ispirazione del cliente (fuori sito, apre in nuova scheda). */
 const INSPIRATION_URL = "https://www.minkeramikk.no/inspirasjon";
@@ -806,6 +809,61 @@ export function ConfiguratorClient({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot apply on arrival
   }, [kit, hydrated]);
   const kitCounts = kitStripCounts(cart);
+  // R5-TUTORIAL round 3 — `tipFor` (pure, tour.ts) is the ONE place that
+  // decides whether a tip shows; this page never has a `setBanner` (that's
+  // step 3's own), so it's always `setBannerOpen: false` here. Steps 1-2
+  // only, so `sequence` here is only ever "step1" or "step2" — normal and
+  // kit share both, `kit3` lives on step 3.
+  const tour = useTour();
+  const tip = tipFor({
+    state: tour.state,
+    hydrated: tour.hydrated,
+    kitMode,
+    welcomeOpen: kitWelcome !== null,
+    setBannerOpen: false,
+    step,
+  });
+  // `unpaintedPieces`, not the kit's total (painting only starts at step 3,
+  // so they're equal here — same call as `ceramics-step.tsx`'s, for the same
+  // reason). `featured` drives step1.1's "or take a set/kit" second sentence
+  // — only when the shop window actually has one to offer.
+  const tourTip = useTourTip(tip, {
+    count: unpaintedPieces(cart),
+    featured: featuredSlot !== null,
+  });
+  const handleTourNext = () => {
+    if (!tip || !tourTip) return;
+    if (tourTip.last) tour.turnOff();
+    else tour.next(tip.sequence);
+  };
+  // R5-TUTORIAL round 2 (plan Task B) — "active guidance": Next no longer
+  // just changes tour state, it scrolls to + pulses (`.tour-pulse`, reused)
+  // the thing the tip is actually pointing at. The click that does the real
+  // work (pick a design, advance the step) stays the customer's own — this
+  // only makes it visible where `onNext` alone used to do nothing (step 1's
+  // tip persists no counter, so its "Next" was a dead button before this).
+  // Round 3: step 2 now has an active-guidance target of its own (the
+  // options grid, its tip 1) alongside the CTA (tip 2).
+  const step1AnchorRef = useRef<HTMLDivElement>(null);
+  const optionGridAnchorRef = useRef<HTMLDivElement | null>(null);
+  const nextStepAnchorRef = useRef<HTMLDivElement>(null);
+  const [pulseTarget, setPulseTarget] = useState<"step1" | "optionGrid" | "nextStep" | null>(
+    null
+  );
+  function pulse(
+    target: "step1" | "optionGrid" | "nextStep",
+    ref: React.RefObject<HTMLDivElement | null>
+  ) {
+    ref.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    setPulseTarget(target);
+    window.setTimeout(() => setPulseTarget((cur) => (cur === target ? null : cur)), 2000);
+  }
+  const handleTourHighlight = () => {
+    if (!tip) return;
+    if (tip.sequence === "step1") pulse("step1", step1AnchorRef);
+    else if (tip.sequence === "step2" && tip.n === 1) pulse("optionGrid", optionGridAnchorRef);
+    else if (tip.sequence === "step2" && tip.n === 2) pulse("nextStep", nextStepAnchorRef);
+  };
   const kitShownTitle = kitTitle(kitCtx, locale as "no" | "en", tKit("strip.title"));
   const kitShownEyebrow = kitTitle(kitCtx, locale as "no" | "en", tKit("welcome.eyebrow"));
   // fix 11: everything painted → the kit's job is done: clear the persisted
@@ -1418,7 +1476,28 @@ export function ConfiguratorClient({
         image={kitWelcome?.image}
         imageCustom={kitWelcome?.imageCustom}
         eyebrow={kitShownEyebrow}
+        // R5-TUTORIAL 0.1-8 — passo 0: «Show me how» starts the tour at
+        // step 2 (round 3: `step2` is the very same sequence normal
+        // customers get there); «I'll have a look myself» turns tips off
+        // for good.
+        onShowMeHow={() => tour.start("step2")}
+        onLookMyself={() => tour.turnOff()}
       />
+
+      {/* R5-TUTORIAL — 390: the tip lives in a strip, never anchored (DS
+          §3.32). One mount covers both steps 1-2, normal and kit alike —
+          `tip`/`tourTip` already say which copy, if any (kit3 lives on step
+          3, `ceramics-step.tsx`, so `tip.sequence` here is never that). */}
+      {tourTip && tip && (
+        <CoachBar
+          n={tip.n}
+          text={tourTip.text}
+          last={tourTip.last}
+          onNext={handleTourNext}
+          onHighlight={handleTourHighlight}
+          onOff={() => tour.turnOff()}
+        />
+      )}
       {/* CA-2: the top cluster holds ONLY the stepper (orientation + step
           jumps, F18). The advance/back CTAs live in-flow at the END of the
           options column — no climb back to the top on desktop. Decision closed
@@ -1491,7 +1570,11 @@ export function ConfiguratorClient({
         </div>
       )}
 
-      {/* F28: featured strip between the intro and the design grid, home only */}
+      {/* F28: featured strip between the intro and the design grid, home only.
+          R5-TUTORIAL round 3: step 1's tip now ALWAYS anchors to the design
+          grid below (never here) — the vetrina used to carry it, but the
+          screenshot review (24/9) showed the focus landing on sets/kits
+          instead of designs. */}
       {step === 1 && featuredSlot}
 
       <div
@@ -1683,11 +1766,13 @@ export function ConfiguratorClient({
                 inspirasjonsside. `t.rich` rende il tag <link> del dizionario —
                 nessun HTML crudo nei JSON. Nuova scheda: dal configuratore non
                 si esce mai. */}
-            {/* TODO:nb-review — configurator.designSwitch.loaderAlt NO copy is
-                new, unreviewed. */}
+            {/* TODO:nb-review — configurator.designSwitch.loaderDesignAlt NO
+                copy is new, unreviewed. */}
+            {/* Daniele (live test): no visible "Loading…" text any more —
+                just the spinning plates. `loadingDesignLabel` below still
+                feeds screen readers. */}
             <PreviewCanvas
               alt={designName(selected)}
-              loadingLabel={t("designSwitch.loaderAlt")}
               loadingDesignLabel={t("designSwitch.loaderDesignAlt", {
                 design: designName(
                   pending
@@ -1773,10 +1858,32 @@ export function ConfiguratorClient({
         {/* RIGHT: panel swaps with the step */}
         {step === 1 ? (
           <div
-            className="flex min-w-0 flex-col"
+            className={cn(
+              "relative flex min-w-0 flex-col",
+              pulseTarget === "step1" && "tour-pulse rounded-xl"
+            )}
             data-testid="design-step"
             data-supplier-id={selected.supplierId}
+            // R5-TUTORIAL round 3 — the grid is ALWAYS the anchor now, with
+            // or without a featured strip above it (the vetrina used to own
+            // this when present; the 24/9 review moved the focus here for
+            // good — set/kit are the "or…" second sentence, never the
+            // anchor).
+            ref={step1AnchorRef}
           >
+            {/* R5-TUTORIAL round 3 — step 1's tip 1, always on the design
+                grid. Tip 2 (round 4) anchors on the "Continue" pill below
+                instead, once a design is selected. */}
+            {tourTip && tip && tip.sequence === "step1" && tip.n === 1 && (
+              <Hotspot
+                n={1}
+                text={tourTip.text}
+                last={tourTip.last}
+                onNext={handleTourNext}
+                onHighlight={handleTourHighlight}
+                onOff={() => tour.turnOff()}
+              />
+            )}
             <p className="text-[11px] uppercase tracking-[0.06em] text-muted-foreground">
               {t("stepIndicator", { step: 1 })}
             </p>
@@ -1818,47 +1925,64 @@ export function ConfiguratorClient({
                           (il teaser sotto la preview e il bottone di fondo griglia
                           sono stati rimossi). Icona = pallini colore, anteprima
                           reale di ciò che si sceglie allo step 2. */}
-                      <NextStepPill
-                        data-testid="next-step-mobile"
-                        className="mt-3 w-full"
-                        caption={t("teaser.nextStep")}
-                        label={t("teaser.colors")}
-                        arrow
-                        icon={
-                          <span className="flex shrink-0" aria-hidden>
-                            {TEASER_PALETTE.map((color, i) => (
-                              <span
-                                key={color}
-                                className={cn(
-                                  "-ml-2.5 size-8 rounded-full first:ml-0 max-lg:-ml-3 max-lg:size-7",
-                                  // Sotto lg la coda sfumata sparisce e i pallini
-                                  // rimpiccioliscono, per lasciare larghezza
-                                  // all'etichetta (AC6). Restano i 4 pieni:
-                                  // l'anteprima della scelta è intatta, si perde
-                                  // solo il "ce n'è dell'altro".
-                                  // La soglia è lg, non sm: a 768 la griglia va a
-                                  // 2 colonne e il blocco torna largo quanto a
-                                  // 390 (~322px) ma coi pallini a misura piena —
-                                  // è il caso PEGGIORE, non un caso intermedio.
-                                  i >= TEASER_CRISP && "max-lg:hidden"
-                                )}
-                                style={{
-                                  background: color,
-                                  ...(i >= TEASER_CRISP
-                                    ? {
-                                        opacity: Math.max(
-                                          0.3,
-                                          0.75 - (i - TEASER_CRISP) * 0.2
-                                        ),
-                                      }
-                                    : {}),
-                                }}
-                              />
-                            ))}
-                          </span>
-                        }
-                        onClick={() => goToStep(2)}
-                      />
+                      {/* R5-TUTORIAL round 4 — step1's new tip 2, anchored to
+                          this pill (the only "advance" CTA step 1 has): hands
+                          off into step2's own tour on Next, same mechanic as
+                          step2's last tip handing off into step3. */}
+                      <div className="relative">
+                        <NextStepPill
+                          data-testid="next-step-mobile"
+                          className="mt-3 w-full"
+                          caption={t("teaser.nextStep")}
+                          label={t("teaser.colors")}
+                          arrow
+                          icon={
+                            <span className="flex shrink-0" aria-hidden>
+                              {TEASER_PALETTE.map((color, i) => (
+                                <span
+                                  key={color}
+                                  className={cn(
+                                    "-ml-2.5 size-8 rounded-full first:ml-0 max-lg:-ml-3 max-lg:size-7",
+                                    // Sotto lg la coda sfumata sparisce e i pallini
+                                    // rimpiccioliscono, per lasciare larghezza
+                                    // all'etichetta (AC6). Restano i 4 pieni:
+                                    // l'anteprima della scelta è intatta, si perde
+                                    // solo il "ce n'è dell'altro".
+                                    // La soglia è lg, non sm: a 768 la griglia va a
+                                    // 2 colonne e il blocco torna largo quanto a
+                                    // 390 (~322px) ma coi pallini a misura piena —
+                                    // è il caso PEGGIORE, non un caso intermedio.
+                                    i >= TEASER_CRISP && "max-lg:hidden"
+                                  )}
+                                  style={{
+                                    background: color,
+                                    ...(i >= TEASER_CRISP
+                                      ? {
+                                          opacity: Math.max(
+                                            0.3,
+                                            0.75 - (i - TEASER_CRISP) * 0.2
+                                          ),
+                                        }
+                                      : {}),
+                                  }}
+                                />
+                              ))}
+                            </span>
+                          }
+                          onClick={() => goToStep(2)}
+                        />
+                        {/* TODO:nb-review — tour.step1.2 */}
+                        {tourTip && tip && tip.sequence === "step1" && tip.n === 2 && (
+                          <Hotspot
+                            n={2}
+                            text={tourTip.text}
+                            last={tourTip.last}
+                            onNext={handleTourNext}
+                            onHighlight={handleTourHighlight}
+                            onOff={() => tour.turnOff()}
+                          />
+                        )}
+                      </div>
                     </div>
                   )}
                 </Fragment>
@@ -2079,7 +2203,7 @@ export function ConfiguratorClient({
               </p>
             </div>
 
-            {detail.categories.map((cat) => (
+            {detail.categories.map((cat, catIndex) => (
               <CategoryLane
                 key={cat.id}
                 cat={cat}
@@ -2099,6 +2223,24 @@ export function ConfiguratorClient({
                     ? customTextField
                     : null
                 }
+                // R5-TUTORIAL round 3 — step 2's tip 1 anchors to the FIRST
+                // category's colour grid (normal AND kit alike now); on
+                // desktop every category is rendered at once (F15), so
+                // "first" is simply index 0.
+                hotspot={
+                  catIndex === 0 && tourTip && tip && tip.sequence === "step2" && tip.n === 1 ? (
+                    <Hotspot
+                      n={1}
+                      text={tourTip.text}
+                      last={tourTip.last}
+                      onNext={handleTourNext}
+                      onHighlight={handleTourHighlight}
+                      onOff={() => tour.turnOff()}
+                    />
+                  ) : null
+                }
+                pulse={catIndex === 0 && pulseTarget === "optionGrid"}
+                gridRef={catIndex === 0 ? optionGridAnchorRef : undefined}
               />
             ))}
 
@@ -2270,7 +2412,7 @@ export function ConfiguratorClient({
                 card's own eyebrow title + ONLY the de-emphasised `h-8` Save,
                 gated on `canSaveDraft = !matchedPalette` — no +New (every
                 option change is already a new draft). */}
-            <div className="hidden md:block">
+            <div className="relative hidden md:block">
               <PaletteCard
                 chips={[leadPaletteChip, ...otherPaletteChips]}
                 saved={palettes.length}
@@ -2286,6 +2428,12 @@ export function ConfiguratorClient({
                   )
                 }
               />
+              {/* R5-TUTORIAL round 3 — the palette card is out of the guided
+                  tour entirely (it used to carry passo 2's own tip 2, and a
+                  standalone save-as-palette hint beside it): the screenshot
+                  review (24/9) found customers landing on palettes instead
+                  of the design options. The card's own "?" (palette-card.tsx,
+                  Task D) replaces both. */}
             </div>
 
 
@@ -2403,49 +2551,76 @@ export function ConfiguratorClient({
                 onMouseDown={keepFocusWhileTyping}
                 onClick={() => goToStep(1)}
               />
-              <NextStepPill
-                data-testid="next-step"
-                // `@md:` = affiancato: in colonna `flex-basis` sarebbe
-                // l'ALTEZZA (16rem di pillola), e stacked non serve comunque
-                // (`stretch` fa già piena larghezza).
-                // `@max-md:` = AC13, niente ellipsis a 360/390/412: a 360 in
-                // inglese l'etichetta chiedeva 144px in 124. Padding, gap
-                // interno e freccetta si comprimono SOLO in colonna e
-                // restituiscono 16px, le foto (sotto) altri 16 → 8px di
-                // margine sul caso peggiore. Comprimere, non troncare.
-                // R4-STEP2 / AC10: affiancato al Back sotto md il Next ha
-                // ~190px a 360 — con caption, etichetta lunga e tre foto
-                // «Choose ceramics» si troncava. Da allora le foto sono
-                // sparite (R5-POLISH-STEP23) e la pillola è tutta la riga:
-                // lo spazio c'è.
-                // R5-POLISH-STEP23 (TL, 22/9): «il copy deve essere pick your
-                // ceramics». Quindi sotto md si nasconde la CAPTION («Next
-                // step», che non dice dove si va) e resta l'ETICHETTA, la
-                // destinazione vera — l'opposto della regola R4-STEP2, che il
-                // TL ha rovesciato. `sr-only` e non `hidden`: il nome
-                // accessibile resta «Next step · Pick your ceramics» e il
-                // costo visivo è zero (`position:absolute`).
-                // Se un giorno una lingua non ci sta, il rimedio è il copy
-                // corto («Pick ceramics», parole del TL), non il troncamento:
-                // l'etichetta ha già `truncate` come rete di sicurezza.
-                // Da md in su non cambia nulla: caption sopra, etichetta
-                // sotto, freccetta.
-                // Le varianti `@container` sono `md:`-prefissate: sotto md non
-                // competono più con queste.
+              {/* R5-TUTORIAL — step2's tip 2, anchored to this CTA (normal
+                  and kit alike now): it pushes forward, "Go to your
+                  ceramics" — a tour should never send someone to open
+                  something that's shut. The flex-sizing
+                  classes that used to live on the pill move to this wrapper
+                  (`relative` needs a box, and the pill still fills it via
+                  `w-full`), so the row's layout is unchanged. */}
+              <div
                 className={cn(
-                  "md:@md:flex-[1_1_16rem] max-md:flex-1 max-md:[&_[data-pill-caption]]:sr-only max-md:[&_[data-pill-label]]:text-center"
+                  "relative md:@md:flex-[1_1_16rem] max-md:flex-1",
+                  pulseTarget === "nextStep" && "tour-pulse rounded-full"
                 )}
-                caption={t("teaser.nextStep")}
-                label={t("teaser.ceramics")}
-                arrow
-                icon={
-                  <PillIcon className="max-md:hidden">
-                    <Circle className="size-5 fill-primary-foreground/30 stroke-primary-foreground" />
-                  </PillIcon>
-                }
-                onMouseDown={keepFocusWhileTyping}
-                onClick={() => goToStep(3)}
-              />
+                ref={nextStepAnchorRef}
+              >
+                <NextStepPill
+                  data-testid="next-step"
+                  // `@md:` = affiancato: in colonna `flex-basis` sarebbe
+                  // l'ALTEZZA (16rem di pillola), e stacked non serve comunque
+                  // (`stretch` fa già piena larghezza).
+                  // `@max-md:` = AC13, niente ellipsis a 360/390/412: a 360 in
+                  // inglese l'etichetta chiedeva 144px in 124. Padding, gap
+                  // interno e freccetta si comprimono SOLO in colonna e
+                  // restituiscono 16px, le foto (sotto) altri 16 → 8px di
+                  // margine sul caso peggiore. Comprimere, non troncare.
+                  // R4-STEP2 / AC10: affiancato al Back sotto md il Next ha
+                  // ~190px a 360 — con caption, etichetta lunga e tre foto
+                  // «Choose ceramics» si troncava. Da allora le foto sono
+                  // sparite (R5-POLISH-STEP23) e la pillola è tutta la riga:
+                  // lo spazio c'è.
+                  // R5-POLISH-STEP23 (TL, 22/9): «il copy deve essere pick your
+                  // ceramics». Quindi sotto md si nasconde la CAPTION («Next
+                  // step», che non dice dove si va) e resta l'ETICHETTA, la
+                  // destinazione vera — l'opposto della regola R4-STEP2, che il
+                  // TL ha rovesciato. `sr-only` e non `hidden`: il nome
+                  // accessibile resta «Next step · Pick your ceramics» e il
+                  // costo visivo è zero (`position:absolute`).
+                  // Se un giorno una lingua non ci sta, il rimedio è il copy
+                  // corto («Pick ceramics», parole del TL), non il troncamento:
+                  // l'etichetta ha già `truncate` come rete di sicurezza.
+                  // Da md in su non cambia nulla: caption sopra, etichetta
+                  // sotto, freccetta.
+                  // Le varianti `@container` sono `md:`-prefissate: sotto md non
+                  // competono più con queste.
+                  className={cn(
+                    "w-full max-md:[&_[data-pill-caption]]:sr-only max-md:[&_[data-pill-label]]:text-center"
+                  )}
+                  caption={t("teaser.nextStep")}
+                  label={t("teaser.ceramics")}
+                  arrow
+                  icon={
+                    <PillIcon className="max-md:hidden">
+                      <Circle className="size-5 fill-primary-foreground/30 stroke-primary-foreground" />
+                    </PillIcon>
+                  }
+                  onMouseDown={keepFocusWhileTyping}
+                  onClick={() => goToStep(3)}
+                />
+                {/* R5-TUTORIAL round 3 — step 2's tip 2 (normal and kit
+                    alike): "pick your ceramics", on this CTA. */}
+                {tourTip && tip && tip.sequence === "step2" && tip.n === 2 && (
+                  <Hotspot
+                    n={2}
+                    text={tourTip.text}
+                    last={tourTip.last}
+                    onNext={handleTourNext}
+                    onHighlight={handleTourHighlight}
+                    onOff={() => tour.turnOff()}
+                  />
+                )}
+              </div>
             </div>
             </div>
           </div>
@@ -2476,6 +2651,9 @@ function CategoryLane({
   onKeyDown,
   t,
   footer = null,
+  hotspot = null,
+  pulse = false,
+  gridRef,
 }: {
   cat: DesignDetail["categories"][number];
   label: string;
@@ -2491,8 +2669,20 @@ function CategoryLane({
    *  gruppo Tekst, che deve stare dentro il suo tab (mobile) e sotto il suo
    *  fieldset (desktop). */
   footer?: React.ReactNode;
+  /** R5-TUTORIAL round 3 — step 2's tip 1, only on the first category. */
+  hotspot?: React.ReactNode;
+  /** R5-TUTORIAL round 3 — "active guidance": pulses the grid itself, same
+   *  `.tour-pulse` recipe as step 1's design grid / the next-step CTA. */
+  pulse?: boolean;
+  /** R5-TUTORIAL round 3 — lets the parent scroll THIS category's grid into
+   *  view (only ever passed for the first category, the tip's own anchor). */
+  gridRef?: React.RefObject<HTMLDivElement | null>;
 }) {
   const laneRef = useRef<HTMLDivElement>(null);
+  function setLaneRef(el: HTMLDivElement | null) {
+    laneRef.current = el;
+    if (gridRef) gridRef.current = el;
+  }
   // dep con `active`: al cambio tab la corsia passa da display:none a visibile e
   // le fade vanno ricalcolate SUBITO, non per il rimbalzo del ResizeObserver.
   const fades = useLaneFades(laneRef, `${active}:${cat.id}`);
@@ -2607,14 +2797,15 @@ function CategoryLane({
         // F15: da md in su griglia verticale che va a capo — ogni opzione
         // visibile, nessuno scroller orizzontale (supera il carosello F02).
         <div
-          ref={laneRef}
+          ref={setLaneRef}
           role="radiogroup"
           aria-label={label}
           onKeyDown={onKeyDown}
           data-testid="option-grid"
           className={cn(
             // desktop (F15): invariato
-            "flex flex-wrap gap-2.5",
+            "relative flex flex-wrap gap-2.5",
+            pulse && "tour-pulse rounded-xl",
             // mobile (mockup `.opts`): corsia orizzontale con snap e peek
             // R4-FIX 6: `scroll-px` (non solo `-pl-`) — con lo snap, l'ULTIMA
             // card si fermava incollata al bordo destro. Niente `flex-1`: la
@@ -2679,14 +2870,16 @@ function CategoryLane({
               </span>
             </div>
           ))}
+          {hotspot}
         </div>
       ) : (
         <div
-          ref={laneRef}
+          ref={setLaneRef}
           data-testid="option-grid"
           className={cn(
             // desktop: invariato
-            "grid grid-cols-3 gap-2.5 sm:grid-cols-4",
+            "relative grid grid-cols-3 gap-2.5 sm:grid-cols-4",
+            pulse && "tour-pulse rounded-xl",
             // mobile: stessa corsia orizzontale delle opzioni colore.
             // R4-FIX 6 (corsia «Dyr»): erano queste tre utility a far sbordare
             // le card. `flex-1` + `min-h-0` davano alla corsia l'altezza che
@@ -2719,6 +2912,7 @@ function CategoryLane({
               className="max-md:w-20 max-md:flex-none max-md:snap-start max-md:px-2 max-md:py-2 max-md:[&_[data-option-label]]:truncate max-md:[&_[data-option-label]]:text-[10px] max-md:[&_[data-option-label]]:leading-[1.2]"
             />
           ))}
+          {hotspot}
         </div>
       )}
 
