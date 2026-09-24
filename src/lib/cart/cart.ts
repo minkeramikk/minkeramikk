@@ -8,6 +8,7 @@
  * (sum() refuses cross-currency by design).
  */
 import { money, multiply, sum, type Currency, type Money } from "@/lib/money/money";
+import type { TextPosition } from "@/lib/configurator/text-position";
 
 /** Human-readable summary of the configured design on a cart line. */
 export interface ConfigSnapshot {
@@ -47,6 +48,14 @@ export interface ConfigSnapshot {
    * Does NOT travel in the config code or the set= link (lean + privacy).
    */
   customText?: string;
+  /**
+   * R5-TEXT-POSITION — where `customText` sits on the plate. Twin of
+   * `customText`: written whenever the text is, `centre` included; absent
+   * only on snapshots saved before this card (an old palette in
+   * localStorage, an already-placed order) — readers do `?? "centre"`,
+   * never a different default.
+   */
+  textPosition?: TextPosition;
 }
 
 /**

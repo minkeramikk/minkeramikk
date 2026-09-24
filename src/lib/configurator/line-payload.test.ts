@@ -4,7 +4,11 @@ import { decodeConfigCode, toCodecDesign } from "./config-code";
 import { MAX_CUSTOM_TEXT } from "@/lib/orders/schema";
 import type { DesignDetail } from "@/lib/catalog/design-options";
 
-function design(acceptsCustomNotes: boolean, acceptsCustomText = false): DesignDetail {
+function design(
+  acceptsCustomNotes: boolean,
+  acceptsCustomText = false,
+  textPositions: string[] = []
+): DesignDetail {
   return {
     id: "d1",
     slug: "amalfi-dyr",
@@ -14,6 +18,7 @@ function design(acceptsCustomNotes: boolean, acceptsCustomText = false): DesignD
     nameEn: "Amalfi Animals",
     acceptsCustomNotes,
     acceptsCustomText,
+    textPositions,
     descriptionStep2No: null,
     descriptionStep2En: null,
     images: [],
@@ -181,5 +186,63 @@ describe("withCustomFields", () => {
   it("re-sanitises the inscription, it does not merely trim it", () => {
     const merged = withCustomFields(base, design(true, true), "", "x".repeat(MAX_CUSTOM_TEXT + 20));
     expect(merged.customText).toHaveLength(MAX_CUSTOM_TEXT);
+  });
+});
+
+describe("R5-TEXT-POSITION: textPosition rides the snapshot alongside customText", () => {
+  it("buildConfigLinePayload writes textPosition, centre included, when there is text", () => {
+    const { snapshot } = buildConfigLinePayload(
+      design(false, true, ["top", "bottom"]),
+      { farge: "o1" },
+      "",
+      "Hei",
+      "top"
+    );
+    expect(snapshot.textPosition).toBe("top");
+  });
+
+  it("no textPosition arg given, but there IS text → centre, not absent", () => {
+    const { snapshot } = buildConfigLinePayload(design(false, true), { farge: "o1" }, "", "Hei");
+    expect(snapshot.textPosition).toBe("centre");
+  });
+
+  it("no text at all → no textPosition (nothing to attach it to)", () => {
+    const { snapshot } = buildConfigLinePayload(design(false, true), { farge: "o1" }, "", "");
+    expect("textPosition" in snapshot).toBe(false);
+  });
+
+  it("a position the design doesn't offer is clamped to centre", () => {
+    const { snapshot } = buildConfigLinePayload(
+      design(false, true, []), // no top/bottom offered
+      { farge: "o1" },
+      "",
+      "Hei",
+      "top"
+    );
+    expect(snapshot.textPosition).toBe("centre");
+  });
+
+  it("withCustomFields clears a stale textPosition when the design's text gate is off", () => {
+    const draft = buildConfigLinePayload(design(true, true, ["top"]), { farge: "o1" }).snapshot;
+    const withPos = withCustomFields(draft, design(true, true, ["top"]), "note", "Hei", "top");
+    expect(withPos.textPosition).toBe("top");
+    const offDesign = withCustomFields(withPos, design(false, false), "note", "Hei", "top");
+    expect("textPosition" in offDesign).toBe(false);
+  });
+
+  it("the code and the snapshot agree on position too", () => {
+    const detail = design(false, true, ["top", "bottom"]);
+    const { configCode, snapshot } = buildConfigLinePayload(
+      detail,
+      { farge: "o1" },
+      "",
+      "Til Anna",
+      "bottom"
+    );
+    const codec = toCodecDesign(detail)!;
+    const decoded = decodeConfigCode(configCode, (c) =>
+      c.toUpperCase() === codec.code ? codec : null
+    );
+    expect(decoded.textPosition).toBe(snapshot.textPosition);
   });
 });

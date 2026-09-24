@@ -78,6 +78,13 @@ export interface DesignDetail {
   acceptsCustomNotes: boolean;
   /** F38: shop opted this design into a customer inscription (step-2 field). */
   acceptsCustomText: boolean;
+  /**
+   * R5-TEXT-POSITION: which of `top`/`bottom` this design offers as an arc
+   * inscription (`centre` and `back` are always implicit, never listed
+   * here). Populated from `designs.text_positions` in task 2 — `[]` here
+   * for now so the codec/line-payload wiring compiles and their tests pass.
+   */
+  textPositions: string[];
   descriptionStep2No: string | null;
   descriptionStep2En: string | null;
   images: string[]; // F36: gallery Storage paths, ordered by sort_order
@@ -177,6 +184,8 @@ async function loadDesignDetail(slug: string): Promise<DesignDetail | null> {
     nameEn: design.name_en,
     acceptsCustomNotes: design.accepts_custom_notes ?? false,
     acceptsCustomText: design.accepts_custom_text ?? false,
+    // ponytail: [] until task 2 selects designs.text_positions and maps it here.
+    textPositions: [],
     descriptionStep2No: design.description_step2_no,
     descriptionStep2En: design.description_step2_en,
     images: (imgRows ?? []).map((r) => r.image),

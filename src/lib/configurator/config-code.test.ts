@@ -357,3 +357,67 @@ describe("toCodecDesign defaultOptionId", () => {
     expect(codec?.categories[0]?.optionCodeToId).toEqual({ a: "o1", b: "o2" });
   });
 });
+
+describe("config-code — text position (R5-TEXT-POSITION task 1, AC1)", () => {
+  const d = byCode("E")!; // striper: 1 category, keeps the fixture short
+  const sel = { stripes: "stripes-opt-1" };
+  const withTopPositions: CodecDesign = { ...d, textPositions: ["top", "bottom"] };
+
+  it("round-trips text+top through the code", () => {
+    const code = encodeConfigCode(withTopPositions, sel, {
+      customText: "Til Anna",
+      textPosition: "top",
+    });
+    const decoded = decodeConfigCode(code, () => withTopPositions);
+    expect(decoded.textPosition).toBe("top");
+    expect(decoded.customText).toBe("Til Anna");
+  });
+
+  it("no textPosition given → centre (the default, written like any other position)", () => {
+    const code = encodeConfigCode(withTopPositions, sel, { customText: "Til Anna" });
+    const decoded = decodeConfigCode(code, () => withTopPositions);
+    expect(decoded.textPosition).toBe("centre");
+  });
+
+  it("a code from before this task (no position bits set, bit 0 only) decodes as centre", () => {
+    // Exactly what the OLD 2-arg / customText-only encoder already produced.
+    const code = encodeConfigCode(d, sel, { customText: "Til Anna" });
+    const decoded = decodeConfigCode(code, byCode);
+    expect(decoded.textPosition).toBe("centre");
+  });
+
+  it("top on a design that doesn't offer top → clamped to centre on decode", () => {
+    const noTop: CodecDesign = { ...d, textPositions: [] };
+    // Encode carries whatever the caller asked for (encode doesn't gate);
+    // decode is what enforces "this design doesn't offer it".
+    const code = encodeConfigCode(withTopPositions, sel, {
+      customText: "Til Anna",
+      textPosition: "top",
+    });
+    const decoded = decodeConfigCode(code, () => noTop);
+    expect(decoded.textPosition).toBe("centre");
+  });
+
+  it("garbage inscription segment → no customText and no textPosition", () => {
+    // Same shrunk-design trick as the ADR 0011 suite above: an ordinary
+    // option code landing in the inscription slot must not fabricate either.
+    const SHRUNK: CodecDesign = {
+      code: "S",
+      slug: "shrink-test",
+      categories: [{ slug: "only", optionCodeToId: { A: "only-opt" }, defaultOptionId: "only-opt" }],
+      textPositions: ["top", "bottom"],
+    };
+    const decoded = decodeConfigCode("MK-S-A-ZZ", (c) => (c.toUpperCase() === "S" ? SHRUNK : null));
+    expect(decoded.customText).toBeUndefined();
+    expect(decoded.textPosition).toBeUndefined();
+  });
+
+  it("back position round-trips too", () => {
+    const code = encodeConfigCode(withTopPositions, sel, {
+      customText: "Til Anna",
+      textPosition: "back",
+    });
+    const decoded = decodeConfigCode(code, () => withTopPositions);
+    expect(decoded.textPosition).toBe("back");
+  });
+});

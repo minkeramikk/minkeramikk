@@ -4,6 +4,7 @@
  */
 import { z } from "zod";
 import { CURRENCIES } from "@/lib/money/money";
+import { TEXT_POSITIONS, type TextPosition } from "@/lib/configurator/text-position";
 
 /** R2-2b AC7: hard cap on the customer's free-text colour note.
  *  R5-TEXT-IDENTITY final-review round 2 (finding 5b, TL ruling recorded
@@ -101,6 +102,12 @@ export const orderItemSchema = z.object({
     .object({
       customNote: customNoteSchema.optional(),
       customText: customTextSchema.optional(),
+      /** R5-TEXT-POSITION AC1: optional (older/order-less snapshots don't
+       *  have one) — one shared list with text-position.ts's TEXT_POSITIONS,
+       *  never a second hand-typed set that could drift from it. A value
+       *  outside the four known positions is a gentle 400, same as any
+       *  other shape violation here. */
+      textPosition: z.enum(TEXT_POSITIONS as [TextPosition, ...TextPosition[]]).optional(),
     })
     .passthrough()
     .nullable(),
