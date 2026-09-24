@@ -424,10 +424,6 @@
       "trigger": "Palettes",
       "newHint": "opens step 2",
       "hintSaved": "Tap a tile to switch"
-    },
-    "saveHint": {
-      "text": "You can save this palette to reuse it on other pieces.",
-      "dismiss": "Dismiss"
     }
   },
   "tour": {
@@ -435,14 +431,12 @@
     "done": "Done",
     "off": "Turn tips off",
     "replay": "Show me the tips again",
-    "normal": {
-      "1": "<b>Sets and kits</b> are ready-made. Or pick a <b>design</b> and build your own.",
-      "2": "Pick a colour per lane. <b>Save it as a palette</b> to use it again.",
-      "3": "You're painting with this palette. <b>Choose your ceramics</b>."
+    "step1": {
+      "1": "Pick a <b>design</b> and build your own.{featured, select, yes { Or take a ready-made <b>set or kit</b> above.} other {}}"
     },
-    "kit2": {
+    "step2": {
       "1": "Pick <b>one colour per lane</b>. The plate above shows them straight away.",
-      "2": "Done? <b>Go to your ceramics</b> — your {count, plural, one {# piece} other {# pieces}} are waiting there, ready to paint."
+      "2": "Done? <b>Go to your ceramics</b>{count, plural, =0 {.} one { — # piece is waiting there, ready to paint.} other { — # pieces are waiting there, ready to paint.}}"
     },
     "kit3": {
       "1": "These <b>{count, plural, one {# piece} other {# pieces}}</b> have no colours yet. <b>Paint</b> them.",

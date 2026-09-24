@@ -423,10 +423,6 @@
       "trigger": "Paletter",
       "newHint": "åpner steg 2",
       "hintSaved": "Trykk på en rute for å bytte"
-    },
-    "saveHint": {
-      "text": "Du kan lagre denne paletten for å bruke den igjen på andre stykker.",
-      "dismiss": "Lukk"
     }
   },
   "tour": {
@@ -434,14 +430,12 @@
     "done": "Ferdig",
     "off": "Skru av tips",
     "replay": "Vis tipsene igjen",
-    "normal": {
-      "1": "<b>Sett og kit</b> er ferdige. Eller velg en <b>design</b> og bygg din egen.",
-      "2": "Velg en farge per rad. <b>Lagre den som en palett</b> for å bruke den igjen.",
-      "3": "Du maler med denne paletten. <b>Velg keramikken din</b>."
+    "step1": {
+      "1": "Velg en <b>design</b> og bygg din egen.{featured, select, yes { Eller ta et ferdig <b>sett eller kit</b> over.} other {}}"
     },
-    "kit2": {
+    "step2": {
       "1": "Velg <b>én farge per rad</b>. Fatet over viser dem med en gang.",
-      "2": "Ferdig? <b>Gå til keramikken din</b> — {count, plural, one {# stykke} other {# stykker}} venter der, klare til å males."
+      "2": "Ferdig? <b>Gå til keramikken din</b>{count, plural, =0 {.} one { — # stykke venter der, klart til å males.} other { — # stykker venter der, klare til å males.}}"
     },
     "kit3": {
       "1": "Disse <b>{count, plural, one {# stykket} other {# stykkene}}</b> har ingen farger ennå. <b>Mal</b> dem.",

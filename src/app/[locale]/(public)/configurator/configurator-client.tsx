@@ -92,12 +92,6 @@ const INSPIRATION_URL = "https://www.minkeramikk.no/inspirasjon";
  *  identità stabile fra i render. */
 const WISHES_TAB = "__wishes";
 
-/** R5-TUTORIAL round 2 (plan Task C) — the standalone save-as-palette hint's
- *  OWN localStorage flag, entirely outside `mk-tips-v1`/`tour.ts`: dismiss
- *  once and it's gone for this visitor, independent of the tour's own
- *  off/on and never a step in its sequence. */
-const PALETTE_HINT_KEY = "mk-palette-hint-v1";
-
 /**
  * R5-DESIGN-SWITCH loader: minimo visibile 500ms a ogni cambio design
  * (richiesta esplicita 22/9: 650 era troppo lungo). Server locale
@@ -744,9 +738,6 @@ export function ConfiguratorClient({
   // (cart-context.tsx) with the header/step 3 — this screen never touches
   // localStorage directly.
   const tPaletteBar = useTranslations("palettes.bar");
-  // R5-TUTORIAL round 2 (plan Task C) — new copy, unreviewed in NO.
-  // TODO:nb-review — palettes.saveHint.text / palettes.saveHint.dismiss
-  const tPaletteHint = useTranslations("palettes.saveHint");
   const {
     palettes,
     setActiveCode,
@@ -818,10 +809,11 @@ export function ConfiguratorClient({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot apply on arrival
   }, [kit, hydrated]);
   const kitCounts = kitStripCounts(cart);
-  // R5-TUTORIAL — `tipFor` (pure, tour.ts) is the ONE place that decides
-  // whether a tip shows; this page never has a `setBanner` (that's step 3's
-  // own), so it's always `setBannerOpen: false` here. Steps 1-2 only, so
-  // `sequence` here is only ever "normal" or "kit2" — kit3 lives on step 3.
+  // R5-TUTORIAL round 3 — `tipFor` (pure, tour.ts) is the ONE place that
+  // decides whether a tip shows; this page never has a `setBanner` (that's
+  // step 3's own), so it's always `setBannerOpen: false` here. Steps 1-2
+  // only, so `sequence` here is only ever "step1" or "step2" — normal and
+  // kit share both, `kit3` lives on step 3.
   const tour = useTour();
   const tip = tipFor({
     state: tour.state,
@@ -833,8 +825,12 @@ export function ConfiguratorClient({
   });
   // `unpaintedPieces`, not the kit's total (painting only starts at step 3,
   // so they're equal here — same call as `ceramics-step.tsx`'s, for the same
-  // reason).
-  const tourTip = useTourTip(tip, unpaintedPieces(cart));
+  // reason). `featured` drives step1.1's "or take a set/kit" second sentence
+  // — only when the shop window actually has one to offer.
+  const tourTip = useTourTip(tip, {
+    count: unpaintedPieces(cart),
+    featured: featuredSlot !== null,
+  });
   const handleTourNext = () => {
     if (!tip || !tourTip) return;
     if (tourTip.last) tour.turnOff();
@@ -846,18 +842,27 @@ export function ConfiguratorClient({
   // work (pick a design, advance the step) stays the customer's own — this
   // only makes it visible where `onNext` alone used to do nothing (step 1's
   // tip persists no counter, so its "Next" was a dead button before this).
+  // Round 3: step 2 now has an active-guidance target of its own (the
+  // options grid, its tip 1) alongside the CTA (tip 2).
   const step1AnchorRef = useRef<HTMLDivElement>(null);
+  const optionGridAnchorRef = useRef<HTMLDivElement | null>(null);
   const nextStepAnchorRef = useRef<HTMLDivElement>(null);
-  const [pulseTarget, setPulseTarget] = useState<"step1" | "nextStep" | null>(null);
-  function pulse(target: "step1" | "nextStep", ref: React.RefObject<HTMLDivElement | null>) {
+  const [pulseTarget, setPulseTarget] = useState<"step1" | "optionGrid" | "nextStep" | null>(
+    null
+  );
+  function pulse(
+    target: "step1" | "optionGrid" | "nextStep",
+    ref: React.RefObject<HTMLDivElement | null>
+  ) {
     ref.current?.scrollIntoView({ behavior: "smooth", block: "center" });
     setPulseTarget(target);
     window.setTimeout(() => setPulseTarget((cur) => (cur === target ? null : cur)), 2000);
   }
   const handleTourHighlight = () => {
     if (!tip) return;
-    if (tip.n === 1) pulse("step1", step1AnchorRef);
-    else if (tip.n === 2) pulse("nextStep", nextStepAnchorRef);
+    if (tip.sequence === "step1") pulse("step1", step1AnchorRef);
+    else if (tip.sequence === "step2" && tip.n === 1) pulse("optionGrid", optionGridAnchorRef);
+    else if (tip.sequence === "step2" && tip.n === 2) pulse("nextStep", nextStepAnchorRef);
   };
   const kitShownTitle = kitTitle(kitCtx, locale as "no" | "en", tKit("strip.title"));
   const kitShownEyebrow = kitTitle(kitCtx, locale as "no" | "en", tKit("welcome.eyebrow"));
@@ -1036,32 +1041,6 @@ export function ConfiguratorClient({
    * `savePalette` dedups by exact code, LRU 10 unchanged.
    */
   const canSaveDraft = !matchedPalette;
-
-  // R5-TUTORIAL round 2 (plan Task C) — a hint pointing at the same Save
-  // button, entirely outside the guided tour: dismiss once, gone for good,
-  // own flag (`PALETTE_HINT_KEY`), never touched by `tour.turnOff()`/`off`
-  // and never a step of any sequence. Shown once there's actually a draft
-  // worth saving (`canSaveDraft` — the same gate the button itself uses),
-  // and not while the tour is ALREADY pointing at this exact spot
-  // (`tip.n === 2` — normal's own tip 2 lives right here too, Task B): two
-  // bubbles on one button would just collide.
-  const [paletteHintDismissed, setPaletteHintDismissed] = useState(true);
-  useEffect(() => {
-    try {
-      setPaletteHintDismissed(window.localStorage.getItem(PALETTE_HINT_KEY) === "1");
-    } catch {
-      /* private mode — the hint just won't show, harmless */
-    }
-  }, []);
-  function dismissPaletteHint() {
-    setPaletteHintDismissed(true);
-    try {
-      window.localStorage.setItem(PALETTE_HINT_KEY, "1");
-    } catch {
-      /* private mode / quota — dismiss still works for this render */
-    }
-  }
-  const showPaletteHint = canSaveDraft && !paletteHintDismissed && !(tip && tip.n === 2);
 
   /**
    * R5-BASKET-HOST task 1 — step 2 publishes the same `CurrentConfig` shape
@@ -1497,10 +1476,11 @@ export function ConfiguratorClient({
         image={kitWelcome?.image}
         imageCustom={kitWelcome?.imageCustom}
         eyebrow={kitShownEyebrow}
-        // R5-TUTORIAL 0.1-8 — passo 0: «Show me how» starts the kit's own
-        // tour at step 2 (0.1-1: the kit gets 3 tips there too, not just
-        // step 3); «I'll have a look myself» turns tips off for good.
-        onShowMeHow={() => tour.start("kit2")}
+        // R5-TUTORIAL 0.1-8 — passo 0: «Show me how» starts the tour at
+        // step 2 (round 3: `step2` is the very same sequence normal
+        // customers get there); «I'll have a look myself» turns tips off
+        // for good.
+        onShowMeHow={() => tour.start("step2")}
         onLookMyself={() => tour.turnOff()}
       />
 
@@ -1590,28 +1570,12 @@ export function ConfiguratorClient({
         </div>
       )}
 
-      {/* F28: featured strip between the intro and the design grid, home only */}
-      {step === 1 && featuredSlot && (
-        <div
-          className={cn("relative", pulseTarget === "step1" && "tour-pulse rounded-xl")}
-          ref={step1AnchorRef}
-        >
-          {featuredSlot}
-          {/* R5-TUTORIAL — passo 1 normale, anchored to the featured strip
-              (plan §0.1-4). A kit never lands a tour on step 1 (`tipFor`),
-              so this is always the "normal" tip when it shows. */}
-          {tourTip && tip && tip.sequence === "normal" && tip.n === 1 && (
-            <Hotspot
-              n={1}
-              text={tourTip.text}
-              last={tourTip.last}
-              onNext={handleTourNext}
-              onHighlight={handleTourHighlight}
-              onOff={() => tour.turnOff()}
-            />
-          )}
-        </div>
-      )}
+      {/* F28: featured strip between the intro and the design grid, home only.
+          R5-TUTORIAL round 3: step 1's tip now ALWAYS anchors to the design
+          grid below (never here) — the vetrina used to carry it, but the
+          screenshot review (24/9) showed the focus landing on sets/kits
+          instead of designs. */}
+      {step === 1 && featuredSlot}
 
       <div
         className={cn(
@@ -1894,20 +1858,20 @@ export function ConfiguratorClient({
           <div
             className={cn(
               "relative flex min-w-0 flex-col",
-              !featuredSlot && pulseTarget === "step1" && "tour-pulse rounded-xl"
+              pulseTarget === "step1" && "tour-pulse rounded-xl"
             )}
             data-testid="design-step"
             data-supplier-id={selected.supplierId}
-            // R5-TUTORIAL round 2 — only THIS mount's ref matters when there's
-            // no featured strip (the Hotspot below is gated the same way); the
-            // featuredSlot wrapper above owns `step1AnchorRef` otherwise, and a
-            // second ref assignment here would silently steal it.
-            ref={!featuredSlot ? step1AnchorRef : undefined}
+            // R5-TUTORIAL round 3 — the grid is ALWAYS the anchor now, with
+            // or without a featured strip above it (the vetrina used to own
+            // this when present; the 24/9 review moved the focus here for
+            // good — set/kit are the "or…" second sentence, never the
+            // anchor).
+            ref={step1AnchorRef}
           >
-            {/* R5-TUTORIAL — passo 1 normale, empty-featured fallback (plan
-                §0.1-4): no featured strip to anchor to, so the same tip
-                anchors the design grid instead. */}
-            {tourTip && tip && tip.sequence === "normal" && tip.n === 1 && !featuredSlot && (
+            {/* R5-TUTORIAL round 3 — step 1's one tip, always on the design
+                grid. */}
+            {tourTip && tip && tip.sequence === "step1" && (
               <Hotspot
                 n={1}
                 text={tourTip.text}
@@ -2239,20 +2203,24 @@ export function ConfiguratorClient({
                     ? customTextField
                     : null
                 }
-                // R5-TUTORIAL — kit2's tip 1 anchors to the FIRST category's
-                // colour grid (plan §0.1-1); on desktop every category is
-                // rendered at once (F15), so "first" is simply index 0.
+                // R5-TUTORIAL round 3 — step 2's tip 1 anchors to the FIRST
+                // category's colour grid (normal AND kit alike now); on
+                // desktop every category is rendered at once (F15), so
+                // "first" is simply index 0.
                 hotspot={
-                  catIndex === 0 && tourTip && tip && tip.sequence === "kit2" && tip.n === 1 ? (
+                  catIndex === 0 && tourTip && tip && tip.sequence === "step2" && tip.n === 1 ? (
                     <Hotspot
                       n={1}
                       text={tourTip.text}
                       last={tourTip.last}
                       onNext={handleTourNext}
+                      onHighlight={handleTourHighlight}
                       onOff={() => tour.turnOff()}
                     />
                   ) : null
                 }
+                pulse={catIndex === 0 && pulseTarget === "optionGrid"}
+                gridRef={catIndex === 0 ? optionGridAnchorRef : undefined}
               />
             ))}
 
@@ -2440,43 +2408,12 @@ export function ConfiguratorClient({
                   )
                 }
               />
-              {/* R5-TUTORIAL — passo 2 normale's own tip 2 (plan NORM[1]).
-                  Round 2 (plan Task A): kit2 no longer stops here at all —
-                  its own tip 2 is the ex-tip3, anchored at the next-step CTA
-                  below — so this is `sequence === "normal"` only now. */}
-              {tourTip && tip && tip.sequence === "normal" && tip.n === 2 && (
-                <Hotspot
-                  n={2}
-                  text={tourTip.text}
-                  last={tourTip.last}
-                  onNext={handleTourNext}
-                  onHighlight={handleTourHighlight}
-                  onOff={() => tour.turnOff()}
-                />
-              )}
-              {/* R5-TUTORIAL round 2 (plan Task C) — the standalone
-                  save-as-palette hint, same anchor as the tour's own tip 2
-                  above (they're gated to never show together). Its own
-                  state, its own dismiss — nothing here touches `tour.ts`. */}
-              {showPaletteHint && (
-                <span
-                  data-testid="palette-save-hint"
-                  className="absolute -right-2 -top-2 z-30 hidden md:block"
-                >
-                  <span className="flex w-max max-w-[268px] items-start gap-1.5 rounded-lg border border-primary/30 bg-popover px-2.5 py-2 text-left text-[12px] leading-snug shadow-lg">
-                    <span className="min-w-0 flex-1">{tPaletteHint("text")}</span>
-                    <button
-                      type="button"
-                      onClick={dismissPaletteHint}
-                      aria-label={tPaletteHint("dismiss")}
-                      data-testid="palette-save-hint-dismiss"
-                      className="shrink-0 text-muted-foreground"
-                    >
-                      ✕
-                    </button>
-                  </span>
-                </span>
-              )}
+              {/* R5-TUTORIAL round 3 — the palette card is out of the guided
+                  tour entirely (it used to carry passo 2's own tip 2, and a
+                  standalone save-as-palette hint beside it): the screenshot
+                  review (24/9) found customers landing on palettes instead
+                  of the design options. The card's own "?" (palette-card.tsx,
+                  Task D) replaces both. */}
             </div>
 
 
@@ -2650,9 +2587,9 @@ export function ConfiguratorClient({
                   onMouseDown={keepFocusWhileTyping}
                   onClick={() => goToStep(3)}
                 />
-                {/* R5-TUTORIAL round 2 (plan Task A) — kit2's tip 2 now
-                    (ex-tip3: the save-as-palette tip in between is gone). */}
-                {tourTip && tip && tip.sequence === "kit2" && tip.n === 2 && (
+                {/* R5-TUTORIAL round 3 — step 2's tip 2 (normal and kit
+                    alike): "pick your ceramics", on this CTA. */}
+                {tourTip && tip && tip.sequence === "step2" && tip.n === 2 && (
                   <Hotspot
                     n={2}
                     text={tourTip.text}
@@ -2694,6 +2631,8 @@ function CategoryLane({
   t,
   footer = null,
   hotspot = null,
+  pulse = false,
+  gridRef,
 }: {
   cat: DesignDetail["categories"][number];
   label: string;
@@ -2709,10 +2648,20 @@ function CategoryLane({
    *  gruppo Tekst, che deve stare dentro il suo tab (mobile) e sotto il suo
    *  fieldset (desktop). */
   footer?: React.ReactNode;
-  /** R5-TUTORIAL — kit2's tip 1, only on the first colour category. */
+  /** R5-TUTORIAL round 3 — step 2's tip 1, only on the first category. */
   hotspot?: React.ReactNode;
+  /** R5-TUTORIAL round 3 — "active guidance": pulses the grid itself, same
+   *  `.tour-pulse` recipe as step 1's design grid / the next-step CTA. */
+  pulse?: boolean;
+  /** R5-TUTORIAL round 3 — lets the parent scroll THIS category's grid into
+   *  view (only ever passed for the first category, the tip's own anchor). */
+  gridRef?: React.RefObject<HTMLDivElement | null>;
 }) {
   const laneRef = useRef<HTMLDivElement>(null);
+  function setLaneRef(el: HTMLDivElement | null) {
+    laneRef.current = el;
+    if (gridRef) gridRef.current = el;
+  }
   // dep con `active`: al cambio tab la corsia passa da display:none a visibile e
   // le fade vanno ricalcolate SUBITO, non per il rimbalzo del ResizeObserver.
   const fades = useLaneFades(laneRef, `${active}:${cat.id}`);
@@ -2827,7 +2776,7 @@ function CategoryLane({
         // F15: da md in su griglia verticale che va a capo — ogni opzione
         // visibile, nessuno scroller orizzontale (supera il carosello F02).
         <div
-          ref={laneRef}
+          ref={setLaneRef}
           role="radiogroup"
           aria-label={label}
           onKeyDown={onKeyDown}
@@ -2835,6 +2784,7 @@ function CategoryLane({
           className={cn(
             // desktop (F15): invariato
             "relative flex flex-wrap gap-2.5",
+            pulse && "tour-pulse rounded-xl",
             // mobile (mockup `.opts`): corsia orizzontale con snap e peek
             // R4-FIX 6: `scroll-px` (non solo `-pl-`) — con lo snap, l'ULTIMA
             // card si fermava incollata al bordo destro. Niente `flex-1`: la
@@ -2903,11 +2853,12 @@ function CategoryLane({
         </div>
       ) : (
         <div
-          ref={laneRef}
+          ref={setLaneRef}
           data-testid="option-grid"
           className={cn(
             // desktop: invariato
             "relative grid grid-cols-3 gap-2.5 sm:grid-cols-4",
+            pulse && "tour-pulse rounded-xl",
             // mobile: stessa corsia orizzontale delle opzioni colore.
             // R4-FIX 6 (corsia «Dyr»): erano queste tre utility a far sbordare
             // le card. `flex-1` + `min-h-0` davano alla corsia l'altezza che
