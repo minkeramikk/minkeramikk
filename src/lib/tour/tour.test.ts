@@ -5,6 +5,7 @@ import {
   isLastTip,
   next,
   parseTourState,
+  sequenceForContext,
   start,
   tipFor,
   turnOff,
@@ -115,7 +116,7 @@ describe("tipFor — AC2 kit: step 2 (kit2) then step 3 (kit3)", () => {
     ).toBeNull();
   });
 
-  it("walks kit2 1 → 2 → 3, then hands off to kit3 1 → 2 → 3, then off", () => {
+  it("walks kit2 1 → 2 (round 2: dropped the save-as-palette tip), then hands off to kit3 1 → 2 → 3, then off", () => {
     const tip2 = (state: TourState) =>
       tipFor({
         state,
@@ -140,14 +141,14 @@ describe("tipFor — AC2 kit: step 2 (kit2) then step 3 (kit3)", () => {
     expect(tip2(state)).toEqual({ sequence: "kit2", n: 1 });
 
     state = next(state, "kit2");
+    expect(state).toEqual({ off: false, seq: "kit2", step: 2 });
     expect(tip2(state)).toEqual({ sequence: "kit2", n: 2 });
 
+    // last kit2 Next (round 2: kit2's tip 2, ex-tip3 "go to your ceramics")
+    // hands off to kit3/1 without turning off — it does NOT walk to a
+    // third kit2 step first (the save-as-palette tip is gone for good).
     state = next(state, "kit2");
-    expect(tip2(state)).toEqual({ sequence: "kit2", n: 3 });
-
-    // last kit2 Next hands off to kit3/1 without turning off
-    state = next(state, "kit2");
-    expect(state.off).toBe(false);
+    expect(state).toEqual({ off: false, seq: "kit3", step: 1 });
     expect(tip3(state)).toEqual({ sequence: "kit3", n: 1 });
 
     state = next(state, "kit3");
@@ -231,6 +232,27 @@ describe("isLastTip", () => {
 
   it("kit2's third tip is never last — it hands off to kit3, not Done", () => {
     expect(isLastTip({ sequence: "kit2", n: 3 })).toBe(false);
+  });
+
+  it("round 2: kit2's second (now last) tip still hands off, not Done", () => {
+    expect(isLastTip({ sequence: "kit2", n: 2 })).toBe(false);
+  });
+});
+
+describe("sequenceForContext — round 2: the same branching tipFor uses, reused by the header replay button", () => {
+  it("normal outside kit-mode, whatever the step", () => {
+    expect(sequenceForContext(false, 1)).toBe("normal");
+    expect(sequenceForContext(false, 2)).toBe("normal");
+    expect(sequenceForContext(false, 3)).toBe("normal");
+  });
+
+  it("kit-mode step 2 → kit2, step 3 → kit3", () => {
+    expect(sequenceForContext(true, 2)).toBe("kit2");
+    expect(sequenceForContext(true, 3)).toBe("kit3");
+  });
+
+  it("kit-mode step 1 falls back to normal (tipFor is what nulls it out, not this)", () => {
+    expect(sequenceForContext(true, 1)).toBe("normal");
   });
 });
 

@@ -6,9 +6,11 @@
  * Three situations, not three variants of one tour (DS §3.32 table):
  * - `normal`: one tip per step, the step the customer is actually on drives
  *   which tip shows — nothing to persist beyond "did they turn it off".
- * - `kit2` / `kit3`: the kit's own two legs (step 2, then step 3), each a
- *   3-tip sequence that restarts at 1 when it starts and hands off to the
- *   next leg without ever going through "off".
+ * - `kit2` / `kit3`: the kit's own two legs (step 2, then step 3) — `kit2` is
+ *   2 tips (round 2: the save-as-palette tip left for `palette-save-hint`,
+ *   standalone and outside this state), `kit3` is 3 — each restarts at 1
+ *   when it starts and hands off to the next leg without ever going
+ *   through "off".
  *
  * `tipFor` is the ONE function that decides whether a tip shows — the AC1-3
  * `[unit]` tests in the card are tests of this function (plan §0.1-3); the
@@ -57,6 +59,20 @@ export function parseTourState(raw: string | null): TourState {
 }
 
 /**
+ * Round 2 (plan §Task A) — the branch `tipFor` used to keep to itself,
+ * extracted so the header's replay button (Task E) can ask "which sequence
+ * belongs to where I'm standing" without duplicating the rule. A kit never
+ * lands a tour on step 1 (the welcome IS its passo 0), so that combination
+ * falls back to `normal` — `tipFor` is what turns THAT into "show nothing"
+ * (kitMode && step===1), this function only answers "which sequence".
+ */
+export function sequenceForContext(kitMode: boolean, step: 1 | 2 | 3): TourSequence {
+  if (kitMode && step === 2) return "kit2";
+  if (kitMode && step === 3) return "kit3";
+  return "normal";
+}
+
+/**
  * `null` when nothing should show; otherwise the sequence and which of its
  * (1-3) tips is current. A kit never lands a tour on step 1 (the welcome IS
  * its passo 0) — DS §3.32.
@@ -70,26 +86,27 @@ export function tipFor(i: {
   step: 1 | 2 | 3;
 }): { sequence: TourSequence; n: 1 | 2 | 3 } | null {
   if (!i.hydrated || i.state.off || i.setBannerOpen || i.welcomeOpen) return null;
-  if (i.kitMode) {
-    if (i.step === 1) return null;
-    const sequence: TourSequence = i.step === 2 ? "kit2" : "kit3";
-    const n = (i.state.seq === sequence ? i.state.step : 1) as 1 | 2 | 3;
-    return { sequence, n };
-  }
-  return { sequence: "normal", n: i.step };
+  if (i.kitMode && i.step === 1) return null;
+  const sequence = sequenceForContext(i.kitMode, i.step);
+  if (sequence === "normal") return { sequence, n: i.step };
+  const n = (i.state.seq === sequence ? i.state.step : 1) as 1 | 2 | 3;
+  return { sequence, n };
 }
 
 /**
  * Advances a sequence's own tip. `normal` persists nothing — the next tip
  * arrives on its own with the next page step, there is no counter to bump.
- * `kit2`'s last tip hands off straight to `kit3` (the step-3 leg), no `off`
- * in between. `kit3`'s last tip is Done: it turns tips off for good.
+ * `kit2` is 2 tips now (round 2, plan Task A: the save-as-palette tip left
+ * the guided sequence for good — `palette-save-hint.tsx` covers it, outside
+ * this state entirely) — its last tip hands off straight to `kit3` (the
+ * step-3 leg), no `off` in between. `kit3`'s last tip is Done: it turns tips
+ * off for good.
  */
 export function next(state: TourState, sequence: TourSequence): TourState {
   if (sequence === "normal") return state;
   const current = state.seq === sequence ? state.step : 1;
   if (sequence === "kit2") {
-    return current >= 3
+    return current >= 2
       ? { off: false, seq: "kit3", step: 1 }
       : { off: false, seq: "kit2", step: current + 1 };
   }
