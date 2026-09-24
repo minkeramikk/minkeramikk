@@ -343,6 +343,11 @@
     "addedWithPct": "Added to your basket · −{pct}%",
     "sheetOffer": {
       "taken": "Added to the basket"
+    },
+    "textPosition": {
+      "top": "Top",
+      "bottom": "Bottom",
+      "back": "Back"
     }
   },
   "kit": {

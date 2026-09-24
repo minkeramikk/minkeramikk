@@ -1211,6 +1211,7 @@ export function CeramicsStep({
       designLayers={designLayers}
       paintingLabel={paintingLabel}
       dedication={currentDedication}
+      textPosition={snapshot.textPosition}
       designName={designName}
       palettes={palettes}
       currentDesignSlug={design.slug}
@@ -1632,6 +1633,7 @@ export function CeramicsStep({
                   layers: designLayers,
                   name: paintingLabel,
                   dedication: currentDedication,
+                  textPosition: snapshot.textPosition,
                   designName,
                   hexes: paletteHexes(snapshot),
                 }}

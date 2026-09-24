@@ -257,6 +257,7 @@ export function Basket({
         // thing on screen" bug the header had.
         label: currentConfig?.label ?? "",
         dedication: currentConfig?.snapshot.customText,
+        textPosition: currentConfig?.snapshot.textPosition,
         hexes:
           currentConfig?.snapshot.selections
             .map((s) => s.hex)

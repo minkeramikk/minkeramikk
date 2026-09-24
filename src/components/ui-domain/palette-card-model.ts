@@ -5,6 +5,7 @@
  * nothing here reads or writes the palette store.
  */
 import type { ConfigSnapshot } from "@/lib/cart/cart";
+import type { TextPosition } from "@/lib/configurator/text-position";
 import { sortLaneNewestFirst, type Palette } from "@/lib/palettes/palettes";
 
 /** DS §3.31: past 6 chips the «Switch to» zone is capped behind «Show all». */
@@ -15,13 +16,16 @@ export function paletteHexes(snapshot: Pick<ConfigSnapshot, "selections">): stri
   return snapshot.selections.map((s) => s.hex).filter((h): h is string => Boolean(h));
 }
 
-/** NowBlock second line, NEVER empty (LOG 22/9): dedication if non-blank, else the design. */
+/** NowBlock second line, NEVER empty (LOG 22/9): dedication if non-blank, else the design.
+ *  DS §3.33: `position` rides along with the dedication only — the design fallback carries
+ *  no position, there is no text to place. */
 export function nowSecondLine(
   dedication: string | undefined,
-  designName: string
-): { kind: "dedication"; text: string } | { kind: "design"; text: string } {
+  designName: string,
+  position?: TextPosition
+): { kind: "dedication"; text: string; position?: TextPosition } | { kind: "design"; text: string } {
   const text = dedication?.trim();
-  return text ? { kind: "dedication", text } : { kind: "design", text: designName };
+  return text ? { kind: "dedication", text, position } : { kind: "design", text: designName };
 }
 
 /** Switch targets: every saved palette but the active one, in sortLaneNewestFirst order. */

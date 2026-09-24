@@ -1483,6 +1483,7 @@ export function ConfiguratorClient({
           designLayers={activePaletteLayers}
           paintingLabel={activePaletteName}
           dedication={currentDedication}
+          textPosition={draftPayload.snapshot.textPosition}
           designName={activeDesignName}
           palettes={palettes}
           currentDesignSlug={selected.slug}

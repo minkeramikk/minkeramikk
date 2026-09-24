@@ -8,6 +8,7 @@
  * `basket.tsx` re-exports both, so nothing else has to know they live here.
  */
 import type { CartLayer, ConfigSnapshot } from "@/lib/cart/cart";
+import type { TextPosition } from "@/lib/configurator/text-position";
 import type { Palette } from "@/lib/palettes/palettes";
 /** Where this basket is mounted: the header drawer, or step 3's right column
  *  — which from PR 2 exists only from `lg` (its mobile in-flow twin, also a
@@ -92,6 +93,7 @@ export function explicitPickThumb(palette: Palette): {
   layers: CartLayer[];
   label: string;
   dedication: string | undefined;
+  textPosition: TextPosition | undefined;
   hexes: string[];
   snapshot: ConfigSnapshot;
   selectionCount: number;
@@ -101,6 +103,7 @@ export function explicitPickThumb(palette: Palette): {
     layers: palette.layers,
     label: palette.name,
     dedication: palette.snapshot.customText,
+    textPosition: palette.snapshot.textPosition,
     hexes: palette.snapshot.selections
       .map((s) => s.hex)
       .filter((h): h is string => Boolean(h)),

@@ -342,6 +342,11 @@
     "addedWithPct": "Lagt i handlekurven · −{pct} %",
     "sheetOffer": {
       "taken": "Lagt i handlekurven"
+    },
+    "textPosition": {
+      "top": "Topp",
+      "bottom": "Bunn",
+      "back": "Bakside"
     }
   },
   "kit": {
