@@ -104,6 +104,15 @@ export function turnOff(state: TourState): TourState {
   return { ...state, off: true };
 }
 
+/**
+ * Does this tip's Next button read "Done" and end the tour? `kit2`'s third
+ * tip pushes forward into `kit3` instead ("Go to your ceramics") — never
+ * "Done", it isn't finishing anything yet.
+ */
+export function isLastTip(tip: { sequence: TourSequence; n: number }): boolean {
+  return tip.sequence !== "kit2" && tip.n === 3;
+}
+
 /** «Show me how» / a fresh landing on a sequence: always starts at 1, tips on. */
 export function start(sequence: TourSequence): TourState {
   return { off: false, seq: sequence, step: 1 };

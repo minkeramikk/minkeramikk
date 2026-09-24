@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   TOUR_DEFAULT,
   TOUR_KEY,
+  isLastTip,
   next,
   parseTourState,
   start,
@@ -215,6 +216,21 @@ describe("parseTourState", () => {
   it("round-trips a valid state", () => {
     const state: TourState = { off: false, seq: "kit3", step: 2 };
     expect(parseTourState(JSON.stringify(state))).toEqual(state);
+  });
+});
+
+describe("isLastTip", () => {
+  it("normal's third tip is last (Done, turns off)", () => {
+    expect(isLastTip({ sequence: "normal", n: 3 })).toBe(true);
+    expect(isLastTip({ sequence: "normal", n: 2 })).toBe(false);
+  });
+
+  it("kit3's third tip is last (Done, turns off)", () => {
+    expect(isLastTip({ sequence: "kit3", n: 3 })).toBe(true);
+  });
+
+  it("kit2's third tip is never last — it hands off to kit3, not Done", () => {
+    expect(isLastTip({ sequence: "kit2", n: 3 })).toBe(false);
   });
 });
 

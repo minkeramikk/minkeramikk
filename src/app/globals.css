@@ -127,6 +127,19 @@
   .spinplate-counter { animation: none; }
 }
 
+/* R5-TUTORIAL — the Hotspot badge's pulse (DS §3.32, mockup.html `.hs`):
+ * a ring of shadow breathing outward, nothing that moves the badge itself. */
+@keyframes tour-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--primary) 55%, transparent); }
+  70% { box-shadow: 0 0 0 9px transparent; }
+}
+.tour-pulse {
+  animation: tour-pulse 2s infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .tour-pulse { animation: none; }
+}
+
 /*
  * minkeramikk theme (ADR 0008, docs/theme/DESIGN-SYSTEM.md).
  *

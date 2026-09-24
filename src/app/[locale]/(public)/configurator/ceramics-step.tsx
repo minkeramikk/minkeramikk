@@ -60,6 +60,9 @@ import { clearKitContext, kitTitle, readKitContext } from "@/lib/cart/kit-contex
 import { DesignRound } from "@/components/ui-domain/design-round";
 import { Basket } from "@/components/ui-domain/basket";
 import { NextStepPill, PillIcon } from "@/components/ui-domain/next-step-pill";
+import { useTour } from "@/lib/tour/use-tour";
+import { tipFor } from "@/lib/tour/tour";
+import { CoachBar, Hotspot, useTourTip } from "@/components/ui-domain/tour";
 
 export interface CeramicProduct {
   id: string;
@@ -250,6 +253,10 @@ export function CeramicsStep({
      *  there is; `openCart` is the same opener the header button uses. */
     setCheckoutHost,
     openCart,
+    /** R5-TUTORIAL: while the drawer is open its own `CoachBar` (kit3 only,
+     *  `cart-menu.tsx`) takes over — the fixed one here never mounts on top
+     *  of the sheet, in or out of kit-mode. */
+    open: cartOpen,
     activeCode,
     setActiveCode,
     save: savePalette,
@@ -1046,6 +1053,26 @@ export function CeramicsStep({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot open on arrival
   }, [kitMode, hydrated]);
 
+  // R5-TUTORIAL — same `tipFor` (pure, tour.ts) steps 1-2 use; step 3 is the
+  // only page that ever has a `setBanner`, so it's the only caller that
+  // passes a real value for it (AC3: a set landing shows nothing). No
+  // `KitWelcome` on this page, so `welcomeOpen` is always false here.
+  const tour = useTour();
+  const tip = tipFor({
+    state: tour.state,
+    hydrated: tour.hydrated,
+    kitMode,
+    welcomeOpen: false,
+    setBannerOpen: setBanner !== null,
+    step: 3,
+  });
+  const tourTip = useTourTip(tip, kitStripCounts(cart).total);
+  const handleTourNext = () => {
+    if (!tip || !tourTip) return;
+    if (tourTip.last) tour.turnOff();
+    else tour.next(tip.sequence);
+  };
+
   // §3.18: sections in the admin's own order; the ungrouped bucket comes last
   // with NO heading.
   const sections = useMemo(() => groupBySeries(products, locale), [products, locale]);
@@ -1341,6 +1368,12 @@ export function CeramicsStep({
         // keep clear of it.
         "md:[&_*:focus-visible]:scroll-mt-24"
       )}
+      style={{
+        // R5-TUTORIAL: the step-3 sticky order bar's own height at 390 —
+        // measured in-browser (same recipe as `--mk-strip-h` above), the tour
+        // CoachBar parks above it instead of stacking a second fixed strip.
+        "--mk-sticky-bar-h": "73px",
+      } as React.CSSProperties}
     >
       {/* Fix wave PR3 finding 7: the mockup (`Phone3`) puts `MobStrip`
           directly under the header, above the "Step 3 of 3" kicker — this
@@ -1487,6 +1520,23 @@ export function CeramicsStep({
           a second CTA would compete with it. */}
       {stickyBar}
 
+      {/* R5-TUTORIAL — 390, passo 3 normale: the strip parks above the sticky
+          order bar when it's showing (DS §3.32 "mai due strisce impilate in
+          fondo"); `--mk-sticky-bar-h` measured at 390, same recipe as
+          `--mk-strip-h` above. While the drawer is open the kit3 CoachBar
+          rides the sheet instead (`cart-menu.tsx`) — this one never mounts
+          on top of it, in or out of kit-mode. */}
+      {tourTip && tip && tip.sequence === "normal" && !cartOpen && (
+        <CoachBar
+          n={tip.n}
+          text={tourTip.text}
+          last={tourTip.last}
+          onNext={handleTourNext}
+          onOff={() => tour.turnOff()}
+          style={showStickyBar ? { bottom: "var(--mk-sticky-bar-h)" } : undefined}
+        />
+      )}
+
       {/* F21: two-column grid from `lg`. Below it the catalog is the whole
           page and the basket is the header drawer (task 6) — no in-flow
           copy, which is also what closes AC 5 (the rail cannot overflow 768
@@ -1538,7 +1588,7 @@ export function CeramicsStep({
                 the on-screen colours. Desktop-only (`hidden md:block`); the
                 stickiness lives on the block above, so the card itself is
                 static here. */}
-            <div className="hidden md:block">
+            <div className="relative hidden md:block">
               <PaletteCard
                 now={{
                   layers: designLayers,
@@ -1551,6 +1601,17 @@ export function CeramicsStep({
                 saved={palettes.length}
                 actions={editColoursButton}
               />
+              {/* R5-TUTORIAL — passo 3 normale, one tip (card "non nomina
+                  quale chip è acceso": the NowBlock above already says it). */}
+              {tourTip && tip && tip.sequence === "normal" && tip.n === 3 && (
+                <Hotspot
+                  n={3}
+                  text={tourTip.text}
+                  last={tourTip.last}
+                  onNext={handleTourNext}
+                  onOff={() => tour.turnOff()}
+                />
+              )}
             </div>
           </div>
 

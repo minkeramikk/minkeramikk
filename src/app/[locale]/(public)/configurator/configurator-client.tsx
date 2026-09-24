@@ -79,6 +79,9 @@ import {
   type KitContext,
 } from "@/lib/cart/kit-context";
 import { KitWelcome, kitWelcomeRows } from "@/components/ui-domain/kit-welcome";
+import { useTour } from "@/lib/tour/use-tour";
+import { tipFor } from "@/lib/tour/tour";
+import { CoachBar, Hotspot, useTourTip } from "@/components/ui-domain/tour";
 
 /** Pagina di ispirazione del cliente (fuori sito, apre in nuova scheda). */
 const INSPIRATION_URL = "https://www.minkeramikk.no/inspirasjon";
@@ -806,6 +809,25 @@ export function ConfiguratorClient({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot apply on arrival
   }, [kit, hydrated]);
   const kitCounts = kitStripCounts(cart);
+  // R5-TUTORIAL — `tipFor` (pure, tour.ts) is the ONE place that decides
+  // whether a tip shows; this page never has a `setBanner` (that's step 3's
+  // own), so it's always `setBannerOpen: false` here. Steps 1-2 only, so
+  // `sequence` here is only ever "normal" or "kit2" — kit3 lives on step 3.
+  const tour = useTour();
+  const tip = tipFor({
+    state: tour.state,
+    hydrated: tour.hydrated,
+    kitMode,
+    welcomeOpen: kitWelcome !== null,
+    setBannerOpen: false,
+    step,
+  });
+  const tourTip = useTourTip(tip, kitCounts.total);
+  const handleTourNext = () => {
+    if (!tip || !tourTip) return;
+    if (tourTip.last) tour.turnOff();
+    else tour.next(tip.sequence);
+  };
   const kitShownTitle = kitTitle(kitCtx, locale as "no" | "en", tKit("strip.title"));
   const kitShownEyebrow = kitTitle(kitCtx, locale as "no" | "en", tKit("welcome.eyebrow"));
   // fix 11: everything painted → the kit's job is done: clear the persisted
@@ -1419,6 +1441,19 @@ export function ConfiguratorClient({
         imageCustom={kitWelcome?.imageCustom}
         eyebrow={kitShownEyebrow}
       />
+
+      {/* R5-TUTORIAL — 390: the tip lives in a strip, never anchored (DS
+          §3.32). One mount covers both steps 1-2; `tip`/`tourTip` already
+          say which copy, if any. */}
+      {tourTip && tip && tip.sequence === "normal" && (
+        <CoachBar
+          n={tip.n}
+          text={tourTip.text}
+          last={tourTip.last}
+          onNext={handleTourNext}
+          onOff={() => tour.turnOff()}
+        />
+      )}
       {/* CA-2: the top cluster holds ONLY the stepper (orientation + step
           jumps, F18). The advance/back CTAs live in-flow at the END of the
           options column — no climb back to the top on desktop. Decision closed
@@ -1492,7 +1527,23 @@ export function ConfiguratorClient({
       )}
 
       {/* F28: featured strip between the intro and the design grid, home only */}
-      {step === 1 && featuredSlot}
+      {step === 1 && featuredSlot && (
+        <div className="relative">
+          {featuredSlot}
+          {/* R5-TUTORIAL — passo 1 normale, anchored to the featured strip
+              (plan §0.1-4). A kit never lands a tour on step 1 (`tipFor`),
+              so this is always the "normal" tip when it shows. */}
+          {tourTip && tip && tip.sequence === "normal" && tip.n === 1 && (
+            <Hotspot
+              n={1}
+              text={tourTip.text}
+              last={tourTip.last}
+              onNext={handleTourNext}
+              onOff={() => tour.turnOff()}
+            />
+          )}
+        </div>
+      )}
 
       <div
         className={cn(
@@ -1773,10 +1824,22 @@ export function ConfiguratorClient({
         {/* RIGHT: panel swaps with the step */}
         {step === 1 ? (
           <div
-            className="flex min-w-0 flex-col"
+            className="relative flex min-w-0 flex-col"
             data-testid="design-step"
             data-supplier-id={selected.supplierId}
           >
+            {/* R5-TUTORIAL — passo 1 normale, empty-featured fallback (plan
+                §0.1-4): no featured strip to anchor to, so the same tip
+                anchors the design grid instead. */}
+            {tourTip && tip && tip.sequence === "normal" && tip.n === 1 && !featuredSlot && (
+              <Hotspot
+                n={1}
+                text={tourTip.text}
+                last={tourTip.last}
+                onNext={handleTourNext}
+                onOff={() => tour.turnOff()}
+              />
+            )}
             <p className="text-[11px] uppercase tracking-[0.06em] text-muted-foreground">
               {t("stepIndicator", { step: 1 })}
             </p>
@@ -2270,7 +2333,7 @@ export function ConfiguratorClient({
                 card's own eyebrow title + ONLY the de-emphasised `h-8` Save,
                 gated on `canSaveDraft = !matchedPalette` — no +New (every
                 option change is already a new draft). */}
-            <div className="hidden md:block">
+            <div className="relative hidden md:block">
               <PaletteCard
                 chips={[leadPaletteChip, ...otherPaletteChips]}
                 saved={palettes.length}
@@ -2286,6 +2349,16 @@ export function ConfiguratorClient({
                   )
                 }
               />
+              {/* R5-TUTORIAL — passo 2 normale, one tip (plan NORM[1]). */}
+              {tourTip && tip && tip.sequence === "normal" && tip.n === 2 && (
+                <Hotspot
+                  n={2}
+                  text={tourTip.text}
+                  last={tourTip.last}
+                  onNext={handleTourNext}
+                  onOff={() => tour.turnOff()}
+                />
+              )}
             </div>
 
 
