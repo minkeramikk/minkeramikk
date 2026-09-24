@@ -137,19 +137,29 @@ export function PaintingStrip({
         className
       )}
     >
-      <DesignRound layers={designLayers} className="size-9" />
-      {/* `paintingLabel`, not a second computation — the caller's own one
-          name for "what's painting" (its own file-scoped comment explains
-          where that gets settled once). */}
-      <div className="min-w-0 leading-tight">
-        <p className="text-[10px] uppercase tracking-[0.06em] text-muted-foreground">
-          {tPaletteBar("eyebrowPaint")}
-        </p>
-        <p className="truncate text-[13.5px] font-semibold">
-          {paintingLabel}{" "}
-          <span className="font-normal text-muted-foreground">· {designName}</span>
-        </p>
-        <PaletteDedicationLine text={dedication} className="max-w-none" />
+      {/* Daniele (live test): the tip talks about "this palette" — the
+          painting-with block on the left IS that palette, not the switcher
+          on the right, so the pulse belongs here. */}
+      <div
+        className={cn(
+          "flex min-w-0 items-center gap-2.5 rounded-lg",
+          tourPulse && "tour-pulse"
+        )}
+      >
+        <DesignRound layers={designLayers} className="size-9" />
+        {/* `paintingLabel`, not a second computation — the caller's own one
+            name for "what's painting" (its own file-scoped comment explains
+            where that gets settled once). */}
+        <div className="min-w-0 leading-tight">
+          <p className="text-[10px] uppercase tracking-[0.06em] text-muted-foreground">
+            {tPaletteBar("eyebrowPaint")}
+          </p>
+          <p className="truncate text-[13.5px] font-semibold">
+            {paintingLabel}{" "}
+            <span className="font-normal text-muted-foreground">· {designName}</span>
+          </p>
+          <PaletteDedicationLine text={dedication} className="max-w-none" />
+        </div>
       </div>
       {/* Fix wave PR3 finding 9: the strip is the sheet's ONE opener — a real
           `SheetTrigger` (not a hand-rolled button) gets `aria-haspopup`,
@@ -168,8 +178,7 @@ export function PaintingStrip({
             // (36px) is a mouse-era size, kept only from `sm` up.
             className={cn(
               "ml-auto flex min-h-11 shrink-0 items-center gap-1 rounded-full border bg-card px-3 text-[12.5px] font-medium sm:min-h-9",
-              open ? "border-primary shadow-[0_0_0_1px_var(--ring)]" : "border-border",
-              tourPulse && "tour-pulse"
+              open ? "border-primary shadow-[0_0_0_1px_var(--ring)]" : "border-border"
             )}
           >
             {tSheet("trigger")}
