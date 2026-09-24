@@ -182,7 +182,7 @@ export function PaletteSheet({
                 `eyebrowManage` (never a switcher framing) regardless of
                 which step opened the sheet, so there is no `now`/`manage`
                 split to mirror here beyond that one constant mode. */}
-            <PaletteHelp mode="manage" saved={palettes.length} />
+            <PaletteHelp mode="manage" saved={palettes.length} touchTarget />
           </div>
           <SheetDescription>{draft ? tBar("paintHintDraft") : t("hintSaved")}</SheetDescription>
         </SheetHeader>

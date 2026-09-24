@@ -860,7 +860,7 @@ export function ConfiguratorClient({
   }
   const handleTourHighlight = () => {
     if (!tip) return;
-    if (tip.sequence === "step1") pulse("step1", step1AnchorRef);
+    if (tip.sequence === "step1" && tip.n === 1) pulse("step1", step1AnchorRef);
     else if (tip.sequence === "step2" && tip.n === 1) pulse("optionGrid", optionGridAnchorRef);
     else if (tip.sequence === "step2" && tip.n === 2) pulse("nextStep", nextStepAnchorRef);
   };
