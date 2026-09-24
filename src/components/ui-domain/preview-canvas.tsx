@@ -342,10 +342,22 @@ function ArcInscription({
     }
   }, [text]);
 
-  // Bunn = lo stesso arco specchiato (sweep-flag 0): il testo resta leggibile
-  // da sinistra a destra invece di venire letto capovolto (0.1-6).
-  const sweep = position === "top" ? 1 : 0;
-  const d = `M 21.71,50 a ${INSCRIPTION_ARC_RADIUS},${INSCRIPTION_ARC_RADIUS} 0 0 ${sweep} 56.58,0`;
+  // Bunn = lo stesso arco specchiato (sweep-flag 0), stesso verso
+  // sinistra→destra di Topp (testo leggibile, non capovolto).
+  //
+  // Bug misurato dopo la review (R5-TEXT-POSITION, follow-up): con lo stesso
+  // verso del percorso, i glyph di un `<textPath>` si appoggiano SEMPRE dalla
+  // stessa parte della baseline in coordinate assolute (quella verso y più
+  // piccola) — per Topp è il lato del bordo (giusto), per Bunn è il lato del
+  // CENTRO (sbagliato: la scritta finiva a metà piatto, baseline reale
+  // misurata a y≈69 invece di ≈78, la review "troppo alto"). Invertire anche
+  // il verso del percorso sposta i glyph dal lato giusto ma li capovolge
+  // (ogni lettera ruota di 180°, letta com'è resta illeggibile). `side="right"`
+  // (SVG2, Firefox 68+/Chrome 105+/Safari 16.4+) fa esattamente questo senza
+  // capovolgere i glyph: sposta il rendering sull'altro lato della baseline
+  // mantenendo l'orientamento verticale e l'ordine di lettura.
+  const d = `M 21.71,50 a ${INSCRIPTION_ARC_RADIUS},${INSCRIPTION_ARC_RADIUS} 0 0 ${position === "top" ? 1 : 0} 56.58,0`;
+  const side = position === "bottom" ? "right" : undefined;
 
   return (
     <svg
@@ -367,7 +379,15 @@ function ArcInscription({
           fontSize: String(INSCRIPTION_ARC_FONT_SIZE),
         }}
       >
-        <textPath ref={textPathRef} href={`#${pathId}`} startOffset="50%" textAnchor="middle">
+        <textPath
+          ref={textPathRef}
+          href={`#${pathId}`}
+          startOffset="50%"
+          textAnchor="middle"
+          // `side` è SVG2 (Firefox 68+/Chrome 105+/Safari 16.4+): non ancora
+          // nei tipi di React, da qui il cast isolato a questo solo attributo.
+          {...(side ? ({ side } as React.SVGAttributes<SVGTextPathElement>) : {})}
+        >
           {text}
         </textPath>
       </text>
