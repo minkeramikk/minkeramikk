@@ -194,7 +194,8 @@ export async function seedTextGroupDesign(
       .select("id")
       .single();
     for (const o of (c.options ?? []) as Record<string, unknown>[]) {
-      const { id: _id, category_id: _cat, ...rest } = o;
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars -- destructured only to exclude them from `rest`
+      const { id, category_id, ...rest } = o;
       await db.from("options").insert({ ...rest, category_id: nc!.id });
     }
   }
