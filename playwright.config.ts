@@ -38,6 +38,12 @@ export default defineConfig({
   reporter: [["list"]],
   use: {
     baseURL: "http://localhost:3199",
+    // R5-TUTORIAL 0.1-5: a first landing shows a tour tip on every journey
+    // (the tour's whole point) — without this every spec below would meet
+    // one. Seeding `mk-tips-v1` already off keeps the 6 core specs intact
+    // with zero per-spec `addInitScript`. The `email` project inherits this
+    // `use` block (no override below), same as `baseURL`.
+    storageState: "e2e/storage-state.json",
   },
   webServer: {
     command: "npm run start -- -p 3199",
