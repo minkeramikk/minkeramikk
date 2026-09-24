@@ -3,6 +3,7 @@
 import { useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { Brush, CircleHelp } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { DesignRound } from "@/components/ui-domain/design-round";
 import { Dots } from "@/components/ui-domain/cart-line-row";
 import { PaletteDedicationLine } from "./palette-chip";
@@ -53,7 +54,19 @@ interface PaletteCardProps {
  * this component (not duplicating its markup) keeps the popover's styling/
  * behaviour byte-for-byte identical between the two surfaces.
  */
-export function PaletteHelp({ mode, saved }: { mode: "now" | "manage"; saved: number }) {
+export function PaletteHelp({
+  mode,
+  saved,
+  touchTarget = false,
+}: {
+  mode: "now" | "manage";
+  saved: number;
+  /** Reviewer (PR #76): `PaletteSheet` is a touch-only surface where every
+   *  other control is 44px (DS §5) — this button didn't scale up when it
+   *  moved there from `PaletteCard`'s desktop-only 24px. `true` there,
+   *  default `false` keeps `PaletteCard`'s existing desktop size. */
+  touchTarget?: boolean;
+}) {
   const t = useTranslations("palettes.card");
   const [open, setOpen] = useState(false);
   return (
@@ -71,9 +84,12 @@ export function PaletteHelp({ mode, saved }: { mode: "now" | "manage"; saved: nu
         aria-label={t("help")}
         aria-expanded={open}
         data-testid="palette-help"
-        className="grid size-6 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-primary/10 hover:text-primary"
+        className={cn(
+          "grid shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-primary/10 hover:text-primary",
+          touchTarget ? "size-11" : "size-6"
+        )}
       >
-        <CircleHelp className="size-4" aria-hidden />
+        <CircleHelp className={touchTarget ? "size-5" : "size-4"} aria-hidden />
       </button>
       {open && (
         <span className="absolute left-0 top-full mt-2 z-30 flex w-max max-w-[268px] items-start gap-1.5 rounded-lg border border-primary/30 bg-popover px-2.5 py-2 text-left text-[12px] leading-snug shadow-lg">
