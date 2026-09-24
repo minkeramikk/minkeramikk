@@ -18,6 +18,9 @@ import { useCartContext } from "@/lib/cart/cart-context";
 import { itemCount, unpaintedPieces } from "@/lib/cart/cart";
 import { cn } from "@/lib/utils";
 import { useEffect, useRef, useState } from "react";
+import { useTour } from "@/lib/tour/use-tour";
+import { tipFor } from "@/lib/tour/tour";
+import { CoachBar, useTourTip } from "@/components/ui-domain/tour";
 
 /**
  * CartButton + CartDrawer (F16, DESIGN-SYSTEM §3.12). Lives in the public
@@ -50,6 +53,32 @@ export function CartMenu() {
   // R5-UNPAINTED: pieces, not lines (unpaintedPieces) — the unit the
   // aria-label below announces, and what the warning dot stands for.
   const unpainted = hydrated ? unpaintedPieces(cart) : 0;
+
+  // R5-TUTORIAL 0.1-7 — 390, kit3: the open sheet already has a top edge, so
+  // the CoachBar docks there instead of fixing to the viewport foot (DS
+  // §3.32). This mount only ever cares about `sequence === "kit3"` — `step`
+  // is fixed at 3 on purpose (the only step this drawer's own tour reaches;
+  // a kit2 tip at step 2 stays on the page, `configurator-client.tsx`), and
+  // there's no `KitWelcome`/`setBanner` state to read from here (the kit's
+  // own welcome never coincides with kit3 — it's step 2's passo 0 — and a
+  // set landing never sets `origin=kit`, so `kitMode` is false for it).
+  const kitMode = searchParams.get("origin") === "kit" && (!hydrated || unpainted > 0);
+  const tour = useTour();
+  const tip = tipFor({
+    state: tour.state,
+    hydrated: tour.hydrated,
+    kitMode,
+    welcomeOpen: false,
+    setBannerOpen: false,
+    step: 3,
+  });
+  const tourTip = useTourTip(tip, unpainted);
+  const showKit3CoachBar = open && tip?.sequence === "kit3" && tourTip !== null;
+  const handleTourNext = () => {
+    if (!tip || !tourTip) return;
+    if (tourTip.last) tour.turnOff();
+    else tour.next(tip.sequence);
+  };
 
   // R2-6 C: pop the badge when the count GROWS (an item was added) — a mobile
   // cue pointing at the cart. Decorative only; the count is already announced
@@ -217,6 +246,21 @@ export function CartMenu() {
             requestAnimationFrame(() => focusFirstUnpaintedRow(document));
           }}
         >
+          {/* R5-TUTORIAL 0.1-7 — the kit3 CoachBar becomes the sheet's own
+              header band, first child of `SheetContent` (DS §3.32: "il
+              foglio arriva già aperto" — the bar docks to ITS top edge, not
+              the viewport's). Always before `SheetHeader`, never a second
+              strip stacked under it. */}
+          {showKit3CoachBar && tip && tourTip && (
+            <CoachBar
+              inSheet
+              n={tip.n}
+              text={tourTip.text}
+              last={tourTip.last}
+              onNext={handleTourNext}
+              onOff={() => tour.turnOff()}
+            />
+          )}
           <SheetHeader className="border-b border-border p-4">
             <SheetTitle>{t("cartTitle")}</SheetTitle>
             <SheetDescription className="sr-only">

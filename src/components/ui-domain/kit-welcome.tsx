@@ -22,6 +22,8 @@ export function KitWelcome({
   image = null,
   imageCustom = false,
   eyebrow,
+  onShowMeHow,
+  onLookMyself,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -33,6 +35,11 @@ export function KitWelcome({
   imageCustom?: boolean;
   /** the resolved shop-window label (caller reads it via `kitTitle`) */
   eyebrow: string;
+  /** R5-TUTORIAL — passo 0: starts the kit2 tour (0.1-8). Optional so this
+   *  component still compiles standalone. */
+  onShowMeHow?: () => void;
+  /** R5-TUTORIAL — passo 0: turns the tour off for good (0.1-8). */
+  onLookMyself?: () => void;
 }) {
   const t = useTranslations("kit.welcome");
   return (
@@ -93,7 +100,10 @@ export function KitWelcome({
             type="button"
             data-testid="kit-welcome-show"
             className="h-11 rounded-full bg-primary"
-            onClick={() => onOpenChange(false)}
+            onClick={() => {
+              onShowMeHow?.();
+              onOpenChange(false);
+            }}
           >
             {t("show")}
           </Button>
@@ -102,7 +112,10 @@ export function KitWelcome({
             data-testid="kit-welcome-self"
             variant="ghost"
             className="h-10 text-muted-foreground"
-            onClick={() => onOpenChange(false)}
+            onClick={() => {
+              onLookMyself?.();
+              onOpenChange(false);
+            }}
           >
             {t("self")}
           </Button>

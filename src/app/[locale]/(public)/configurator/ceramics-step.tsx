@@ -1066,7 +1066,9 @@ export function CeramicsStep({
     setBannerOpen: setBanner !== null,
     step: 3,
   });
-  const tourTip = useTourTip(tip, kitStripCounts(cart).total);
+  // `unpaintedPieces`, not the kit's total: kit3.1 says "these {count} pieces
+  // have no colours yet" — as rows get painted, that count should shrink.
+  const tourTip = useTourTip(tip, unpaintedPieces(cart));
   const handleTourNext = () => {
     if (!tip || !tourTip) return;
     if (tourTip.last) tour.turnOff();
@@ -1520,13 +1522,15 @@ export function CeramicsStep({
           a second CTA would compete with it. */}
       {stickyBar}
 
-      {/* R5-TUTORIAL — 390, passo 3 normale: the strip parks above the sticky
-          order bar when it's showing (DS §3.32 "mai due strisce impilate in
-          fondo"); `--mk-sticky-bar-h` measured at 390, same recipe as
-          `--mk-strip-h` above. While the drawer is open the kit3 CoachBar
-          rides the sheet instead (`cart-menu.tsx`) — this one never mounts
-          on top of it, in or out of kit-mode. */}
-      {tourTip && tip && tip.sequence === "normal" && !cartOpen && (
+      {/* R5-TUTORIAL — 390, passo 3 (normal or kit3): the strip parks above
+          the sticky order bar when it's showing (DS §3.32 "mai due strisce
+          impilate in fondo"); `--mk-sticky-bar-h` measured at 390, same
+          recipe as `--mk-strip-h` above. While the drawer is open the kit3
+          CoachBar rides the sheet instead (`cart-menu.tsx`) — this one never
+          mounts on top of it (kit3 nearly always finds the drawer already
+          open on arrival, `openOnKitArrival`, so this fixed one is mostly a
+          fallback for the rare case it isn't). */}
+      {tourTip && tip && !cartOpen && (
         <CoachBar
           n={tip.n}
           text={tourTip.text}
@@ -1601,11 +1605,18 @@ export function CeramicsStep({
                 saved={palettes.length}
                 actions={editColoursButton}
               />
-              {/* R5-TUTORIAL — passo 3 normale, one tip (card "non nomina
-                  quale chip è acceso": the NowBlock above already says it). */}
-              {tourTip && tip && tip.sequence === "normal" && tip.n === 3 && (
+              {/* R5-TUTORIAL — passo 3 normale's one tip (card "non nomina
+                  quale chip è acceso": the NowBlock above already says it)
+                  AND kit3's own tip 2 ("con questa palette, e si cambia")
+                  share this anchor — `n` follows `tip.n`, not a fixed number:
+                  kit3 counts its own three tips 1-3, independent of the
+                  page's step. */}
+              {tourTip &&
+                tip &&
+                ((tip.sequence === "normal" && tip.n === 3) ||
+                  (tip.sequence === "kit3" && tip.n === 2)) && (
                 <Hotspot
-                  n={3}
+                  n={tip.n}
                   text={tourTip.text}
                   last={tourTip.last}
                   onNext={handleTourNext}
@@ -1621,7 +1632,17 @@ export function CeramicsStep({
               used to carry as `pb-3`. In flow it looks the same at rest, but
               it scrolls: the plates now reach the card's bottom border and
               vanish under IT, not under a bare strip of page colour. */}
-          <div className="flex flex-col gap-[22px] md:mt-3" data-testid="ceramics-grid">
+          <div className="relative flex flex-col gap-[22px] md:mt-3" data-testid="ceramics-grid">
+            {/* R5-TUTORIAL — kit3's tip 3: "want more? tap a ceramic". */}
+            {tourTip && tip && tip.sequence === "kit3" && tip.n === 3 && (
+              <Hotspot
+                n={3}
+                text={tourTip.text}
+                last={tourTip.last}
+                onNext={handleTourNext}
+                onOff={() => tour.turnOff()}
+              />
+            )}
             {sections.map((s) => (
               <section key={s.label ?? "__ungrouped"} data-testid="ceramics-series">
                 {s.label && (
@@ -1667,9 +1688,24 @@ export function CeramicsStep({
             the other two. Surface = palette-card.tsx:71 verbatim (white
             canvas, primary/20 border). */}
         <div
-          className="hidden min-w-0 rounded-lg border border-primary/20 bg-[var(--mk-canvas)] p-4 lg:mt-16 lg:block lg:sticky lg:top-[131px] lg:self-start"
+          className="relative hidden min-w-0 rounded-lg border border-primary/20 bg-[var(--mk-canvas)] p-4 lg:mt-16 lg:block lg:sticky lg:top-[131px] lg:self-start"
           data-testid="docked-cart-panel"
         >
+          {/* R5-TUTORIAL — kit3's tip 1 ("paint what you have"). Plan
+              ponytail: the ideal anchor is the rail's FIRST unpainted row
+              (`cart-line-row.tsx`'s `data-unpainted`), but threading a slot
+              prop through `Basket` → the one first-unpainted `CartLineRow`
+              is a much bigger diff for the same sentence — the rail's own
+              container says it just as well, badge in the corner. */}
+          {tourTip && tip && tip.sequence === "kit3" && tip.n === 1 && (
+            <Hotspot
+              n={1}
+              text={tourTip.text}
+              last={tourTip.last}
+              onNext={handleTourNext}
+              onOff={() => tour.turnOff()}
+            />
+          )}
           {cartPanel}
         </div>
       </div>
