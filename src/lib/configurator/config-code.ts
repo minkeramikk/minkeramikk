@@ -84,6 +84,20 @@ const sorted = (cats: CodecCategory[]) =>
 /**
  * Build a CodecDesign from the DB-shaped design detail. Shared by the UI
  * (encode current code) and decode (findDesignByCode over all designs).
+ *
+ * A category with zero options (R5-TEXT-POSITION: the retired «Tekst» group,
+ * kept in the catalogue empty — GARANZIA §7) never becomes a segment: it has
+ * no default option code to encode, `encodeConfigCode` was emitting `""` for
+ * it, and `"...--..."` collapses to `"...-..."` on `normalizeConfigCode` —
+ * one segment short of what every position-based reader (`decodeConfigCode`,
+ * `stripCustomSegment` via `codecCategoryCount` below) expects, so everything
+ * after it read as the wrong thing (fix 3: this is what made the palette
+ * name change on every keystroke — `nameFor` hashed the un-stripped
+ * inscription because the count was off by one). The filter belongs HERE,
+ * not at each call site: encode, decode, and the category count all read
+ * `CodecDesign.categories`, so filtering once keeps them agreeing by
+ * construction — the alternative (each of the three re-deriving "real"
+ * categories its own way) is exactly how they'd drift apart again.
  */
 export function toCodecDesign(detail: {
   code: string | null;
@@ -100,19 +114,34 @@ export function toCodecDesign(detail: {
     code: detail.code,
     slug: detail.slug,
     textPositions: detail.textPositions ?? [],
-    categories: detail.categories.map((c) => {
-      const optionCodeToId: Record<string, string> = {};
-      for (const o of c.options) if (o.code) optionCodeToId[o.code] = o.id;
-      // cover/code default = the option flagged is_default, else first-by-sort_order.
-      // The caller passes options pre-sorted, so config codes stay stable (ADR 0011)
-      // when nothing is flagged (pre-R2-1 behaviour preserved).
-      return {
-        slug: c.slug,
-        optionCodeToId,
-        defaultOptionId: pickDefaultOption(c.options)?.id ?? null,
-      };
-    }),
+    categories: detail.categories
+      .filter((c) => c.options.length > 0)
+      .map((c) => {
+        const optionCodeToId: Record<string, string> = {};
+        for (const o of c.options) if (o.code) optionCodeToId[o.code] = o.id;
+        // cover/code default = the option flagged is_default, else first-by-sort_order.
+        // The caller passes options pre-sorted, so config codes stay stable (ADR 0011)
+        // when nothing is flagged (pre-R2-1 behaviour preserved).
+        return {
+          slug: c.slug,
+          optionCodeToId,
+          defaultOptionId: pickDefaultOption(c.options)?.id ?? null,
+        };
+      }),
   };
+}
+
+/**
+ * How many colour segments THIS design's code actually has — the count
+ * every `stripCustomSegment(code, selectionCount)` caller with a live
+ * `DesignDetail` (not just a frozen snapshot) must pass. `detail.categories
+ * .length` counts a zero-option category (fix 3's «Tekst») that never
+ * became a segment; this doesn't.
+ */
+export function codecCategoryCount(detail: {
+  categories: { options: unknown[] }[];
+}): number {
+  return detail.categories.filter((c) => c.options.length > 0).length;
 }
 
 /**

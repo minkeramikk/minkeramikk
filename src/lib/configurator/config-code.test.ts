@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   CODE_ALPHABET,
   ConfigCodeError,
+  codecCategoryCount,
   decodeConfigCode,
   encodeConfigCode,
   normalizeConfigCode,
@@ -429,5 +430,72 @@ describe("config-code — text position (R5-TEXT-POSITION task 1, AC1)", () => {
     });
     const decoded = decodeConfigCode(code, () => allPositions);
     expect(decoded.textPosition).toBe("back");
+  });
+});
+
+describe("config-code — a zero-option category never leaves an empty segment (fix 3)", () => {
+  // Krabbe's shape: two real colour categories + the retired «Tekst» group,
+  // kept in the catalogue empty (GARANZIA §7) — `toCodecDesign` must drop it
+  // from the codec entirely, not just skip it while still counting it.
+  function krabbeLikeDetail() {
+    return {
+      code: "K",
+      slug: "krabbe-like",
+      textPositions: ["top", "bottom"],
+      categories: [
+        {
+          slug: "hovedfarge",
+          options: [
+            { id: "hf-1", code: "A", isDefault: true },
+            { id: "hf-2", code: "B" },
+          ],
+        },
+        {
+          slug: "kant",
+          options: [
+            { id: "k-1", code: "C", isDefault: true },
+            { id: "k-2", code: "D" },
+          ],
+        },
+        { slug: "tekst", options: [] }, // the empty group — the bug's source
+      ],
+    };
+  }
+
+  it("a) toCodecDesign drops the empty category; encode never emits a blank segment; decode round-trips", () => {
+    const codec = toCodecDesign(krabbeLikeDetail())!;
+    expect(codec.categories.map((c) => c.slug)).toEqual(["hovedfarge", "kant"]);
+
+    const code = encodeConfigCode(
+      codec,
+      { hovedfarge: "hf-2", kant: "k-1" },
+      { customText: "Til Åse", textPosition: "top" }
+    );
+    expect(code).not.toMatch(/--/);
+
+    const decoded = decodeConfigCode(code, (c) =>
+      c.toUpperCase() === "K" ? codec : null
+    );
+    expect(decoded.selections).toEqual({ hovedfarge: "hf-2", kant: "k-1" });
+    expect(decoded.customText).toBe("Til Åse");
+    expect(decoded.textPosition).toBe("top");
+  });
+
+  it("b) codecCategoryCount matches the codec's real category count, not detail.categories.length", () => {
+    const detail = krabbeLikeDetail();
+    expect(detail.categories.length).toBe(3); // includes the empty Tekst group
+    expect(codecCategoryCount(detail)).toBe(2); // the codec's real count
+  });
+
+  it("c) an old code without the Tekst segment still decodes on the same design (ADR 0011: missing segment → default)", () => {
+    const codec = toCodecDesign(krabbeLikeDetail())!;
+    // Exactly what a code encoded before this fix (or before Tekst even
+    // existed) looks like: two colour segments, no third blank one.
+    const oldCode = "MK-K-B-C";
+    const decoded = decodeConfigCode(oldCode, (c) =>
+      c.toUpperCase() === "K" ? codec : null
+    );
+    expect(decoded.designSlug).toBe("krabbe-like");
+    expect(decoded.selections).toEqual({ hovedfarge: "hf-2", kant: "k-1" });
   });
 });

@@ -44,6 +44,7 @@ import {
   type SyncCategory,
 } from "@/lib/configurator/state";
 import {
+  codecCategoryCount,
   decodeConfigCode,
   toCodecDesign,
   type CodecDesign,
@@ -1094,7 +1095,12 @@ export function ConfiguratorClient({
       // the inscription), only what `nameFor` hashes changes. This is what
       // stops the chip renaming itself on every keystroke: same colours,
       // same name, whatever the customer types.
-      stripCustomSegment(draftCode, detail.categories.length),
+      // fix 3: `codecCategoryCount`, not `detail.categories.length` — a
+      // zero-option category (Krabbe's empty «Tekst») never became a code
+      // segment, so counting it here fed `stripCustomSegment` the wrong
+      // expected length and it silently gave up stripping, which is
+      // exactly what made the name flicker on every keystroke.
+      stripCustomSegment(draftCode, codecCategoryCount(detail)),
       draftPayload.snapshot,
       paletteWords,
       palettes.map((p) => p.name)
