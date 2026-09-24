@@ -1869,9 +1869,10 @@ export function ConfiguratorClient({
             // anchor).
             ref={step1AnchorRef}
           >
-            {/* R5-TUTORIAL round 3 — step 1's one tip, always on the design
-                grid. */}
-            {tourTip && tip && tip.sequence === "step1" && (
+            {/* R5-TUTORIAL round 3 — step 1's tip 1, always on the design
+                grid. Tip 2 (round 4) anchors on the "Continue" pill below
+                instead, once a design is selected. */}
+            {tourTip && tip && tip.sequence === "step1" && tip.n === 1 && (
               <Hotspot
                 n={1}
                 text={tourTip.text}
@@ -1922,47 +1923,64 @@ export function ConfiguratorClient({
                           (il teaser sotto la preview e il bottone di fondo griglia
                           sono stati rimossi). Icona = pallini colore, anteprima
                           reale di ciò che si sceglie allo step 2. */}
-                      <NextStepPill
-                        data-testid="next-step-mobile"
-                        className="mt-3 w-full"
-                        caption={t("teaser.nextStep")}
-                        label={t("teaser.colors")}
-                        arrow
-                        icon={
-                          <span className="flex shrink-0" aria-hidden>
-                            {TEASER_PALETTE.map((color, i) => (
-                              <span
-                                key={color}
-                                className={cn(
-                                  "-ml-2.5 size-8 rounded-full first:ml-0 max-lg:-ml-3 max-lg:size-7",
-                                  // Sotto lg la coda sfumata sparisce e i pallini
-                                  // rimpiccioliscono, per lasciare larghezza
-                                  // all'etichetta (AC6). Restano i 4 pieni:
-                                  // l'anteprima della scelta è intatta, si perde
-                                  // solo il "ce n'è dell'altro".
-                                  // La soglia è lg, non sm: a 768 la griglia va a
-                                  // 2 colonne e il blocco torna largo quanto a
-                                  // 390 (~322px) ma coi pallini a misura piena —
-                                  // è il caso PEGGIORE, non un caso intermedio.
-                                  i >= TEASER_CRISP && "max-lg:hidden"
-                                )}
-                                style={{
-                                  background: color,
-                                  ...(i >= TEASER_CRISP
-                                    ? {
-                                        opacity: Math.max(
-                                          0.3,
-                                          0.75 - (i - TEASER_CRISP) * 0.2
-                                        ),
-                                      }
-                                    : {}),
-                                }}
-                              />
-                            ))}
-                          </span>
-                        }
-                        onClick={() => goToStep(2)}
-                      />
+                      {/* R5-TUTORIAL round 4 — step1's new tip 2, anchored to
+                          this pill (the only "advance" CTA step 1 has): hands
+                          off into step2's own tour on Next, same mechanic as
+                          step2's last tip handing off into step3. */}
+                      <div className="relative">
+                        <NextStepPill
+                          data-testid="next-step-mobile"
+                          className="mt-3 w-full"
+                          caption={t("teaser.nextStep")}
+                          label={t("teaser.colors")}
+                          arrow
+                          icon={
+                            <span className="flex shrink-0" aria-hidden>
+                              {TEASER_PALETTE.map((color, i) => (
+                                <span
+                                  key={color}
+                                  className={cn(
+                                    "-ml-2.5 size-8 rounded-full first:ml-0 max-lg:-ml-3 max-lg:size-7",
+                                    // Sotto lg la coda sfumata sparisce e i pallini
+                                    // rimpiccioliscono, per lasciare larghezza
+                                    // all'etichetta (AC6). Restano i 4 pieni:
+                                    // l'anteprima della scelta è intatta, si perde
+                                    // solo il "ce n'è dell'altro".
+                                    // La soglia è lg, non sm: a 768 la griglia va a
+                                    // 2 colonne e il blocco torna largo quanto a
+                                    // 390 (~322px) ma coi pallini a misura piena —
+                                    // è il caso PEGGIORE, non un caso intermedio.
+                                    i >= TEASER_CRISP && "max-lg:hidden"
+                                  )}
+                                  style={{
+                                    background: color,
+                                    ...(i >= TEASER_CRISP
+                                      ? {
+                                          opacity: Math.max(
+                                            0.3,
+                                            0.75 - (i - TEASER_CRISP) * 0.2
+                                          ),
+                                        }
+                                      : {}),
+                                  }}
+                                />
+                              ))}
+                            </span>
+                          }
+                          onClick={() => goToStep(2)}
+                        />
+                        {/* TODO:nb-review — tour.step1.2 */}
+                        {tourTip && tip && tip.sequence === "step1" && tip.n === 2 && (
+                          <Hotspot
+                            n={2}
+                            text={tourTip.text}
+                            last={tourTip.last}
+                            onNext={handleTourNext}
+                            onHighlight={handleTourHighlight}
+                            onOff={() => tour.turnOff()}
+                          />
+                        )}
+                      </div>
                     </div>
                   )}
                 </Fragment>

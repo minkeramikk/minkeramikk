@@ -435,7 +435,8 @@
     "off": "Skru av tips",
     "replay": "Vis tipsene igjen",
     "step1": {
-      "1": "Velg en <b>design</b> og bygg din egen.{featured, select, yes { Eller ta et ferdig <b>sett eller kit</b> over.} other {}}"
+      "1": "Velg en <b>design</b> og bygg din egen.{featured, select, yes { Eller ta et ferdig <b>sett eller kit</b> over.} other {}}",
+      "2": "Klar? Trykk <b>Fortsett</b>."
     },
     "step2": {
       "1": "Velg <b>ett alternativ per rad</b>. Fatet over viser dem med en gang.",

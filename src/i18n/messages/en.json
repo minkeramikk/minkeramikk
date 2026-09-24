@@ -436,7 +436,8 @@
     "off": "Turn tips off",
     "replay": "Show me the tips again",
     "step1": {
-      "1": "Pick a <b>design</b> and build your own.{featured, select, yes { Or take a ready-made <b>set or kit</b> above.} other {}}"
+      "1": "Pick a <b>design</b> and build your own.{featured, select, yes { Or take a ready-made <b>set or kit</b> above.} other {}}",
+      "2": "All set? Tap <b>Continue</b>."
     },
     "step2": {
       "1": "Pick <b>one option per lane</b>. The plate above shows them straight away.",
