@@ -101,6 +101,8 @@ export function CartLineRow({
   onPickPalette,
   onOpenPhoto,
   paintTarget,
+  paintBlocked,
+  canPaint,
   detailSlot,
 }: {
   line: CartLine;
@@ -170,6 +172,21 @@ export function CartLineRow({
    *  the chip goes dead (disabled, muted) and a link sends the customer to
    *  step 2 instead — Paint, the n/N stepper and the picker panel all hide. */
   paintTarget: { kind: "palette" } | { kind: "none"; href: string };
+  /**
+   * Bug fix (24/9) — the NAME of the design that doesn't cover this line's
+   * product, when it doesn't (`basket.tsx` resolves this against
+   * `currentThumb`'s own snapshot, the `canPaint` context check). `null`
+   * while it does (or while there's nothing to check). Paint goes
+   * `disabled` and a hint line names why.
+   */
+  paintBlocked: string | null;
+  /**
+   * Bug fix (24/9) — does a GIVEN design (a picker pill's own, not
+   * necessarily `currentThumb`'s) cover this line's product? Prop-driven
+   * (not `useCartContext` here, card's own rule for this row) so the picker
+   * can disable each pill for real, not just dim it.
+   */
+  canPaint: (designSlug: string | null | undefined) => boolean;
   /** R5-BASKET-HOST task 5 — one host-specific block at the foot of the
    *  details panel. The DRAWER puts the MK code, its copy button and «Edit
    *  design» there (task 18's ruling: those belong to the drawer, not to
@@ -564,11 +581,17 @@ export function CartLineRow({
                   type="button"
                   data-testid="paint-line"
                   onClick={() => onPaint(n)}
+                  // Bug fix (24/9) — the design this row would paint with
+                  // doesn't cover this ceramic; `paint()` (cart-context.tsx)
+                  // already refuses it, this just stops the click reaching
+                  // it at all and says so visually.
+                  disabled={!!paintBlocked}
+                  aria-disabled={!!paintBlocked}
                   // `min-w-0` + the label's own `max-w`/`truncate`: the word
                   // can give ground before the icon/badge do.
                   // `row-wide:min-w-max` resets that shrink permission,
                   // same named-container gate as the chip's.
-                  className="relative ml-auto flex h-11 min-w-0 items-center gap-1 rounded-sm bg-primary px-2 text-xs font-semibold text-primary-foreground sm:h-9 row-wide:min-w-max row-wide:gap-1.5 row-wide:px-3.5"
+                  className="relative ml-auto flex h-11 min-w-0 items-center gap-1 rounded-sm bg-primary px-2 text-xs font-semibold text-primary-foreground sm:h-9 row-wide:min-w-max row-wide:gap-1.5 row-wide:px-3.5 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <Brush className="size-3.5 shrink-0" aria-hidden />
                   <span className="max-w-[52px] truncate">{t("unpainted.paint")}</span>
@@ -713,6 +736,19 @@ export function CartLineRow({
           )}
         </div>
       </div>
+      {/* Bug fix (24/9) — Paint went `disabled` above because the design it
+          would paint with doesn't cover this ceramic; this line says why,
+          right under the button it explains. */}
+      {unpainted && paintTarget.kind === "palette" && paintBlocked && (
+        <p
+          data-testid="paint-blocked"
+          className="mt-1.5 text-[11px] text-muted-foreground"
+        >
+          {/* TODO:nb-review — cart.unpainted.notCovered NO copy is new,
+              unreviewed. */}
+          {t("unpainted.notCovered", { design: paintBlocked })}
+        </p>
+      )}
       {/* Task 10 — the row picker (mockup `Line(r)`'s `picker?` block):
           every saved palette as a wrapping row of pills, dim+disabled for
           another design's (card §6). Gated on `paintTarget.kind==="palette"`
@@ -740,6 +776,13 @@ export function CartLineRow({
             // A dim pill is another design's whole snapshot now — it can
             // still become the row's paint, so `active` must not exclude it.
             const active = p.code === currentThumb.code;
+            // Bug fix (24/9) — the pill's OWN design, not the row's current
+            // thumb: picking it swaps the row to THIS design, so it must
+            // answer for itself, not for whatever's on screen right now.
+            const covered = canPaint(p.designSlug);
+            // TODO:nb-review — cart.unpainted.notCoveredSuffix NO copy is
+            // new, unreviewed.
+            const suffix = t("unpainted.notCoveredSuffix");
             return (
               <button
                 key={p.code}
@@ -750,14 +793,21 @@ export function CartLineRow({
                 // R5-DESIGN-SWITCH AC4: a dim pill stays tappable — the pick
                 // switches the row to the palette's whole saved snapshot
                 // (colours AND dedication, `explicitPickThumb`), same as any
-                // other pill.
+                // other pill. Bug fix (24/9): a pill whose design genuinely
+                // doesn't cover this product is the one exception — same
+                // "disabled tile" recipe `PaletteChip`'s own draft chip uses
+                // (`disabled={!onSelect}`), reused here for the same reason:
+                // no action to fall back on.
                 aria-pressed={active}
-                onClick={() => onPickPalette(p.code)}
+                disabled={!covered}
+                aria-disabled={!covered}
+                title={!covered ? `${p.name} ${suffix}` : undefined}
+                onClick={covered ? () => onPickPalette(p.code) : undefined}
                 className={cn(
                   // `min-h-11 lg:min-h-8`, not a fixed height: a dedication
                   // (R5-TEXT-IDENTITY) is a genuine second line, same "let
                   // it grow" fix `PaletteChip`'s own tile needed.
-                  "flex min-h-11 min-w-0 shrink-0 items-center gap-1.5 rounded-full pl-1 pr-2.5 text-xs lg:min-h-8",
+                  "flex min-h-11 min-w-0 shrink-0 items-center gap-1.5 rounded-full pl-1 pr-2.5 text-xs lg:min-h-8 disabled:cursor-not-allowed disabled:opacity-50",
                   // No faded/unselectable state: every palette is always
                   // available, the tap just switches design too (`dim`
                   // only decides the subtitle below).
@@ -768,7 +818,12 @@ export function CartLineRow({
               >
                 <DesignRound layers={p.layers} className="size-6 shrink-0 rounded-sm" />
                 <span className="flex min-w-0 flex-col leading-tight">
-                  <span className="max-w-[108px] truncate">{p.name}</span>
+                  <span className="max-w-[108px] truncate">
+                    {p.name}
+                    {!covered && (
+                      <span className="text-muted-foreground"> {suffix}</span>
+                    )}
+                  </span>
                   {/* A dim pill (another design's) carries that design's own
                       name too, same as the palette bar's chips. The ACTIVE
                       pill is this ROW's own words right now (`currentThumb.

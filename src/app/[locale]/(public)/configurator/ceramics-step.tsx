@@ -41,7 +41,6 @@ import {
 } from "@/lib/discounts/discount";
 import { ladderFor } from "@/lib/discounts/ladder";
 import { SetBadge } from "@/components/ui-domain/set-badge";
-import { useShippingTotalSuffix } from "@/components/ui-domain/cart-shipping-row";
 import {
   formatAttributeValue,
   publicAttributes,
@@ -743,7 +742,6 @@ export function CeramicsStep({
   // so both must read the same NET number — never a panel's net beside the
   // bar's gross. (The intersection-observer this used to point at went with
   // the in-flow mobile copy in task 6.)
-  const stickyTotalSuffix = useShippingTotalSuffix(discount.total);
   /** R4-SCONTI: what the basket saves in total — tier and deal together. Taken
    *  from the engine (subtotal − total) rather than added up here, so the bar
    *  can never disagree with the drawer. */
@@ -1196,7 +1194,7 @@ export function CeramicsStep({
   );
 
 
-  // R5-PALETTES task 9: the desktop "Ditt valg" box is GONE — the PaletteBar
+  // R5-PALETTES task 9: the desktop "Ditt valg" box is GONE — the PaletteCard
   // above the step now says which palette is painting (mockup `#s3a`'s option
   // A carries no such card in the basket column; the card replaces it).
   //
@@ -1335,18 +1333,15 @@ export function CeramicsStep({
           data-testid="sticky-bar-total"
           className="block truncate text-base font-semibold tabular-nums"
         >
-          {formatMoney(discount.total, locale)}
-          {stickyTotalSuffix}
+          {formatMoney(discount.grandTotal, locale)}
         </span>
-        {/* R4-SCONTI: the total above is already NET, so without this line the
-            bar quietly shows less than the rows add up to and the customer only
-            finds out by opening the drawer — after deciding. A discount found
-            after the decision is a refund, not an incentive.
+        {/* R4-SCONTI: the total above is already the grand total (R5-GARANZIA:
+            net + shipping), so without this line the bar quietly shows less
+            than the rows add up to and the customer only finds out by opening
+            the drawer — after deciding. A discount found after the decision is
+            a refund, not an incentive.
             Rendered ONLY when there is something to declare, so with no
-            discount the bar keeps exactly the height it has today. It sits on
-            its OWN line rather than beside the total: `stickyTotalSuffix`
-            («+ frakt») already lives up there, and at 360 in English the two
-            would collide. */}
+            discount the bar keeps exactly the height it has today. */}
         {barSaved.amountCents > 0 && (
           <span
             data-testid="sticky-bar-saved"

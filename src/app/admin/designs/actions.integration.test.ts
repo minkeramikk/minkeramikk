@@ -51,7 +51,7 @@ import { deleteOptions } from "./options-actions";
 const isRedirect = (e: unknown): boolean =>
   e instanceof Error &&
   typeof (e as { digest?: string }).digest === "string" &&
-  (e as { digest: string }).digest.startsWith("NEXT_REDIRECT");
+  (e as unknown as { digest: string }).digest.startsWith("NEXT_REDIRECT");
 
 function fd(obj: Record<string, string>): FormData {
   const f = new FormData();

@@ -14,6 +14,7 @@
 import { describe, expect, it } from "vitest";
 import {
   basketCta,
+  canPaintWith,
   explicitPickThumb,
   paintFirstHref,
   paintTargetFor,
@@ -47,6 +48,31 @@ describe("basketCta", () => {
 
   it("counts pieces, so a single unpainted piece is still paint-first", () => {
     expect(basketCta("column", 1).face).toBe("paint");
+  });
+});
+
+describe("canPaintWith", () => {
+  const map = { striper: ["taco", "plate-round"], amalfi: ["plate-round"] };
+
+  it("true when the design's own list includes the product", () => {
+    expect(canPaintWith(map, "striper", "taco")).toBe(true);
+  });
+
+  it("false when the design doesn't cover that product (the Striper DAN × Taco repro)", () => {
+    expect(canPaintWith(map, "amalfi", "taco")).toBe(false);
+  });
+
+  it("false when the design isn't in the map at all — not loaded, not a green light", () => {
+    expect(canPaintWith(map, "unknown-design", "taco")).toBe(false);
+  });
+
+  it("false while the whole map hasn't loaded yet (null)", () => {
+    expect(canPaintWith(null, "striper", "taco")).toBe(false);
+  });
+
+  it("false with no design at all", () => {
+    expect(canPaintWith(map, null, "taco")).toBe(false);
+    expect(canPaintWith(map, undefined, "taco")).toBe(false);
   });
 });
 

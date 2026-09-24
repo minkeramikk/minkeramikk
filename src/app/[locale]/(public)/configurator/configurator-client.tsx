@@ -822,7 +822,7 @@ export function ConfiguratorClient({
   // One `usePalettes()` instance for the whole tab, shared via CartProvider
   // (cart-context.tsx) with the header/step 3 — this screen never touches
   // localStorage directly.
-  const tPaletteBar = useTranslations("palettes.bar");
+  const tPalette = useTranslations("palettes.bar");
   const {
     palettes,
     setActiveCode,
@@ -1504,7 +1504,7 @@ export function ConfiguratorClient({
       )}
       data-typing={step === 2 && typing ? "1" : undefined}
     >
-      {/* R5-PALETTE-IN-ACTION T3: the global `PaletteBar` mount is gone —
+      {/* R5-PALETTE-IN-ACTION T3: the global palette bar mount is gone —
           the SAME `PaletteCard` now lives in-flow in the options column
           (below, between the Text field and the nav row). Mobile keeps its
           own strip further down, untouched. */}
@@ -2581,7 +2581,7 @@ export function ConfiguratorClient({
                       onClick={saveDraftAsPalette}
                       className="flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-primary/40 px-3 text-[12px] font-medium text-primary hover:bg-primary/10"
                     >
-                      {tPaletteBar("save")}
+                      {tPalette("save")}
                     </button>
                   )
                 }
@@ -2666,7 +2666,7 @@ export function ConfiguratorClient({
                   onClick={saveDraftAsPalette}
                   className="ml-auto flex h-11 shrink-0 items-center justify-center rounded-sm border-2 border-primary bg-primary/10 px-4 text-xs font-semibold"
                 >
-                  {tPaletteBar("save")}
+                  {tPalette("save")}
                 </button>
               )}
             </div>

@@ -24,7 +24,7 @@ import { cn } from "@/lib/utils";
  * R5-PALETTES task 13 — the mockup's bottom sheet
  * (`docs/revision5/mockup-palettebar.html`, `Phone3`'s `sheet` branch +
  * `PTile`): the phone's way to see and change what's painting. The desktop
- * `PaletteBar` (§3.28) is `md:hidden`'d away below `md` (task 9) with
+ * `PaletteCard` (§3.28) is `md:hidden`'d away below `md` (task 9) with
  * nothing standing in for it until now — this is that stand-in, opened from
  * the mobile strip's own "Palettes ▾" button.
  *
@@ -36,7 +36,7 @@ import { cn } from "@/lib/utils";
  * draft (not just offer to save it), rename, delete — see the draft block
  * and `PaletteTile`'s own rename/delete below, neither existed before.
  *
- * Unlike `PaletteBar` (a pure shell — `chips`/`extra` arrive pre-composed),
+ * Unlike `PaletteCard` (a pure shell — `chips`/`extra` arrive pre-composed),
  * this component owns its tile: the strip and the desktop bar need two very
  * different renderings of the same palette list (a horizontal chip vs. this
  * 2-column grid), and handing `PaletteChip` a size prop it was never
@@ -84,7 +84,7 @@ export function PaletteSheet({
   currentDesignSlug: string;
   /** The saved palette painting right now, or null when it's the unsaved draft. */
   activeCode: string | null;
-  /** Mirrors `PaletteBar`'s own `draft` (R5-PALETTES follow-up) — the
+  /** Mirrors `PaletteCard`'s own `draft` (R5-PALETTES follow-up) — the
    *  on-screen config matches no save, so the sheet offers "Save as
    *  palette" the same way the bar's `extra` slot does. */
   draft: boolean;

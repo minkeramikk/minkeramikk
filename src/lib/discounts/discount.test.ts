@@ -130,6 +130,23 @@ describe("computeCartDiscount — quantity discounts", () => {
   });
 });
 
+describe("computeCartDiscount — shipping (R5-GARANZIA)", () => {
+  it("charges shipping below the 2.000 NOK threshold", () => {
+    const lines = [line({ id: "a", quantity: 1, unitPriceCents: 180000 })];
+    const r = computeCartDiscount(lines, EMPTY_CONFIG);
+    expect(r.total).toEqual(money(180000));
+    expect(r.shipping).toEqual(money(20000));
+    expect(r.grandTotal).toEqual(money(200000));
+  });
+
+  it("is free at or above the threshold", () => {
+    const lines = [line({ id: "a", quantity: 1, unitPriceCents: 250000 })];
+    const r = computeCartDiscount(lines, EMPTY_CONFIG);
+    expect(r.shipping).toEqual(money(0));
+    expect(r.grandTotal).toEqual(r.total);
+  });
+});
+
 const RULE = {
   id: "r1",
   name: "Vietri upsell",

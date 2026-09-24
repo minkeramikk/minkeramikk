@@ -16,8 +16,7 @@
   },
   "actions": {
     "copy": "Kopier",
-    "copied": "Kopiert",
-    "newDesign": "Bygg et nytt design"
+    "copied": "Kopiert"
   },
   "nav": {
     "configurator": "Bygg din design",
@@ -251,8 +250,6 @@
     "insurance": {
       "title": "Frakt med forsikring",
       "included": "Inkludert",
-      "toBeConfirmed": "Beregnes",
-      "plusShipping": "+ frakt",
       "nudge": "Fri frakt over {threshold} — legg til {amount}",
       "policyShort": "Alle forsendelser er forsikret. Skulle noe komme frem skadet, gi oss beskjed innen 48 timer — vi erstatter det kostnadsfritt. Tips: film gjerne utpakkingen.",
       "readMore": "Les mer",
@@ -304,7 +301,9 @@
       "paint": "Mal",
       "cta": "Mal {count} stk først",
       "paintCount": "Hvor mange å male",
-      "pickerLabel": "Velg en palett"
+      "pickerLabel": "Velg en palett",
+      "notCovered": "{design} dekker ikke denne keramikken",
+      "notCoveredSuffix": "· dekker ikke"
     },
     "unpaint": {
       "action": "Gjør umalt…"
@@ -404,8 +403,6 @@
     "recapTotal": "Totalt",
     "discountLabel": "Rabatt",
     "contactQuestion": "Spørsmål om bestillingen?",
-    "shareCta": "Del settet",
-    "shareCopied": "Lenke kopiert!",
     "pieceCount": "{count, plural, one {# del} other {# deler}}"
   },
   "palettes": {

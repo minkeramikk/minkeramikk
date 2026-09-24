@@ -12,13 +12,13 @@ import {
 } from "@/components/ui-domain/basket-host";
 import {
   clampPaintN,
+  designLabel,
   itemCount,
   pruneToLive,
   unpaintedPieces,
 } from "@/lib/cart/cart";
 import { formatMoney } from "@/lib/money/money";
 import { cartSaved } from "@/lib/discounts/discount";
-import { useShippingTotalSuffix } from "@/components/ui-domain/cart-shipping-row";
 import { paletteFor } from "@/lib/palettes/palettes";
 import { paletteMatchingCode } from "@/lib/configurator/save-gate";
 import { Link } from "@/i18n/navigation";
@@ -173,6 +173,7 @@ export function Basket({
     setRowPalette,
     setPaintN,
     paintNFor,
+    canPaint,
   } = useCartContext();
   /**
    * R5-TEXT-CARRY — which saved palette (if any) IS the config on screen:
@@ -323,7 +324,6 @@ export function Basket({
   /** The foot's own two numbers (drawer only) — taken from the engine, never
    *  re-added here, so the foot can never disagree with `CartTotals` above. */
   const saved = cartSaved(discount);
-  const totalSuffix = useShippingTotalSuffix(discount.total);
 
   // ── The panel itself, in pieces the two hosts assemble differently ──
   const header = (
@@ -371,6 +371,17 @@ export function Basket({
                 // agree on the exact same palette, or the button could paint
                 // something other than what the row just showed.
                 const thumb = rowThumb(line);
+                // Bug fix (24/9) — the design behind `thumb` (whatever Paint
+                // would actually apply, untouched or explicitly picked) must
+                // cover THIS line's own product, or Paint silently paints a
+                // ceramic the design never shipped on (repro: Striper DAN ×
+                // Taco set). `thumb.snapshot` is null only when there is no
+                // configuration on screen at all — then `paintTarget.kind`
+                // is already "none" and the row has no Paint button to block.
+                const paintBlocked =
+                  thumb.snapshot && !canPaint(thumb.snapshot.designSlug, line.productId)
+                    ? (designLabel(thumb.snapshot, locale) ?? thumb.label)
+                    : null;
                 return (
                   <CartLineRow
                     key={line.id}
@@ -396,6 +407,14 @@ export function Basket({
                     currentThumb={thumb}
                     palettes={palettes}
                     currentDesignSlug={currentConfig?.designSlug ?? ""}
+                    // Bug fix (24/9) — the design behind `thumb` right now
+                    // doesn't cover this line's product: the Paint button
+                    // goes inert and says why (see the doc comment above).
+                    paintBlocked={paintBlocked}
+                    // Bug fix (24/9) — the inline picker's own pills each
+                    // check coverage against THEIR OWN design (not the
+                    // row's current thumb), since picking one changes it.
+                    canPaint={(designSlug) => canPaint(designSlug, line.productId)}
                     pickerOpen={!!pickerOpenId[line.id]}
                     onTogglePicker={() =>
                       setPickerOpenId((m) => ({ ...m, [line.id]: !m[line.id] }))
@@ -604,18 +623,16 @@ export function Basket({
             )}
           </div>
           {/* The foot, EVERY width (card precisazione 19/9): one line, so
-              «Bestill» can never fall below the fold in a long basket. Net
-              total large, what the basket saves under it, the CTA to its
-              right. Nothing else — `+ frakt` rides on the total itself
-              because it IS the total's own qualifier (same `suffix` the
-              sticky bar and `CartTotals` print), not a second number.
+              «Bestill» can never fall below the fold in a long basket. Grand
+              total large (R5-GARANZIA: net + shipping, the one figure the
+              customer actually pays), what the basket saves under it, the
+              CTA to its right.
               TODO:nb-review — cart.saved NO copy is new, unreviewed. */}
           {!formOpen && (
             <div className="flex shrink-0 items-center gap-3 border-t border-border bg-card px-4 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
               <span className="min-w-0 flex-1">
                 <span className="block text-[17px] font-semibold tabular-nums">
-                  {formatMoney(discount.total, locale)}
-                  {totalSuffix}
+                  {formatMoney(discount.grandTotal, locale)}
                 </span>
                 {saved.amountCents > 0 && (
                   <span className="mt-0.5 block text-[12px] font-medium tabular-nums text-status-paid">

@@ -147,6 +147,25 @@ export function explicitPickThumb(palette: Palette): {
  * No configuration on screen (the drawer opened at step 1) → the bare
  * configurator, unchanged.
  */
+/**
+ * Bug fix (24/9, post-R5-GARANZIA) — Paint and the inline picker must refuse
+ * a palette whose DESIGN doesn't actually cover the ceramic it would paint
+ * (repro: a Striper DAN palette painting a Taco set — Striper never shipped
+ * on that product). `designProducts` is `cart-context.tsx`'s own
+ * design→covered-product-ids map (`designProductIds`, server action); `null`
+ * means "not loaded yet" for the WHOLE map, missing key means "not loaded
+ * yet for this design" — either way the answer is `false`: a Paint button
+ * that's briefly off beats one that silently paints the wrong ceramic.
+ */
+export function canPaintWith(
+  designProducts: Record<string, string[]> | null,
+  designSlug: string | null | undefined,
+  productId: string
+): boolean {
+  if (!designProducts || !designSlug) return false;
+  return designProducts[designSlug]?.includes(productId) ?? false;
+}
+
 export function paintFirstHref(
   params: URLSearchParams | null,
   config: {

@@ -10,15 +10,23 @@
  */
 import { money, subtract, type Money } from "@/lib/money/money";
 
-const DEFAULT_THRESHOLD_CENTS = 100_000; // 1.000 NOK
+const DEFAULT_THRESHOLD_CENTS = 200_000; // 2.000 NOK
+const DEFAULT_COST_CENTS = 20_000; // 200 NOK
 
 const envThreshold = Number(process.env.NEXT_PUBLIC_FREE_SHIPPING_THRESHOLD_NOK);
 
-/** Free-shipping threshold, from env (whole NOK) with a 1.000 NOK fallback. */
+/** Free-shipping threshold, from env (whole NOK) with a 2.000 NOK fallback. */
 export const freeShippingThreshold: Money = money(
   Number.isFinite(envThreshold) && envThreshold > 0
     ? Math.round(envThreshold * 100)
     : DEFAULT_THRESHOLD_CENTS
+);
+
+const envCost = Number(process.env.NEXT_PUBLIC_SHIPPING_COST_NOK);
+
+/** Insured shipping cost below the threshold, from env (whole NOK) with a 200 NOK fallback. */
+export const shippingCost: Money = money(
+  Number.isFinite(envCost) && envCost > 0 ? Math.round(envCost * 100) : DEFAULT_COST_CENTS
 );
 
 export type ShippingStatus =
@@ -32,4 +40,13 @@ export function shippingStatus(
 ): ShippingStatus {
   if (total.amountCents >= threshold.amountCents) return { included: true };
   return { included: false, missing: subtract(threshold, total) };
+}
+
+/** The shipping fee for a NET total: 0 at or above the threshold, `cost` below it. */
+export function shippingFor(
+  net: Money,
+  threshold: Money = freeShippingThreshold,
+  cost: Money = shippingCost
+): Money {
+  return net.amountCents >= threshold.amountCents ? money(0, net.currency) : cost;
 }

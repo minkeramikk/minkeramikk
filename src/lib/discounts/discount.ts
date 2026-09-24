@@ -13,6 +13,7 @@
  * `percentOf`, which rounds ONCE per line.
  */
 import {
+  add,
   money,
   multiply,
   percentOf,
@@ -21,6 +22,7 @@ import {
   type Currency,
   type Money,
 } from "@/lib/money/money";
+import { shippingFor } from "@/lib/cart/shipping";
 
 export interface DiscountTier {
   minQty: number;
@@ -137,6 +139,11 @@ export interface CartDiscount {
   tierSaved: Money;
   dealSaved: Money;
   total: Money;
+  /** R5-GARANZIA: insured shipping on `total` — 0 at/above the threshold. */
+  shipping: Money;
+  /** What the customer actually pays: `total + shipping`. The one figure every
+   *  consumer (cart, takk, mail, PDF, admin) shows — see shippingFor. */
+  grandTotal: Money;
 }
 
 export const included = (productId: string | null, config: DiscountConfig): boolean =>
@@ -556,13 +563,17 @@ export function computeCartDiscount(
   const subtotal = sum(fulls, currency);
   const tierSaved = sum(tierSaves, currency);
   const dealSaved = sum(dealSaves, currency);
+  const total = subtract(subtract(subtotal, tierSaved), dealSaved);
+  const shipping = shippingFor(total);
   return {
     perLine,
     qtyByProduct,
     subtotal,
     tierSaved,
     dealSaved,
-    total: subtract(subtract(subtotal, tierSaved), dealSaved),
+    total,
+    shipping,
+    grandTotal: add(total, shipping),
   };
 }
 

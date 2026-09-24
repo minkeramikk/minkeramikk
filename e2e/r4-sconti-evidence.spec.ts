@@ -467,8 +467,9 @@ test.describe("R4-SCONTI evidence — the sticky bar declares the saving", () =>
           await page.reload();
           await expect(page.getByTestId("sticky-bar-saved")).toBeVisible();
         }).toPass({ timeout: 20_000 });
-        // both messages on screen together — the collision case
-        await expect(page.getByTestId("sticky-bar-total")).toContainText(/frakt|shipping/);
+        // R5-GARANZIA: shipping is now folded into the grand total itself
+        // (no more "+ frakt" suffix), so there is nothing left to assert here
+        // beyond the saving row already checked above.
         await page.screenshot({ path: `${OUT}/sticky-bar-saved-360-${locale}.png` });
 
         await page.setViewportSize(PHONE360);

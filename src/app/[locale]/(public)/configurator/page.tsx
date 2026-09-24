@@ -108,7 +108,7 @@ export default async function ConfiguratorPage({
       : undefined;
 
     /**
-     * R5-PALETTES task 9: a PaletteBar chip navigates with `?code=<code>` and
+     * R5-PALETTES task 9: a `PaletteChip` navigates with `?code=<code>` and
      * NO `design=`/`opt_*` at all (card §4-bis: the active palette IS the
      * URL, mirroring step 2's own `loadPalette`) — `router.push('/configurator
      * ?code=<code>&step=3')`. Steps 1–2 decode that shape CLIENT-side (the F19

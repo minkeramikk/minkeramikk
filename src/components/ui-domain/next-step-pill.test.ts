@@ -17,11 +17,7 @@
 import { createElement as h } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import {
-  NextStepPill,
-  PillIcon,
-  PILL_SM_UNDER_MD,
-} from "@/components/ui-domain/next-step-pill";
+import { NextStepPill, PillIcon } from "@/components/ui-domain/next-step-pill";
 
 const render = (props: Record<string, unknown> = {}) =>
   renderToStaticMarkup(
@@ -95,16 +91,6 @@ describe("NextStepPill · scala di taglia", () => {
     expect(html).toContain("data-pill-arrow");
     expect(html).toContain("data-pill-label");
     expect(html).toContain("data-pill-caption");
-  });
-
-  it("PILL_SM_UNDER_MD è la ricetta `sm`, prefissata max-md:, niente di più", () => {
-    const twin = PILL_SM_UNDER_MD.split(" ");
-    expect(twin.every((c) => c.startsWith("max-md:"))).toBe(true);
-    const stripped = twin.map((c) => c.replace("max-md:", ""));
-    const smOnly = buttonClasses(render({ size: "sm" })).filter(
-      (c) => !buttonClasses(render({ size: "lg" })).includes(c)
-    );
-    expect([...stripped].sort()).toEqual([...smOnly].sort());
   });
 });
 

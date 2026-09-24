@@ -17,8 +17,7 @@
   },
   "actions": {
     "copy": "Copy",
-    "copied": "Copied",
-    "newDesign": "Build a new design"
+    "copied": "Copied"
   },
   "nav": {
     "configurator": "Build your design",
@@ -252,8 +251,6 @@
     "insurance": {
       "title": "Insured shipping",
       "included": "Included",
-      "toBeConfirmed": "To be confirmed",
-      "plusShipping": "+ shipping",
       "nudge": "Free shipping over {threshold} — add {amount}",
       "policyShort": "Every shipment is insured. If anything arrives damaged, let us know within 48 hours — we'll replace it free of charge. Tip: film the unboxing if you can.",
       "readMore": "Read more",
@@ -305,7 +302,9 @@
       "paint": "Paint",
       "cta": "Paint {count, plural, one {# piece} other {# pieces}} first",
       "paintCount": "How many to paint",
-      "pickerLabel": "Choose a palette"
+      "pickerLabel": "Choose a palette",
+      "notCovered": "{design} doesn't cover this ceramic",
+      "notCoveredSuffix": "· doesn't cover"
     },
     "unpaint": {
       "action": "Unpaint…"
@@ -405,8 +404,6 @@
     "recapTotal": "Total",
     "discountLabel": "Discount",
     "contactQuestion": "Questions about your order?",
-    "shareCta": "Share your set",
-    "shareCopied": "Link copied!",
     "pieceCount": "{count, plural, one {# piece} other {# pieces}}"
   },
   "palettes": {
