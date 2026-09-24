@@ -1091,7 +1091,14 @@ export function CeramicsStep({
   const [pulseGrid, setPulseGrid] = useState(false);
   const handleTourHighlight = () => {
     if (!tip || !isLastTip(tip)) return;
-    ceramicsGridRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    // Daniele (live test): the smooth scroll fired even when the grid was
+    // already on screen — jarring for no reason. Only scroll when it isn't
+    // already reasonably visible; the pulse below still always runs.
+    const rect = ceramicsGridRef.current?.getBoundingClientRect();
+    const alreadyVisible = rect && rect.top >= 0 && rect.bottom <= window.innerHeight;
+    if (!alreadyVisible) {
+      ceramicsGridRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
     setPulseGrid(true);
     window.setTimeout(() => setPulseGrid(false), 2000);
   };
