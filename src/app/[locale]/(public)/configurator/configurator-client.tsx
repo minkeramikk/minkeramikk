@@ -1766,11 +1766,13 @@ export function ConfiguratorClient({
                 inspirasjonsside. `t.rich` rende il tag <link> del dizionario —
                 nessun HTML crudo nei JSON. Nuova scheda: dal configuratore non
                 si esce mai. */}
-            {/* TODO:nb-review — configurator.designSwitch.loaderAlt NO copy is
-                new, unreviewed. */}
+            {/* TODO:nb-review — configurator.designSwitch.loaderDesignAlt NO
+                copy is new, unreviewed. */}
+            {/* Daniele (live test): no visible "Loading…" text any more —
+                just the spinning plates. `loadingDesignLabel` below still
+                feeds screen readers. */}
             <PreviewCanvas
               alt={designName(selected)}
-              loadingLabel={t("designSwitch.loaderAlt")}
               loadingDesignLabel={t("designSwitch.loaderDesignAlt", {
                 design: designName(
                   pending

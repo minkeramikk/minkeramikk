@@ -172,7 +172,6 @@
       "coversShort": "{count, plural, one {# keramikk} other {# keramikk}}",
       "sheetTitle": "Velg design",
       "sheetSubtitle": "Fargene lastes på nytt",
-      "loaderAlt": "Laster",
       "loaderDesignAlt": "Laster {design}"
     },
     "ladder": {
