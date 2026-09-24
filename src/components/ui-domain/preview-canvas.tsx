@@ -407,12 +407,17 @@ function ArcInscription({
  * schema di `caption`), niente stringa norvegese cablata in un componente
  * condiviso.
  */
+/**
+ * R5-TEXT-POSITION (fix review visiva 2) — Bakside non ha anteprima sul
+ * piatto, ma la pill che lo diceva stava DENTRO il frame (`absolute
+ * bottom-3`), sopra lo stack: usciva dal canvas sugli aspect ratio stretti
+ * (editor mobile) e copriva l'arte. Ora è una riga sotto il canvas, stesso
+ * slot della didascalia (`caption`, «This is an illustration…»), sopra di
+ * essa — mai più dentro il frame, niente box.
+ */
 function BackTag({ text, backLabel }: { text: string; backLabel: string }) {
   return (
-    <div
-      data-testid="back-tag"
-      className="pointer-events-none absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-muted px-3 py-1.5 text-[11px] text-foreground"
-    >
+    <p data-testid="back-tag" className="mt-3 flex items-center justify-center gap-1.5 text-[11px] text-muted-foreground">
       <Undo2 aria-hidden="true" size={12} />
       <span>
         {backLabel} ·{" "}
@@ -420,7 +425,7 @@ function BackTag({ text, backLabel }: { text: string; backLabel: string }) {
           {text}
         </span>
       </span>
-    </div>
+    </p>
   );
 }
 
@@ -673,14 +678,16 @@ export function PreviewCanvas({
             </div>
           </div>
         )}
-        {/* R5-TEXT-POSITION (0.1-7) — Bakside: nessuna anteprima sul piatto,
-            solo la pill (in basso, sopra lo stack, mai sopra il pulsante
-            design). `backLabel` assente (chiamante non ancora aggiornato) →
-            niente pill: un dato incompleto è meglio di uno rotto. */}
-        {inscription && inscriptionPosition === "back" && backLabel && !nothingToShow && (
-          <BackTag text={inscription} backLabel={backLabel} />
-        )}
       </div>
+      {/* R5-TEXT-POSITION (0.1-7, fix review visiva 2) — Bakside: nessuna
+          anteprima sul piatto, solo una riga di didascalia SOTTO il canvas
+          (mai dentro il frame — vedi `BackTag`). `backLabel` assente
+          (chiamante non ancora aggiornato) → niente riga: un dato
+          incompleto è meglio di uno rotto. Sopra `caption`, quando c'è
+          anche lei. */}
+      {inscription && inscriptionPosition === "back" && backLabel && !nothingToShow && (
+        <BackTag text={inscription} backLabel={backLabel} />
+      )}
       {caption && (
         <p className="mt-3 text-center text-xs italic text-muted-foreground">
           {caption}

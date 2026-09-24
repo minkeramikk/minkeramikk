@@ -35,7 +35,7 @@ import {
   NextStepPill,
   PillIcon,
 } from "@/components/ui-domain/next-step-pill";
-import { ChevronLeft, Circle } from "lucide-react";
+import { ChevronLeft, Circle, Undo2 } from "lucide-react";
 import { assetUrl } from "@/lib/storage";
 import { getPreviewLayers, type SelectedCategory } from "@/lib/configurator/preview";
 import {
@@ -1892,6 +1892,30 @@ export function ConfiguratorClient({
           </div>
         </div>
 
+        {/* R5-TEXT-POSITION (fix review visiva 2) — stesso motivo del
+            `preview-note-mobile` qui sotto: dentro `PreviewCanvas` ogni `<p>`
+            è spento sotto md (`max-md:[&_p]:hidden`, editor mobile ha il suo
+            canvas a schermo intero senza spazio per didascalie), quindi il
+            `BackTag` desktop non arriva mai qui. Stessa riga, duplicata. */}
+        {step === 2 && textPosition === "back" && liveInscription && (
+          <p
+            data-testid="back-tag-mobile"
+            className="mt-2.5 flex items-center justify-center gap-1.5 text-[11px] text-muted-foreground md:hidden"
+          >
+            <Undo2 aria-hidden="true" size={12} />
+            <span>
+              {t("customText.position.back")} ·{" "}
+              <span
+                style={{
+                  fontFamily: 'var(--font-inscription), "Times New Roman", Times, serif',
+                  fontStyle: "italic",
+                }}
+              >
+                {liveInscription}
+              </span>
+            </span>
+          </p>
+        )}
         {/* R4-RESTYLE (c): la didascalia col link alla inspirasjonsside — sotto
             il canvas e SCORRE VIA (il canvas resta). Stesso nodo `t.rich` della
             caption desktop, che sotto md è spenta dentro `PreviewCanvas`. */}
