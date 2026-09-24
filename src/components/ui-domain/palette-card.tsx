@@ -172,6 +172,8 @@ export function PaletteCard({ chips, actions, saved, now }: PaletteCardProps) {
           <div
             data-testid="palette-card-switch"
             data-empty
+            role="group"
+            aria-label={t("switchTo")}
             className="mt-3 flex items-center gap-2.5 rounded-[11px] border border-dashed border-border px-3 py-2.5"
           >
             <p className="min-w-0 flex-1 text-[12px] leading-snug text-muted-foreground">
@@ -180,7 +182,12 @@ export function PaletteCard({ chips, actions, saved, now }: PaletteCardProps) {
             {actions}
           </div>
         ) : (
-          <div data-testid="palette-card-switch" className="mt-3">
+          <div
+            data-testid="palette-card-switch"
+            role="group"
+            aria-label={t("switchTo")}
+            className="mt-3"
+          >
             <div className="mb-2 flex items-center gap-2">
               <span className="text-[10px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
                 {t("switchTo")}

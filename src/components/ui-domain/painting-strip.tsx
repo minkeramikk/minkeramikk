@@ -120,7 +120,7 @@ export function PaintingStrip({
   className,
   tourPulse,
 }: PaintingStripProps) {
-  const tPaletteBar = useTranslations("palettes.bar");
+  const tPalette = useTranslations("palettes.bar");
   const tSheet = useTranslations("palettes.sheet");
 
   return (
@@ -157,7 +157,7 @@ export function PaintingStrip({
             where that gets settled once). */}
         <div className="min-w-0 leading-tight">
           <p className="text-[10px] uppercase tracking-[0.06em] text-muted-foreground">
-            {tPaletteBar("eyebrowPaint")}
+            {tPalette("eyebrowPaint")}
           </p>
           <p className="truncate text-[13.5px] font-semibold">
             {paintingLabel}{" "}

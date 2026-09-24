@@ -1194,7 +1194,7 @@ export function CeramicsStep({
   );
 
 
-  // R5-PALETTES task 9: the desktop "Ditt valg" box is GONE — the PaletteBar
+  // R5-PALETTES task 9: the desktop "Ditt valg" box is GONE — the PaletteCard
   // above the step now says which palette is painting (mockup `#s3a`'s option
   // A carries no such card in the basket column; the card replaces it).
   //

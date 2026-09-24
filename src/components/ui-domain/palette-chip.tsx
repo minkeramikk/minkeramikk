@@ -174,7 +174,7 @@ export function PaletteChip({
       className={cn(
         // `min-h-12`, not `h-12`: a dedication is a genuine third line
         // (unsaved eyebrow + name + dedication) that a FIXED 48px would
-        // clip — same "let it grow" fix `PaletteBar`'s own row already
+        // clip — same "let it grow" fix `PaletteCard`'s own row already
         // needed for the same reason.
         "group relative flex min-h-12 shrink-0 items-center gap-2.5 rounded-full py-1 pl-1.5 pr-4 text-[13.5px] transition-colors",
         compact && "min-h-11 gap-2 pl-1 pr-3 text-[12.5px] sm:min-h-9",

@@ -41,22 +41,6 @@ const SIZE: Record<PillSize, string> = {
     "[&_[data-pill-arrow]]:size-7 [&_[data-pill-arrow]]:text-[15px]",
 };
 
-/**
- * Gemello di `SIZE.sm` prefissato `max-md:`, per lo step 2: lì la pillola è
- * `sm` sotto md e quella di oggi sopra (AC5 + AC6), e una prop non ha
- * breakpoint. Passarlo in `className` invece che come `size` tiene AC6
- * letterale: sopra md non si aggiunge NESSUNA classe nuova.
- *
- * Scritto a mano e non derivato da `SIZE.sm`: Tailwind scansiona il sorgente,
- * una classe costruita a runtime non esisterebbe nella CSS. L'allineamento tra
- * le due stringhe è coperto da `next-step-pill.test.ts`, non dalla disciplina.
- */
-export const PILL_SM_UNDER_MD =
-  "max-md:gap-3 max-md:p-2 max-md:[&_[data-pill-icon]]:size-8 " +
-  "max-md:[&_[data-pill-icon]_svg]:size-4 max-md:[&_[data-pill-label]]:text-[14px] " +
-  "max-md:[&_[data-pill-caption]]:text-[10px] max-md:[&_[data-pill-arrow]]:size-7 " +
-  "max-md:[&_[data-pill-arrow]]:text-[15px]";
-
 /** Anello del cerchietto icona — segue la stessa scala di peso della superficie. */
 const ICON_RING: Record<PillVariant, string> = {
   primary: "border-2 border-primary-foreground/50",
