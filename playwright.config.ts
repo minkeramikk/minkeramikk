@@ -23,12 +23,12 @@ const realEmail = process.env.MK_E2E_REAL_EMAIL === "1";
 // e2e/discounts.spec.ts (`make run-e2e` passes no spec list — it relies
 // entirely on these two regexes), and the file would run zero tests.
 const MOBILE_JOURNEYS =
-  /(configurator|cart|order|journey|admin-auth|admin-orders|discounts)\.spec\.ts$/;
+  /(configurator|cart|order|journey|arrivals|admin-auth|admin-orders|discounts)\.spec\.ts$/;
 // admin-products (F39) is desktop-only on purpose: its drag&drop is native HTML5,
 // which does not fire under touch emulation — on mobile the ↑↓ arrows are the
 // reorder path, and they are covered by the desktop run too.
 const DESKTOP_JOURNEYS =
-  /(configurator|cart|order|journey|admin-auth|admin-orders|supplier-pdf|admin-products|discounts)\.spec\.ts$/;
+  /(configurator|cart|order|journey|arrivals|admin-auth|admin-orders|supplier-pdf|admin-products|discounts)\.spec\.ts$/;
 
 export default defineConfig({
   testDir: "./e2e",
