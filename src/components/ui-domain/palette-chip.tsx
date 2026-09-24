@@ -2,9 +2,10 @@
 
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
 import { useTranslations } from "next-intl";
-import { Brush } from "lucide-react";
 import { DesignRound } from "@/components/ui-domain/design-round";
+import { deleteTap, disarm } from "@/components/ui-domain/delete-confirm";
 import type { CartLayer } from "@/lib/cart/cart";
+import type { TextPosition } from "@/lib/configurator/text-position";
 import { cn } from "@/lib/utils";
 
 /**
@@ -27,18 +28,36 @@ export interface PaletteChipProps {
   code: string;
   /** The palette's name — `nameFor()` or the customer's rename. Data, never translated. */
   name: string;
+  /**
+   * The customer's own words, shown as a second line in quotes —
+   * `ConfigSnapshot.customText`, never decoded from `code`. This component
+   * only renders it; it does NOT decide whose words they are. The CALLER
+   * answers that, per chip: a chip flagged `active`/`draft` (this IS the
+   * canvas right now) must pass the CURRENT field value, even when its
+   * `name`/`layers`/`code` came from a colour-matched save — a dedication
+   * is exactly the one thing NOT shared with that save. A plain list chip
+   * (neither `active` nor `draft`) passes that palette's own stored value.
+   * Getting the two swapped shows a customer someone else's words on what
+   * looks like their own canvas (R5-TEXT-IDENTITY, TL ruling). Optional:
+   * most palettes carry no dedication, and `dim` chips show `dimDesignName`
+   * in this same slot instead (that takes priority — see the render below).
+   */
+  dedication?: string;
   /** Design pattern layers for the 36px composited thumb (same technique as the cart row). */
   layers: CartLayer[];
   /** This is the palette in use right now — bold surface, ring, `aria-current`. */
   active?: boolean;
   /** The current (unsaved) canvas colours — dashed border, «Unsaved» eyebrow over the name. */
   draft?: boolean;
-  /** Belongs to another design than the one on screen — faded and genuinely disabled. */
+  /** Belongs to another design than the one on screen — same skin as any
+   *  other chip (no faded/unselectable state: every palette is always
+   *  available, the tap just switches design too). `dimDesignName` still
+   *  shows as subtitle so the customer knows the tap changes design. */
   dim?: boolean;
   /** The OTHER design's name, shown as a subtitle — only rendered (and only meaningful) when `dim`. */
   dimDesignName?: string;
-  /** Small paintbrush badge on the thumb — the active chip in paint mode. */
-  brush?: boolean;
+  /** Step 3, pure target: thumb 28, text 12.5, name at 96px — DS §3.31. */
+  compact?: boolean;
   /** Parent-owned: this is the one chip currently in rename mode (only one at a time). */
   renaming?: boolean;
   /** Fires on click/Enter/Space of the chip body (not while `renaming`). */
@@ -52,8 +71,10 @@ export interface PaletteChipProps {
   /**
    * Delete affordance (✕) — only meaningful for a SAVED palette: the caller
    * simply doesn't pass this for a `draft` chip (nothing to delete yet).
-   * No confirm step on either side of this callback (deletePalette.ts's own
-   * comment has the WHY) — clicking it deletes immediately.
+   * R5-POLISH-STEP23 T1: the chip confirms IN PLACE — first tap arms
+   * (the ✕ becomes «Delete? Tap again», `// TODO:nb-review` on the NO copy),
+   * second tap calls this. Blur/Escape disarm. The store still deletes
+   * without asking (deletePalette.ts): the question lives in the UI only.
    */
   onDelete?: () => void;
 }
@@ -61,12 +82,13 @@ export interface PaletteChipProps {
 export function PaletteChip({
   code,
   name,
+  dedication,
   layers,
   active = false,
   draft = false,
   dim = false,
   dimDesignName,
-  brush = false,
+  compact = false,
   renaming = false,
   onSelect,
   onRenameStart,
@@ -81,6 +103,12 @@ export function PaletteChip({
   // Guards against a stray double-commit when Enter is followed by a blur
   // in the same interaction (e.g. the confirm handler moves focus away).
   const settledRef = useRef(false);
+
+  // T1 — two-tap delete, local to this chip (see delete-confirm.ts).
+  const [deleteArmed, setDeleteArmed] = useState(false);
+  useEffect(() => {
+    if (!active) setDeleteArmed(false); // leaving the active chip drops the question
+  }, [active]);
 
   useEffect(() => {
     if (renaming) {
@@ -130,13 +158,13 @@ export function PaletteChip({
     ? "bg-card font-semibold text-foreground shadow-[0_0_0_2px_var(--ring)]"
     : draft
       ? "border border-dashed border-primary/50 bg-transparent text-foreground"
-      : dim
-        ? "bg-muted text-muted-foreground opacity-50"
-        : "bg-muted text-foreground hover:bg-secondary";
+      : "bg-muted text-foreground hover:bg-secondary";
 
   const thumb = (
-    <DesignRound layers={layers} className={cn("size-9", dim && "grayscale-[.3]")} />
+    <DesignRound layers={layers} className={compact ? "size-7" : "size-9"} />
   );
+
+  const cap = compact ? "max-w-[96px]" : "max-w-[108px]";
 
   return (
     <div
@@ -144,22 +172,18 @@ export function PaletteChip({
       data-code={code}
       data-active={active || undefined}
       className={cn(
-        "group relative flex h-12 shrink-0 items-center gap-2.5 rounded-full pl-1.5 pr-4 text-[13.5px] transition-colors",
+        // `min-h-12`, not `h-12`: a dedication is a genuine third line
+        // (unsaved eyebrow + name + dedication) that a FIXED 48px would
+        // clip — same "let it grow" fix `PaletteCard`'s own row already
+        // needed for the same reason.
+        "group relative flex min-h-12 shrink-0 items-center gap-2.5 rounded-full py-1 pl-1.5 pr-4 text-[13.5px] transition-colors",
+        compact && "min-h-11 gap-2 pl-1 pr-3 text-[12.5px] sm:min-h-9",
         skin
       )}
     >
       {renaming ? (
         <span className="flex min-w-0 flex-1 items-center gap-2.5">
-          {brush ? (
-            <span className="relative shrink-0">
-              {thumb}
-              <span className="absolute -right-1 -bottom-1 grid size-4.5 place-items-center rounded-full bg-primary text-primary-foreground shadow">
-                <Brush className="size-2.5" strokeWidth={2.5} />
-              </span>
-            </span>
-          ) : (
-            thumb
-          )}
+          {thumb}
           <label htmlFor={inputId} className="sr-only">
             {t("renameLabel")}
           </label>
@@ -179,7 +203,10 @@ export function PaletteChip({
             ref={selectRef}
             type="button"
             onClick={onSelect}
-            disabled={dim}
+            // R5-DESIGN-SWITCH AC4: a dim chip IS tappable (the tap switches
+            // design via `?code=`) — inert only when there is no action at
+            // all (the draft chip, which passes no `onSelect`).
+            disabled={!onSelect}
             aria-current={active ? "true" : undefined}
             // R5-PALETTES task 13 (carried in, card 1's own lesson): the chip's
             // OUTER div is h-12, but only this <button> receives clicks/taps —
@@ -191,27 +218,24 @@ export function PaletteChip({
             // `sm` up where a pointer usually is.
             className="flex min-h-11 min-w-0 flex-1 items-center gap-2.5 text-left disabled:cursor-not-allowed sm:min-h-9"
           >
-            {brush ? (
-              <span className="relative shrink-0">
-                {thumb}
-                <span className="absolute -right-1 -bottom-1 grid size-4.5 place-items-center rounded-full bg-primary text-primary-foreground shadow">
-                  <Brush className="size-2.5" strokeWidth={2.5} />
-                </span>
-              </span>
-            ) : (
-              thumb
-            )}
+            {thumb}
             <span className="flex min-w-0 flex-col leading-tight">
               {draft && (
                 <span className="text-[10px] tracking-[0.08em] text-primary uppercase">
                   {t("unsaved")}
                 </span>
               )}
-              <span className="max-w-[108px] truncate">{name}</span>
-              {dim && dimDesignName && (
-                <span className="max-w-[108px] truncate text-[10px] text-muted-foreground">
+              <span className={cn(cap, "truncate")}>{name}</span>
+            {/* One second line, and `dim` spends it on the OTHER design's
+                name: the tap switches design too, so the chip says so
+                upfront. Callers still pass `dedication` for dim chips — it
+                is simply outranked here, not forgotten. */}
+              {dim && dimDesignName ? (
+                <span className={cn(cap, "truncate text-[10px] text-muted-foreground")}>
                   {dimDesignName}
                 </span>
+              ) : (
+                <PaletteDedicationLine text={dedication} className={cap} />
               )}
             </span>
           </button>
@@ -257,20 +281,69 @@ export function PaletteChip({
             // separate change nobody asked for here).
             <button
               type="button"
-              onClick={onDelete}
-              aria-label={t("delete")}
-              title={t("delete")}
+              onClick={() => {
+                const next = deleteTap(deleteArmed);
+                setDeleteArmed(next.armed);
+                if (next.fire) onDelete();
+              }}
+              onBlur={() => setDeleteArmed(disarm().armed)}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") setDeleteArmed(disarm().armed);
+              }}
+              aria-label={deleteArmed ? t("confirmDelete") : t("delete")}
+              title={deleteArmed ? t("confirmDelete") : t("delete")}
+              data-testid="palette-chip-delete"
+              data-armed={deleteArmed ? "" : undefined}
               className={cn(
                 "ml-1 grid shrink-0 place-items-center rounded-full text-muted-foreground transition-opacity hover:bg-secondary",
                 "sm:size-6 sm:opacity-0 sm:pointer-events-none sm:group-hover:opacity-100 sm:group-hover:pointer-events-auto sm:group-focus-within:opacity-100 sm:group-focus-within:pointer-events-auto",
-                active ? "size-11 opacity-100 pointer-events-auto" : "size-6 opacity-0 pointer-events-none"
+                active ? "size-11 opacity-100 pointer-events-auto" : "size-6 opacity-0 pointer-events-none",
+                // armed: it must stay visible while the question is open, whatever the pointer does
+                deleteArmed && "sm:w-auto sm:px-2 sm:opacity-100! sm:pointer-events-auto! bg-destructive/10 text-destructive text-[11px] font-medium"
               )}
             >
-              ✕
+              {deleteArmed ? t("confirmDelete") : "✕"}
             </button>
           )}
         </>
       )}
     </div>
+  );
+}
+
+/**
+ * The one place that decides how a dedication renders: quoted, truncated,
+ * secondary-style, or nothing at all when there isn't one. `PaletteChip`
+ * uses it for its own second line; `PaletteTile`/the sheet's draft tile
+ * (palette-sheet.tsx), the mobile strip (painting-strip.tsx) and the cart
+ * row's palette picker (cart-line-row.tsx) reuse it too — TL ruling: every
+ * tile shows a dedication the same way, not a copy of the rule per file.
+ * `className` lets a caller override the width cap (`max-w-[108px]` fits
+ * this chip's own thumb+padding budget, not every caller's).
+ */
+export function PaletteDedicationLine({
+  text,
+  position,
+  className,
+}: {
+  text?: string;
+  /** DS §3.33 — renders " · Top"/"Bottom"/"Back" after the quote, `centre`
+   *  (the default, and anything absent) stays mute. Poppins, not italic:
+   *  this is a fact about the piece, not part of the dedication itself. */
+  position?: TextPosition;
+  className?: string;
+}) {
+  const t = useTranslations("cart.textPosition");
+  if (!text) return null;
+  return (
+    <span className={cn("block max-w-[108px] truncate text-[10px] text-muted-foreground", className)}>
+      «{text}»
+      {position && position !== "centre" && (
+        <span data-testid="custom-text-position" className="not-italic">
+          {" "}
+          · {t(position)}
+        </span>
+      )}
+    </span>
   );
 }

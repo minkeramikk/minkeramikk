@@ -40,10 +40,11 @@ test("AC1: add to cart → badge counts, drawer line shows product + price", asy
   await expect(line).toHaveCount(1);
   await expect(line).toContainText(name);
   await expect(drawer(page).getByTestId("cart-total")).toContainText(/\d[\d\s]*\s*kr/);
-  // R3-B4: insured shipping row — status is either "Inkludert" (≥ threshold) or
-  // "Beregnes" + the nudge; the send is never blocked either way.
+  // R3-B4/R5-GARANZIA: insured shipping row — status is either "Inkludert"
+  // (≥ threshold) or the shipping amount in kr + the nudge; the send is
+  // never blocked either way.
   await expect(drawer(page).getByTestId("cart-shipping-status")).toContainText(
-    /Inkludert|Beregnes/
+    /Inkludert|kr/
   );
   await expect(drawer(page).getByTestId("cart-checkout")).toBeEnabled();
 });
@@ -68,9 +69,15 @@ test("AC3: edit quantity and remove update total/badge; empty → empty state", 
   await openCart(page);
 
   const line = drawer(page).getByTestId("cart-line");
-  await line.getByRole("button", { name: "+" }).click(); // qty 2
+  // R5-BASKET-HOST task 5: the drawer renders the unified row, whose
+  // quantity steppers are labelled `cart.increaseQty`/`cart.decreaseQty`
+  // («Flere»/«Færre», «More»/«Fewer») — they were bare "+"/"-" glyphs
+  // before. The testids are the stable handle, and the only unambiguous one:
+  // an UNPAINTED row's paint-count stepper (`paint-n-inc`/`paint-n-dec`)
+  // carries the very same aria-label.
+  await line.getByTestId("docked-qty-inc").click(); // qty 2
   await expect(page.getByTestId("cart-badge")).toHaveText("2");
-  await line.getByRole("button", { name: "-" }).click(); // qty 1
+  await line.getByTestId("docked-qty-dec").click(); // qty 1
   await expect(page.getByTestId("cart-badge")).toHaveText("1");
 
   await drawer(page).getByTestId("cart-remove").click();
@@ -127,7 +134,7 @@ test("AC5: cart button on every step opens the drawer; checkout reachable", asyn
   await expect(page.getByTestId("order-form")).toBeVisible();
 });
 
-test("AC5: step 3 shows the cart inline in the docked panel (≥768px)", async ({
+test("AC5: step 3 shows the cart inline in the docked panel (≥1024px)", async ({
   page,
 }, testInfo) => {
   test.skip(testInfo.project.name === "mobile", "docked panel is desktop layout");
@@ -163,9 +170,10 @@ test("AC R2-D: drawer row reveals the shared recap (selections + ceramic + code)
   await row.getByTestId("cart-expand").click();
   const recap = drawerEl.getByTestId("cart-line-detail");
   await expect(recap).toBeVisible();
-  // recap carries the ceramic label + the MK code copy affordance
+  // recap carries the ceramic label. R5-POLISH-STEP23: the MK code + «Copy
+  // code» + «Edit design» foot is gone from the drawer (TL: the drawer IS the
+  // step-3 basket, which never had it), so there is nothing else to read here.
   await expect(recap).toContainText("Keramikk"); // cart.line.ceramic (NO)
-  await expect(recap.getByTestId("cart-copy-code")).toBeVisible();
 });
 
 test.describe("R4-SCONTI — quantity discounts", () => {
@@ -196,37 +204,21 @@ test.describe("R4-SCONTI — quantity discounts", () => {
       // one piece: full price only
       await expect(line.getByTestId("cart-line-full")).toHaveCount(0);
       // second piece: the ×2 tier fires
-      await drawer(page).getByLabel("+").first().click();
+      await drawer(page).getByTestId("docked-qty-inc").first().click();
       await expect(async () => {
         await page.reload();
         await openCart(page);
         await expect(line.getByTestId("cart-line-full")).toBeVisible();
       }).toPass({ timeout: 15_000 });
-      await expect(line.getByTestId("cart-discount-badge")).toContainText("12");
+      // R5-BASKET-HOST §3-bis (b) removed the per-row `−%` badge
+      // (`cart-discount-badge`): the LINE's own percentage now lives in the
+      // expanded details panel, and the basket-level saving in the recap.
+      // Same truth, two surfaces — both asserted.
+      await line.getByTestId("cart-expand").click();
+      await expect(
+        line.getByTestId("cart-line-detail").getByTestId("cart-line-details-discount")
+      ).toContainText("12");
       await expect(drawer(page).getByTestId("cart-discount-total")).toBeVisible();
-    } finally {
-      await seeded.restore();
-    }
-  });
-
-  test("AC-SC2: the nudge points at the next step", async ({ page }) => {
-    // qty 2 with these thresholds needs 7 more to the next tier — prod's own
-    // scale would answer "2" here (its first step sits at min_qty 4), so a
-    // stale/unseeded read is caught, not coincidentally matched.
-    const seeded = await seedDiscountTiers([
-      { min_qty: 2, pct: 6 },
-      { min_qty: 9, pct: 13 },
-    ]);
-    try {
-      await page.goto(step3);
-      await addFirstCeramic(page);
-      await openCart(page);
-      await drawer(page).getByLabel("+").first().click(); // qty 2 → 6%, next step at 9
-      await expect(async () => {
-        await page.reload();
-        await openCart(page);
-        await expect(drawer(page).getByTestId("cart-discount-nudge")).toContainText("7");
-      }).toPass({ timeout: 15_000 });
     } finally {
       await seeded.restore();
     }
@@ -243,7 +235,7 @@ test.describe("R4-SCONTI — quantity discounts", () => {
       await addFirstCeramic(page);
       await openCart(page);
       const line = drawer(page).getByTestId("cart-line").first();
-      await drawer(page).getByLabel("+").first().click(); // qty 2
+      await drawer(page).getByTestId("docked-qty-inc").first().click(); // qty 2
       await expect(async () => {
         await page.reload();
         await openCart(page);
@@ -279,7 +271,7 @@ test.describe("R4-SCONTI — quantity discounts", () => {
       // three pieces of the first ceramic into the basket, sheet closed
       await addFirstCeramic(page);
       await openCart(page);
-      const plus = drawer(page).getByLabel("+").first();
+      const plus = drawer(page).getByTestId("docked-qty-inc").first();
       await plus.click();
       await plus.click();
       await expect(page.getByTestId("cart-badge")).toHaveText("3");
@@ -352,12 +344,9 @@ test.describe("R4-SCONTI — quantity discounts", () => {
     // (the empty scale is refused by `.min(1)` in saveDiscountTiers). This is
     // that real state.
     //
-    // TWO steps on purpose, and the fixture only works this way: with a single
-    // step at min_qty 2 and a cart of 2, `nextTier(2, …)` finds no threshold
-    // above 2 and CartDiscountNudge returns null on its own — the test would go
-    // green without proving anything. With a second step at 9 there IS a next
-    // tier, so the nudge renders whenever it is asked to, which is what makes
-    // the off-state assertable at all.
+    // TWO steps on purpose: the scale has to be distinctive enough that a
+    // stale or unseeded read cannot be mistaken for the seeded one (prod's own
+    // first step sits at min_qty 4).
     const seeded = await seedDiscountTiers([
       { min_qty: 2, pct: 12 },
       { min_qty: 9, pct: 20 },
@@ -368,15 +357,18 @@ test.describe("R4-SCONTI — quantity discounts", () => {
       await addFirstCeramic(page);
       await openCart(page);
       const line = drawer(page).getByTestId("cart-line").first();
-      await drawer(page).getByLabel("+").first().click(); // qty 2 → 12%, next step at 9
+      await drawer(page).getByTestId("docked-qty-inc").first().click(); // qty 2 → 12%, next step at 9
 
-      // the seed really took: discount applied AND the nudge pointing at 9
+      // the seed really took: the discount is applied
       await expect(async () => {
         await page.reload();
         await openCart(page);
         await expect(line.getByTestId("cart-line-full")).toBeVisible();
       }).toPass({ timeout: 15_000 });
-      await expect(drawer(page).getByTestId("cart-discount-nudge")).toBeVisible();
+      // Was `cart-discount-nudge`, deleted by R5-BASKET-HOST §3-bis (b). The
+      // tier row in the recap is where the quantity discount says it applied
+      // now, so that is what proves the seed took.
+      await expect(drawer(page).getByTestId("cart-discount-total")).toBeVisible();
 
       // now the admin off-switch: the FLAG only, rows untouched
       const off = await db
@@ -390,8 +382,6 @@ test.describe("R4-SCONTI — quantity discounts", () => {
         await openCart(page);
         await expect(drawer(page).getByTestId("cart-line-full")).toHaveCount(0);
       }).toPass({ timeout: 15_000 });
-      // …and nothing may still advertise a discount that is switched off.
-      await expect(drawer(page).getByTestId("cart-discount-nudge")).toHaveCount(0);
     } finally {
       // restore() rewrites the flag to what it found, but be explicit: this
       // test flipped it outside the seeder, so it puts it back itself first.
@@ -421,7 +411,7 @@ test.describe("R4-SCONTI — quantity discounts", () => {
       await addFirstCeramic(page);
       await openCart(page);
       const line = drawer(page).getByTestId("cart-line").first();
-      await drawer(page).getByLabel("+").first().click(); // qty 2 → the ×2 tier
+      await drawer(page).getByTestId("docked-qty-inc").first().click(); // qty 2 → the ×2 tier
       await expect(async () => {
         await page.reload();
         await openCart(page);
@@ -475,39 +465,4 @@ test.describe("R4-SCONTI — quantity discounts", () => {
   });
 }); // R4-SCONTI describe
 
-test("R4-BTN-SCALE AC1: lo stack azioni step 3 ha ritmo verticale", async ({
-  page,
-}) => {
-  // La regressione che questo test esiste per fermare: `gap-3` sparito dal
-  // contenitore dello stack (R4-SCONTI, in produzione dal 31/8) → i tre bordi
-  // si toccano e le pillole leggono come un blocco unico. Si misura il VUOTO
-  // tra i box, non le classi: una `gap` tolta e una `mb` rimessa altrove sono
-  // la stessa cosa per chi guarda, e questo test non deve avere opinioni.
-  // Soglia bassa apposta (≥4px): dopo R4-BTN-SCALE il ritmo diventa 12px sotto
-  // il primario e 8px tra le due basse, e questa asserzione resta vera.
-  await page.goto(step3);
-  await addFirstCeramic(page);
-
-  const box = async (id: string) => {
-    const b = await page
-      .locator(`[data-testid="${id}"]:visible`)
-      .first()
-      .boundingBox();
-    if (!b) throw new Error(`${id}: non visibile`);
-    return b;
-  };
-  const [checkout, newDesign, share] = [
-    await box("docked-checkout"),
-    await box("new-design-cta"),
-    await box("share-set"),
-  ];
-
-  expect(
-    newDesign.y - (checkout.y + checkout.height),
-    "«Bestill» e «Bygg et nytt design» si toccano"
-  ).toBeGreaterThanOrEqual(4);
-  expect(
-    share.y - (newDesign.y + newDesign.height),
-    "«Bygg et nytt design» e «Del settet» si toccano"
-  ).toBeGreaterThanOrEqual(4);
-});
+// R5-POLISH-STEP23: the two low pills are gone (new-design-cta removed, share-set admin-only) — the stack spacing test went with them.

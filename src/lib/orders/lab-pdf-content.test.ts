@@ -161,4 +161,24 @@ describe("buildLabPdfDoc", () => {
     const doc = buildLabPdfDoc(ORDER, "sup-other")!;
     expect(doc.items[0].customText).toBeUndefined();
   });
+
+  // AC4 — the lab PDF always states a position (`lab-pdf.tsx` never hides it,
+  // unlike the customer PDF/mail): the item carries the snapshot's raw value,
+  // defaulting to `centre` happens in `positionLine`, not here.
+  it("carries the snapshot's textPosition into the lab item (R5-TEXT-POSITION AC4)", () => {
+    const withPosition: typeof ORDER = {
+      ...ORDER,
+      items: [
+        { ...ORDER.items[0], configSnapshot: { ...ORDER.items[0].configSnapshot, textPosition: "bottom" } },
+        ORDER.items[1],
+      ],
+    };
+    const doc = buildLabPdfDoc(withPosition, "sup-vietri")!;
+    expect(doc.items[0].textPosition).toBe("bottom");
+  });
+
+  it("leaves textPosition undefined when the snapshot has none", () => {
+    const doc = buildLabPdfDoc(ORDER, "sup-other")!;
+    expect(doc.items[0].textPosition).toBeUndefined();
+  });
 });

@@ -16,10 +16,11 @@ export type CreateOrderResult =
   | {
       ok: true;
       code: string;
-      /** R4-TAKK: the NET total the server just computed and snapshotted, in
-       *  minor units. Handed back so the thank-you page can show the very same
-       *  figure the customer email quotes, without re-deriving it from a `set=`
-       *  param that carries no deal rules (and so no deal discount). */
+      /** R4-TAKK / R5-GARANZIA: the GRAND total (net + shipping) the server just
+       *  computed and snapshotted, in minor units. Handed back so the thank-you
+       *  page can show the very same figure the customer email quotes, without
+       *  re-deriving it from a `set=` param that carries no deal rules (and so
+       *  no deal discount). */
       totalCents: number;
       /** R4-MAIL-JOURNEY §E: the sends, NOT yet performed. The route handler
        *  hands this to `after()` so the customer gets the confirmation page
@@ -175,7 +176,7 @@ export async function createOrder(
   return {
     ok: true,
     code: orderCode,
-    totalCents: discount.total.amountCents,
+    totalCents: discount.grandTotal.amountCents,
     sendEmails,
   };
 }

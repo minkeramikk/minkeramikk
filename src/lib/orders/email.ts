@@ -3,7 +3,7 @@ import "server-only";
 import { Resend } from "resend";
 import { getThemeTokensSafe } from "@/lib/theme.server";
 import { siteUrl } from "@/lib/site";
-import { encodeSetParam } from "@/lib/cart/set-code";
+import { encodeSetParam, selectionCountOf } from "@/lib/cart/set-code";
 import { customerEmail, adminEmail, type MailItem } from "./email-html";
 import { getVippsSettings } from "./vipps.server";
 import { statusEmail, type MailKind } from "./status-email";
@@ -163,6 +163,7 @@ const toMailItem = (i: PaintedOrderItem, idx: number, d: CartDiscount): MailItem
   configCode: i.configCode,
   customNote: i.configSnapshot?.customNote || undefined,
   customText: i.configSnapshot?.customText || undefined,
+  textPosition: i.configSnapshot?.textPosition,
   discountPct: d.perLine[String(idx)]?.pct || undefined,
   discountCents: d.perLine[String(idx)]?.saved.amountCents || undefined,
 });
@@ -171,6 +172,12 @@ const toMailItem = (i: PaintedOrderItem, idx: number, d: CartDiscount): MailItem
  * Admin-only "Replica set" link (R2-6 D) → reopens the whole order as a basket
  * at configurator step 3, ready to re-price/re-order. Codes/slugs/qty only (no
  * prices, like CA-3). Null when no line is replicable.
+ *
+ * R5-TEXT-IDENTITY task 3: selectionCountOf(i.configSnapshot) strips each
+ * line's inscription/colour-wish segment before it enters this link too —
+ * `configSnapshot` is a zod `.passthrough()` shape here (only customNote/
+ * customText are statically typed), which is exactly what selectionCountOf
+ * exists to read safely.
  */
 function replicaSetUrl(items: PaintedOrderItem[], locale: "no" | "en"): string | null {
   const param = encodeSetParam(
@@ -178,6 +185,7 @@ function replicaSetUrl(items: PaintedOrderItem[], locale: "no" | "en"): string |
       configCode: i.configCode,
       productSlug: i.productSlug,
       quantity: i.quantity,
+      selectionCount: selectionCountOf(i.configSnapshot),
     }))
   );
   if (!param) return null;

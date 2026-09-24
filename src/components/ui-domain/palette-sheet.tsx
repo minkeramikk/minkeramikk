@@ -10,7 +10,10 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { deleteTap, disarm } from "@/components/ui-domain/delete-confirm";
 import { DesignRound } from "@/components/ui-domain/design-round";
+import { PaletteHelp } from "@/components/ui-domain/palette-card";
+import { PaletteDedicationLine } from "@/components/ui-domain/palette-chip";
 import { Dots } from "@/components/ui-domain/cart-line-row";
 import { designLabel } from "@/lib/cart/cart";
 import type { CartLayer } from "@/lib/cart/cart";
@@ -21,7 +24,7 @@ import { cn } from "@/lib/utils";
  * R5-PALETTES task 13 — the mockup's bottom sheet
  * (`docs/revision5/mockup-palettebar.html`, `Phone3`'s `sheet` branch +
  * `PTile`): the phone's way to see and change what's painting. The desktop
- * `PaletteBar` (§3.28) is `md:hidden`'d away below `md` (task 9) with
+ * `PaletteCard` (§3.28) is `md:hidden`'d away below `md` (task 9) with
  * nothing standing in for it until now — this is that stand-in, opened from
  * the mobile strip's own "Palettes ▾" button.
  *
@@ -33,7 +36,7 @@ import { cn } from "@/lib/utils";
  * draft (not just offer to save it), rename, delete — see the draft block
  * and `PaletteTile`'s own rename/delete below, neither existed before.
  *
- * Unlike `PaletteBar` (a pure shell — `chips`/`extra` arrive pre-composed),
+ * Unlike `PaletteCard` (a pure shell — `chips`/`extra` arrive pre-composed),
  * this component owns its tile: the strip and the desktop bar need two very
  * different renderings of the same palette list (a horizontal chip vs. this
  * 2-column grid), and handing `PaletteChip` a size prop it was never
@@ -52,7 +55,9 @@ export function PaletteSheet({
   currentDesignSlug,
   activeCode,
   draft,
+  canSaveDraft,
   draftName,
+  currentDedication,
   draftLayers,
   locale,
   onPick,
@@ -79,10 +84,18 @@ export function PaletteSheet({
   currentDesignSlug: string;
   /** The saved palette painting right now, or null when it's the unsaved draft. */
   activeCode: string | null;
-  /** Mirrors `PaletteBar`'s own `draft` (R5-PALETTES follow-up) — the
+  /** Mirrors `PaletteCard`'s own `draft` (R5-PALETTES follow-up) — the
    *  on-screen config matches no save, so the sheet offers "Save as
    *  palette" the same way the bar's `extra` slot does. */
   draft: boolean;
+  /** R5-TEXT-CARRY — whether the draft tile's own "Save as palette"
+   *  button renders. Separate from `draft`: the tile itself (thumb +
+   *  "Unsaved" + name) still shows whenever `draft` is true — the customer
+   *  should always see what's actually on screen — but the SAVE offer only
+   *  renders while the draft is unsaved. Under exact-code identity
+   *  (`paletteMatchingCode`) `draft` already IS that: the button is withheld
+   *  exactly when the on-screen config matches a save byte-for-byte. */
+  canSaveDraft: boolean;
   /** The on-screen colours' own name/thumb (`nameFor()` or a saved match's
    *  name — the caller's single "what's painting" label, e.g. `paintingLabel`
    *  in ceramics-step.tsx / `activePaletteName` in configurator-client.tsx).
@@ -90,6 +103,16 @@ export function PaletteSheet({
    *  lead chip SHOWED the draft, not just a save button, and this sheet
    *  didn't; now it does, at both steps. */
   draftName: string;
+  /**
+   * R5-TEXT-CARRY — the field's live value, shown ONLY by the draft tile
+   * below (what's on screen right now, unsaved). The ACTIVE saved tile in
+   * the grid reads its own stored `palette.snapshot.customText` like every
+   * other tile: under exact-code identity (`paletteMatchingCode`) the active
+   * tile already IS the on-screen config, so its own words ARE the field's
+   * — no canvas-words override any more (there is nothing to override
+   * with: a different dedication is simply not active).
+   */
+  currentDedication?: string;
   draftLayers: CartLayer[];
   locale: "no" | "en";
   /** Picking a tile has the same effect as picking a chip on the desktop bar
@@ -145,12 +168,22 @@ export function PaletteSheet({
         className="max-h-[85dvh] gap-3 overflow-y-auto rounded-t-xl pb-[calc(1rem+env(safe-area-inset-bottom))]"
       >
         <SheetHeader className="gap-0.5 pb-0">
-          <SheetTitle>
-            {tBar("eyebrowManage")}{" "}
-            <span className="font-normal text-muted-foreground">
-              · {tBar("manageCount", { count: palettes.length, max: MAX_PALETTES })}
-            </span>
-          </SheetTitle>
+          <div className="flex items-center gap-1.5">
+            <SheetTitle>
+              {tBar("eyebrowManage")}{" "}
+              <span className="font-normal text-muted-foreground">
+                · {tBar("manageCount", { count: palettes.length, max: MAX_PALETTES })}
+              </span>
+            </SheetTitle>
+            {/* R5-TUTORIAL round 3 fix wave — `PaletteCard`'s header got this
+                "?" in Task D; this sheet is a separate implementation of the
+                same "current palette" concept for phones and had none.
+                `mode="manage"`, not "now": this header always reads
+                `eyebrowManage` (never a switcher framing) regardless of
+                which step opened the sheet, so there is no `now`/`manage`
+                split to mirror here beyond that one constant mode. */}
+            <PaletteHelp mode="manage" saved={palettes.length} touchTarget />
+          </div>
           <SheetDescription>{draft ? tBar("paintHintDraft") : t("hintSaved")}</SheetDescription>
         </SheetHeader>
 
@@ -160,7 +193,13 @@ export function PaletteSheet({
               its sheet equivalent. Same `draft` condition as the bar's
               `extra` slot (task 9's follow-up): only while the on-screen
               config matches no save — once it's saved, `draft` goes false
-              and this whole block goes with it. */}
+              and this whole block goes with it.
+
+              R5-TEXT-CARRY: the SAVE BUTTON alone is additionally gated on
+              `canSaveDraft` (which under exact-code identity is just `draft`
+              again, passed through) — the tile (thumb + "Unsaved" + name)
+              stays even when the offer is withheld, so the customer still
+              sees exactly what's on screen. */}
           {draft && (
             <div
               data-testid="palette-sheet-draft"
@@ -172,26 +211,38 @@ export function PaletteSheet({
                   {tChip("unsaved")}
                 </span>
                 <span className="block truncate text-xs font-medium">{draftName}</span>
+                <PaletteDedicationLine text={currentDedication} className="max-w-none" />
               </span>
-              <button
-                type="button"
-                data-testid="palette-sheet-save"
-                onClick={onSaveDraft}
-                className="flex h-11 shrink-0 items-center justify-center rounded-sm border-2 border-primary bg-primary/10 px-3 text-xs font-semibold hover:bg-primary/20"
-              >
-                {tBar("save")}
-              </button>
+              {canSaveDraft && (
+                <button
+                  type="button"
+                  data-testid="palette-sheet-save"
+                  onClick={onSaveDraft}
+                  className="flex h-11 shrink-0 items-center justify-center rounded-sm border-2 border-primary bg-primary/10 px-3 text-xs font-semibold hover:bg-primary/20"
+                >
+                  {tBar("save")}
+                </button>
+              )}
             </div>
           )}
 
           <div className="grid grid-cols-2 gap-1.5" data-testid="palette-sheet-grid">
             {sorted.map((p) => {
-              const dim = p.designSlug !== currentDesignSlug;
-              const active = !dim && p.code === activeCode;
+            const dim = p.designSlug !== currentDesignSlug;
+            // Not `!dim && …` like the bar's chip/pill: the sheet closes
+            // on pick, so this tile never lives to show the post-nav ring —
+            // but the rule stays the same anyway (a picked dim tile IS
+            // active), so a future keep-open change can't desync it.
+            const active = p.code === activeCode;
               return (
                 <PaletteTile
                   key={p.code}
                   palette={p}
+                  // R5-TEXT-CARRY — every tile shows its own stored words.
+                  // The `active ? currentDedication` override is gone: under
+                  // exact-code identity the active tile already IS the
+                  // on-screen config, so its own words are the field's.
+                  dedication={p.snapshot.customText}
                   active={active}
                   dim={dim}
                   dimDesignName={dim ? (designLabel(p.snapshot, locale) ?? p.designSlug) : undefined}
@@ -237,6 +288,7 @@ export function PaletteSheet({
  */
 function PaletteTile({
   palette,
+  dedication,
   active,
   dim,
   dimDesignName,
@@ -248,6 +300,10 @@ function PaletteTile({
   onDelete,
 }: {
   palette: Palette;
+  /** The caller already resolved WHOSE words this is — this palette's own
+   *  stored `snapshot.customText`, or (only while `active`) the canvas's
+   *  live one. This component just renders it; it does not decide. */
+  dedication?: string;
   active: boolean;
   dim: boolean;
   /** The OTHER design's name — only meaningful (and only passed) when `dim`. */
@@ -260,6 +316,7 @@ function PaletteTile({
   onDelete?: () => void;
 }) {
   const t = useTranslations("palettes.chip");
+  const [deleteArmed, setDeleteArmed] = useState(false);
   const inputId = useId();
   const [draftName, setDraftName] = useState(palette.name);
   // Same double-commit guard as `PaletteChip` (Enter followed by a blur in
@@ -322,9 +379,7 @@ function PaletteTile({
         hasActions && "col-span-2",
         active
           ? "border-primary bg-card shadow-[0_0_0_1px_var(--ring)]"
-          : dim
-            ? "border-border/60 bg-muted/40 opacity-50"
-            : "border-border bg-card hover:border-ring"
+          : "border-border bg-card hover:border-ring"
       )}
     >
       {renaming ? (
@@ -348,18 +403,32 @@ function PaletteTile({
           ref={selectRef}
           type="button"
           onClick={onSelect}
-          disabled={dim}
+          // R5-DESIGN-SWITCH AC4: dim tiles stay tappable — the tap switches
+          // design implicitly through the same `?code=` navigation (`onPick`).
           aria-current={active ? "true" : undefined}
-          className="flex min-h-11 min-w-0 flex-1 items-center gap-2 text-left disabled:cursor-not-allowed"
+          className="flex min-h-11 min-w-0 flex-1 items-center gap-2 text-left"
         >
-          <DesignRound layers={palette.layers} className={cn("size-8", dim && "grayscale-[.3]")} />
+          <DesignRound layers={palette.layers} className="size-8" />
           <span className="min-w-0 leading-tight">
             <span className="block truncate font-medium">{palette.name}</span>
+            {/* R5-TEXT-IDENTITY (TL ruling) — the caller already resolved
+                whose words this is (this palette's own, or the canvas's
+                while active); nothing decoded from `palette.code` here. */}
+            {/* Second line: a tile for another design shows that design's
+                name first (the tap switches design too), then its own dots
+                like every other tile — no faded/unselectable state. */}
+            {dim && dimDesignName ? (
+              <span className="block truncate text-[10px] text-muted-foreground">
+                {dimDesignName}
+              </span>
+            ) : (
+              <PaletteDedicationLine text={dedication} className="max-w-none" />
+            )}
             <span className="block truncate text-[10px] text-muted-foreground">
               {/* Fix wave PR3 finding 6: was its own near-copy of `cart-line-row.tsx`'s
                   `Dots` (the mockup's `Dots(code)`) that had drifted off ADR 0008's
                   tokens-only rule — same colour swatches, now the one component. */}
-              {dim ? dimDesignName : <Dots hexes={hexes} />}
+              <Dots hexes={hexes} />
             </span>
           </span>
         </button>
@@ -378,12 +447,25 @@ function PaletteTile({
       {!renaming && onDelete && (
         <button
           type="button"
-          onClick={onDelete}
-          aria-label={t("delete")}
-          title={t("delete")}
-          className="grid size-11 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-secondary"
+          onClick={() => {
+            const next = deleteTap(deleteArmed);
+            setDeleteArmed(next.armed);
+            if (next.fire) onDelete();
+          }}
+          onBlur={() => setDeleteArmed(disarm().armed)}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") setDeleteArmed(disarm().armed);
+          }}
+          aria-label={deleteArmed ? t("confirmDelete") : t("delete")}
+          title={deleteArmed ? t("confirmDelete") : t("delete")}
+          data-testid="palette-tile-delete"
+          data-armed={deleteArmed ? "" : undefined}
+          className={cn(
+            "grid min-h-11 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-secondary",
+            deleteArmed ? "px-3 bg-destructive/10 text-destructive text-[12px] font-medium" : "size-11"
+          )}
         >
-          ✕
+          {deleteArmed ? t("confirmDelete") : "✕"}
         </button>
       )}
     </div>

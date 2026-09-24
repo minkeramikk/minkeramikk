@@ -182,6 +182,12 @@ const designSchema = z.object({
   active: z.coerce.boolean(),
   acceptsCustomNotes: z.coerce.boolean(),
   acceptsCustomText: z.coerce.boolean(),
+  // R5-TEXT-POSITION (post-review revision): all four positions — centre and
+  // back included — are opt-in per design now, none implicit any more.
+  textPositions: z.array(z.enum(["top", "bottom", "centre", "back"])),
+}).refine((d) => !d.acceptsCustomText || d.textPositions.length > 0, {
+  message: "Accepts custom text needs at least one position offered",
+  path: ["textPositions"],
 });
 
 export async function saveDesign(
@@ -209,6 +215,7 @@ export async function saveDesign(
     acceptsCustomText:
       formData.get("acceptsCustomText") === "on" ||
       formData.get("acceptsCustomText") === "true",
+    textPositions: formData.getAll("textPositions"),
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
@@ -280,6 +287,7 @@ export async function saveDesign(
     active: d.active,
     accepts_custom_notes: d.acceptsCustomNotes,
     accepts_custom_text: d.acceptsCustomText,
+    text_positions: d.textPositions,
     ...(previewPath ? { preview_image: previewPath } : {}),
   };
 

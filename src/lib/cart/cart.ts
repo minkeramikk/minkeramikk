@@ -8,6 +8,7 @@
  * (sum() refuses cross-currency by design).
  */
 import { money, multiply, sum, type Currency, type Money } from "@/lib/money/money";
+import type { TextPosition } from "@/lib/configurator/text-position";
 
 /** Human-readable summary of the configured design on a cart line. */
 export interface ConfigSnapshot {
@@ -47,6 +48,16 @@ export interface ConfigSnapshot {
    * Does NOT travel in the config code or the set= link (lean + privacy).
    */
   customText?: string;
+  /**
+   * R5-TEXT-POSITION (post-review revision) — where `customText` sits on
+   * the plate. Only ever written once the customer actually picked one from
+   * the positions THIS design offers (none is implicit any more, not even
+   * centre) — the configurator blocks moving on until they do, when a
+   * position is required. Absent on snapshots saved before this card (an
+   * old palette in localStorage, an already-placed order) — those readers
+   * still do `?? "centre"`, the one place that default survives.
+   */
+  textPosition?: TextPosition;
 }
 
 /**
@@ -306,4 +317,49 @@ export function unpaintedPieces(cart: Cart): number {
     (n, l) => n + (l.configCode === null ? (l.pieces ?? 1) * l.quantity : 0),
     0
   );
+}
+
+/**
+ * R5-UNPAINTED/R5-PALETTES — every per-row map that hangs off a cart line is
+ * keyed by that line's id, and a line id RECURS (`lineKey` above:
+ * `${productId}::${code}`, and `::unpainted`): paint a row in full and its id
+ * can be reborn as a brand-new, untouched lot of the same product. Left
+ * alone, a stale entry would hand that new lot someone else's leftover
+ * choice. ONE shared pruner for every such map, against ONE `liveIds` set.
+ *
+ * Fix round 1 (task 4): lives here, not in `basket.tsx`, because the maps no
+ * longer all live in one place — `paintN`/`rowPaletteCode` are cart state
+ * (they are a pending decision ABOUT a line, shared by every basket on
+ * screen) and are pruned in `cart-context.tsx`, while the view-only pointers
+ * stay per-`Basket` and are pruned there. Same function, two owners, never
+ * two implementations — and never two effects over the SAME map.
+ *
+ * Returns the argument unchanged when nothing was stale, so a `setState` with
+ * it is a no-op instead of a fresh object every render.
+ */
+export function pruneToLive<T>(
+  m: Record<string, T>,
+  liveIds: Set<string>
+): Record<string, T> {
+  let changed = false;
+  const next: Record<string, T> = {};
+  for (const [id, v] of Object.entries(m)) {
+    if (liveIds.has(id)) next[id] = v;
+    else changed = true;
+  }
+  return changed ? next : m;
+}
+
+/**
+ * R5-UNPAINTED task 10 — how many of a line's pieces the Paint button will
+ * move. Nothing stored yet means "all of them"; a stored number is clamped to
+ * the line's CURRENT quantity, so a value left over from before a partial
+ * paint shrank the line can never render or submit out of range.
+ *
+ * Pure and shared (fix round 1): the number itself is cart state now, read by
+ * every basket on screen, and the clamp has to be the same one on the read
+ * and on the write.
+ */
+export function clampPaintN(stored: number | undefined, quantity: number): number {
+  return Math.min(Math.max(1, stored ?? quantity), quantity);
 }

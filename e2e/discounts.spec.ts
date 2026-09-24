@@ -150,7 +150,7 @@ test("AC-SC4: the suggestion appears at the threshold, shows both prices, and ad
     await openCart(page);
     await expect(drawer(page).getByTestId("cart-suggestion")).toHaveCount(0); // one piece: below the threshold
 
-    await drawer(page).getByLabel("+").first().click(); // qty 2 → reach the threshold
+    await drawer(page).getByTestId("docked-qty-inc").first().click(); // qty 2 → reach the threshold
     const card = drawer(page).getByTestId("cart-suggestion");
     await expect(async () => {
       await page.reload();
@@ -414,7 +414,7 @@ test("AC-SC7: a fixed deal survives the tiers being switched off", async ({ page
       await page.goto(step3);
       await addFirstCeramic(page);
       await openCart(page);
-      await drawer(page).getByLabel("+").first().click(); // qty 2 → the deal's own threshold
+      await drawer(page).getByTestId("docked-qty-inc").first().click(); // qty 2 → the deal's own threshold
       const card = drawer(page).getByTestId("cart-suggestion");
       await expect(async () => {
         await page.reload();
@@ -432,8 +432,15 @@ test("AC-SC7: a fixed deal survives the tiers being switched off", async ({ page
       // claiming a line-wide percentage.
       const dealLine = drawer(page).getByTestId("cart-line").last();
       const savedBefore = await dealTotal.innerText();
-      await dealLine.getByLabel("+").click();
-      await expect(dealLine.getByTestId("cart-discount-badge")).toContainText("2");
+      await dealLine.getByTestId("docked-qty-inc").click();
+      // R5-BASKET-HOST §3-bis (b) deleted the per-row `cart-discount-badge`:
+      // the capped claim («−20% on 2 pcs» / «−20 % på 2 stk», `discount.
+      // badgeCapped`) is rendered by the expanded details panel now. Same
+      // assertion, same string — one click further in.
+      await dealLine.getByTestId("cart-expand").click();
+      await expect(
+        dealLine.getByTestId("cart-line-detail").getByTestId("cart-line-details-discount")
+      ).toContainText("2");
       await expect(dealTotal).toHaveText(savedBefore);
     } finally {
       await seeded.restore();
@@ -456,7 +463,7 @@ test("AC-SC8: the deal reaches the order — admin detail shows the discount", a
     await page.goto(step3);
     await addFirstCeramic(page);
     await openCart(page);
-    await drawer(page).getByLabel("+").first().click(); // reach the threshold
+    await drawer(page).getByTestId("docked-qty-inc").first().click(); // reach the threshold
     const card = drawer(page).getByTestId("cart-suggestion");
     await expect(async () => {
       await page.reload();

@@ -86,7 +86,8 @@ describe("message overrides", () => {
     [42, "number"],
   ])(
     "falls back to the files when a row's key is malformed (%s)",
-    async (badKey) => {
+    async (badKey: number | null, label: string) => {
+      void label;
       eq.mockResolvedValue({
         data: [{ key: badKey, value: "hacked" }],
         error: null,

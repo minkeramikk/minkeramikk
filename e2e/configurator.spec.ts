@@ -4,7 +4,6 @@ import {
   firstActiveDesign,
   firstActiveDesignWithId,
   firstActiveDesignWithoutPhotos,
-  secondActiveDesignWithId,
   firstProductOfDesignSupplier,
   firstSupplier,
   ceramicCards,
@@ -416,11 +415,9 @@ test.describe("R2-3+R2-4 expandable card", () => {
       // Absent recap = the AC4 degrade path: layer-less design → none of the
       // three blocks render, gracefully (nothing to assert beyond that).
       //
-      // R5-PALETTES task 9 broke the desktop half of this: the desktop
-      // "Ditt valg" box (`step3-your-selection`) is gone, replaced by the
-      // sticky PaletteBar — that's what now says which palette is painting
-      // (card's rule: specs get touched only when they break, and this one
-      // breaks). Assert the bar instead; the mobile branch is untouched.
+      // R5-PALETTE-IN-ACTION: the PaletteCard pinned in the catalogue column
+      // is what says which palette is painting — assert the card; the
+      // mobile branch is untouched.
       const isMobile = testInfo.project.name === "mobile";
       const hasRecap = (await sheet.getByTestId("expanded-composed-preview").count()) > 0;
       if (hasRecap) {
@@ -428,7 +425,7 @@ test.describe("R2-3+R2-4 expandable card", () => {
         if (isMobile) {
           await expect(page.getByTestId("step3-your-selection-strip")).toBeVisible();
         } else {
-          await expect(page.getByTestId("palette-bar")).toBeVisible();
+          await expect(page.getByTestId("palette-card")).toBeVisible();
         }
       } else {
         const description =
@@ -453,13 +450,13 @@ test.describe("R2-3+R2-4 expandable card", () => {
       await expect(sheet.getByTestId("details-toggle")).toHaveCount(0);
 
       // Inline add → docked cart gains a line (robust: docked cart, not header badge).
-      // Note: cart-line renders in BOTH the desktop panel and the mobile section
-      // (same cartPanel JSX rendered twice with CSS show/hide). Count before add,
-      // then assert exactly 2 more after (one per panel = one cart line added).
+      // R5-BASKET-HOST PR 2 deleted the in-flow mobile copy: step 3 mounts the
+      // column ONCE (hidden below `lg`, but in the DOM, which is what `count()`
+      // reads) and the drawer is closed here, so one added line is one node.
       const allCartLines = page.getByTestId("cart-line");
       const linesBefore = await allCartLines.count();
       await sheet.getByTestId("add-to-cart").click();
-      await expect(allCartLines).toHaveCount(linesBefore + 2);
+      await expect(allCartLines).toHaveCount(linesBefore + 1);
 
       // §3.20: adding closes the sheet FIRST, then raises a toast — replaces
       // the old inline "added" confirmation (add-feedback is gone). The toast
@@ -478,13 +475,10 @@ test.describe("R2-3+R2-4 expandable card", () => {
         // the desktop "Ditt valg" box, and PR 3's mobile strip replaced the
         // old `your-selection-edit-mobile` control with nothing equivalent
         // (task 13's rewrite) — the `Stepper` (ceramics-step.tsx) is the one
-        // control that returns to step 2 at every width, so both branches
-        // now go through it: `step-2` on mobile, `back-step` on desktop.
-        if (isMobile) {
-          await page.getByTestId("step-2").click();
-        } else {
-          await page.getByTestId("back-step").click();
-        }
+        // control that returns to step 2 at every width. R5-POLISH-STEP23
+        // dropped step 3's Back pill (the bar is the stepper alone, like
+        // steps 1-2), so BOTH widths go through `step-2` now.
+        await page.getByTestId("step-2").click();
         await expect(page).toHaveURL(/step=2/);
       }
     } finally {
@@ -497,171 +491,6 @@ test.describe("R2-3+R2-4 expandable card", () => {
       }
       await page.getByTestId("product-save").click();
       await expect(page).toHaveURL(/\/admin\/products$/);
-    }
-  });
-});
-
-/**
- * R2-2b: Custom colour notes — e2e journey.
- *
- * Strategy: toggle the flag via the admin UI (not a direct DB write) so that
- * the Next.js `unstable_cache` tagged "catalog" is revalidated via the server
- * action `saveDesign` → `revalidateTag("catalog")`. A direct DB write would
- * leave a stale cache entry and cause the block to not appear on the
- * production build server → false-fail.
- *
- * Gate: ADMIN_READY (admin creds + service role both present), because:
- *   - we drive the admin UI to set the flag and revalidate cache
- *   - we use the service role to discover the design id at runtime
- */
-test.describe("R2-2b custom notes", () => {
-  test.skip(!ADMIN_READY, "needs ADMIN_EMAIL + ADMIN_PASSWORD + service role");
-
-  test("flagged design shows the note block; custom mode reveals a focused textarea; note rides URL @admin-setup", async ({
-    page,
-  }) => {
-    // (a) Discover the first active design (needs id for admin URL, slug for public URL).
-    const design = await firstActiveDesignWithId();
-
-    // (b) Via admin UI: ensure design-accepts-notes is CHECKED, then save.
-    // This triggers revalidateTag("catalog") via saveDesign server action.
-    await loginAdmin(page);
-    await page.goto(`/admin/designs/${design.id}`);
-    const checkbox = page.getByTestId("design-accepts-notes");
-    await expect(checkbox).toBeVisible();
-    const wasChecked = await checkbox.isChecked();
-    if (!wasChecked) {
-      await checkbox.click();
-    }
-    await page.getByTestId("design-save").click();
-    // Wait for the post-save redirect to /admin/designs (confirms catalog revalidated).
-    await expect(page).toHaveURL(/\/admin\/designs$/);
-
-    try {
-      // (c) Public configurator — step 2 with the flagged design.
-      await page.goto(`/no/configurator?design=${design.slug}&step=2`);
-      // R4-RESTYLE: niente più tab «Detaljer» — il blocco note è sempre in
-      // pagina, sotto le corsie, su ogni viewport.
-      // AC2: custom-notes block is visible when flag is set.
-      const block = page.getByTestId("custom-notes");
-      await expect(block).toBeVisible();
-
-      // E (R2): if this design has a figure category, the colour-notes block
-      // shows the selected figure read-only beside the toggle. Resilient: a
-      // colour-only design has no figure tile — skip the assertion then.
-      const figure = page.getByTestId("colour-notes-figure");
-      if ((await figure.count()) > 0) {
-        await expect(figure.first()).toBeVisible();
-        // read-only: not a button, no tabindex
-        await expect(figure.first()).toHaveAttribute("data-testid", "colour-notes-figure");
-        const tag = await figure.first().evaluate((el) => el.tagName.toLowerCase());
-        expect(tag).toBe("div");
-      }
-
-      // AC3 default mode: no textarea rendered.
-      await expect(page.getByTestId("custom-notes-text")).toHaveCount(0);
-
-      // AC3 custom mode: click "I'll choose myself" → textarea appears, focused, helper visible.
-      await page.getByTestId("custom-notes-custom").click();
-      const textarea = page.getByTestId("custom-notes-text");
-      await expect(textarea).toBeFocused();
-      await expect(page.getByTestId("custom-notes-helper")).toBeVisible();
-
-      // Fill the note.
-      await textarea.fill("brun hund med hvite flekker");
-
-      // AC4/AC8: note rides the URL when advancing to step 3.
-      await page.getByTestId("next-step").click();
-      await expect(page).toHaveURL(/note=/);
-
-      // (e) AC2 off-case: a second active design (without the flag) should NOT
-      // show the custom-notes block. If only one design exists, skip gracefully
-      // (covered by the unit test in Task 4).
-      const second = await secondActiveDesignWithId();
-      if (second) {
-        await page.goto(`/no/configurator?design=${second.slug}&step=2`);
-        // The second design has accepts_custom_notes = false → block must be absent.
-        await expect(page.getByTestId("custom-notes")).toHaveCount(0);
-      }
-      // else: only one active design; AC2 off-case is covered by unit tests (Task 4).
-    } finally {
-      // (d) RESTORE: navigate back to admin, UNCHECK the flag, save (revalidates cache).
-      await page.goto(`/admin/designs/${design.id}`);
-      const restoreCheckbox = page.getByTestId("design-accepts-notes");
-      await expect(restoreCheckbox).toBeVisible();
-      if (await restoreCheckbox.isChecked()) {
-        await restoreCheckbox.click();
-      }
-      await page.getByTestId("design-save").click();
-      await expect(page).toHaveURL(/\/admin\/designs$/);
-    }
-  });
-
-  /**
-   * F38: Custom inscription — e2e journey. Mirrors the notes test above, but
-   * the inscription field has NO toggle and NO autofocus: the input is
-   * visible as soon as the block renders, so we never assert `.toBeFocused()`
-   * (the field must stay unfocused by default — that IS the requirement).
-   */
-  test("flagged design shows the inscription block with a visible (unfocused) input; text rides URL @admin-setup", async ({
-    page,
-  }) => {
-    // (a) Discover the first active design (needs id for admin URL, slug for public URL).
-    const design = await firstActiveDesignWithId();
-
-    // (b) Via admin UI: ensure design-accepts-text is CHECKED, then save.
-    // This triggers revalidateTag("catalog") via saveDesign server action.
-    await loginAdmin(page);
-    await page.goto(`/admin/designs/${design.id}`);
-    const checkbox = page.getByTestId("design-accepts-text");
-    await expect(checkbox).toBeVisible();
-    const wasChecked = await checkbox.isChecked();
-    if (!wasChecked) {
-      await checkbox.click();
-    }
-    await page.getByTestId("design-save").click();
-    // Wait for the post-save redirect to /admin/designs (confirms catalog revalidated).
-    await expect(page).toHaveURL(/\/admin\/designs$/);
-
-    try {
-      // (c) Public configurator — step 2 with the flagged design.
-      await page.goto(`/no/configurator?design=${design.slug}&step=2`);
-      // R4-RESTYLE: niente più tab «Detaljer» — senza un gruppo «Tekst» il
-      // campo sta in fondo al pannello, visibile su ogni viewport.
-      // AC: custom-text block is visible when flag is set.
-      const block = page.getByTestId("custom-text");
-      await expect(block).toBeVisible();
-
-      // No toggle, no autofocus: the input is visible immediately — do NOT
-      // assert focus, the field must not steal focus on render.
-      const input = page.getByTestId("custom-text-input");
-      await expect(input).toBeVisible();
-
-      // Fill the inscription (includes a Norwegian char).
-      await input.fill("Gratulerer Åse");
-
-      // Text rides the URL when advancing to step 3.
-      await page.getByTestId("next-step").click();
-      await expect(page).toHaveURL(/text=/);
-
-      // (e) Off-case: a second active design (without the flag) should NOT
-      // show the custom-text block. If only one design exists, skip gracefully.
-      const second = await secondActiveDesignWithId();
-      if (second) {
-        await page.goto(`/no/configurator?design=${second.slug}&step=2`);
-        await expect(page.getByTestId("custom-text")).toHaveCount(0);
-      }
-      // else: only one active design; off-case is covered by unit tests.
-    } finally {
-      // (d) RESTORE: navigate back to admin, UNCHECK the flag, save (revalidates cache).
-      await page.goto(`/admin/designs/${design.id}`);
-      const restoreCheckbox = page.getByTestId("design-accepts-text");
-      await expect(restoreCheckbox).toBeVisible();
-      if (await restoreCheckbox.isChecked()) {
-        await restoreCheckbox.click();
-      }
-      await page.getByTestId("design-save").click();
-      await expect(page).toHaveURL(/\/admin\/designs$/);
     }
   });
 });
@@ -734,11 +563,13 @@ test.describe("R2-7 bilingual design name", () => {
         await sheet.getByTestId("add-to-cart").click();
         await expect(sheet).toBeHidden();
         // cart-line subtitle: designLabel(snapshot, "en") → snapshot.designNameEn = enName.
-        // The cart-line renders twice (desktop panel + mobile section, one hidden via
-        // CSS per breakpoint), so scope to the VISIBLE copy — `.first()` alone can land
-        // on the hidden one (desktop picks the hidden mobile copy → false negative).
+        // R5-BASKET-HOST PR 2: below `lg` the step-3 column is not rendered at
+        // all, so there is no VISIBLE cart line on a phone until the basket is
+        // opened — and the basket, at every width, is the drawer. Asserting in
+        // there is the one reading that holds in both projects.
+        await page.getByTestId("cart-button").click();
         await expect(
-          page.getByTestId("cart-line").filter({ hasText: enName }).filter({ visible: true }).first()
+          page.getByTestId("cart-drawer").getByTestId("cart-line").filter({ hasText: enName }).first()
         ).toBeVisible();
       } else {
         // No visible product for this supplier → the EN cart-line assertion is

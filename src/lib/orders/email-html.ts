@@ -8,13 +8,14 @@
  * builder returns BOTH `text` (the plain fallback, unchanged from F05) and
  * `html`, so the message is sent multipart.
  */
-import { formatMoney, money, subtract, sum, type Currency } from "@/lib/money/money";
-import { shippingStatus } from "@/lib/cart/shipping";
+import { add, formatMoney, money, subtract, sum, type Currency } from "@/lib/money/money";
+import { shippingFor } from "@/lib/cart/shipping";
 import { assetUrl } from "@/lib/storage";
 import { hasVippsDetails, type VippsSettings } from "./vipps";
 import { displayName } from "./customer-name";
 import { JOURNEY_STEPS } from "./order-journey";
 import type { ThemeTokens } from "@/lib/theme";
+import type { TextPosition } from "@/lib/configurator/text-position";
 
 export interface MailItem {
   productName: string;
@@ -26,6 +27,10 @@ export interface MailItem {
   customNote?: string;
   /** F38: customer inscription on the ceramic. Rendered escaped, only when non-empty. */
   customText?: string;
+  /** R5-TEXT-POSITION AC4: where the inscription sits. Rendered as a suffix
+   *  after `customText` only when it isn't `centre` — that's already the
+   *  default and needs no callout (0.1-9). */
+  textPosition?: TextPosition;
   /** R4-SCONTI: the discount FROZEN on the order line (ADR 0022). Absent on a
    *  full-price line and on every order created before the card. */
   discountPct?: number;
@@ -50,9 +55,13 @@ const lineNet = (i: MailItem) =>
   money(i.unitPriceCents * i.quantity - (i.discountCents ?? 0), i.currency as Currency);
 
 /**
- * R4-SCONTI: `total`/`totalMoney` are the NET total (subtotal − discount), not
- * the gross — the cart's shipping threshold reads the net (D5) and the email
- * must agree with it (`shippingStatus(totalMoney)` below).
+ * R4-SCONTI: `netMoney` is the NET total (subtotal − discount), not the gross
+ * — the cart's shipping threshold reads the net (D5).
+ *
+ * R5-GARANZIA: shipping is a flat, known fee below the threshold (`shippingFor`)
+ * — never "to be confirmed" any more. `total`/`totalMoney` are the GRAND total
+ * (net + shipping): the one figure that must agree with the cart, the takk
+ * page and the customer PDF (0.1-1).
  */
 function totals(items: MailItem[], locale: "no" | "en") {
   const currency = (items[0]?.currency ?? "NOK") as Currency;
@@ -72,8 +81,17 @@ function totals(items: MailItem[], locale: "no" | "en") {
     items.reduce((n, i) => n + (i.discountCents ?? 0), 0),
     currency
   );
-  const totalMoney = subtract(subtotal, discount);
-  return { lines, subtotal, discount, total: formatMoney(totalMoney, locale), totalMoney };
+  const netMoney = subtract(subtotal, discount);
+  const shipping = shippingFor(netMoney);
+  const totalMoney = add(netMoney, shipping);
+  return {
+    lines,
+    subtotal,
+    discount,
+    shipping,
+    total: formatMoney(totalMoney, locale),
+    totalMoney,
+  };
 }
 
 /**
@@ -143,6 +161,7 @@ export function shell(
 function itemsTable(items: MailItem[], theme: ThemeTokens, locale: "no" | "en") {
   const noteLabel = COPY[locale].noteLabel;
   const textLabel = COPY[locale].textLabel;
+  const positionLabels = COPY[locale].positionLabels;
   const rows = items
     .map(
       (i) => `<tr>
@@ -161,7 +180,11 @@ function itemsTable(items: MailItem[], theme: ThemeTokens, locale: "no" | "en") 
           i.customText
             ? `<br><span style="font-size:12px;font-weight:600;opacity:.85;">${esc(
                 textLabel
-              )}: «${esc(i.customText)}»</span>`
+              )}: «${esc(i.customText)}»${
+                i.textPosition && i.textPosition !== "centre"
+                  ? ` · ${esc(positionLabels[i.textPosition])}`
+                  : ""
+              }</span>`
             : ""
         }</td>
       <td style="padding:8px 0;border-bottom:1px solid ${esc(
@@ -382,14 +405,22 @@ const COPY = {
     totalLabel: "Totalt",
     // R3-B4 · TODO:alessio-review — provisional wording, same source as cart.insurance.*
     shippingLabel: "Frakt med forsikring",
+    // R5-GARANZIA: shipping is now a flat, known fee — the value printed is
+    // either this ("Inkludert") or the formatted `shippingCost`, never a
+    // "to be confirmed" placeholder any more.
     shippingIncluded: "Inkludert",
-    shippingToBeConfirmed: "Beregnes",
     discountLabel: "Mengderabatt", // TODO:nb-review
     // R4-SCONTI · same sentence as cart.discount.note
     indicative:
       "Rabatten er veiledende — vi bekrefter endelig pris sammen med bestillingen.", // TODO:nb-review
     noteLabel: "Din beskjed til verkstedet", // TODO:nb-review
     textLabel: "Tekst på keramikken", // TODO:nb-review
+    // R5-TEXT-POSITION AC4: same words as the already-approved
+    // `cart.textPosition.*` keys (configurator-client.tsx), not a new set.
+    positionLabels: { top: "Topp", bottom: "Bunn", back: "Bakside" } as Record<
+      Exclude<TextPosition, "centre">,
+      string
+    >,
     legalIntro:
       "For mer om salgsvilkår og personvern — inkludert hvordan vi behandler personopplysninger — se våre",
     legalTerms: "salgsvilkår",
@@ -418,13 +449,16 @@ const COPY = {
     totalLabel: "Total",
     shippingLabel: "Insured shipping",
     shippingIncluded: "Included",
-    shippingToBeConfirmed: "To be confirmed",
     discountLabel: "Quantity discount",
     // R4-SCONTI · same sentence as cart.discount.note
     indicative:
       "Discounts shown are indicative — we confirm the final price with your order.",
     noteLabel: "Your note to the workshop",
     textLabel: "Inscription on the ceramic",
+    positionLabels: { top: "Top", bottom: "Bottom", back: "Back" } as Record<
+      Exclude<TextPosition, "centre">,
+      string
+    >,
     legalIntro:
       "For more on our sales terms and privacy — including how we handle your personal data — see our",
     legalTerms: "Terms of Sale",
@@ -605,14 +639,13 @@ export function customerEmail(params: {
         c.legalPrivacy
       )}</a>.</div>`
     : undefined;
-  const { lines, total, totalMoney, discount } = totals(params.items, params.locale);
+  const { lines, total, discount, shipping } = totals(params.items, params.locale);
   const discounted = discount.amountCents > 0;
-  // R3-B4/R4-SCONTI: the shipping entry travels in the recap too — textual
-  // status only, no new arithmetic (the shop confirms the shipping cost by
-  // hand). `totalMoney` is the NET total (D5), so this agrees with the cart.
-  const shippingValue = shippingStatus(totalMoney).included
-    ? c.shippingIncluded
-    : c.shippingToBeConfirmed;
+  // R5-GARANZIA: the shipping entry is the same flat fee the cart shows
+  // (`shippingFor` on the NET total, D5) — "Inkludert" only at/above the
+  // threshold, the formatted fee otherwise.
+  const shippingValue =
+    shipping.amountCents === 0 ? c.shippingIncluded : formatMoney(shipping, params.locale);
   const text =
     `${c.greeting(name)}\n${c.introLead}\n\n${c.thanks} ${c.codeLabel}: ${params.code}.\n` +
     (vipps ? paymentText(vipps, params.code, c, total) : "") +
@@ -696,9 +729,13 @@ export function adminEmail(params: {
   /** Absolute site origin (siteUrl()): enables the header logo. */
   baseUrl?: string;
 }): RenderedEmail {
-  const { lines, total } = totals(params.items, "en");
+  const { lines, total, shipping } = totals(params.items, "en");
+  // R5-GARANZIA AC2: the shop sees the same fee and the same grand total the
+  // customer mail and PDF show — never a divergent number.
+  const shippingLine =
+    shipping.amountCents === 0 ? "Included" : formatMoney(shipping, "en");
   const text =
-    `Order ${params.code} from ${params.customerName} <${params.customerEmail}>\n\n${lines}\n\nTotal: ${total}` +
+    `Order ${params.code} from ${params.customerName} <${params.customerEmail}>\n\n${lines}\n\nShipping: ${shippingLine}\nTotal: ${total}` +
     (params.replicaUrl ? `\n\nReplica set: ${params.replicaUrl}` : "");
   const replicaBtn = params.replicaUrl
     ? `<div style="margin:18px 0 4px;"><a href="${esc(
@@ -714,7 +751,8 @@ export function adminEmail(params: {
       params.theme.accent
     )};">${esc(params.customerEmail)}</a>&gt;</p>
     ${itemsTable(params.items, params.theme, "en")}
-    <p style="margin:8px 0 0;font-weight:bold;">Total: ${esc(total)}</p>
+    <p style="margin:8px 0 0;">Shipping: ${esc(shippingLine)}</p>
+    <p style="margin:2px 0 0;font-weight:bold;">Total: ${esc(total)}</p>
     ${replicaBtn}`;
   return {
     subject: `New order ${params.code} (${params.customerName})`,

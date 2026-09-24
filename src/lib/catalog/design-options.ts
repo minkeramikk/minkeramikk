@@ -78,6 +78,12 @@ export interface DesignDetail {
   acceptsCustomNotes: boolean;
   /** F38: shop opted this design into a customer inscription (step-2 field). */
   acceptsCustomText: boolean;
+  /**
+   * R5-TEXT-POSITION (post-review revision): which of the four positions —
+   * centre and back included, none implicit any more — this design offers.
+   * Read straight from `designs.text_positions`.
+   */
+  textPositions: string[];
   descriptionStep2No: string | null;
   descriptionStep2En: string | null;
   images: string[]; // F36: gallery Storage paths, ordered by sort_order
@@ -138,7 +144,7 @@ async function loadDesignDetail(slug: string): Promise<DesignDetail | null> {
     const { data: design, error: designErr } = await supabase
       .from("designs")
       .select(
-        "id, slug, code, name, name_no, name_en, accepts_custom_notes, accepts_custom_text, description_step2_no, description_step2_en"
+        "id, slug, code, name, name_no, name_en, accepts_custom_notes, accepts_custom_text, text_positions, description_step2_no, description_step2_en"
       )
       .eq("slug", slug)
       .maybeSingle();
@@ -177,6 +183,7 @@ async function loadDesignDetail(slug: string): Promise<DesignDetail | null> {
     nameEn: design.name_en,
     acceptsCustomNotes: design.accepts_custom_notes ?? false,
     acceptsCustomText: design.accepts_custom_text ?? false,
+    textPositions: design.text_positions ?? [],
     descriptionStep2No: design.description_step2_no,
     descriptionStep2En: design.description_step2_en,
     images: (imgRows ?? []).map((r) => r.image),

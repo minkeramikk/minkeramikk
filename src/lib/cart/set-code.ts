@@ -17,7 +17,16 @@
  * Decode is defensive and never throws: malformed rows are dropped (counted),
  * qty is clamped to 1–99, rows beyond the cap are dropped. A dropped row
  * degrades to a warning at the landing; the rest of the set survives.
+ *
+ * R5-TEXT-IDENTITY (task 3, card §2 AC 3): a shared kit carries the COLOURS
+ * of a line, never the customer's inscription/colour-wish (that segment is
+ * identity for THIS customer's cart, not something to hand to whoever opens
+ * the link). `encodeSetParam` strips it via `stripCustomSegment` below — no
+ * catalog lookup needed, see that function's doc comment for why.
  */
+
+import { CODE_PREFIX, normalizeConfigCode } from "@/lib/configurator/config-code";
+import { decodeTextSegment } from "@/lib/configurator/text-segment";
 
 export interface SetEntry {
   configCode: string;
@@ -50,14 +59,104 @@ export function clampQty(qty: number): number {
 }
 
 /**
+ * Reads a `selections`-array length off ANY snapshot-shaped value, safely —
+ * `ConfigSnapshot` (cart.ts), `OrderConfigSnapshot` (admin-orders.ts), and
+ * the zod `.passthrough()` shape reaching `PaintedOrderItem.configSnapshot`
+ * (email.ts) all carry a `selections` field, but only the first two are
+ * statically typed as an array; the passthrough one is `unknown` by
+ * construction. One safe reader, used by every call site, rather than each
+ * one re-deriving its own cast. `undefined` when there's nothing usable
+ * (no snapshot, no array) — the caller then can't strip safely.
+ */
+export function selectionCountOf(snapshot: unknown): number | undefined {
+  const selections = (snapshot as { selections?: unknown } | null | undefined)
+    ?.selections;
+  return Array.isArray(selections) ? selections.length : undefined;
+}
+
+/**
+ * The colours-only version of `code`, given how many colour segments it
+ * has — NOT via a catalog lookup. `selectionCount` is
+ * `configSnapshot.selections.length` for this exact line: `selections` is
+ * built in `buildConfigLinePayload` as `detail.categories.map(...)` — one
+ * entry per category, in the same walk `encodeConfigCode` uses to emit one
+ * segment per category — so it travels WITH the line (client, server,
+ * order item, everywhere) and needs no design resolver to read.
+ *
+ * A first version of this tried a catalog-free heuristic instead: decode
+ * just the LAST dash-separated part with `decodeTextSegment` and drop it if
+ * it "looks like" a text segment. Rejected — it isn't rare-edge-case wrong,
+ * it's roughly-coin-flip wrong: a genuine 2-character colour option code
+ * (normal once a category passes 31 options, see `assign-codes.ts`'s
+ * `nextCode` fallback — and already the shape of several fixtures in this
+ * very test file) has close to a 50% chance of LOOKING like a valid
+ * non-empty text segment by pure alphabet-index coincidence, because
+ * `decodeTextSegment`'s "flags" byte is just the option code's own first
+ * character reinterpreted. There is no way to know where colour segments
+ * end without knowing the design's category count — that's exactly why
+ * `decodeConfigCode` (task 2) takes a design resolver in the first place.
+ *
+ * Belt and braces for a STALE count (a line saved before a category was
+ * added to its design, so `selectionCount` is now one short of the real
+ * `cats.length`): the part right past where colours are expected to end is
+ * dropped ONLY when `decodeTextSegment` says it decodes to real content
+ * (non-empty text and/or a wish hash). A `null`/empty result is treated as
+ * "not confidently an inscription" and the code is left untouched —
+ * keeping a stray inscription by mistake is a privacy annoyance; dropping
+ * a real colour segment by mistake silently repaints someone's kit wrong,
+ * which is worse.
+ *
+ * `decodeTextSegment` itself later grew a 2-char checksum (ADR 0011
+ * amendment, final-review round 2) specifically because this exact
+ * ambiguity showed up again, independently, in `config-code.ts`'s own
+ * decode (a design LOSING a category, not gaining one) — measured at the
+ * time as a ~25% false-positive rate for real 2-3 character option codes,
+ * not the "coin flip" figure above (that number was for the ORIGINAL,
+ * pre-checksum codec this file was rejecting a heuristic against). The
+ * checksum lowers the residual risk here too, but this file's own
+ * `selectionCount`-based approach stays the primary defence: a stale count
+ * is still exactly the scenario where relying on chance ALONE — even much
+ * better chance — is the wrong instinct.
+ *
+ * Exported: the card §3 "Save as palette" guard (`configurator-client.tsx`)
+ * reuses this SAME function to compare a draft's colours against saved
+ * palettes, ignoring any inscription — one strip implementation, not two
+ * competing ideas of where the colours end.
+ */
+export function stripCustomSegment(code: string, selectionCount?: number): string {
+  if (selectionCount === undefined) return code;
+  const parts = normalizeConfigCode(code).split("-");
+  const prefixLen = parts[0] === CODE_PREFIX ? 1 : 0;
+  const expectedLen = prefixLen + 1 + selectionCount; // prefix? + design + N colour segments
+  if (parts.length <= expectedLen) return code; // nothing past the colours to strip
+
+  const decoded = decodeTextSegment(parts[expectedLen]);
+  const hasContent = !!(decoded && (decoded.text || decoded.noteHash));
+  if (!hasContent) return code; // not confidently an inscription — never guess
+
+  return parts.slice(0, expectedLen).join("-");
+}
+
+/**
  * Encode cart lines into the `set=` param value. Lines without a usable
  * configCode or productSlug are skipped (legacy localStorage rows — the share
  * UI surfaces a "not shareable" notice with the skipped count) — the same
  * `.filter()` below also drops an unpainted line (R5-UNPAINTED: configCode is
  * `null`, falsy), since a link with no design to reopen isn't shareable either.
+ *
+ * `selectionCount` (R5-TEXT-IDENTITY task 3) lets the caller strip a line's
+ * inscription/colour-wish segment before it enters the link — pass
+ * `selectionCountOf(line.configSnapshot)`. Omitted → that line's code
+ * travels exactly as given (today's behaviour), so a caller that genuinely
+ * has no snapshot to read degrades safely instead of guessing.
  */
 export function encodeSetParam(
-  lines: { configCode: string | null; productSlug?: string; quantity: number }[]
+  lines: {
+    configCode: string | null;
+    productSlug?: string;
+    quantity: number;
+    selectionCount?: number;
+  }[]
 ): string {
   return lines
     .filter(
@@ -67,12 +166,13 @@ export function encodeSetParam(
         l.productSlug &&
         SLUG_RE.test(l.productSlug)
     )
-    .map(
-      (l) =>
-        `${l.configCode}${SET_FIELD_SEP}${l.productSlug}${SET_FIELD_SEP}${clampQty(
-          l.quantity
-        )}`
-    )
+    .map((l) => {
+      // non-null: the filter above already required a truthy configCode
+      const code = stripCustomSegment(l.configCode as string, l.selectionCount);
+      return `${code}${SET_FIELD_SEP}${l.productSlug}${SET_FIELD_SEP}${clampQty(
+        l.quantity
+      )}`;
+    })
     .join(SET_ROW_SEP);
 }
 

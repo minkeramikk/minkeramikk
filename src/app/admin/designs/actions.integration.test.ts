@@ -51,7 +51,7 @@ import { deleteOptions } from "./options-actions";
 const isRedirect = (e: unknown): boolean =>
   e instanceof Error &&
   typeof (e as { digest?: string }).digest === "string" &&
-  (e as { digest: string }).digest.startsWith("NEXT_REDIRECT");
+  (e as unknown as { digest: string }).digest.startsWith("NEXT_REDIRECT");
 
 function fd(obj: Record<string, string>): FormData {
   const f = new FormData();
@@ -579,5 +579,67 @@ describe.skipIf(!hasEnv)("Bug 6 — deleteOptions (integration)", () => {
       .toMatch(/invalid selection/i);
     expect((await deleteOptions({ error: null }, fd({ designId, categoryId: catA, ids: "not json" }))).error)
       .toMatch(/invalid selection/i);
+  });
+});
+
+/** R5-TEXT-POSITION — saveDesign persists designs.text_positions (0042). */
+describe.skipIf(!hasEnv)("R5-TEXT-POSITION — text_positions (integration)", () => {
+  let db: SupabaseClient;
+  let supplierId: string;
+  let designId: string;
+
+  beforeAll(async () => {
+    db = createSb(url!, serviceKey!, { auth: { persistSession: false } });
+    mockDb.client = db;
+    const ts = Date.now();
+    supplierId = (
+      await db.from("suppliers").insert({ name: `TextPos ${ts}` }).select("id").single()
+    ).data!.id;
+    designId = (
+      await db
+        .from("designs")
+        .insert({
+          name: `TextPos ${ts}`,
+          name_no: "TP",
+          name_en: "TP",
+          slug: `textpos-${ts}`,
+          supplier_id: supplierId,
+        })
+        .select("id")
+        .single()
+    ).data!.id;
+  });
+
+  afterAll(async () => {
+    await db.from("designs").delete().eq("id", designId);
+    await db.from("suppliers").delete().eq("id", supplierId);
+  });
+
+  it("saves [\"top\"] and rereads it back from the row", async () => {
+    const formData = fd({
+      id: designId,
+      nameNo: "TP",
+      nameEn: "TP",
+      supplierId,
+      sortOrder: "0",
+      active: "false",
+    });
+    formData.append("textPositions", "top");
+
+    let redirected = false;
+    try {
+      await saveDesign({ error: null }, formData);
+    } catch (e) {
+      if (!isRedirect(e)) throw e;
+      redirected = true;
+    }
+    expect(redirected).toBe(true);
+
+    const { data } = await db
+      .from("designs")
+      .select("text_positions")
+      .eq("id", designId)
+      .single();
+    expect(data!.text_positions).toEqual(["top"]);
   });
 });

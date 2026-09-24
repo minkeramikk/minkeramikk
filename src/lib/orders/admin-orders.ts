@@ -3,18 +3,20 @@
  * and no server imports, so it is fully unit-testable. The server fetchers live
  * in `admin-orders.server.ts`; the UI imports both.
  */
-import { money, multiply, subtract, sum, type Currency, type Money } from "@/lib/money/money";
+import { add, money, multiply, subtract, sum, type Currency, type Money } from "@/lib/money/money";
+import { shippingFor } from "@/lib/cart/shipping";
 import {
   decodeConfigCode,
   normalizeConfigCode,
   type CodecDesign,
 } from "@/lib/configurator/config-code";
-import { encodeSetParam, SET_ROW_SEP } from "@/lib/cart/set-code";
+import { encodeSetParam, selectionCountOf, SET_ROW_SEP } from "@/lib/cart/set-code";
 import {
   isOpenStatus,
   isOrderStatus,
   type OrderStatus,
 } from "./order-status";
+import type { TextPosition } from "@/lib/configurator/text-position";
 
 /** Human-readable configuration summary stored on the line (F03 snapshot). */
 export interface OrderConfigSnapshot {
@@ -27,6 +29,8 @@ export interface OrderConfigSnapshot {
   customNote?: string;
   /** F38 — customer inscription; see ConfigSnapshot.customText. */
   customText?: string;
+  /** R5-TEXT-POSITION — where `customText` sits; see ConfigSnapshot.textPosition. */
+  textPosition?: TextPosition;
 }
 
 export interface AdminOrderItem {
@@ -205,10 +209,21 @@ export function orderDiscount(items: AdminOrderItem[]): Money {
   return sum(items.map((i) => money(i.discountCents, currency)), currency);
 }
 
-/** What the shop actually gets: subtotal − discount. Every existing caller
- *  (detail total, list column, "open orders value" KPI) wants this one. */
-export function orderTotal(items: AdminOrderItem[]): Money {
+/** Net of a set of lines: subtotal − discount, no shipping. Shipping is an
+ *  order-level charge, not a per-line one — use this for a single line's
+ *  own amount (e.g. one row of the order detail table). */
+export function lineNet(items: AdminOrderItem[]): Money {
   return subtract(orderSubtotal(items), orderDiscount(items));
+}
+
+/** What the shop actually gets, shipping included: subtotal − discount +
+ *  shipping. Every existing caller (detail total, list column, "open orders
+ *  value" KPI) wants this one.
+ *  // ponytail: shipping recomputed from today's env — a future threshold
+ *  // change rewrites past orders' totals in admin; add orders.shipping_cents
+ *  // when that day comes */
+export function orderTotal(items: AdminOrderItem[]): Money {
+  return add(lineNet(items), shippingFor(lineNet(items)));
 }
 
 export interface OrderKpis {
@@ -297,13 +312,18 @@ export interface ReplicaSet {
  *  reuses the share-set encoder, which shape-validates the config code + slug
  *  and clamps qty to 1–99. Lines without a usable code or slug (legacy orders,
  *  vanished products) are dropped and counted in `skipped` — degrade, never
- *  fail, exactly like the public share-set. */
+ *  fail, exactly like the public share-set.
+ *
+ *  R5-TEXT-IDENTITY task 3: selectionCountOf(item.configSnapshot) strips each
+ *  line's inscription/colour-wish segment before it enters the replica link —
+ *  still no catalog lookup, `buildReplicaSet` stays pure. */
 export function buildReplicaSet(order: AdminOrder): ReplicaSet {
   const param = encodeSetParam(
     order.items.map((i) => ({
       configCode: i.configCode ?? "",
       productSlug: i.productSlug ?? undefined,
       quantity: i.quantity,
+      selectionCount: selectionCountOf(i.configSnapshot),
     }))
   );
   const included = param ? param.split(SET_ROW_SEP).length : 0;

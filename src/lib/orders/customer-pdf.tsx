@@ -2,6 +2,30 @@ import "server-only";
 
 import { Document, Page, View, Text, Image, Link, StyleSheet } from "@react-pdf/renderer";
 import type { CustomerPdfDoc } from "./customer-pdf-content";
+import type { TextPosition } from "@/lib/configurator/text-position";
+
+/**
+ * R5-TEXT-POSITION AC4: the position's own name + a short clarification of
+ * what it means on the plate, one pair per non-centre position. `centre` is
+ * never looked up here — `customer-pdf.tsx` only renders this line when the
+ * block's `textPosition !== "centre"` (0.1-9): the customer already sees the
+ * word in the middle of the plate, no line needed to say so.
+ *
+ * TODO:nb-review — the NO wording below (name matches the already-approved
+ * `cart.textPosition.*` keys; the clarifications are new and unreviewed).
+ */
+const POSITION_COPY: Record<"no" | "en", Record<Exclude<TextPosition, "centre">, [string, string]>> = {
+  no: {
+    top: ["Topp", "buet langs den øvre ringen"],
+    bottom: ["Bunn", "buet langs den nedre ringen, speilvendt"],
+    back: ["Bakside", "vises ikke i forhåndsvisningen"],
+  },
+  en: {
+    top: ["Top", "arced along the upper ring, as previewed"],
+    bottom: ["Bottom", "arced along the lower ring, mirrored"],
+    back: ["Back", "not shown in the preview"],
+  },
+};
 
 /**
  * R4-PDF-CLIENTE — il riepilogo per il CLIENTE: A4, layout PROPRIO.
@@ -74,6 +98,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 9,
   },
   noteText: { fontSize: 9.5 },
+  noteTextMuted: { fontSize: 9.5, color: THEME.muted },
 
   table: { marginTop: 16, borderTopWidth: 1, borderTopColor: THEME.border },
   tr: {
@@ -96,7 +121,6 @@ const s = StyleSheet.create({
   grand: { fontSize: 13, fontFamily: "Helvetica-Bold", width: 84, textAlign: "right" },
   vatLabel: { fontSize: 8.5, color: THEME.muted },
   vatValue: { fontSize: 8.5, color: THEME.muted, width: 84, textAlign: "right" },
-  shipping: { fontSize: 8.5, color: THEME.muted, marginTop: 3 },
 
   pay: {
     marginTop: 18,
@@ -213,6 +237,19 @@ export function CustomerPdfDocument({
                 <View style={s.note} wrap={false}>
                   <Text style={s.sectionLabel}>{t.inscription}</Text>
                   <Text style={s.noteText}>«{block.customText}»</Text>
+                  {/* R5-TEXT-POSITION AC4: only when it isn't centre (0.1-9) —
+                      centre is already obvious from the plate itself. */}
+                  {block.textPosition && block.textPosition !== "centre" && (
+                    <Text style={s.noteText}>
+                      {t.position}:{" "}
+                      <Text style={{ fontFamily: "Helvetica-Bold" }}>
+                        {POSITION_COPY[doc.locale][block.textPosition][0]}
+                      </Text>{" "}
+                      <Text style={s.noteTextMuted}>
+                        ({POSITION_COPY[doc.locale][block.textPosition][1]})
+                      </Text>
+                    </Text>
+                  )}
                 </View>
               )}
               {block.customNote && (
@@ -257,6 +294,13 @@ export function CustomerPdfDocument({
                 <Text style={s.totalValue}>-{doc.discount}</Text>
               </View>
             )}
+            {/* R5-GARANZIA: fra lo sconto e il Totale — il Totale la contiene
+                già (`doc.total` è il GRAND total), quindi questa riga è la
+                sola spiegazione di quel che ci è dentro. */}
+            <View style={s.totalRow}>
+              <Text style={s.totalLabel}>{t.shipping}</Text>
+              <Text style={s.totalValue}>{doc.shipping}</Text>
+            </View>
             <View style={s.totalRow}>
               <Text style={s.totalLabel}>{t.total}</Text>
               <Text style={s.grand}>{doc.total}</Text>
@@ -271,9 +315,6 @@ export function CustomerPdfDocument({
                 <Text style={s.vatValue}>{doc.vatIncluded}</Text>
               </View>
             )}
-            <Text style={s.shipping}>
-              {doc.shippingIncluded ? t.shippingIncluded : t.shippingToBeConfirmed}
-            </Text>
           </View>
 
           {/* Il blocco pagamento. Gerarchia INVERSA a quella della mail

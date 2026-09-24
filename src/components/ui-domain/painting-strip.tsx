@@ -2,8 +2,10 @@
 
 import { useTranslations } from "next-intl";
 import { DesignRound } from "@/components/ui-domain/design-round";
+import { PaletteDedicationLine } from "@/components/ui-domain/palette-chip";
 import { PaletteSheet } from "@/components/ui-domain/palette-sheet";
 import type { CartLayer } from "@/lib/cart/cart";
+import type { TextPosition } from "@/lib/configurator/text-position";
 import type { Palette } from "@/lib/palettes/palettes";
 import { cn } from "@/lib/utils";
 
@@ -33,6 +35,19 @@ export interface PaintingStripProps {
    *  extraction removes. Also doubles as the sheet's `draftName`/
    *  `draftLayers` (below) — same reuse rule, one value in, not two. */
   paintingLabel: string;
+  /**
+   * R5-TEXT-CARRY — the CURRENT field value: this strip describes the
+   * canvas, so this is never a saved match's own stored words. (Under
+   * exact-code identity it couldn't be anyway: when a match IS showing,
+   * the field holds that same palette's words — the decode effect re-seeds
+   * it from the recalled code.) Forwarded to the sheet as
+   * `currentDedication` (below) — same reuse as `paintingLabel`/`draftName`,
+   * renamed there because the sheet only renders it on the draft tile.
+   */
+  dedication?: string;
+  /** DS §3.33 — rides alongside `dedication`, same source (the live field,
+   *  not a saved snapshot). Absent/`centre` stays mute. */
+  textPosition?: TextPosition;
   /** The design pattern's own name, shown as the "· design" suffix. */
   designName: string;
   palettes: Palette[];
@@ -44,6 +59,14 @@ export interface PaintingStripProps {
    *  No separate copy needed here: this prop alone is what makes that read
    *  true at either step. */
   draft: boolean;
+  /** R5-TEXT-CARRY — whether the draft TILE's own "Save as palette"
+   *  button renders. Separate from `draft`: the tile itself (thumb +
+   *  "Unsaved" + name) still shows whenever `draft` is true — the customer
+   *  should always see what's actually on screen — but the SAVE offer only
+   *  renders while the draft is unsaved. Under exact-code identity the
+   *  caller's `canSaveDraft` is just `!exactMatch`, so callers pass their
+   *  own value through. */
+  canSaveDraft: boolean;
   locale: "no" | "en";
   onPick: (code: string) => void;
   onNewPalette: () => void;
@@ -60,17 +83,29 @@ export interface PaintingStripProps {
    *  doesn't exist at step 3, so ceramics-step.tsx simply never passes
    *  this — its render stays byte-for-byte the base classes below). */
   className?: string;
+  /** R5-TUTORIAL round 3 fix wave — the mobile twin of the desktop
+   *  `Hotspot` on `PaletteCard`'s "now" block (ceramics-step.tsx's own
+   *  `(tip.sequence === "step3" && tip.n === 1) || (tip.sequence === "kit3"
+   *  && tip.n === 2)`): same tip, same pulse, just on the "Palettes ▾"
+   *  trigger below `md` since there's no `Hotspot` there. Only the trigger
+   *  gets the ring, not the whole strip — a full-width pulse would be
+   *  oversized. Step 2's call site has no such tip, so it never passes
+   *  this. */
+  tourPulse?: boolean;
 }
 
 export function PaintingStrip({
   testId,
   designLayers,
   paintingLabel,
+  dedication,
+  textPosition,
   designName,
   palettes,
   currentDesignSlug,
   activeCode,
   draft,
+  canSaveDraft,
   locale,
   onPick,
   onNewPalette,
@@ -83,8 +118,9 @@ export function PaintingStrip({
   open,
   onOpenChange,
   className,
+  tourPulse,
 }: PaintingStripProps) {
-  const tPaletteBar = useTranslations("palettes.bar");
+  const tPalette = useTranslations("palettes.bar");
   const tSheet = useTranslations("palettes.sheet");
 
   return (
@@ -106,18 +142,31 @@ export function PaintingStrip({
         className
       )}
     >
-      <DesignRound layers={designLayers} className="size-9" />
-      {/* `paintingLabel`, not a second computation — the caller's own one
-          name for "what's painting" (its own file-scoped comment explains
-          where that gets settled once). */}
-      <div className="min-w-0 leading-tight">
-        <p className="text-[10px] uppercase tracking-[0.06em] text-muted-foreground">
-          {tPaletteBar("eyebrowPaint")}
-        </p>
-        <p className="truncate text-[13.5px] font-semibold">
-          {paintingLabel}{" "}
-          <span className="font-normal text-muted-foreground">· {designName}</span>
-        </p>
+      {/* Daniele (live test): the tip talks about "this palette" — the
+          painting-with block on the left IS that palette, not the switcher
+          on the right, so the pulse belongs here. */}
+      <div
+        className={cn(
+          "flex min-w-0 items-center gap-2.5 rounded-lg",
+          tourPulse && "tour-pulse"
+        )}
+      >
+        <DesignRound layers={designLayers} className="size-9" />
+        {/* `paintingLabel`, not a second computation — the caller's own one
+            name for "what's painting" (its own file-scoped comment explains
+            where that gets settled once). */}
+        <div className="min-w-0 leading-tight">
+          <p className="text-[10px] uppercase tracking-[0.06em] text-muted-foreground">
+            {tPalette("eyebrowPaint")}
+          </p>
+          <p className="truncate text-[13.5px] font-semibold">
+            {paintingLabel}{" "}
+            <span className="font-normal text-muted-foreground">· {designName}</span>
+          </p>
+          {/* Live state (not a snapshot): no forced "centre" — nothing shows
+              until the customer actually picks a position. */}
+          <PaletteDedicationLine text={dedication} position={textPosition} className="max-w-none" />
+        </div>
       </div>
       {/* Fix wave PR3 finding 9: the strip is the sheet's ONE opener — a real
           `SheetTrigger` (not a hand-rolled button) gets `aria-haspopup`,
@@ -151,7 +200,9 @@ export function PaintingStrip({
         currentDesignSlug={currentDesignSlug}
         activeCode={activeCode}
         draft={draft}
+        canSaveDraft={canSaveDraft}
         draftName={paintingLabel}
+        currentDedication={dedication}
         draftLayers={designLayers}
         locale={locale}
         onPick={onPick}

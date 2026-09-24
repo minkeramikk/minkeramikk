@@ -10,7 +10,7 @@ import { NextStepPill, PillIcon } from "@/components/ui-domain/next-step-pill";
 import { Loader2, Truck } from "lucide-react";
 import type { Cart } from "@/lib/cart/cart";
 import { orderFormSchema } from "@/lib/orders/schema";
-import { encodeSetParam } from "@/lib/cart/set-code";
+import { encodeSetParam, selectionCountOf } from "@/lib/cart/set-code";
 import { cn } from "@/lib/utils";
 
 /**
@@ -119,11 +119,14 @@ export function OrderForm({
       };
       // F30-B: carry the set (CA-3 codec) so the confirmation page can recap it
       // with mini-plates + a share link — built BEFORE onSuccess clears the cart.
+      // R5-TEXT-IDENTITY task 3: selectionCount strips each line's
+      // inscription/colour-wish segment before it enters the link.
       const set = encodeSetParam(
         cart.map((l) => ({
           configCode: l.configCode,
           productSlug: l.productSlug,
           quantity: l.quantity,
+          selectionCount: selectionCountOf(l.configSnapshot),
         }))
       );
       onSuccess();
@@ -323,7 +326,7 @@ export function OrderForm({
         disabled={status === "sending" || cart.length === 0 || !token}
         icon={
           <PillIcon>
-            <Truck className="size-5 text-primary" />
+            <Truck className="size-5 text-primary-foreground" />
           </PillIcon>
         }
       />

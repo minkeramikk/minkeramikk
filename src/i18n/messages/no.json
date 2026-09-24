@@ -15,10 +15,8 @@
     "email": "bestilling@minkeramikk.no"
   },
   "actions": {
-    "copyCode": "Kopier kode",
     "copy": "Kopier",
-    "copied": "Kopiert",
-    "newDesign": "Bygg et nytt design"
+    "copied": "Kopiert"
   },
   "nav": {
     "configurator": "Bygg din design",
@@ -91,6 +89,9 @@
       "scrollOptionsForward": "Bla alternativer fremover",
       "optionsLabel": "Farger og motiv"
     },
+    "tabs": {
+      "inscription": "Inskripsjon"
+    },
     "photos": {
       "photosLabel": "Bilder av designet",
       "previousPhoto": "Forrige bilde",
@@ -109,9 +110,9 @@
       "close": "Lukk"
     },
     "stickyBar": {
-      "title": "Din bestilling",
       "pieces": "{count, plural, one {# del} other {# deler}}",
-      "saved": "spart {amount}"
+      "saved": "spart {amount}",
+      "unpainted": "{count, plural, one {# umalt} other {# umalte}}"
     },
     "steps": {
       "design": "1. Design",
@@ -141,7 +142,13 @@
       "title": "Populære design",
       "curated": "utvalgt av butikken",
       "prev": "Forrige",
-      "next": "Neste"
+      "next": "Neste",
+      "kitBadge": "Kit · {count, plural, one {# del} other {# deler}}",
+      "coloursYours": "Farger: <b>du velger</b>",
+      "coloursReady": "Farger: klare til bestilling",
+      "buildYourOwn": "Design · lag ditt eget",
+      "colourKit": "Fargelegg dette kittet",
+      "seeSet": "Se settet"
     },
     "customNotes": {
       "title": "Egne fargeønsker",
@@ -149,16 +156,32 @@
       "optionCustom": "Jeg velger fargene selv",
       "placeholder": "f.eks. brun hund med hvite flekker",
       "helper": "Endrer ikke forhåndsvisningen — følger bestillingen til verkstedet.",
-      "counter": "{count}/250",
+      "counter": "{count}/{max}",
       "selectedFigure": "Valgt figur"
     },
     "customText": {
       "title": "Tekst på keramikken",
-      "helper": "Verkstedet bekrefter den endelige teksten før produksjon — endrer ikke forhåndsvisningen.",
-      "counter": "{count}/{max}"
+      "helper": "Forhåndsvisningen viser ordene og hvor de står. Verkstedet bekrefter teksten og maler den for hånd.",
+      "counter": "{count}/{max}",
+      "position": {
+        "centre": "Midten",
+        "top": "Topp",
+        "bottom": "Bunn",
+        "back": "Bakside",
+        "backHelper": "Baksiden vises ikke i forhåndsvisningen — verkstedet maler den der i stedet.",
+        "required": "Velg hvor ordene skal stå før du går videre."
+      }
     },
     "yourSelection": {
       "pairCaption": "Denne keramikken + ditt design"
+    },
+    "designSwitch": {
+      "label": "Design",
+      "covers": "{count, plural, one {dekker # keramikk} other {dekker # keramikk}}",
+      "coversShort": "{count, plural, one {# keramikk} other {# keramikk}}",
+      "sheetTitle": "Velg design",
+      "sheetSubtitle": "Fargene lastes på nytt",
+      "loaderDesignAlt": "Laster {design}"
     },
     "ladder": {
       "title": "Kjøp flere – spar mer",
@@ -208,9 +231,11 @@
       "continue": "Fortsett å handle"
     },
     "cartTitle": "Handlekurv",
-    "paintedWith": "ny keramikk males med <b>{name}</b>",
+    "chooseColours": "Velg farger i steg 2 ›",
     "empty": "Handlekurven er tom",
     "emptyCta": "Tilbake til konfiguratoren",
+    "addCeramics": "+ Legg til keramikk",
+    "saved": "−{amount} spart",
     "remove": "Fjern",
     "subtotal": "Delsum",
     "total": "Totalpris",
@@ -225,8 +250,6 @@
     "insurance": {
       "title": "Frakt med forsikring",
       "included": "Inkludert",
-      "toBeConfirmed": "Beregnes",
-      "plusShipping": "+ frakt",
       "nudge": "Fri frakt over {threshold} — legg til {amount}",
       "policyShort": "Alle forsendelser er forsikret. Skulle noe komme frem skadet, gi oss beskjed innen 48 timer — vi erstatter det kostnadsfritt. Tips: film gjerne utpakkingen.",
       "readMore": "Les mer",
@@ -234,7 +257,17 @@
     },
     "itemCount": "{count, plural, =0 {Tom} one {# vare} other {# varer}}",
     "share": {
-      "button": "Del settet",
+      "button": "Del denne kurven",
+      "eyebrow": "Admin",
+      "title": "Del denne kurven",
+      "lead": "Send kurven som den er, eller som et kit som skal males.",
+      "asSet": "Som et sett",
+      "asSetHint": "De får nøyaktig disse fargene. Klart til bestilling.",
+      "asKit": "Som et kit",
+      "asKitHint": "Farger fjernet. De velger selv, på disse delene.",
+      "priceLine": "{price} · {count, plural, one {# del} other {# deler}}",
+      "linkLabel": "Lenke",
+      "copy": "Kopier lenke",
       "copied": "Lenke kopiert",
       "manual": "Kopier denne lenken — den som åpner den finner dette settet",
       "tooBig": "Settet er for stort for en lenke",
@@ -250,9 +283,9 @@
       "unavailable": "{count, plural, one {# vare er ikke lenger tilgjengelig} other {# varer er ikke lenger tilgjengelige}}"
     },
     "line": {
+      "seePhotos": "Se keramikken",
       "expand": "Vis detaljer",
       "collapse": "Skjul detaljer",
-      "edit": "Rediger design",
       "ceramic": "Keramikk",
       "customText": "Tekst",
       "config": "Konfigurasjon",
@@ -268,7 +301,9 @@
       "paint": "Mal",
       "cta": "Mal {count} stk først",
       "paintCount": "Hvor mange å male",
-      "pickerLabel": "Velg en palett"
+      "pickerLabel": "Velg en palett",
+      "notCovered": "{design} dekker ikke denne keramikken",
+      "notCoveredSuffix": "· dekker ikke"
     },
     "unpaint": {
       "action": "Gjør umalt…"
@@ -310,6 +345,26 @@
     "addedWithPct": "Lagt i handlekurven · −{pct} %",
     "sheetOffer": {
       "taken": "Lagt i handlekurven"
+    },
+    "textPosition": {
+      "top": "Topp",
+      "bottom": "Bunn",
+      "back": "Bakside"
+    }
+  },
+  "kit": {
+    "strip": {
+      "title": "Et kit fra minkeramikk",
+      "subtitle": "{count, plural, one {# del} other {# deler}} · farger å velge",
+      "painted": "{painted} av {total} malt"
+    },
+    "fixedDesign": "Design: {name} — bestemt av kittet",
+    "welcome": {
+      "eyebrow": "Et sett fra minkeramikk",
+      "title": "{count, plural, one {# del} other {# deler}} venter på dine farger",
+      "body": "De ligger allerede i handlekurven. Velg fargene her — én gang for alle, eller del for del.",
+      "show": "Vis meg hvordan",
+      "self": "Jeg ser selv"
     }
   },
   "order": {
@@ -348,8 +403,6 @@
     "recapTotal": "Totalt",
     "discountLabel": "Rabatt",
     "contactQuestion": "Spørsmål om bestillingen?",
-    "shareCta": "Del settet",
-    "shareCopied": "Lenke kopiert!",
     "pieceCount": "{count, plural, one {# del} other {# deler}}"
   },
   "palettes": {
@@ -357,7 +410,8 @@
       "unsaved": "Ulagret",
       "rename": "Endre navn",
       "renameLabel": "Palettnavn",
-      "delete": "Slett palett"
+      "delete": "Slett palett",
+      "confirmDelete": "Slette? Trykk igjen"
     },
     "bar": {
       "eyebrowManage": "Dine paletter",
@@ -368,10 +422,43 @@
       "save": "Lagre som palett",
       "new": "Ny palett"
     },
+    "card": {
+      "paintingNow": "Maler nå",
+      "switchTo": "Bytt til",
+      "editColours": "Rediger farger",
+      "showAll": "Vis alle {count}",
+      "showFewer": "Vis færre",
+      "emptyHint": "Ingen andre paletter å bytte til ennå. Lagre en fra fargesteget, så vises den her.",
+      "help": "Om paletter",
+      "helpClose": "Lukk",
+      "helpManage": "Fargene du velger blir en <b>palett</b>. <b>Lagre den</b> for å bruke den igjen på andre stykker — opptil {max}. Lagrede paletter blir værende her, så du kan bytte mellom dem.",
+      "helpNow": "Dette er paletten du maler med.{saved, plural, =0 {} one {} other { Trykk på en annen lagret palett for å bytte — neste keramikk du trykker på, får de fargene.}}"
+    },
     "sheet": {
       "trigger": "Paletter",
       "newHint": "åpner steg 2",
       "hintSaved": "Trykk på en rute for å bytte"
+    }
+  },
+  "tour": {
+    "next": "Neste ›",
+    "done": "Ferdig",
+    "off": "Skru av tips",
+    "replay": "Vis tipsene igjen",
+    "step1": {
+      "1": "Velg en <b>design</b> og bygg din egen.{featured, select, yes { Eller ta et ferdig <b>sett eller kit</b> over.} other {}}",
+      "2": "Klar? Trykk <b>Fortsett</b>."
+    },
+    "step2": {
+      "1": "Velg <b>ett alternativ per rad</b>. Fatet over viser dem med en gang.",
+      "2": "Ferdig? <b>Gå til keramikken din</b>{count, plural, =0 {.} one { — # stykke venter der, klart til å males.} other { — # stykker venter der, klare til å males.}}"
+    },
+    "step3": {
+      "1": "Du maler med <b>denne paletten</b>.{saved, plural, =0 {} one {} other { Bytt til en annen lagret når som helst.}}",
+      "2": "<b>Velg keramikken din</b>: trykk på en, den får denne paletten."
+    },
+    "kit3": {
+      "1": "Disse <b>{count, plural, one {# stykket} other {# stykkene}}</b> har ingen farger ennå. <b>Mal</b> dem."
     }
   }
 }

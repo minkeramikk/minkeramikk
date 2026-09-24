@@ -11,6 +11,7 @@ import { computeCartDiscount, EMPTY_CONFIG } from "@/lib/discounts/discount";
 import { NO_VIPPS, type VippsSettings } from "./vipps";
 import { NO_SELLER, type SellerIdentity } from "./seller";
 import { formatMoney, money } from "@/lib/money/money";
+import { shippingCost } from "@/lib/cart/shipping";
 import type { OrderItemInput } from "./schema";
 
 const UNIT = 45000;
@@ -81,6 +82,27 @@ describe("buildCustomerPdfDoc", () => {
     });
     expect(withText.designs[0].customText).toBe("Til mamma");
     expect(doc().designs[0].customText).toBeNull();
+  });
+
+  // AC4 — «Plassering» rende SOLO quando ≠ centre (customer-pdf.tsx); a livello
+  // di dati il blocco porta sempre il valore giusto, `centre` incluso quando lo
+  // snapshot lo dice esplicitamente, e null quando non c'è iscrizione affatto.
+  it("AC4 — il blocco porta la posizione dello snapshot, default centre col solo testo", () => {
+    const top = doc({
+      items: [
+        item({
+          configSnapshot: { ...item().configSnapshot, customText: "Til mamma", textPosition: "top" } as never,
+        }),
+      ],
+    });
+    expect(top.designs[0].textPosition).toBe("top");
+
+    const centreImplicit = doc({
+      items: [item({ configSnapshot: { ...item().configSnapshot, customText: "Til mamma" } as never })],
+    });
+    expect(centreImplicit.designs[0].textPosition).toBe("centre");
+
+    expect(doc().designs[0].textPosition).toBeNull();
   });
 
   // AC3 — la lista FUORI. NON si vietano sottostringhe generiche: i contatti e
@@ -248,7 +270,9 @@ describe("buildCustomerPdfDoc", () => {
     expect(allRows(d)[0].lineTotal).toBe(formatMoney(money(180000), "en")); // 1 800
     expect(d.subtotal).toBe(formatMoney(money(180000), "en"));
     expect(d.discount).toBe(formatMoney(money(9000), "en")); // −90
-    expect(d.total).toBe(formatMoney(money(171000), "en")); // 1 710
+    // R5-GARANZIA: `total` is now the GRAND total — net 1 710 is below the
+    // 2 000 kr threshold, so +200 kr shipping lands on top.
+    expect(d.total).toBe(formatMoney(money(171000 + shippingCost.amountCents), "en"));
   });
 
   it("la data è in ora di OSLO, non del server", () => {
@@ -451,12 +475,28 @@ describe("un ordine con più design", () => {
   });
 
   it("i totali restano quelli del carrello INTERO, uno solo alla fine", () => {
-    // 1×450 + 2×450 + 3×450 = 2 700 kr. Nessuna aritmetica per blocco.
+    // 1×450 + 2×450 + 3×450 = 2 700 kr, sopra soglia (2 000): niente spedizione.
     const d = doc({ items: MK_1024 });
     expect(allRows(d)).toHaveLength(3);
     expect(d.subtotal).toBe(formatMoney(money(6 * UNIT), "no"));
     expect(d.total).toBe(formatMoney(money(6 * UNIT), "no"));
     expect(d.discount).toBeNull();
+    expect(d.shipping).toBe(d.labels.shippingIncluded);
+  });
+
+  // R5-GARANZIA AC2: la riga «Frakt» porta la STESSA cifra del carrello e
+  // della mail — mai una seconda aritmetica.
+  it("R5-GARANZIA — sotto soglia la riga Frakt porta l'importo fisso, e il totale lo include", () => {
+    // 2 × 450 = 900 kr netto, sotto soglia (2 000) → +200 kr.
+    const d = doc();
+    expect(d.shipping).toBe(formatMoney(shippingCost, "no"));
+    expect(d.total).toBe(formatMoney(money(2 * UNIT + shippingCost.amountCents), "no"));
+  });
+
+  it("R5-GARANZIA — da soglia la riga Frakt dice «Inkludert», il totale resta il netto", () => {
+    const d = doc({ items: MK_1024 }); // 2 700 kr, sopra soglia
+    expect(d.shipping).toBe(d.labels.shippingIncluded);
+    expect(d.total).toBe(formatMoney(money(6 * UNIT), "no"));
   });
 });
 
@@ -509,10 +549,11 @@ describe("la riga MVA nel documento", () => {
     expect(doc({ seller: { ...NO_SELLER, vatRegistered: false } }).vatIncluded).toBeNull();
   });
 
-  it("registrati: la riga c'è, ed è la quota GIÀ contenuta nel totale", () => {
-    // 2 × 450 = 900 kr → MVA 180 kr.
+  it("registrati: la riga c'è, ed è la quota GIÀ contenuta nel netto (non nella spedizione)", () => {
+    // 2 × 450 = 900 kr net, sotto soglia → +200 kr spedizione: la MVA scorpora
+    // il solo netto, la spedizione non la porta.
     const d = doc({ seller: REGISTERED });
-    expect(d.total).toBe(formatMoney(money(90000), "no"));
+    expect(d.total).toBe(formatMoney(money(90000 + shippingCost.amountCents), "no"));
     expect(d.vatIncluded).toBe(formatMoney(money(18000), "no"));
   });
 

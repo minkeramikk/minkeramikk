@@ -12,12 +12,32 @@ Rifacimento di minkeramikk.no: configuratore di ceramica personalizzata + finto 
 ## Documenti di riferimento (leggere prima di task nuovi)
 
 - `docs/adr/` — **decisioni architetturali (ADR)**: vincolanti; una decisione nuova o un cambio di rotta = nuovo ADR (usare `docs/adr/template.md`, aggiornare l'indice)
-- `../docs/stack-tecnologico.md` — architettura, stack, modello dati
-- `../docs/theme/DESIGN-SYSTEM.md` — **design system**: token, componenti, shell, mapping shadcn; vincolante per ogni task UI (baseline visiva: `../docs/theme/template-*.html` + `preview-*.png`)
-- `../docs/preview/*.html` — spec UI del back-office (mockup approvati dal cliente)
-- `../docs/client/preventivo-minkeramikk.pdf` — scope contrattuale: ciò che non è in fornitura NON va implementato senza chiedere
-- `../STATO.md` — **stato del progetto** (PM-only, fuori repo): dove siamo, cosa è in volo, prossimi lavori. È la prima cosa da leggere in una sessione nuova.
-- `../docs/delivery/DELIVERY.md` — **board kanban a flussi**, **PM-only e fuori dalla repo**: ciclo AC → dev → test → PR (aperta solo a flusso finito, con evidenza) → review agent → merge. WIP=1. Il dev riceve la card dal TL (file in `../docs/cards/`); **board, STATO e card non si committano nella repo** (così non possono finire su un branch feature). Fondamenta storiche (ex TODO.md) in `../docs/archive/`.
+- `.varco/docs/stack-tecnologico.md` — architettura, stack, modello dati
+- `.varco/docs/theme/DESIGN-SYSTEM.md` — **design system**: token, componenti, shell, mapping shadcn; vincolante per ogni task UI (baseline visiva: `.varco/docs/theme/template-*.html` + `preview-*.png`)
+- `.varco/docs/design/mockups/` — mockup delle card (vincolanti dove la card li dichiara)
+- `.varco/docs/release/ACCEPTANCE.md` — i journey utente garantiti (protetti, non creati, dagli e2e)
+- `.varco/docs/client/` — scope contrattuale: ciò che non è in fornitura NON va implementato senza chiedere
+- `.varco/STATO.md` — **stato del progetto (PM-only)**: dove siamo, cosa è in volo, prossimi lavori. È la prima cosa da leggere in una sessione nuova. **Il dev non lo apre e non lo scrive mai** — lo stato che serve viaggia nella card.
+- `.varco/docs/delivery/DELIVERY.md` — **board kanban a flussi (PM-only)**: ciclo AC → dev → test → PR (aperta solo a flusso finito, con evidenza) → review agent → merge. WIP=1. Il dev riceve la card dal TL; **board, STATO e card vivono in `.varco/` (repo di processo, ignorata dal prodotto) e non finiscono mai su un branch feature**. Fondamenta storiche in `.varco/docs/archive/`.
+
+## Flow di lavoro (card, non chat)
+
+- La **card** in `.varco/docs/cards/todo/` è l'unica fonte del cosa/perché. La prendi con la skill `varco-deliver` (WIP=1: è la prossima ready). La testata dice **Ciclo** (COLD = piano con `varco-plan` → review `pm-reviewer` → esecuzione; HOT = la card è il piano) e **Gate**: non li scegli tu.
+- Branch per card da `origin/release-5` (main è revertato a mano dal TL e non è la base);
+  PR sempre verso `release-5`. Commit piccoli in inglese; PR solo a flusso finito (AC come checklist + evidenza + differiti in forma registro); review del `reviewer` (mai chi ha scritto, max 2 giri); **merge su main VIETATO — lo fa solo Daniele con approve umano, a fine release**.
+- Manca un'informazione o una decisione di prodotto? **Fermati e chiedi.** Non inventare.
+- `.varco/` lo leggi, non lo scrivi — l'unica eccezione è `varco-deliver`, che mette la card in volo. Il tuo stato vive nella PR.
+
+## Harness OpenCode (non deviare senza ADR)
+
+- Sessioni **dev** dalla root del prodotto (OpenCode). Sessioni **PM** da dentro `.varco/`.
+- Agenti di progetto in `.opencode/agents/`: `backend` (dominio, contratti, dati, test) · `frontend` (UI sui contratti + design system) · `reviewer` (diff, mai chi ha scritto) · `pm-reviewer` (piano COLD al posto del PM). In COLD ogni task del piano è assegnato per nome a `backend` o `frontend`.
+- Piano COLD: agent `plan` (read-only) scrive `.plans/fNN-nome.md` con la testata Varco (`varco-plan`), review `pm-reviewer`, poi esecuzione a subagent. YAGNI sempre; scorciatoie deliberate marcate `ponytail:` e raccolte dal PM alla chiusura.
+
+## Auth GitHub a due identità
+
+- Prodotto (org `minkeramikk`): via `.gh-token` in root — **mai committato** (gitignored), permessi 600. Comandi `gh` sul prodotto solo con `GH_TOKEN=$(cat .gh-token)`; il token non entra mai in prompt, output, commit o card.
+- Processo (`.varco/`): `gh` di default (account personale). Le due identità non si mescolano.
 
 ## Stack (non deviare senza motivo scritto in un ADR)
 
@@ -44,7 +64,7 @@ Supabase (Postgres, Auth, Storage) · Resend · embla-carousel · Vercel
 - Dati: mai fetch client-side di pagine Squarespace (il vecchio sito faceva scraping — qui i dati vengono SOLO dal DB via server components o route handlers).
 - Tema: 3 token semantici (`light`/`dark`/`accent`) da tabella `settings` → CSS variables;
   sfumature SOLO via `color-mix()`, mai colori hardcoded nei componenti (ADR 0008).
-  Componenti, varianti e stati: come da `../docs/theme/DESIGN-SYSTEM.md` — un componente
+  Componenti, varianti e stati: come da `.varco/docs/theme/DESIGN-SYSTEM.md` — un componente
   o variante non documentati lì non si implementano (prima si documenta, poi si codifica).
 - Multi-fornitore: ogni design e prodotto appartiene a un supplier; la scelta del design
   aggancia il fornitore, step successivi filtrati su di esso; carrello misto ok (ADR 0007).
@@ -65,16 +85,16 @@ Supabase (Postgres, Auth, Storage) · Resend · embla-carousel · Vercel
 - `npm ci` (NON `npm install`) passa pulito in locale prima della PR: usa lo stesso
   install rigoroso della CI e becca il drift del lockfile prima che diventi rosso in CI.
 - `npm run lint`, `npm run build` e `npm test` passano
-- **e2e (politica 2026-06-12, fase di iterazione UI)**: per ogni PR basta
-  `make run-e2e-core` verde (flussi di dominio: carrello, ordine, login, admin ordini).
-  La suite intera (`make run-e2e`) la lancia Daniele e deve essere verde **prima di
-  aggiornare il branch `preview`** e al go-live; i rossi noti stanno in
-  `../docs/pm/E2E-QUARANTINE.md` (mai `skip` silenziosi nel codice — lezione F07).
+- **e2e fuori dal gate (li lancia Daniele, mai il dev)**: per ogni PR basta
+  lint+build+unit verdi. `make run-e2e-core` (flussi di dominio: carrello, ordine, login,
+  admin ordini) lo lancia Daniele prima del merge; la suite intera (`make run-e2e`) deve
+  essere verde **prima di aggiornare il branch `preview`** e al go-live. Un e2e non verifica
+  mai un AC: protegge un journey (`.varco/docs/release/ACCEPTANCE.md`); i rossi noti si
+  dichiarano in card, mai `skip` silenziosi nel codice (lezione F07).
 - Nessuna chiave i18n mancante in uno dei due dizionari
 - Responsive verificato (375px / 768px / 1280px) per task con UI
-- A merge avvenuto: **`../STATO.md` e board aggiornati dal TL/PM** (ogni card lo
-  riporta come ultimo punto del proprio DoD; il dev segnala il merge, l'aggiornamento
-  è compito del PM)
+- A merge avvenuto: **`.varco/STATO.md` e board aggiornati dal TL/PM** (il dev segnala
+  il merge con "PR #N mergiata", l'aggiornamento è compito del PM)
 
 ## Versione Node (fonte unica)
 

@@ -55,6 +55,15 @@ export function UnpaintDialog({
    * focus there is a silent no-op and it falls to `<body>`. Esc, the
    * backdrop and "Keep them painted" are unaffected — nothing disappears on
    * those paths, so they keep restoring the trigger as before.
+   *
+   * R5-BASKET-HOST fix round 1 — this is called with NO arguments (see
+   * `onCloseAutoFocus` below), so anything the caller passes must already
+   * know where to look. `basket.tsx`'s `focusFirstUnpaintedRow` used to take
+   * an optional root defaulting to `document`, which made it assignable here
+   * and silently un-scoped the search across every basket on the page. Its
+   * root is required now, so that substitution no longer type-checks; the
+   * basket passes a closure over its OWN root instead. `() => void`, and the
+   * empty parameter list, is the contract — do not widen it.
    */
   onConfirmed?: () => void;
 }) {
@@ -232,7 +241,7 @@ export function UnpaintDialog({
           arrow
           icon={
             <PillIcon>
-              <Eraser className="size-5 text-primary" />
+              <Eraser className="size-5 text-primary-foreground" />
             </PillIcon>
           }
           label={t("confirm", { n, unit: unitForN })}

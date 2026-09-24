@@ -8,6 +8,7 @@ import {
   paletteFamily,
   nameFor,
   sortCurrentDesignFirst,
+  sortLaneNewestFirst,
   MAX_PALETTES,
   type Palette,
 } from "./palettes";
@@ -120,6 +121,37 @@ describe("sortCurrentDesignFirst (card §4-bis, added mid-PR)", () => {
     const list = [of("A", "limoni"), of("B", "alici")];
     const copy = structuredClone(list);
     sortCurrentDesignFirst(list, "alici");
+    expect(list).toEqual(copy);
+  });
+});
+
+describe("sortLaneNewestFirst (R5-PALETTE-IN-ACTION, TL review 21/9)", () => {
+  const of = (code: string, designSlug: string, at = 0) => ({
+    ...make(code),
+    designSlug,
+    createdAt: at,
+    usedAt: at,
+  });
+
+  it("puts the current design's own palettes first, newest created leftmost", () => {
+    const list = [of("A", "alici", 10), of("B", "alici", 30), of("C", "alici", 20)];
+    expect(sortLaneNewestFirst(list, "alici").map((p) => p.code)).toEqual(["B", "C", "A"]);
+  });
+
+  it("trails every other design's palettes dimmed, in their existing order", () => {
+    const list = [
+      of("A", "limoni", 50),
+      of("B", "alici", 10),
+      of("C", "limoni", 60),
+      of("D", "alici", 40),
+    ];
+    expect(sortLaneNewestFirst(list, "alici").map((p) => p.code)).toEqual(["D", "B", "A", "C"]);
+  });
+
+  it("keeps ties stable and never mutates its input", () => {
+    const list = [of("A", "alici", 5), of("B", "alici", 5), of("C", "alici", 5)];
+    const copy = structuredClone(list);
+    expect(sortLaneNewestFirst(list, "alici").map((p) => p.code)).toEqual(["A", "B", "C"]);
     expect(list).toEqual(copy);
   });
 });

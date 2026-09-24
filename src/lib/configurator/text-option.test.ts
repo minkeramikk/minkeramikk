@@ -40,63 +40,22 @@ describe("findTextGroup", () => {
   });
 });
 
-describe("isCustomTextOffered", () => {
-  const textGroup = group();
-
-  it("hides the field while the first option (= no text) is selected", () => {
-    expect(
-      isCustomTextOffered({
-        acceptsCustomText: true,
-        textGroup,
-        selectedOptionId: "none",
-      })
-    ).toBe(false);
-  });
-
-  it("shows the field on any other option", () => {
-    expect(
-      isCustomTextOffered({
-        acceptsCustomText: true,
-        textGroup,
-        selectedOptionId: "navn",
-      })
-    ).toBe(true);
-  });
-
-  it("hides the field when nothing is selected yet", () => {
-    expect(
-      isCustomTextOffered({
-        acceptsCustomText: true,
-        textGroup,
-        selectedOptionId: undefined,
-      })
-    ).toBe(false);
-  });
-
-  it("falls back to the historic behaviour without a text group", () => {
-    expect(
-      isCustomTextOffered({
-        acceptsCustomText: true,
-        textGroup: null,
-        selectedOptionId: undefined,
-      })
-    ).toBe(true);
-  });
-
-  it("stays off when the design does not accept an inscription at all", () => {
-    expect(
-      isCustomTextOffered({
-        acceptsCustomText: false,
-        textGroup,
-        selectedOptionId: "navn",
-      })
-    ).toBe(false);
-  });
-});
-
 describe("normalizeGroupName", () => {
   it("survives null and undefined", () => {
     expect(normalizeGroupName(null)).toBe("");
     expect(normalizeGroupName(undefined)).toBe("");
+  });
+});
+
+// R5-TEXT-POSITION (0.1-1): the «Tekst» group governs NOTHING anymore — the
+// gate is `acceptsCustomText` alone, whether the group is absent, empty, or
+// still has options in prod pending cleanup (GARANZIA §7, outside this card).
+describe("isCustomTextOffered", () => {
+  it("shows the field whenever the design accepts an inscription", () => {
+    expect(isCustomTextOffered({ acceptsCustomText: true })).toBe(true);
+  });
+
+  it("stays off when the design does not accept an inscription at all", () => {
+    expect(isCustomTextOffered({ acceptsCustomText: false })).toBe(false);
   });
 });

@@ -18,6 +18,8 @@ export function SiteFooter() {
         <Link
           href="/privacy"
           data-testid="footer-privacy"
+          target="_blank"
+          rel="noopener noreferrer"
           className="hover:text-foreground"
         >
           {t("footer.privacy")}
@@ -25,6 +27,8 @@ export function SiteFooter() {
         <Link
           href="/terms"
           data-testid="footer-terms"
+          target="_blank"
+          rel="noopener noreferrer"
           className="hover:text-foreground"
         >
           {t("footer.terms")}

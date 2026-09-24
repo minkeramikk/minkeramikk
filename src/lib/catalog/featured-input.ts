@@ -22,20 +22,27 @@ import {
   encodeSetParam,
   type SetEntry,
 } from "@/lib/cart/set-code";
+import {
+  decodeKitParam,
+  encodeKitParam,
+  type KitEntry,
+} from "@/lib/cart/kit-code";
 
 export type FeaturedInput =
   | { ok: true; kind: "design"; payload: string }
   | { ok: true; kind: "set"; payload: string; entries: SetEntry[] }
+  | { ok: true; kind: "kit"; payload: string; entries: KitEntry[]; designCode: string }
   | { ok: false; reason: FeaturedInputError };
 
 export type FeaturedInputError =
   | "empty"
-  | "url-without-payload" // an URL, but no ?code= / ?set= in it
+  | "url-without-payload" // an URL, but no ?code= / ?set= / ?kit= in it
   | "invalid-set" // set-shaped but with malformed rows (strict at ADD)
-  | "invalid-code"; // neither a set nor a plausible config code
+  | "invalid-kit" // kit-shaped but with malformed rows (strict at ADD)
+  | "invalid-code"; // neither a set, a kit, nor a plausible config code
 
-/** Extract the `?code=` / `?set=` value from anything URL-shaped. */
-function fromUrl(raw: string): { code?: string; set?: string } | null {
+/** Extract the `?code=` / `?set=` / `?kit=` value from anything URL-shaped. */
+function fromUrl(raw: string): { code?: string; set?: string; kit?: string } | null {
   // tolerate absolute, protocol-less and path-relative links: all we need
   // is the query string
   const qIndex = raw.indexOf("?");
@@ -46,6 +53,7 @@ function fromUrl(raw: string): { code?: string; set?: string } | null {
   return {
     code: params.get("code") ?? undefined,
     set: params.get("set") ?? undefined,
+    kit: params.get("kit") ?? undefined,
   };
 }
 
@@ -63,6 +71,22 @@ function parseSet(raw: string): FeaturedInput {
   ), entries };
 }
 
+function parseKit(raw: string): FeaturedInput {
+  const { designCode, entries, dropped } = decodeKitParam(raw);
+  // strict at ADD (ADR 0016): a single malformed row rejects the input
+  if (entries.length === 0 || dropped > 0) return { ok: false, reason: "invalid-kit" };
+  return {
+    ok: true,
+    kind: "kit",
+    payload: encodeKitParam(
+      designCode,
+      entries.map((e) => ({ productSlug: e.productSlug, quantity: e.qty }))
+    ),
+    entries,
+    designCode,
+  };
+}
+
 function parseCode(raw: string): FeaturedInput {
   const norm = normalizeConfigCode(raw);
   // plausible code: at least prefix + design segment, only codec charset
@@ -78,11 +102,18 @@ export function parseFeaturedInput(raw: string): FeaturedInput {
 
   const url = fromUrl(input);
   if (url) {
+    // `kit` wins when both are present (more specific landing)
+    if (url.kit) return parseKit(decodeURIComponentSafe(url.kit));
     // `set` wins when both are present (more specific landing)
     if (url.set) return parseSet(decodeURIComponentSafe(url.set));
     if (url.code) return parseCode(decodeURIComponentSafe(url.code));
     return { ok: false, reason: "url-without-payload" };
   }
+
+  // raw kit: carries `~` rows but NO `.` in the first token
+  // (a set row is `<code>.<slug>.<qty>`; a kit head is just `<D>`)
+  const [head] = input.split("~");
+  if (!head.includes(".") && input.includes("~")) return parseKit(input);
 
   // a set param carries `.` between fields; a config code never does
   if (input.includes(".")) return parseSet(input);

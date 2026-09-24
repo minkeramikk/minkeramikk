@@ -13,6 +13,7 @@
  */
 import { splitBySupplier } from "./build";
 import type { AdminOrder, AdminOrderItem } from "./admin-orders";
+import type { TextPosition } from "@/lib/configurator/text-position";
 
 export interface LabPdfSelection {
   label: string;
@@ -30,6 +31,11 @@ export interface LabPdfItem {
   customNote?: string;
   /** F38: the customer's inscription — a production instruction, shown prominently. */
   customText?: string;
+  /** R5-TEXT-POSITION AC4: where `customText` sits — undefined only when
+   *  there's no inscription at all. `lab-pdf.tsx` (`positionLine`) always
+   *  states a position for a line that HAS one, `centre` included, since
+   *  the workshop has no preview to fall back on. */
+  textPosition?: TextPosition;
 }
 
 /** Customer ship-to block — the workshop ships the finished pieces here. */
@@ -71,6 +77,7 @@ function toItem(it: AdminOrderItem): LabPdfItem {
     })),
     customNote: it.configSnapshot?.customNote,
     customText: it.configSnapshot?.customText || undefined,
+    textPosition: it.configSnapshot?.textPosition,
   };
 }
 

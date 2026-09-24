@@ -17,11 +17,7 @@
 import { createElement as h } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import {
-  NextStepPill,
-  PillIcon,
-  PILL_SM_UNDER_MD,
-} from "@/components/ui-domain/next-step-pill";
+import { NextStepPill, PillIcon } from "@/components/ui-domain/next-step-pill";
 
 const render = (props: Record<string, unknown> = {}) =>
   renderToStaticMarkup(
@@ -47,8 +43,11 @@ const buttonClasses = (html: string) => {
 };
 
 describe("NextStepPill · scala di taglia", () => {
-  it("senza `size` rende esattamente la pillola `lg`", () => {
-    expect(render()).toBe(render({ size: "lg" }));
+  it("senza `size` rende la pillola `sm`: la taglia di default è UNA", () => {
+    // R5-POLISH-STEP23 (TL): tutte le pillole della stessa taglia. Il default
+    // porta la regola, così una pillola nuova non può nascere fuori scala.
+    expect(render()).toBe(render({ size: "sm" }));
+    expect(render()).not.toBe(render({ size: "lg" }));
   });
 
   it("`lg` è la pillola di oggi: p-3, gap-3.5, label 15px, freccetta size-9, disco size-11", () => {
@@ -93,16 +92,6 @@ describe("NextStepPill · scala di taglia", () => {
     expect(html).toContain("data-pill-label");
     expect(html).toContain("data-pill-caption");
   });
-
-  it("PILL_SM_UNDER_MD è la ricetta `sm`, prefissata max-md:, niente di più", () => {
-    const twin = PILL_SM_UNDER_MD.split(" ");
-    expect(twin.every((c) => c.startsWith("max-md:"))).toBe(true);
-    const stripped = twin.map((c) => c.replace("max-md:", ""));
-    const smOnly = buttonClasses(render({ size: "sm" })).filter(
-      (c) => !buttonClasses(render({ size: "lg" })).includes(c)
-    );
-    expect([...stripped].sort()).toEqual([...smOnly].sort());
-  });
 });
 
 /**
@@ -130,5 +119,12 @@ describe("NextStepPill · submit", () => {
     expect(html).toContain("data-pill-arrow");
     expect(html).toContain("spinner");
     expect(html).not.toContain("›");
+  });
+
+  it("primary is filled: solid primary surface, foreground type, inverted arrow", () => {
+    const html = render({ arrow: true });
+    expect(html).toContain("bg-primary text-primary-foreground");
+    expect(html).not.toContain("bg-primary/10");
+    expect(html).toContain("bg-primary-foreground text-primary");
   });
 });

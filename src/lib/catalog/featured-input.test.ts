@@ -123,6 +123,37 @@ describe("parseFeaturedInput — app URLs (the primary UX)", () => {
   });
 });
 
+describe("parseFeaturedInput — raw kit param (R5-KIT)", () => {
+  it("accepts a raw kit param", () => {
+    const r = parseFeaturedInput("G~deep-plate.6~coffee-cup.4");
+    expect(r).toMatchObject({
+      ok: true,
+      kind: "kit",
+      payload: "G~deep-plate.6~coffee-cup.4",
+      designCode: "G",
+    });
+    if (r.ok && r.kind === "kit") expect(r.entries).toHaveLength(2);
+  });
+
+  it("extracts ?kit= from a kit share link", () => {
+    const r = parseFeaturedInput(
+      "https://minkeramikk.no/no/configurator?design=x&step=2&kit=G~deep-plate.6"
+    );
+    expect(r).toMatchObject({ ok: true, kind: "kit", designCode: "G" });
+  });
+
+  it("rejects a malformed kit", () => {
+    expect(parseFeaturedInput("G~x")).toEqual({ ok: false, reason: "invalid-kit" });
+  });
+
+  it("a raw set param is still a set", () => {
+    expect(parseFeaturedInput("MK-A-K2.flat-plate.2")).toMatchObject({
+      ok: true,
+      kind: "set",
+    });
+  });
+});
+
 describe("parseFeaturedInput — canonical payload = dedup-friendly", () => {
   it("equivalent inputs produce the SAME payload (DB UNIQUE works)", () => {
     const a = parseFeaturedInput("mk-a-k2");

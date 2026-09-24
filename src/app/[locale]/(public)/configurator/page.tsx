@@ -3,7 +3,7 @@ import ReactDOM from "react-dom";
 import { getTranslations } from "next-intl/server";
 import { getActiveDesigns } from "@/lib/catalog/designs";
 import { getDesignDetail, type DesignDetail } from "@/lib/catalog/design-options";
-import { getSupplierProducts, getDesignProducts } from "@/lib/catalog/products";
+import { getDesignProducts } from "@/lib/catalog/products";
 import { assetUrl } from "@/lib/storage";
 import { buildConfigLinePayload } from "@/lib/configurator/line-payload";
 import { pickDefaultOption } from "@/lib/configurator/default-option";
@@ -12,12 +12,21 @@ import {
   toCodecDesign,
   type CodecDesign,
 } from "@/lib/configurator/config-code";
+import {
+  allowedPositions,
+  clampPosition,
+  isTextPosition,
+  type TextPosition,
+} from "@/lib/configurator/text-position";
 import { getFeaturedConfigs } from "@/lib/catalog/featured";
+import { getAdminUser } from "@/lib/auth/admin";
+import { shareAllowed } from "@/lib/auth/share-gate";
 import { paletteWords } from "@/lib/palettes/name-lists";
 import { FeaturedStrip } from "./featured-strip";
 import { ConfiguratorClient } from "./configurator-client";
 import { CeramicsStep } from "./ceramics-step";
 import { resolveSharedSet } from "./resolve-shared-set";
+import { resolveKit, type ResolvedKit } from "./resolve-kit";
 
 // Catalog reads go through the `catalog`-tagged data cache (PERF-1 / P-1): no
 // force-dynamic, so on a cache hit the configurator render issues ~0 catalog
@@ -61,14 +70,24 @@ export default async function ConfiguratorPage({
   const chosen = designSlug
     ? designs.find((d) => d.slug === designSlug)
     : undefined;
-  // `origin=set`: the design in the URL was pinned by a set landing when it
-  // consumed `set=` (see consumeSetParam) — current design, yes; explicit
+  // `origin=set`/`origin=kit`: the design in the URL was pinned by a set/kit
+  // landing when it consumed `set=`/`kit=` — current design, yes; explicit
   // colour choice, no. Steps 1–2 drop the param the moment the customer
   // really configures.
   const fromSetOrigin = params.origin === "set";
-  const explicitChoice = chosen !== undefined && !fromSetOrigin;
+  // R5-KIT: a `kit=` param is a curated list of PIECES (no colours) — resolve
+  // it server-side; the client adds the lines once, then consumes the param.
+  // Resolved BEFORE `selected` because it carries the landing's design.
+  const rawKit = typeof params.kit === "string" ? params.kit : "";
+  const kit: ResolvedKit | null = rawKit ? await resolveKit(rawKit) : null;
+  const kitDesign = kit?.design
+    ? designs.find((d) => d.slug === kit.design!.slug)
+    : undefined;
+  const fromKitOrigin = params.origin === "kit";
+  const explicitChoice = chosen !== undefined && !fromSetOrigin && !fromKitOrigin;
   const selected =
     chosen ??
+    kitDesign ??
     // Default to the first design that actually composes a preview, so an active
     // but layer-less design (e.g. a freshly created one) never blanks the
     // configurator's default view. Falls back to the first design (F14 AC1).
@@ -89,7 +108,7 @@ export default async function ConfiguratorPage({
       : undefined;
 
     /**
-     * R5-PALETTES task 9: a PaletteBar chip navigates with `?code=<code>` and
+     * R5-PALETTES task 9: a `PaletteChip` navigates with `?code=<code>` and
      * NO `design=`/`opt_*` at all (card §4-bis: the active palette IS the
      * URL, mirroring step 2's own `loadPalette`) — `router.push('/configurator
      * ?code=<code>&step=3')`. Steps 1–2 decode that shape CLIENT-side (the F19
@@ -102,8 +121,15 @@ export default async function ConfiguratorPage({
      * malformed/unknown code is simply ignored, never a crash).
      */
     const rawCode = typeof params.code === "string" ? params.code : "";
-    let decodedCode: { designSlug: string; selections: Record<string, string> } | null =
-      null;
+    let decodedCode: {
+      designSlug: string;
+      selections: Record<string, string>;
+      /** R5-TEXT-IDENTITY task 4: present when `?code=` itself carries an
+       *  inscription — seeds the field below when `?text=` is absent. */
+      customText?: string;
+      /** R5-TEXT-POSITION: rides alongside `customText`, `centre` included. */
+      textPosition?: TextPosition;
+    } | null = null;
     if (rawCode) {
       const allDetails = await Promise.all(designs.map((d) => getDesignDetail(d.slug)));
       const codecDesigns = allDetails
@@ -126,9 +152,10 @@ export default async function ConfiguratorPage({
     // arrives via a palette chip instead of the design grid.
     const explicitDesignChoice = explicitChoice || (decodedCode !== null && !fromSetOrigin);
 
-    const [detail, products] = await Promise.all([
+    const [detail, products, isAdmin] = await Promise.all([
       getDesignDetail(currentDesign.slug),
       getDesignProducts(currentDesign.id, currentDesign.supplierId),
+      shareAllowed(await getAdminUser()),
     ]);
     if (detail) {
       // snapshot + canonical code (ADR 0011) + F19 mini-preview layers, all
@@ -156,13 +183,28 @@ export default async function ConfiguratorPage({
       // nor the set= link). Honour it only when the design accepts notes.
       const rawNote = typeof params.note === "string" ? params.note : "";
       const customNote = detail.acceptsCustomNotes ? rawNote : "";
-      const rawText = typeof params.text === "string" ? params.text : "";
+      // R5-TEXT-IDENTITY task 4: `?code=` is now the memory of an
+      // inscription (task 2 folded it into the code itself). An explicit
+      // `?text=` is the LIVE edit and still wins outright — it's present
+      // even as "" (an explicit clear); only its ABSENCE falls back to
+      // what `?code=` decoded, so opening a saved/shared code seeds the
+      // field instead of showing it empty.
+      const rawText =
+        typeof params.text === "string" ? params.text : decodedCode?.customText ?? "";
       const customText = detail.acceptsCustomText ? rawText : "";
+      // R5-TEXT-POSITION: same precedence as `?text=`/`decodedCode.customText`
+      // above — explicit `?pos=` wins, `?code=`'s decode fills in only when
+      // absent, `withCustomFields` clamps against this design regardless.
+      const rawPos = typeof params.pos === "string" ? params.pos : undefined;
+      const textPosition = isTextPosition(rawPos)
+        ? rawPos
+        : decodedCode?.textPosition;
       const { snapshot, configCode, designLayers } = buildConfigLinePayload(
         detail,
         selById,
         customNote,
-        customText
+        customText,
+        clampPosition(textPosition, allowedPositions(detail.textPositions))
       );
 
       // No <Suspense> around the client steps: the page already awaits all
@@ -203,6 +245,7 @@ export default async function ConfiguratorPage({
               selections={selById}
               sharedSet={sharedSet}
               paletteWords={paletteWords()}
+              isAdmin={isAdmin}
             />
         </section>
       );
@@ -221,19 +264,15 @@ export default async function ConfiguratorPage({
     if (detail) detailsBySlug[d.slug] = detail;
   });
 
-  // Foto reali di ceramica per l'icona della pillola step 2 — 3 miniature per
-  // fornitore (il design selezionato cambia client-side, quindi si coprono tutti
-  // i supplier in pagina). Cache di catalogo (PERF-1) → ~0 query in più.
-  const supplierIds = [...new Set(designs.map((d) => d.supplierId))];
-  const productsPerSupplier = await Promise.all(
-    supplierIds.map((id) => getSupplierProducts(id))
+  // R5-DESIGN-SWITCH T1: conteggio ceramiche per design (mockup `:149`
+  // «covers N ceramics») — stessa `getDesignProducts` (whitelist, cache
+  // `catalog`: su hit ~0 query in più).
+  const designProducts = await Promise.all(
+    designs.map((d) => getDesignProducts(d.id, d.supplierId))
   );
-  const ceramicThumbs: Record<string, string[]> = {};
-  supplierIds.forEach((id, i) => {
-    ceramicThumbs[id] = productsPerSupplier[i]
-      .map((p) => p.image)
-      .filter((img): img is string => Boolean(img))
-      .slice(0, 3);
+  const productCounts: Record<string, number> = {};
+  designs.forEach((d, i) => {
+    productCounts[d.slug] = designProducts[i].length;
   });
 
   // Preload the default design's composed layers so the first paint is the
@@ -264,7 +303,8 @@ export default async function ConfiguratorPage({
       <ConfiguratorClient
         designs={designs}
         detailsBySlug={detailsBySlug}
-        ceramicThumbs={ceramicThumbs}
+        productCounts={productCounts}
+        kit={kit}
         // Fix-wave finding 3: resolved HERE, server-side, so
         // `MK_PALETTE_WORDS` (not `NEXT_PUBLIC_*`, deliberately — card
         // §2/§4-bis says it must not become public) actually reaches the
@@ -284,6 +324,8 @@ export default async function ConfiguratorPage({
                 designName: f.designName ?? "",
                 designNameEn: f.designNameEn ?? "",
                 setCount: f.setCount,
+                price: f.price ?? null,
+                customImage: f.customImage,
               }))}
             />
           ) : null
