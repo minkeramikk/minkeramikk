@@ -2578,6 +2578,7 @@ export function ConfiguratorClient({
                   canSaveDraft && (
                     <button
                       type="button"
+                      data-testid="save-palette"
                       onClick={saveDraftAsPalette}
                       className="flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-primary/40 px-3 text-[12px] font-medium text-primary hover:bg-primary/10"
                     >

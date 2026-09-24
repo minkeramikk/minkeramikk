@@ -280,25 +280,6 @@ export async function firstActiveDesignWithId(): Promise<DesignRefWithId> {
 }
 
 /**
- * R2-2b: second active design (different from the first) — used to check
- * that designs WITHOUT the flag don't show the custom-notes block.
- * Returns null if there is only one active design.
- */
-export async function secondActiveDesignWithId(): Promise<DesignRefWithId | null> {
-  const first = await firstActiveDesignWithId();
-  const { data, error } = await adminClient()
-    .from("designs")
-    .select("id, slug, code, name")
-    .eq("active", true)
-    .neq("id", first.id)
-    .order("sort_order")
-    .limit(1)
-    .maybeSingle();
-  if (error) throw error;
-  return data as DesignRefWithId | null;
-}
-
-/**
  * F36 AC4: the first active design with NO gallery photos AND a real choice
  * (>=2 active options in some category) — a single-option category renders no
  * radiogroup, just an auto-picked group, so AC2 ("a choice updates preview and
