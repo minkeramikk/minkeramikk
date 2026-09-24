@@ -16,8 +16,7 @@
   },
   "actions": {
     "copy": "Kopier",
-    "copied": "Kopiert",
-    "newDesign": "Bygg et nytt design"
+    "copied": "Kopiert"
   },
   "nav": {
     "configurator": "Bygg din design",
@@ -402,8 +401,6 @@
     "recapTotal": "Totalt",
     "discountLabel": "Rabatt",
     "contactQuestion": "Spørsmål om bestillingen?",
-    "shareCta": "Del settet",
-    "shareCopied": "Lenke kopiert!",
     "pieceCount": "{count, plural, one {# del} other {# deler}}"
   },
   "palettes": {

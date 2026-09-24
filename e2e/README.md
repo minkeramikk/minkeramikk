@@ -1,6 +1,6 @@
 # e2e — suite snella (riscritta 2026-06-17)
 
-Otto **journey** critici, 1:1 con [`docs/release/ACCEPTANCE.md`](../../docs/release/ACCEPTANCE.md).
+Sette **journey** critici, 1:1 con [`docs/release/ACCEPTANCE.md`](../../docs/release/ACCEPTANCE.md).
 La suite verifica gli AC di quel documento — quello è la fonte di verità, non i test.
 
 | Spec | Journey | Note |
@@ -12,7 +12,7 @@ La suite verifica gli AC di quel documento — quello è la fonte di verità, no
 | `admin-auth.spec.ts` | login/guard admin | core |
 | `admin-orders.spec.ts` | gestione ordini | core · seed via service role |
 | `supplier-pdf.spec.ts` | PDF fornitore | full · desktop-only |
-| `share-set.spec.ts` | share your set (CA-3) | full · desktop-only |
+| `share-set.spec.ts` | share your set (CA-3) | rimossa (R5-GARANZIA) |
 | `order-email.spec.ts` | invio email ordine reale | **opt-in**, `make test-email` |
 | `supplier-email.spec.ts` | PDF fornitore + inoltro reale | **opt-in**, `make test-email` · fornitore usa-e-getta |
 | `evidence.spec.ts` | screenshot per il cliente | tooling, non gate |
@@ -21,7 +21,7 @@ La suite verifica gli AC di quel documento — quello è la fonte di verità, no
 
 ```
 make run-e2e-core   # per-PR: i 6 journey core (desktop + mobile)
-make run-e2e        # full: core + supplier-pdf + share-set
+make run-e2e        # full: core + supplier-pdf
 make test-email     # opt-in: UN ordine con email reali alla casella dedicata
 make run-e2e-grep G=cart   # una spec singola
 ```

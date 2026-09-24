@@ -17,8 +17,7 @@
   },
   "actions": {
     "copy": "Copy",
-    "copied": "Copied",
-    "newDesign": "Build a new design"
+    "copied": "Copied"
   },
   "nav": {
     "configurator": "Build your design",
@@ -403,8 +402,6 @@
     "recapTotal": "Total",
     "discountLabel": "Discount",
     "contactQuestion": "Questions about your order?",
-    "shareCta": "Share your set",
-    "shareCopied": "Link copied!",
     "pieceCount": "{count, plural, one {# piece} other {# pieces}}"
   },
   "palettes": {
