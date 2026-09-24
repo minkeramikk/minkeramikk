@@ -160,8 +160,14 @@
     "customText": {
       "title": "Tekst på keramikken",
       "helper": "Forhåndsvisningen viser ordene og hvor de står. Verkstedet bekrefter teksten og maler den for hånd.",
-      "helperLayered": "Verkstedet bekrefter den endelige teksten før produksjon — endrer ikke forhåndsvisningen.",
-      "counter": "{count}/{max}"
+      "counter": "{count}/{max}",
+      "position": {
+        "centre": "Midten",
+        "top": "Topp",
+        "bottom": "Bunn",
+        "back": "Bakside",
+        "backHelper": "Baksiden vises ikke i forhåndsvisningen — verkstedet maler den der i stedet."
+      }
     },
     "yourSelection": {
       "pairCaption": "Denne keramikken + ditt design"

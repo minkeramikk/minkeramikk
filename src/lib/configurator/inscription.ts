@@ -1,18 +1,11 @@
 /**
  * R5-TEXT-LIVE (card 6a) — le parole del cliente sul piatto, mentre le scrive.
- *
- * Due decisioni, entrambe della card:
- *
- * 1. UNA sola convenzione di posizione, non un dato per design. La card la
- *    chiedeva nel terzo inferiore; a schermo il TL l'ha spostata al centro
- *    (ruling 20/9, motivato dove sta la costante). Se un design vorrà un punto
- *    suo, è roba della 6b o dell'admin.
- * 2. Dove lo studio ha già disegnato la parola — il gruppo «Tekst», un layer
- *    per posizione — la scritta viva NON si disegna: se ne vedrebbero due.
- *    Lì l'anteprima resta identica a prima, pixel per pixel (AC 2).
+ * Estesa da R5-TEXT-POSITION (0.1-1, 0.1-6): la scritta si disegna SEMPRE dal
+ * codice ora, `centre`/`top`/`bottom`/`back` — la vecchia regola «dove lo
+ * studio ha già disegnato la parola come layer, non disegnare» è cancellata,
+ * il gruppo «Tekst» non governa più niente (vedi `text-option.ts`).
  */
 import { MAX_CUSTOM_TEXT } from "@/lib/orders/schema";
-import { isCustomTextOffered, type TextGroupCandidate } from "./text-option";
 
 /**
  * Geometria, in percentuale del QUADRATO che contiene l'arte del piatto — non
@@ -150,37 +143,56 @@ export function shrinkStep(
   return next < fit ? next : null;
 }
 
-/**
- * Il design porta la parola come layer (il gruppo «Tekst» di Alessio, uno per
- * posizione)? Allora la scritta viva non si disegna, e non è solo un fatto di
- * pixel: è anche ciò che il testo di aiuto sotto al campo può promettere.
- * Un posto solo, così le due cose non possono divergere.
- */
-export function inscriptionIsLayered(
-  textGroup: TextGroupCandidate | null
-): boolean {
-  return textGroup !== null;
-}
-
-/** La scritta viva si disegna? */
+/** La scritta viva si disegna? Stesso cancello del campo (`acceptsCustomText`)
+ *  più del testo vero e proprio — nessun'altra condizione, ora che il gruppo
+ *  «Tekst» non governa più niente (0.1-1). */
 export function showsLiveInscription({
   acceptsCustomText,
-  textGroup,
-  selectedOptionId,
   text,
 }: {
   acceptsCustomText: boolean;
-  textGroup: TextGroupCandidate | null;
-  selectedOptionId: string | undefined;
   text: string;
 }): boolean {
-  // Stesso cancello del campo: se il cliente non può chiedere la scritta, non
-  // c'è niente da mostrare — e il testo in stato può essere rimasto lì da un
-  // altro design.
-  if (!isCustomTextOffered({ acceptsCustomText, textGroup, selectedOptionId }))
-    return false;
-  // Il design modella le posizioni da sé (gruppo «Tekst»): la parola è già
-  // dipinta nel layer che il cliente ha scelto. Le posizioni sono la 6b.
-  if (inscriptionIsLayered(textGroup)) return false;
+  if (!acceptsCustomText) return false;
   return text.trim().length > 0;
+}
+
+/**
+ * R5-TEXT-POSITION (0.1-6) — geometria dell'arco Topp/Bunn, in unità del
+ * `viewBox="0 0 100 100"` montato dentro lo stesso quadrato `100cqmin` del
+ * centre. Raggio = 0,60 × R del piatto (R = 47,15, misurato in `inscription.ts`
+ * sopra) = 28,29; il centro del piatto è 50,50 — vincolato da DS §3.33 e dalla
+ * card, non da `S2-1280-Topp.dc.html` (che disegna 0,64 R sul proprio artwork).
+ */
+export const INSCRIPTION_ARC_RADIUS = 28.29;
+
+/**
+ * Corpo del testo sull'arco, prima del fit, in unità viewBox (100 = lato del
+ * quadrato). Il mockup ha 12,5 su un viewBox 200 → 6,25 di partenza qui.
+ * Misurato a 390 il 2026-09-24 (editor mobile, canvas ~300px, Krabbe con
+ * `top` abilitato, 25 caratteri): 6,25 sta già dentro l'anello tratteggiato
+ * senza toccare il bordo decorato — nessuna correzione necessaria.
+ */
+export const INSCRIPTION_ARC_FONT_SIZE = 6.25;
+
+/**
+ * Quanto dell'arco (un semicerchio, non l'intero cerchio: il testo corre solo
+ * sulla metà superiore/inferiore) si può riempire prima di dover stringere.
+ * 0,8: un margine ai due capi, come `INSCRIPTION_MAX_WIDTH` per la riga al
+ * centro — mai tutto il semicerchio, o il testo tocca dove l'arco finisce.
+ */
+export const INSCRIPTION_ARC_FILL = 0.8;
+
+/**
+ * Una passata del ciclo di misura per l'arco — stesso ritmo di `shrinkStep`
+ * (stesso passo `INSCRIPTION_SHRINK_STEP`, stesso pavimento
+ * `INSCRIPTION_MIN_FIT`), ma il criterio è la LUNGHEZZA del `textPath`
+ * (`getComputedTextLength()`, misurata dal chiamante) contro la corda
+ * disponibile: `π · radius · fill`. Puro: nessun DOM qui dentro.
+ */
+export function arcFit(textLength: number, radius: number, fit: number): number {
+  const available = Math.PI * radius * INSCRIPTION_ARC_FILL;
+  if (textLength <= available) return fit;
+  const next = Math.max(INSCRIPTION_MIN_FIT, fit * INSCRIPTION_SHRINK_STEP);
+  return next;
 }

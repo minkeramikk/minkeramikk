@@ -13,10 +13,14 @@ import {
   findTextGroup,
   isCustomTextOffered,
 } from "@/lib/configurator/text-option";
+import { showsLiveInscription } from "@/lib/configurator/inscription";
 import {
-  inscriptionIsLayered,
-  showsLiveInscription,
-} from "@/lib/configurator/inscription";
+  allowedPositions,
+  clampPosition,
+  isTextPosition,
+  type TextPosition,
+} from "@/lib/configurator/text-position";
+import { PositionChips } from "@/components/ui-domain/position-chips";
 import { useLaneFades } from "@/lib/configurator/use-lane-fades";
 import {
   ARROW_SAFE_PX,
@@ -441,20 +445,37 @@ export function ConfiguratorClient({
   );
   const showCustomText = isCustomTextOffered({
     acceptsCustomText: detail.acceptsCustomText,
-    textGroup: textCategory,
-    selectedOptionId: textCategory ? selections[textCategory.slug] : undefined,
   });
 
-  /* R5-TEXT-LIVE: la scritta viva. La regola sta tutta nel modulo puro — in
-     particolare il «dove c'è il layer non si disegna» dell'AC 2. */
+  /* R5-TEXT-LIVE/R5-TEXT-POSITION: la scritta viva si disegna sempre dal
+     codice ora — nessuna eccezione per il gruppo «Tekst» (0.1-1). */
   const liveInscription = showsLiveInscription({
     acceptsCustomText: detail.acceptsCustomText,
-    textGroup: textCategory,
-    selectedOptionId: textCategory ? selections[textCategory.slug] : undefined,
     text: customText,
   })
     ? customText
     : undefined;
+
+  /* R5-TEXT-POSITION: dove sta la scritta — Midten di default, seed da
+     `?pos=` (isTextPosition scarta valori estranei senza rompere). */
+  const [textPosition, setTextPosition] = useState<TextPosition>(
+    isTextPosition(searchParams.get("pos")) ? (searchParams.get("pos") as TextPosition) : "centre"
+  );
+  const positionsOffered = useMemo(
+    () => allowedPositions(detail.textPositions),
+    [detail]
+  );
+  // Un design cambiato/una posizione non più ammessa ricadono su `centre`,
+  // silenziosamente (0.1-4) — mai un chip acceso su un'opzione sparita.
+  useEffect(() => {
+    setTextPosition((pos) => clampPosition(pos, positionsOffered));
+  }, [positionsOffered]);
+  // Reset alla stessa cadenza del testo: design diverso, campo diverso.
+  useEffect(() => {
+    const fromUrl = new URLSearchParams(searchParams.toString()).get("pos");
+    setTextPosition(isTextPosition(fromUrl) ? fromUrl : "centre");
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- key on design only
+  }, [selected.slug]);
 
   /* R4-COPY Ⓒ (chiusa) + R4-FIX 7: la didascalia col link alla
      inspirasjonsside. `t.rich` rende il tag <link> del dizionario — nessun HTML
@@ -515,21 +536,29 @@ export function ConfiguratorClient({
           data-testid="custom-text-helper"
           className="text-xs text-muted-foreground"
         >
-          {/* TODO:nb-review — configurator.customText.helper*, riscritte dalla
-              card 6a. Due stringhe e non una: su un design che porta la parola
-              come layer (Krabbe con «Tekst 1») la scritta viva NON si disegna,
-              quindi promettergli che «l'anteprima mostra le tue parole» sarebbe
-              falso proprio lì. La condizione è la stessa che spegne la scritta,
-              chiesta allo stesso posto. */}
-          {t(
-            inscriptionIsLayered(textCategory)
-              ? "customText.helperLayered"
-              : "customText.helper"
-          )}
+          {t("customText.helper")}
         </p>
         <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
           {t("customText.counter", { count: customText.length, max: MAX_CUSTOM_TEXT })}
         </span>
+      </div>
+      <div className="mt-3">
+        <PositionChips
+          positions={positionsOffered}
+          value={textPosition}
+          onChange={setTextPosition}
+          label={(pos) => t(`customText.position.${pos}`)}
+        />
+        {textPosition === "back" && (
+          // TODO:nb-review — configurator.customText.position.backHelper,
+          // scritta ora in inglese e tradotta senza revisione del cliente.
+          <p
+            data-testid="custom-text-position-back-helper"
+            className="mt-2 text-xs text-muted-foreground"
+          >
+            {t("customText.position.backHelper")}
+          </p>
+        )}
       </div>
     </section>
   );
@@ -712,7 +741,12 @@ export function ConfiguratorClient({
     const params = new URLSearchParams(searchParams.toString());
     params.delete("code");
     try {
-      const { designSlug, selections: sel, customText: decodedText } = decodeConfigCode(
+      const {
+        designSlug,
+        selections: sel,
+        customText: decodedText,
+        textPosition: decodedPosition,
+      } = decodeConfigCode(
         incoming,
         (c) => codecDesigns.find((d) => d.code === c.toUpperCase()) ?? null
       );
@@ -724,8 +758,16 @@ export function ConfiguratorClient({
       if (explicitText === null) {
         const seededText = decodedText ?? "";
         setCustomText(seededText);
-        if (seededText) params.set("text", seededText);
-        else params.delete("text");
+        setTextPosition(decodedPosition ?? "centre");
+        if (seededText) {
+          params.set("text", seededText);
+          if (decodedPosition && decodedPosition !== "centre")
+            params.set("pos", decodedPosition);
+          else params.delete("pos");
+        } else {
+          params.delete("text");
+          params.delete("pos");
+        }
       }
     } catch {
       /* invalid code → just drop the param, never crash */
@@ -939,9 +981,10 @@ export function ConfiguratorClient({
         detail,
         selections,
         noteMode === "custom" ? noteText : "",
-        showCustomText ? customText : ""
+        showCustomText ? customText : "",
+        textPosition
       ),
-    [detail, selections, noteMode, noteText, showCustomText, customText]
+    [detail, selections, noteMode, noteText, showCustomText, customText, textPosition]
   );
   const draftCode = draftPayload.configCode;
   // The chip that represents "what's on screen right now" — either the
@@ -1162,6 +1205,7 @@ export function ConfiguratorClient({
     // design's categories, so they drop with the options above.
     params.delete("code");
     params.delete("text");
+    params.delete("pos");
     params.delete("lock");
     params.delete("note"); // R2-2b: a new design starts without a note
     router.push(`${pathname}?${params.toString()}`, { scroll: false });
@@ -1220,8 +1264,14 @@ export function ConfiguratorClient({
     // deve portarsi dietro la scritta digitata prima).
     if (showCustomText && customText.trim()) {
       params.set("text", customText.trim());
+      // R5-TEXT-POSITION: rides alongside the text, never without it — and
+      // only written when it says something (`centre` is the silent default,
+      // same convention as bit 0 in the codec, 0.1-3).
+      if (textPosition !== "centre") params.set("pos", textPosition);
+      else params.delete("pos");
     } else {
       params.delete("text");
+      params.delete("pos");
     }
     // CA-6b: default scroll (top) on step change — the new step starts from
     // its beginning; option selects keep scroll:false (same view).
@@ -1784,6 +1834,8 @@ export function ConfiguratorClient({
               className={cn(step === 2 && "max-md:contents")}
               layers={previewLayers}
               inscription={liveInscription}
+              inscriptionPosition={textPosition}
+              backLabel={t("customText.position.back")}
               designKey={selected.slug}
               pendingDesignKey={pending?.slug ?? null}
             />

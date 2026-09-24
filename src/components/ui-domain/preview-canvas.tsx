@@ -1,14 +1,19 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { Undo2 } from "lucide-react";
 import {
+  INSCRIPTION_ARC_FONT_SIZE,
+  INSCRIPTION_ARC_RADIUS,
   INSCRIPTION_CENTER_Y,
   INSCRIPTION_FIT_PASSES,
   INSCRIPTION_FONT_SIZE,
   INSCRIPTION_MAX_WIDTH,
+  arcFit,
   scaleForLength,
   shrinkStep,
 } from "@/lib/configurator/inscription";
+import type { TextPosition } from "@/lib/configurator/text-position";
 
 export interface PreviewLayer {
   src: string;
@@ -302,11 +307,105 @@ function Inscription({ text }: { text: string }) {
   );
 }
 
+/**
+ * R5-TEXT-POSITION (0.1-6) — Topp/Bunn: la scritta corre sull'arco interno
+ * del piatto, `<textPath>` su un `<svg viewBox="0 0 100 100">` montato nella
+ * STESSA scatola `100cqmin` del centre (sostituisce `<Inscription>`, non la
+ * affianca). Stessa tecnica di misura del centre (mutazione diretta del DOM
+ * in un `useIsoLayoutEffect`, niente stato React per il fattore — altrimenti
+ * ogni render del padre la cancellerebbe): `arcFit` è puro, qui solo si legge
+ * `getComputedTextLength()` e si applica.
+ */
+function ArcInscription({
+  text,
+  position,
+}: {
+  text: string;
+  position: "top" | "bottom";
+}) {
+  const rawId = useId().replace(/[^a-zA-Z0-9]/g, "");
+  const pathId = `inscription-arc-${rawId}`;
+  const textElRef = useRef<SVGTextElement>(null);
+  const textPathRef = useRef<SVGTextPathElement>(null);
+
+  useIsoLayoutEffect(() => {
+    const textEl = textElRef.current;
+    const pathEl = textPathRef.current;
+    if (!textEl || !pathEl) return;
+    let fit = 1;
+    textEl.style.fontSize = String(INSCRIPTION_ARC_FONT_SIZE * fit);
+    for (let pass = 0; pass < INSCRIPTION_FIT_PASSES; pass++) {
+      const next = arcFit(pathEl.getComputedTextLength(), INSCRIPTION_ARC_RADIUS, fit);
+      if (next === fit) break;
+      fit = next;
+      textEl.style.fontSize = String(INSCRIPTION_ARC_FONT_SIZE * fit);
+    }
+  }, [text]);
+
+  // Bunn = lo stesso arco specchiato (sweep-flag 0): il testo resta leggibile
+  // da sinistra a destra invece di venire letto capovolto (0.1-6).
+  const sweep = position === "top" ? 1 : 0;
+  const d = `M 21.71,50 a ${INSCRIPTION_ARC_RADIUS},${INSCRIPTION_ARC_RADIUS} 0 0 ${sweep} 56.58,0`;
+
+  return (
+    <svg
+      viewBox="0 0 100 100"
+      className="pointer-events-none absolute inset-0"
+      aria-hidden="true"
+      data-testid="preview-inscription"
+      data-pos={position}
+    >
+      <path id={pathId} d={d} fill="none" />
+      <text
+        ref={textElRef}
+        style={{
+          fontFamily: 'var(--font-inscription), "Times New Roman", Times, serif',
+          fontStyle: "italic",
+          fontWeight: 500,
+          fill: "var(--mk-dark)",
+          opacity: 0.78,
+          fontSize: String(INSCRIPTION_ARC_FONT_SIZE),
+        }}
+      >
+        <textPath ref={textPathRef} href={`#${pathId}`} startOffset="50%" textAnchor="middle">
+          {text}
+        </textPath>
+      </text>
+    </svg>
+  );
+}
+
+/**
+ * R5-TEXT-POSITION (0.1-7) — Bakside: nessuna anteprima sul piatto (il retro
+ * non è mai inquadrato), una pill lo dice al posto della scritta. `backLabel`
+ * arriva già tradotto dal chiamante (next-intl vive lì, non qui — stesso
+ * schema di `caption`), niente stringa norvegese cablata in un componente
+ * condiviso.
+ */
+function BackTag({ text, backLabel }: { text: string; backLabel: string }) {
+  return (
+    <div
+      data-testid="back-tag"
+      className="pointer-events-none absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-muted px-3 py-1.5 text-[11px] text-foreground"
+    >
+      <Undo2 aria-hidden="true" size={12} />
+      <span>
+        {backLabel} ·{" "}
+        <span style={{ fontFamily: 'var(--font-inscription), "Times New Roman", Times, serif', fontStyle: "italic" }}>
+          {text}
+        </span>
+      </span>
+    </div>
+  );
+}
+
 export function PreviewCanvas({
   layers,
   caption,
   alt,
   inscription,
+  inscriptionPosition = "centre",
+  backLabel,
   className,
   /**
    * R5-DESIGN-SWITCH T2: the design currently on screen (slug). The loader
@@ -338,6 +437,14 @@ export function PreviewCanvas({
    * `showsLiveInscription`). Assente = anteprima di sempre.
    */
   inscription?: string;
+  /**
+   * R5-TEXT-POSITION: dove sta la scritta. `centre` (default) = comportamento
+   * di sempre. `back` non disegna niente sul piatto — vedi `backLabel`.
+   */
+  inscriptionPosition?: TextPosition;
+  /** Solo per `inscriptionPosition="back"`: label già tradotta (es. "Bakside") —
+   *  next-intl vive nel chiamante, non qui, stesso schema di `caption`. */
+  backLabel?: string;
   className?: string;
   designKey?: string;
   /** Visibile al centro delle alici: solo "Loading…", mai il nome design. */
@@ -518,7 +625,7 @@ export function PreviewCanvas({
             `object-contain`, quindi la scritta segue il piatto invece che la
             scatola (AC 4). Contenitore NOMINATO, così un `@container` annidato
             più avanti non se lo prende. */}
-        {inscription && !nothingToShow && (
+        {inscription && !nothingToShow && inscriptionPosition !== "back" && (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
             <div
               className={`flex items-center justify-center ${ART_BOX}`}
@@ -532,10 +639,21 @@ export function PreviewCanvas({
               style={{ containerType: "size", containerName: "plate" }}
             >
               <div className="relative aspect-square w-[100cqmin]">
-                <Inscription text={inscription} />
+                {inscriptionPosition === "top" || inscriptionPosition === "bottom" ? (
+                  <ArcInscription text={inscription} position={inscriptionPosition} />
+                ) : (
+                  <Inscription text={inscription} />
+                )}
               </div>
             </div>
           </div>
+        )}
+        {/* R5-TEXT-POSITION (0.1-7) — Bakside: nessuna anteprima sul piatto,
+            solo la pill (in basso, sopra lo stack, mai sopra il pulsante
+            design). `backLabel` assente (chiamante non ancora aggiornato) →
+            niente pill: un dato incompleto è meglio di uno rotto. */}
+        {inscription && inscriptionPosition === "back" && backLabel && !nothingToShow && (
+          <BackTag text={inscription} backLabel={backLabel} />
         )}
       </div>
       {caption && (
