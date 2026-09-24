@@ -1,5 +1,5 @@
 import { test, expect, type Browser, type Page } from "@playwright/test";
-import { designWithCode, ceramicCards } from "./helpers";
+import { designWithCode, ceramicCards, ADMIN_EMAIL, ADMIN_PASSWORD, HAS_ADMIN } from "./helpers";
 
 /**
  * Journey 8 — Share your set (CA-3). ACCEPTANCE.md §8 · ADR 0016.
@@ -15,8 +15,18 @@ import { designWithCode, ceramicCards } from "./helpers";
 let step3 = "";
 test.beforeAll(async () => {
   const design = await designWithCode();
-  step3 = `/no/configurator?design=${design.slug}&step=3&admin=1`;
+  step3 = `/no/configurator?design=${design.slug}&step=3`;
 });
+
+test.skip(!HAS_ADMIN, "share needs an admin session");
+
+async function loginAsAdmin(page: Page) {
+  await page.goto("/admin/login");
+  await page.getByTestId("login-email").fill(ADMIN_EMAIL!);
+  await page.getByTestId("login-password").fill(ADMIN_PASSWORD!);
+  await page.getByTestId("login-submit").click();
+  await expect(page).toHaveURL(/\/admin$/);
+}
 
 const ceramics = (page: Page) => ceramicCards(page);
 
@@ -39,6 +49,7 @@ async function forgeShareUrl(browser: Browser) {
     permissions: ["clipboard-read", "clipboard-write"],
   });
   const page = await ctx.newPage();
+  await loginAsAdmin(page);
   await page.goto(step3);
   await page.getByTestId("ceramics-step").waitFor();
   await addNthCeramic(page, 0);
@@ -51,7 +62,8 @@ async function forgeShareUrl(browser: Browser) {
   const ceramicCount = await ceramics(page).count();
 
   await panel.getByTestId("share-set").click();
-  const link = panel.getByTestId("share-feedback").locator("code");
+  await page.getByTestId("share-as-set").click();
+  const link = page.getByTestId("share-feedback").locator("code");
   await expect(link).toBeVisible();
   const url = await link.innerText();
   await ctx.close();

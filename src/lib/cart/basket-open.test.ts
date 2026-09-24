@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { basketOpen, keyboardUp } from "./basket-open";
+import { basketOpen, keyboardUp, openOnKitArrival } from "./basket-open";
 
 /**
  * R5-BASKET-HOST task 8 — the keyboard guard, card §3. The four cases are the
@@ -57,5 +57,23 @@ describe("keyboardUp", () => {
     expect(keyboardUp({ step: 1, typing: true })).toBe(false);
     // …which is exactly what stops `basketOpen` from answering «never»:
     expect(basketOpen({ current: false, request: true, keyboardIsUp: keyboardUp({ step: 1, typing: true }) })).toBe(true);
+  });
+});
+
+describe("openOnKitArrival", () => {
+  it("opens in kit-mode with unpainted pieces below lg", () => {
+    expect(openOnKitArrival({ kitMode: true, unpainted: 3, wide: false })).toBe(true);
+  });
+
+  it("stays shut on desktop (the rail is already the basket)", () => {
+    expect(openOnKitArrival({ kitMode: true, unpainted: 3, wide: true })).toBe(false);
+  });
+
+  it("stays shut with nothing unpainted", () => {
+    expect(openOnKitArrival({ kitMode: true, unpainted: 0, wide: false })).toBe(false);
+  });
+
+  it("stays shut outside kit-mode", () => {
+    expect(openOnKitArrival({ kitMode: false, unpainted: 3, wide: false })).toBe(false);
   });
 });

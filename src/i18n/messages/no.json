@@ -140,7 +140,13 @@
       "title": "Populære design",
       "curated": "utvalgt av butikken",
       "prev": "Forrige",
-      "next": "Neste"
+      "next": "Neste",
+      "kitBadge": "Kit · {count, plural, one {# del} other {# deler}}",
+      "coloursYours": "Farger: <b>du velger</b>",
+      "coloursReady": "Farger: klare til bestilling",
+      "buildYourOwn": "Design · lag ditt eget",
+      "colourKit": "Fargelegg dette kittet",
+      "seeSet": "Se settet"
     },
     "customNotes": {
       "title": "Egne fargeønsker",
@@ -245,7 +251,17 @@
     },
     "itemCount": "{count, plural, =0 {Tom} one {# vare} other {# varer}}",
     "share": {
-      "button": "Del settet",
+      "button": "Del denne kurven",
+      "eyebrow": "Admin",
+      "title": "Del denne kurven",
+      "lead": "Send kurven som den er, eller som et kit som skal males.",
+      "asSet": "Som et sett",
+      "asSetHint": "De får nøyaktig disse fargene. Klart til bestilling.",
+      "asKit": "Som et kit",
+      "asKitHint": "Farger fjernet. De velger selv, på disse delene.",
+      "priceLine": "{price} · {count, plural, one {# del} other {# deler}}",
+      "linkLabel": "Lenke",
+      "copy": "Kopier lenke",
       "copied": "Lenke kopiert",
       "manual": "Kopier denne lenken — den som åpner den finner dette settet",
       "tooBig": "Settet er for stort for en lenke",
@@ -321,6 +337,21 @@
     "addedWithPct": "Lagt i handlekurven · −{pct} %",
     "sheetOffer": {
       "taken": "Lagt i handlekurven"
+    }
+  },
+  "kit": {
+    "strip": {
+      "title": "Et kit fra minkeramikk",
+      "subtitle": "{count, plural, one {# del} other {# deler}} · farger å velge",
+      "painted": "{painted} av {total} malt"
+    },
+    "fixedDesign": "Design: {name} — bestemt av kittet",
+    "welcome": {
+      "eyebrow": "Et sett fra minkeramikk",
+      "title": "{count, plural, one {# del} other {# deler}} venter på dine farger",
+      "body": "De ligger allerede i handlekurven. Velg fargene her — én gang for alle, eller del for del.",
+      "show": "Vis meg hvordan",
+      "self": "Jeg ser selv"
     }
   },
   "order": {

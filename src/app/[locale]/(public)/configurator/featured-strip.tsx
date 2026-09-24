@@ -4,11 +4,11 @@ import { useCallback } from "react";
 import useEmblaCarousel from "embla-carousel-react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
-import { SetBadge } from "@/components/ui-domain/set-badge";
+import { formatMoney } from "@/lib/money/money";
 
 export interface FeaturedStripItem {
   id: string;
-  kind: "design" | "set";
+  kind: "design" | "set" | "kit";
   payload: string;
   /** resolved URL of the PRE-composed thumb — ONE image per card (ADR 0016) */
   thumbUrl: string;
@@ -17,6 +17,10 @@ export interface FeaturedStripItem {
   designName: string;
   designNameEn: string;
   setCount: number | null;
+  /** R5-KIT: live price of the pieces (sets and kits); null for design */
+  price: { grossCents: number; netCents: number; currency: "NOK" | "EUR" | "GBP" } | null;
+  /** fix 7: custom uploads fill the card frame; composed thumbs stay round */
+  customImage: boolean;
 }
 
 /**
@@ -52,11 +56,14 @@ export function FeaturedStrip({ items }: { items: FeaturedStripItem[] }) {
   };
 
   // design → step 2 with the config loaded (same ?code=&step=2 semantics as
-  // the F19 cart "reopen"); set → the CA-3 landing on step 3
+  // the F19 cart "reopen"); set → the CA-3 landing on step 3; kit → step 2
+  // with the pieces (R5-KIT)
   const href = (f: FeaturedStripItem) =>
     f.kind === "design"
       ? `/configurator?code=${encodeURIComponent(f.payload)}&step=2`
-      : `/configurator?step=3&set=${f.payload}`;
+      : f.kind === "kit"
+        ? `/configurator?step=2&kit=${encodeURIComponent(f.payload)}`
+        : `/configurator?step=3&set=${f.payload}`;
 
   return (
     <section
@@ -100,37 +107,107 @@ export function FeaturedStrip({ items }: { items: FeaturedStripItem[] }) {
         className="snap-x snap-mandatory overflow-x-auto md:snap-none md:overflow-hidden [mask-image:linear-gradient(to_right,black_88%,transparent)] [-webkit-mask-image:linear-gradient(to_right,black_88%,transparent)]"
       >
         <div className="flex gap-2.5 pb-1 pr-10">
-          {items.map((f, i) => (
-            <Link
-              key={f.id}
-              href={href(f)}
-              data-testid={`featured-card-${f.kind}`}
-              aria-label={`${label(f)} — ${designName(f)}`}
-              className="relative w-28 shrink-0 snap-start rounded-lg border border-border bg-card p-2.5 text-center transition-colors hover:border-ring focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring sm:w-32"
-            >
-              {f.kind === "set" && f.setCount != null && (
-                <SetBadge
-                  count={f.setCount}
-                  testId="featured-set-badge"
-                  className="absolute right-1.5 top-1.5 z-10"
-                />
-              )}
-              {/* eslint-disable-next-line @next/next/no-img-element -- pre-composed thumb from storage */}
-              <img
-                src={f.thumbUrl}
-                alt=""
-                loading={i < 3 ? "eager" : "lazy"}
-                decoding="async"
-                className="mx-auto size-20 rounded-full border border-border/60 object-cover sm:size-24"
-              />
-              <span className="mt-1.5 block truncate text-xs font-medium">
-                {label(f)}
-              </span>
-              <span className="block truncate text-[10.5px] text-muted-foreground">
-                {designName(f)}
-              </span>
-            </Link>
-          ))}
+          {items.map((f, i) => {
+            const net =
+              f.price && f.kind !== "design"
+                ? formatMoney(
+                    { amountCents: f.price.netCents, currency: f.price.currency },
+                    locale as "no" | "en"
+                  )
+                : null;
+            const gross =
+              f.price && f.kind !== "design" && f.price.netCents < f.price.grossCents
+                ? formatMoney(
+                    { amountCents: f.price.grossCents, currency: f.price.currency },
+                    locale as "no" | "en"
+                  )
+                : null;
+            return (
+              <Link
+                key={f.id}
+                href={href(f)}
+                data-testid={`featured-card-${f.kind}`}
+                data-kind={f.kind}
+                aria-label={`${label(f)} — ${designName(f)}`}
+                className="w-[188px] shrink-0 snap-start overflow-hidden rounded-[13px] border border-border bg-card transition-colors hover:border-ring focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+              >
+                <span
+                  className={`relative grid h-[128px] place-items-center ${
+                    f.customImage
+                      ? ""
+                      : "bg-[color-mix(in_oklab,var(--mk-light),white_40%)]"
+                  }`}
+                >
+                  {(f.kind === "set" || f.kind === "kit") && f.setCount != null && (
+                    <span
+                      className={`absolute left-2 top-2 z-10 rounded-full px-2 py-0.5 text-[9.5px] font-bold uppercase tracking-[0.06em] ${
+                        f.kind === "kit"
+                          ? "bg-ink text-ink-foreground"
+                          : "bg-card text-foreground ring-1 ring-border"
+                      }`}
+                    >
+                      {f.kind === "kit"
+                        ? t("kitBadge", { count: f.setCount })
+                        : tc("setBadge", { count: f.setCount })}
+                    </span>
+                  )}
+                  {/* eslint-disable-next-line @next/next/no-img-element -- pre-composed thumb from storage */}
+                  <img
+                    src={f.thumbUrl}
+                    alt=""
+                    loading={i < 3 ? "eager" : "lazy"}
+                    decoding="async"
+                    className={
+                      f.customImage
+                        ? "absolute inset-0 size-full object-cover"
+                        : "size-[86px] rounded-full object-cover"
+                    }
+                  />
+                </span>
+                <span className="block px-2.5 py-2.5">
+                  <span className="block text-[13px] font-semibold leading-tight">
+                    {label(f)}
+                  </span>
+                  <span
+                    className={`block text-[11px] ${
+                      f.kind === "kit"
+                        ? "font-medium text-primary"
+                        : "text-muted-foreground"
+                    }`}
+                  >
+                    {f.kind === "kit" ? (
+                      t.rich("coloursYours", { b: (c) => <b key="b">{c}</b> })
+                    ) : f.kind === "set" ? (
+                      t("coloursReady")
+                    ) : (
+                      t("buildYourOwn")
+                    )}
+                  </span>
+                  {net && (
+                    <span className="mt-0.5 block text-[13px] font-semibold">
+                      {net}
+                      {gross && (
+                        <span className="ml-1.5 text-[11px] font-normal text-muted-foreground line-through">
+                          {gross}
+                        </span>
+                      )}
+                    </span>
+                  )}
+                  {(f.kind === "set" || f.kind === "kit") && (
+                    <span
+                      className={`mt-2 block h-8 w-full rounded-full text-center text-[12px] font-semibold leading-8 ${
+                        f.kind === "kit"
+                          ? "bg-primary text-primary-foreground"
+                          : "border border-primary/40 text-primary"
+                      }`}
+                    >
+                      {f.kind === "kit" ? t("colourKit") : t("seeSet")}
+                    </span>
+                  )}
+                </span>
+              </Link>
+            );
+          })}
         </div>
       </div>
     </section>

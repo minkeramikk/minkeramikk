@@ -141,7 +141,13 @@
       "title": "Popular designs",
       "curated": "curated by the shop",
       "prev": "Previous",
-      "next": "Next"
+      "next": "Next",
+      "kitBadge": "Kit · {count, plural, one {# piece} other {# pieces}}",
+      "coloursYours": "Colours: <b>yours to choose</b>",
+      "coloursReady": "Colours: ready to order",
+      "buildYourOwn": "Design · build your own",
+      "colourKit": "Colour this kit",
+      "seeSet": "See the set"
     },
     "customNotes": {
       "title": "Your colour notes",
@@ -246,7 +252,17 @@
     },
     "itemCount": "{count, plural, =0 {Empty} one {# item} other {# items}}",
     "share": {
-      "button": "Share this set",
+      "button": "Share this basket",
+      "eyebrow": "Admin",
+      "title": "Share this basket",
+      "lead": "Send the basket as it is, or as a kit to paint.",
+      "asSet": "As a set",
+      "asSetHint": "They get exactly these colours. Ready to order.",
+      "asKit": "As a kit",
+      "asKitHint": "Colours stripped. They choose their own, on these pieces.",
+      "priceLine": "{price} · {count, plural, one {# piece} other {# pieces}}",
+      "linkLabel": "Link",
+      "copy": "Copy link",
       "copied": "Link copied",
       "manual": "Copy this link — anyone who opens it finds this set",
       "tooBig": "This set is too big for a link",
@@ -322,6 +338,21 @@
     "addedWithPct": "Added to your basket · −{pct}%",
     "sheetOffer": {
       "taken": "Added to the basket"
+    }
+  },
+  "kit": {
+    "strip": {
+      "title": "A kit from minkeramikk",
+      "subtitle": "{count, plural, one {# piece} other {# pieces}} · colours to choose",
+      "painted": "{painted} of {total} painted"
+    },
+    "fixedDesign": "Design: {name} — fixed by the kit",
+    "welcome": {
+      "eyebrow": "A kit from minkeramikk",
+      "title": "{count, plural, one {# piece} other {# pieces}}, waiting for your colours",
+      "body": "They're already in your basket. Choose the colours here — once for all of them, or piece by piece.",
+      "show": "Show me how",
+      "self": "I'll have a look myself"
     }
   },
   "order": {
