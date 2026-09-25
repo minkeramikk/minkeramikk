@@ -27,7 +27,6 @@ export const EDITABLE_NAMESPACES = [
   "error",
   "footer",
   "home",
-  "legal",
   "localeSwitcher",
   "nav",
   "notFound",

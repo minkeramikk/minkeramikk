@@ -6,7 +6,7 @@ import { useRouter } from "@/i18n/navigation";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Turnstile } from "@/components/ui-domain/turnstile";
-import { LegalSheet } from "@/components/ui-domain/legal-sheet";
+import { LEGAL } from "@/lib/site/legal-links";
 import { NextStepPill, PillIcon } from "@/components/ui-domain/next-step-pill";
 import { Loader2, Truck } from "lucide-react";
 import type { Cart } from "@/lib/cart/cart";
@@ -275,32 +275,30 @@ export function OrderForm({
         <span>
           {t.rich("acceptTerms", {
             terms: (chunks) => (
-              <LegalSheet doc="terms">
-                <button
-                  type="button"
-                  data-testid="order-terms-link"
-                  aria-haspopup="dialog"
-                  // inside the <label>: without this, reading the terms ticks
-                  // the box that says you have read them
-                  onClick={(e) => e.stopPropagation()}
-                  className="underline underline-offset-2 hover:text-foreground"
-                >
-                  {chunks}
-                </button>
-              </LegalSheet>
+              <a
+                href={LEGAL.terms}
+                target="_blank"
+                rel="noopener noreferrer"
+                data-testid="order-terms-link"
+                // inside the <label>: without this, reading the terms ticks
+                // the box that says you have read them
+                onClick={(e) => e.stopPropagation()}
+                className="underline underline-offset-2 hover:text-foreground"
+              >
+                {chunks}
+              </a>
             ),
             privacy: (chunks) => (
-              <LegalSheet doc="privacy">
-                <button
-                  type="button"
-                  data-testid="order-privacy-link"
-                  aria-haspopup="dialog"
-                  onClick={(e) => e.stopPropagation()}
-                  className="underline underline-offset-2 hover:text-foreground"
-                >
-                  {chunks}
-                </button>
-              </LegalSheet>
+              <a
+                href={LEGAL.privacy}
+                target="_blank"
+                rel="noopener noreferrer"
+                data-testid="order-privacy-link"
+                onClick={(e) => e.stopPropagation()}
+                className="underline underline-offset-2 hover:text-foreground"
+              >
+                {chunks}
+              </a>
             ),
           })}
         </span>

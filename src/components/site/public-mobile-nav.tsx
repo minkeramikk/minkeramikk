@@ -12,6 +12,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { LocaleSwitcher } from "@/components/site/locale-switcher";
+import { LEGAL } from "@/lib/site/legal-links";
 
 /**
  * Public mobile menu (F12). The header's text nav is desktop-only (≥sm); below
@@ -22,10 +23,11 @@ export function PublicMobileNav() {
   const t = useTranslations();
   const [open, setOpen] = useState(false);
 
-  const links = [
-    { href: "/configurator", label: t("nav.configurator") },
-    { href: "/terms", label: t("footer.terms") },
-    { href: "/privacy", label: t("footer.privacy") },
+  const links = [{ href: "/configurator", label: t("nav.configurator") }] as const;
+
+  const legalLinks = [
+    { href: LEGAL.terms, testid: "terms", label: t("footer.terms") },
+    { href: LEGAL.privacy, testid: "privacy", label: t("footer.privacy") },
   ] as const;
 
   return (
@@ -62,6 +64,19 @@ export function PublicMobileNav() {
             >
               {l.label}
             </Link>
+          ))}
+          {legalLinks.map((l) => (
+            <a
+              key={l.testid}
+              href={l.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => setOpen(false)}
+              data-testid={`mobile-nav-${l.testid}`}
+              className="px-6 py-2.5 text-[14px] text-ink-muted transition-colors hover:text-white"
+            >
+              {l.label}
+            </a>
           ))}
         </nav>
         <div className="mt-4 px-6">

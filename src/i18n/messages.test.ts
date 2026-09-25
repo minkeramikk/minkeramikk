@@ -35,16 +35,4 @@ describe("i18n message parity", () => {
   it("has no NO keys missing from EN", () => {
     expect([...noKeys].filter((k) => !enKeys.has(k))).toEqual([]);
   });
-
-  it("includes the legal copy in both locales", () => {
-    for (const k of [
-      "legal.terms.title",
-      "legal.terms.body",
-      "legal.privacy.title",
-      "legal.privacy.body",
-    ]) {
-      expect(enKeys.has(k), `EN ${k}`).toBe(true);
-      expect(noKeys.has(k), `NO ${k}`).toBe(true);
-    }
-  });
 });
