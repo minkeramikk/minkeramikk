@@ -1782,6 +1782,7 @@ export function CeramicsStep({
         onQty={setQty}
         onAdd={addOpened}
         designLayers={designLayers}
+        paletteName={paintingLabel}
         ladder={ladder}
         ladderExcluded={ladderExcluded}
         inCartQty={inCartQty}

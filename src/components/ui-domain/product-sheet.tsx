@@ -49,6 +49,7 @@ export function ProductSheet({
   onQty,
   onAdd,
   designLayers,
+  paletteName,
   ladder,
   ladderExcluded,
   inCartQty,
@@ -64,6 +65,10 @@ export function ProductSheet({
   onAdd: () => void;
   /** F37: current config layers (empty → no composed pair rendered). */
   designLayers: CartLayer[];
+  /** TL feedback 25/9: the pair caption names what's actually painting — the
+   *  same `paintingLabel` the caller already computes for the draft chip and
+   *  the basket header (`ceramics-step.tsx`), not a generic "your design". */
+  paletteName: string;
   /** R4-UPSELL-POST-ADD ②: NO offers here, at any quantity. They live behind
    *  «Legg i handlekurv», in the caller's post-add panel — see `AddedSheet`. */
   /** R4-SCONTI-2 §C: the quantity scale, computed over CART + SELECTOR by the
@@ -252,7 +257,7 @@ export function ProductSheet({
                 {/* R4-FIX: was `text-primary` (the violet) — same ruling as the
                     subtitle above: this line is body copy, so it is the DS black. */}
                 <p className="min-w-0 font-medium text-foreground">
-                  {tCfg("yourSelection.pairCaption")}
+                  {tCfg("yourSelection.pairCaption", { name: paletteName })}
                 </p>
               </div>
             )}
