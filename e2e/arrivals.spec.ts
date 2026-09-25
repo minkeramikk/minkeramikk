@@ -42,7 +42,7 @@ test("?set= on a non-empty basket: the banner offers the set, «add» merges its
   await expect(page).not.toHaveURL(/[?&]set=/); // consumed once
 });
 
-test("?kit= lands on step 2: welcome, kit strip, pieces in the basket", async ({ page }) => {
+test("?kit= lands on step 2: welcome, kit strip, pieces in the basket", async ({ page }, testInfo) => {
   const slug = await firstCeramicSlug(page);
   const kit = encodeKitParam(design.code!, [{ productSlug: slug, quantity: 2 }]);
   await page.goto(`/no/configurator?step=2&kit=${encodeURIComponent(kit)}`);
@@ -54,4 +54,11 @@ test("?kit= lands on step 2: welcome, kit strip, pieces in the basket", async ({
   await expect(page.getByTestId("details-step")).toBeVisible();
   await expect(page.getByTestId("kit-strip")).toBeVisible();
   await expect(page.getByTestId("cart-badge")).toHaveText("2");
+
+  // TL ruling 25/9 (reverses R5-KIT T5): the design switch stays available in
+  // kit-mode — the customer can paint the kit's pieces with different designs.
+  const isMobile = testInfo.project.name === "mobile";
+  await expect(
+    page.getByTestId(isMobile ? "design-switch-badge" : "design-switch-row")
+  ).toBeVisible();
 });

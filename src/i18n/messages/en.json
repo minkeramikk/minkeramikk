@@ -349,7 +349,6 @@
       "subtitle": "{count, plural, one {# piece} other {# pieces}} · colours to choose",
       "painted": "{painted} of {total} painted"
     },
-    "fixedDesign": "Design: {name} — fixed by the kit",
     "welcome": {
       "eyebrow": "A kit from minkeramikk",
       "title": "{count, plural, one {# piece} other {# pieces}}, waiting for your colours",

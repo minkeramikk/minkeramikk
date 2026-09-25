@@ -348,7 +348,6 @@
       "subtitle": "{count, plural, one {# del} other {# deler}} · farger å velge",
       "painted": "{painted} av {total} malt"
     },
-    "fixedDesign": "Design: {name} — bestemt av kittet",
     "welcome": {
       "eyebrow": "Et sett fra minkeramikk",
       "title": "{count, plural, one {# del} other {# deler}} venter på dine farger",

@@ -1238,9 +1238,12 @@ export function ConfiguratorClient({
 
   function selectDesign(d: DesignChoice | DesignSwitchChoice) {
     if (d.slug === selected.slug) return;
-    // kit-mode pins the design: the switch is not rendered there (below).
     // Cambio design esplicito: navigazione RSC, il canvas cambia solo DOPO
     // il round-trip — il loader parte subito da qui (`pending`, sopra).
+    // TL ruling 25/9: available in kit-mode too now — `params` starts from
+    // the CURRENT searchParams and only ever deletes opt_*/code/text/pos/
+    // lock/note below, so `origin=kit` (set once, on kit arrival) rides
+    // through untouched (LOG 23/9: a `goToStep` elsewhere once dropped it).
     startDesignTransition(d.slug);
     const params = new URLSearchParams(searchParams.toString());
     params.set("design", d.slug);
@@ -1297,10 +1300,10 @@ export function ConfiguratorClient({
     const params = new URLSearchParams(searchParams.toString());
     params.set("design", selected.slug);
     // Leaving steps 1–2 IS the explicit choice for a set: `origin=set` stops
-    // mattering here. A kit instead survives the whole loop (DS §4): it dies
-    // only with a design change (`selectDesign` drops it — no switch renders
-    // in kit-mode anyway). The label/image ride sessionStorage (kit-context),
-    // so the URL stays clean — step 3 reads them back itself.
+    // mattering here. A kit instead survives the whole loop (DS §4), a design
+    // change included now (TL ruling 25/9 — `selectDesign` never deletes it).
+    // The label/image ride sessionStorage (kit-context), so the URL stays
+    // clean — step 3 reads them back itself.
     if (params.get("origin") !== "kit") params.delete("origin");
     if (target === 1) params.delete("step");
     else params.set("step", String(target));
@@ -1898,22 +1901,18 @@ export function ConfiguratorClient({
                 (mockup `:275`), non alla colonna: mount dentro `preview-sticky`
                 (relative su step 2), accanto a `PreviewCanvas`. La riga desktop
                 resta sotto, fuori dal box relativo. */}
-            {step === 2 && !kitMode && (
+            {/* TL ruling 25/9 (reverses R5-KIT T5): the customer can apply a
+                different design to each kit piece, so the switch stays
+                available in kit-mode too — selectDesign keeps origin=kit in
+                the params either way, the kit strip and its unpainted rows
+                are untouched by which design is currently selected. */}
+            {step === 2 && (
               <DesignSwitch
                 designs={designs}
                 currentSlug={selected.slug}
                 productCounts={productCounts}
                 onSelect={selectDesign}
               />
-            )}
-            {/* R5-KIT T5: the design is fixed by the kit — no switch. */}
-            {step === 2 && kitMode && (
-              <p
-                data-testid="kit-design-fixed"
-                className="mt-2 text-[11px] text-muted-foreground"
-              >
-                {tKit("fixedDesign", { name: designName(selected) })}
-              </p>
             )}
           </div>
         </div>
