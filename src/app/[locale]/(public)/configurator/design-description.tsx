@@ -8,10 +8,12 @@ import { useTranslations } from "next-intl";
  * clamps to 3 lines and only shows a "Vis mer/Vis mindre" toggle when the
  * text actually overflows the clamp (measured via scrollHeight after mount).
  *
- * R4-BUGS-C1 Ⓔ: `clamp="always"` keeps the clamp and the toggle at every
- * breakpoint — what the product sheet needs, where a long description pushes
- * the buy row off the screen on desktop too. The default leaves step 2 exactly
- * as it was.
+ * R4-BUGS-C1 Ⓔ, revised (TL feedback 25/9): `clamp="always"` used to be what
+ * `ProductSheet` needed too, so a long description wouldn't push the buy row
+ * off screen. `ProductSheet` no longer uses this component — it opens/closes
+ * its description in full via a native <details> toggle instead, so
+ * `clamp="always"` is unused there now. Step 2 keeps its own mobile-only
+ * clamp, unchanged.
  */
 export function DesignDescription({
   text,
