@@ -1990,7 +1990,19 @@ export function ConfiguratorClient({
                     // FIRST design card ("Pick a design"), not the column: the
                     // badge used to sit on the grid's outer wrapper and float
                     // in the gap above the cards.
-                    <span className="relative block">
+                    <span className="relative flex w-full">
+                      {/* HOTFIX (TL, "ultra mega bug" 25/9): the grid item is
+                          this <span> now, not the <button> — a grid stretches
+                          its OWN item to the column's full width AND the
+                          row's full height by default, regardless of the
+                          item's own display type, but the <button> inside is
+                          an ordinary child that shrink-wraps to its content
+                          on BOTH axes like any other button — first caught as
+                          a width mismatch, then (measured: 190px vs siblings'
+                          210px) a height one too, the row's page background
+                          showing through under a shorter card. `flex` on the
+                          span + `w-full` on the button stretches it to fill
+                          the span on both axes, same as a direct grid child. */}
                       <OptionCard
                         label={designName(d)}
                         layers={d.defaultLayers.map((l) => ({
@@ -1999,6 +2011,7 @@ export function ConfiguratorClient({
                         }))}
                         selected={d.slug === selected.slug}
                         onSelect={() => selectDesign(d)}
+                        className="w-full"
                       />
                       {tourTip && tip && tip.sequence === "step1" && tip.n === 1 && (
                         <Hotspot
