@@ -174,7 +174,7 @@
       }
     },
     "yourSelection": {
-      "pairCaption": "This ceramic + your design"
+      "pairCaption": "This ceramic + {name}"
     },
     "designSwitch": {
       "label": "Design",

@@ -173,7 +173,7 @@
       }
     },
     "yourSelection": {
-      "pairCaption": "Denne keramikken + ditt design"
+      "pairCaption": "Denne keramikken + {name}"
     },
     "designSwitch": {
       "label": "Design",
