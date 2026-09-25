@@ -56,13 +56,10 @@ export function DiscountLadder({
 }) {
   const t = useTranslations("configurator.ladder");
 
-  if (excluded) {
-    return (
-      <p data-testid="ladder-excluded" className="text-xs text-muted-foreground">
-        {t("excluded")}
-      </p>
-    );
-  }
+  // TL feedback 25/9: the excluded note read as a complaint next to the buy
+  // row ("this ceramic is not part of..."). A product outside the discount
+  // multi-select just has no scale — nothing to say about it.
+  if (excluded) return null;
   if (!ladder) return null;
 
   const { steps } = ladder;
