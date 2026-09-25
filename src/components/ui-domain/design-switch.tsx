@@ -96,7 +96,10 @@ export function DesignSwitch({
 
   return (
     <>
-      {/* Riga sotto il canvas: apre il picker (Dialog su desktop). */}
+      {/* Riga sotto il canvas: apre il picker (Dialog su desktop).
+          TL-authorized 25/9 (live, stesso ciclo R5-PALETTE-PLACE): via il
+          testo "covers N ceramics" accanto allo switcher — il picker mostra
+          già il conteggio per-design su ogni card, non serve qui. */}
       <div className="mt-3 hidden md:block" data-testid="design-switch-row">
         <button
           type="button"

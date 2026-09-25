@@ -49,7 +49,10 @@ import {
   toCodecDesign,
   type CodecDesign,
 } from "@/lib/configurator/config-code";
-import { pickDefaultOption } from "@/lib/configurator/default-option";
+import {
+  pickDefaultOption,
+  isAtDefaultSelection as computeIsAtDefaultSelection,
+} from "@/lib/configurator/default-option";
 import { fullRowInsertIndex } from "@/lib/configurator/grid-rows";
 import { keyboardSafeScrollDelta } from "@/lib/configurator/keyboard-safe-scroll";
 import { MAX_CUSTOM_NOTE, MAX_CUSTOM_TEXT } from "@/lib/orders/schema";
@@ -1140,10 +1143,10 @@ export function ConfiguratorClient({
    * draft chip and the Save invite are for an actual choice, not the
    * design's own starting point — mobile's strip/Save keep reading
    * `canSaveDraft` alone, untouched (out of scope, R5-PALETTE-PLACE).
+   * Logic lives in `default-option.ts` (unit-tested there — this component
+   * has no render test of its own).
    */
-  const isAtDefaultSelection = detail.categories.every(
-    (cat) => selections[cat.slug] === (pickDefaultOption(cat.options)?.id ?? "")
-  );
+  const isAtDefaultSelection = computeIsAtDefaultSelection(detail.categories, selections);
 
   /**
    * R5-BASKET-HOST task 1 — step 2 publishes the same `CurrentConfig` shape

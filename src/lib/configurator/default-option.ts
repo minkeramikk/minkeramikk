@@ -12,3 +12,21 @@ export function pickDefaultOption<T extends { isDefault?: boolean }>(
 ): T | undefined {
   return options.find((o) => o.isDefault) ?? options[0];
 }
+
+/**
+ * R5-PALETTE-PLACE — true while EVERY category's current selection is still
+ * that category's own default (`pickDefaultOption`, same helper
+ * `resolveSelections` seeds the initial selection with): "nothing chosen
+ * yet" for the step-2 desktop `PaletteCard`, which withholds the synthetic
+ * "Unsaved" draft chip and the Save invite until an actual choice diverges.
+ * An empty `categories` array (no categories to choose from) is vacuously
+ * "at default" — `.every()` on `[]` is `true`, and there is nothing to have
+ * chosen differently.
+ */
+export function isAtDefaultSelection<
+  T extends { slug: string; options: readonly { id: string; isDefault?: boolean }[] },
+>(categories: readonly T[], selections: Record<string, string>): boolean {
+  return categories.every(
+    (cat) => selections[cat.slug] === (pickDefaultOption(cat.options)?.id ?? "")
+  );
+}

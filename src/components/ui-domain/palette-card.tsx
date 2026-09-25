@@ -209,24 +209,13 @@ export function PaletteCard({ chips, actions, saved, now }: PaletteCardProps) {
             )}
           </div>
         )
-      ) : visible.length === 0 ? (
-        // R5-PALETTE-PLACE — zero saved palettes + no choice yet: a hint,
-        // never an absent card and never the header (nothing to manage or
-        // help-explain yet). The caller already keeps this in step with
-        // "no choice yet" (the draft chip only reaches `chips` once the
-        // customer picks something) — this only covers the zero-saved case
-        // on top of that.
-        <div
-          data-testid="palette-card-empty"
-          className="flex items-center gap-2.5 rounded-[11px] border border-dashed border-border px-3 py-2.5"
-        >
-          {/* TODO:nb-review — palettes.card.libraryEmptyHint, new copy */}
-          <p className="min-w-0 flex-1 text-[12px] leading-snug text-muted-foreground">
-            {t("libraryEmptyHint")}
-          </p>
-        </div>
       ) : (
         <>
+          {/* R5-PALETTE-PLACE — reviewer fix: the mockup (mockup.html, scene
+              1) keeps the header (eyebrow + count + "?") even at 0 saved +
+              no choice yet — only the chip row below it swaps for a hint.
+              Never drop the header just because there's nothing to browse
+              yet: "0 av 10 lagret" is itself the answer to "how many". */}
           <div className="mb-2.5 flex items-center gap-2">
             <span className="text-[10.5px] font-semibold uppercase tracking-[0.06em] text-primary">
               {tBar("eyebrowManage")}
@@ -235,7 +224,19 @@ export function PaletteCard({ chips, actions, saved, now }: PaletteCardProps) {
             <PaletteHelp mode="manage" saved={saved} />
             {slot}
           </div>
-          <div className="flex flex-wrap gap-2">{visible}</div>
+          {visible.length === 0 ? (
+            <div
+              data-testid="palette-card-empty"
+              className="rounded-[11px] border border-dashed border-border px-3 py-2.5"
+            >
+              {/* TODO:nb-review — palettes.card.libraryEmptyHint, new copy */}
+              <p className="text-[12px] leading-snug text-muted-foreground">
+                {t("libraryEmptyHint")}
+              </p>
+            </div>
+          ) : (
+            <div className="flex flex-wrap gap-2">{visible}</div>
+          )}
         </>
       )}
     </div>
