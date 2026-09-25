@@ -3,15 +3,15 @@
 import { useLocale, useTranslations } from "next-intl";
 import { formatMoney, type Money } from "@/lib/money/money";
 import { freeShippingThreshold, shippingStatus } from "@/lib/cart/shipping";
-import { LegalSheet } from "@/components/ui-domain/legal-sheet";
+import { LEGAL } from "@/lib/site/legal-links";
 
 /**
  * Insured shipping row (R3-B4/R5-GARANZIA, DESIGN-SYSTEM §3.12/§3.14). Shared
  * by the cart drawer and the docked step-3 panel: at or above the threshold
  * shipping is included and we show the compact insurance policy ("Les mer" →
- * Terms, which carries the full text from the same i18n namespace); below it
- * we show the flat fee (200 kr) plus the exact amount missing to clear the
- * threshold — the send is never blocked.
+ * the client's own kjøpsvilkår page, new tab); below it we show the flat fee
+ * (200 kr) plus the exact amount missing to clear the threshold — the send
+ * is never blocked.
  *
  * TODO:alessio-review — the `cart.insurance.*` copy (NO/EN) is the TL's
  * provisional wording: swap the keys when Alessio delivers the final policy.
@@ -38,16 +38,15 @@ export function CartShippingRow({ net, shipping }: { net: Money; shipping: Money
       {status.included ? (
         <p className="text-xs leading-relaxed text-muted-foreground">
           {t("policyShort")}{" "}
-          <LegalSheet doc="terms">
-            <button
-              type="button"
-              data-testid="cart-shipping-readmore"
-              aria-haspopup="dialog"
-              className="underline underline-offset-2 hover:text-foreground"
-            >
-              {t("readMore")}
-            </button>
-          </LegalSheet>
+          <a
+            href={LEGAL.terms}
+            target="_blank"
+            rel="noopener noreferrer"
+            data-testid="cart-shipping-readmore"
+            className="underline underline-offset-2 hover:text-foreground"
+          >
+            {t("readMore")}
+          </a>
         </p>
       ) : (
         <p

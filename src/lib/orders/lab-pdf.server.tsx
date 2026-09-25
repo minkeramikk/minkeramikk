@@ -47,6 +47,70 @@ async function resolveItemLayers(
   return getPreviewLayers(null, cats);
 }
 
+/**
+ * R5-QA2 T3 — the workshop reads English regardless of the order's own locale:
+ * enriches every item's product/design/option names from the LIVE catalogue
+ * (`product_id` → `products.name_en`, already joined onto `productNameEn`;
+ * `config_code` → live `DesignDetail` → `nameEn`/`labelEn`), falling back to
+ * the frozen snapshot only when the live entity is gone (product or design
+ * deleted) — never an empty line. `lab-pdf.tsx`/`lab-pdf-content.ts` stay pure
+ * and unaware of any of this: they just read `productName`/`configSnapshot`
+ * same as always, on whichever order they're handed.
+ *
+ * Options themselves aren't localized (`options.name` is a single proper-name
+ * column, ADR-0011 schema) — only the category label needs English.
+ */
+export async function englishNames(
+  order: AdminOrder,
+  deps: { getDesignDetail?: typeof getDesignDetail } = {}
+): Promise<AdminOrder> {
+  const resolveDesign = deps.getDesignDetail ?? getDesignDetail;
+  const items = await Promise.all(
+    order.items.map((it) => englishNamesForItem(it, resolveDesign))
+  );
+  return { ...order, items };
+}
+
+async function englishNamesForItem(
+  item: AdminOrderItem,
+  resolveDesign: typeof getDesignDetail
+): Promise<AdminOrderItem> {
+  const productName = item.productNameEn ?? item.productName;
+  const snapshot = item.configSnapshot;
+  if (!snapshot?.designSlug) return { ...item, productName };
+
+  const detail = await resolveDesign(snapshot.designSlug);
+  if (!detail) return { ...item, productName }; // design gone → keep the frozen spec
+
+  const designName =
+    detail.nameEn || snapshot.designNameEn || snapshot.designName || productName;
+  let selections = snapshot.selections ?? [];
+
+  if (item.configCode) {
+    try {
+      const codec = toCodecDesign(detail);
+      if (codec) {
+        const { selections: sel } = decodeConfigCode(item.configCode, (c) =>
+          c.toUpperCase() === (detail.code ?? "").toUpperCase() ? codec : null
+        );
+        selections = detail.categories.map((cat) => {
+          const opt = cat.options.find((o) => o.id === sel[cat.slug]);
+          return {
+            label: cat.labelEn || cat.labelNo || cat.slug,
+            option: opt?.name ?? "",
+            hex: opt?.hex ?? null,
+          };
+        });
+      }
+    } catch (e) {
+      if (!(e instanceof ConfigCodeError)) throw e;
+      // malformed/legacy code → keep the frozen selections as they were
+    }
+  }
+
+  return { ...item, productName, configSnapshot: { ...snapshot, designName, selections } };
+}
+
 /** Download + composite the plate for one item; null on any failure (degrade). */
 async function composeItemPlate(
   supabase: Supa,
@@ -100,11 +164,12 @@ export async function renderSupplierPdf(
   order: AdminOrder,
   supplierId: string
 ): Promise<Buffer | null> {
-  const doc = buildLabPdfDoc(order, supplierId);
+  const englishOrder = await englishNames(order);
+  const doc = buildLabPdfDoc(englishOrder, supplierId);
   if (!doc) return null;
 
   const supabase = await createClient();
-  const items = order.items.filter((i) => i.supplierId === supplierId);
+  const items = englishOrder.items.filter((i) => i.supplierId === supplierId);
 
   const renderItems: LabPdfRenderItem[] = await Promise.all(
     items.map(async (it, idx) => {

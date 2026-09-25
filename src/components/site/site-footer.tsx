@@ -1,5 +1,5 @@
 import { useTranslations } from "next-intl";
-import { Link } from "@/i18n/navigation";
+import { LEGAL } from "@/lib/site/legal-links";
 
 /**
  * Site footer — one simple line at the very bottom of every public page
@@ -15,24 +15,24 @@ export function SiteFooter() {
         <span className="font-heading text-sm text-foreground">
           {t("common.siteName")}
         </span>
-        <Link
-          href="/privacy"
+        <a
+          href={LEGAL.privacy}
           data-testid="footer-privacy"
           target="_blank"
           rel="noopener noreferrer"
           className="hover:text-foreground"
         >
           {t("footer.privacy")}
-        </Link>
-        <Link
-          href="/terms"
+        </a>
+        <a
+          href={LEGAL.terms}
           data-testid="footer-terms"
           target="_blank"
           rel="noopener noreferrer"
           className="hover:text-foreground"
         >
           {t("footer.terms")}
-        </Link>
+        </a>
         <a
           href={`mailto:${t("common.email")}`}
           className="underline underline-offset-4 hover:text-foreground"

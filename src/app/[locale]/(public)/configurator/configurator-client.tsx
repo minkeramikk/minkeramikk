@@ -49,10 +49,7 @@ import {
   toCodecDesign,
   type CodecDesign,
 } from "@/lib/configurator/config-code";
-import {
-  pickDefaultOption,
-  isAtDefaultSelection as computeIsAtDefaultSelection,
-} from "@/lib/configurator/default-option";
+import { pickDefaultOption } from "@/lib/configurator/default-option";
 import { fullRowInsertIndex } from "@/lib/configurator/grid-rows";
 import { keyboardSafeScrollDelta } from "@/lib/configurator/keyboard-safe-scroll";
 import { MAX_CUSTOM_NOTE, MAX_CUSTOM_TEXT } from "@/lib/orders/schema";
@@ -920,9 +917,11 @@ export function ConfiguratorClient({
     featured: featuredSlot !== null,
   });
   const handleTourNext = () => {
-    if (!tip || !tourTip) return;
-    if (tourTip.last) tour.turnOff();
-    else tour.next(tip.sequence);
+    if (!tip) return;
+    // T5 (QA round 2, TL ruling 25/9): `next()` itself now decides what a
+    // sequence's own last tip does — mutes THAT sequence only (`done`), not
+    // every tour globally. `turnOff()` stays for the ✕ alone.
+    tour.next(tip.sequence);
   };
   // R5-TUTORIAL round 2 (plan Task B) — "active guidance": Next no longer
   // just changes tour state, it scrolls to + pulses (`.tour-pulse`, reused)
@@ -1137,18 +1136,6 @@ export function ConfiguratorClient({
   const canSaveDraft = !matchedPalette;
 
   /**
-   * R5-PALETTE-PLACE — desktop's own guard, on top of `canSaveDraft`: true
-   * for every category still on the design's OWN default option, the same
-   * one `resolveSelections` above seeds the draft with before any tap. The
-   * draft chip and the Save invite are for an actual choice, not the
-   * design's own starting point — mobile's strip/Save keep reading
-   * `canSaveDraft` alone, untouched (out of scope, R5-PALETTE-PLACE).
-   * Logic lives in `default-option.ts` (unit-tested there — this component
-   * has no render test of its own).
-   */
-  const isAtDefaultSelection = computeIsAtDefaultSelection(detail.categories, selections);
-
-  /**
    * R5-BASKET-HOST task 1 — step 2 publishes the same `CurrentConfig` shape
    * step 3 does (ceramics-step.tsx), so the header drawer (outside this
    * subtree, later task) can render its own preview chip. Published ONLY
@@ -1253,9 +1240,12 @@ export function ConfiguratorClient({
 
   function selectDesign(d: DesignChoice | DesignSwitchChoice) {
     if (d.slug === selected.slug) return;
-    // kit-mode pins the design: the switch is not rendered there (below).
     // Cambio design esplicito: navigazione RSC, il canvas cambia solo DOPO
     // il round-trip — il loader parte subito da qui (`pending`, sopra).
+    // TL ruling 25/9: available in kit-mode too now — `params` starts from
+    // the CURRENT searchParams and only ever deletes opt_*/code/text/pos/
+    // lock/note below, so `origin=kit` (set once, on kit arrival) rides
+    // through untouched (LOG 23/9: a `goToStep` elsewhere once dropped it).
     startDesignTransition(d.slug);
     const params = new URLSearchParams(searchParams.toString());
     params.set("design", d.slug);
@@ -1312,10 +1302,10 @@ export function ConfiguratorClient({
     const params = new URLSearchParams(searchParams.toString());
     params.set("design", selected.slug);
     // Leaving steps 1–2 IS the explicit choice for a set: `origin=set` stops
-    // mattering here. A kit instead survives the whole loop (DS §4): it dies
-    // only with a design change (`selectDesign` drops it — no switch renders
-    // in kit-mode anyway). The label/image ride sessionStorage (kit-context),
-    // so the URL stays clean — step 3 reads them back itself.
+    // mattering here. A kit instead survives the whole loop (DS §4), a design
+    // change included now (TL ruling 25/9 — `selectDesign` never deletes it).
+    // The label/image ride sessionStorage (kit-context), so the URL stays
+    // clean — step 3 reads them back itself.
     if (params.get("origin") !== "kit") params.delete("origin");
     if (target === 1) params.delete("step");
     else params.set("step", String(target));
@@ -1477,12 +1467,6 @@ export function ConfiguratorClient({
       onRenameCancel={() => setRenamingPaletteCode(null)}
       onDelete={() => deletePalette(matchedPalette.code)}
     />
-  ) : isAtDefaultSelection ? (
-    // R5-PALETTE-PLACE — desktop only (see `isAtDefaultSelection`): nothing
-    // chosen yet is nothing to call a draft. `otherPaletteChips` (already
-    // saved palettes) still render regardless — only this synthetic
-    // "Unsaved" tile is conditional.
-    null
   ) : (
     <PaletteChip
       key="draft"
@@ -1919,22 +1903,18 @@ export function ConfiguratorClient({
                 (mockup `:275`), non alla colonna: mount dentro `preview-sticky`
                 (relative su step 2), accanto a `PreviewCanvas`. La riga desktop
                 resta sotto, fuori dal box relativo. */}
-            {step === 2 && !kitMode && (
+            {/* TL ruling 25/9 (reverses R5-KIT T5): the customer can apply a
+                different design to each kit piece, so the switch stays
+                available in kit-mode too — selectDesign keeps origin=kit in
+                the params either way, the kit strip and its unpainted rows
+                are untouched by which design is currently selected. */}
+            {step === 2 && (
               <DesignSwitch
                 designs={designs}
                 currentSlug={selected.slug}
                 productCounts={productCounts}
                 onSelect={selectDesign}
               />
-            )}
-            {/* R5-KIT T5: the design is fixed by the kit — no switch. */}
-            {step === 2 && kitMode && (
-              <p
-                data-testid="kit-design-fixed"
-                className="mt-2 text-[11px] text-muted-foreground"
-              >
-                {tKit("fixedDesign", { name: designName(selected) })}
-              </p>
             )}
           </div>
         </div>
@@ -2618,7 +2598,10 @@ export function ConfiguratorClient({
                 its own `step2-palette-strip` below, untouched. Header: the
                 card's own eyebrow title + ONLY the de-emphasised `h-8` Save,
                 gated on `canSaveDraft = !matchedPalette` — no +New (every
-                option change is already a new draft).
+                option change is already a new draft). TL ruling 25/9: the
+                design's own default colours are a savable draft too (PR #85's
+                `isAtDefaultSelection` gate is gone) — "Ulagret" + Save show
+                immediately, same as mobile's strip below.
                 R5-PALETTE-PLACE: `md:order-3` — this wrapper had none, so it
                 sat at the flex default `order: 0` and floated above every
                 sibling that DOES carry an explicit order (colours, the Text
@@ -2629,10 +2612,10 @@ export function ConfiguratorClient({
                 (DOM order breaks the tie), before the nav row. */}
             <div className="relative hidden md:order-3 md:block">
               <PaletteCard
-                chips={[leadPaletteChip, ...otherPaletteChips].filter(Boolean)}
+                chips={[leadPaletteChip, ...otherPaletteChips]}
                 saved={palettes.length}
                 actions={
-                  canSaveDraft && !isAtDefaultSelection && (
+                  canSaveDraft && (
                     <button
                       type="button"
                       data-testid="save-palette"

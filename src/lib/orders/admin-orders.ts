@@ -52,6 +52,11 @@ export interface AdminOrderItem {
    *  it to rebuild a replica basket. Null when `product_id` is NULL (vanished
    *  product) → that line is dropped from the replica set, not the whole order. */
   productSlug: string | null;
+  /** English product name (left-joined from `products.name_en`) — the supplier
+   *  PDF's source of truth for the product line (R5-QA2 T3). Null when
+   *  `product_id` is NULL (vanished product) → the PDF falls back to the
+   *  frozen `productName` snapshot instead of an empty line. */
+  productNameEn: string | null;
   /** Unit weight in grams (internal `weight` attribute, admin-entered). Live
    *  value from the joined product; null when unavailable (product vanished or
    *  no weight set) → that line is skipped from the PDF weight total. */
@@ -126,6 +131,7 @@ export interface RawOrderRow {
     products: {
       image: string | null;
       slug: string | null;
+      name_en: string | null;
       product_attributes: { key: string; value_num: number | null }[] | null;
     } | null;
   }[];
@@ -163,6 +169,7 @@ export function mapOrderRow(row: RawOrderRow): AdminOrder {
       configSnapshot: (it.config_snapshot as OrderConfigSnapshot | null) ?? null,
       productImage: it.products?.image ?? null,
       productSlug: it.products?.slug ?? null,
+      productNameEn: it.products?.name_en ?? null,
       productWeightGrams:
         it.products?.product_attributes?.find((a) => a.key === "weight")
           ?.value_num ?? null,

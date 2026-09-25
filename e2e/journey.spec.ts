@@ -85,13 +85,12 @@ test("step 1 → 2 (palette saved) → 3 (painted, unpainted, painted again) →
   await page.getByTestId("order-form").waitFor();
   await fillOrderForm(page, "Kari Nordmann", "kari@example.no");
 
-  // legal links open in a sheet without leaving the order form — the form
-  // (and Turnstile's token) stays mounted underneath, closing the sheet
-  // leaves it exactly as filled.
-  await page.getByTestId("order-terms-link").click();
-  await expect(page.getByTestId("legal-sheet")).toBeVisible();
-  await page.getByTestId("legal-sheet-close").click();
-  await expect(page.getByTestId("legal-sheet")).toBeHidden();
+  // legal links go to the client's own site in a new tab — asserted by
+  // href/target, never actually navigated (would leave the order form).
+  const termsLink = page.getByTestId("order-terms-link");
+  await expect(termsLink).toHaveAttribute("href", "https://www.minkeramikk.no/kjopsvilkar");
+  await expect(termsLink).toHaveAttribute("target", "_blank");
+  await expect(termsLink).toHaveAttribute("rel", "noopener noreferrer");
   await expect(page.getByTestId("order-name")).toHaveValue("Kari Nordmann");
   await expect(page.getByTestId("order-terms")).toBeChecked();
 

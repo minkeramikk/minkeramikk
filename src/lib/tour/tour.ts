@@ -31,11 +31,22 @@ export interface TourState {
   /** The in-progress sequence's current tip (1-3); meaningless while `seq`
    *  is null. */
   step: number;
+  /**
+   * T5 (QA round 2) — sequences the visitor has already finished via their
+   * own "Done", each muted for good on its own (until replay) — NOT the
+   * same as `off`, which mutes every sequence at once (the ✕ only). Before
+   * this, a sequence's last tip advancing to `seq: null` relied on the
+   * visitor actually LEAVING that step for `tipFor` to land on the next
+   * sequence; staying put (never navigating away) re-derived the SAME
+   * sequence from tip 1 — an endless "Next" step1/step2 could never
+   * button out of, since `isLastTip` was true only for step3/kit3.
+   */
+  done: TourSequence[];
 }
 
 export const TOUR_KEY = "mk-tips-v1";
 
-export const TOUR_DEFAULT: TourState = { off: false, seq: null, step: 1 };
+export const TOUR_DEFAULT: TourState = { off: false, seq: null, step: 1, done: [] };
 
 const SEQUENCES: readonly TourSequence[] = ["step1", "step2", "step3", "kit3"];
 
@@ -51,7 +62,9 @@ function isTourSequence(v: unknown): v is TourSequence {
  *  default (a first landing) rather than throwing — same rule as
  *  `kit-context.ts`'s `readKitContext`. A stored OLD sequence name (round
  *  2's `kit2`/`normal`) also fails `isTourSequence` and falls back to
- *  `seq: null` — there is no migration, the visitor just restarts at 1. */
+ *  `seq: null` — there is no migration, the visitor just restarts at 1. A
+ *  stored state from BEFORE T5 (no `done` at all) reads as `done: []` —
+ *  same "tolerant of an older shape" rule, nothing to migrate. */
 export function parseTourState(raw: string | null): TourState {
   if (!raw) return TOUR_DEFAULT;
   try {
@@ -64,6 +77,7 @@ export function parseTourState(raw: string | null): TourState {
         typeof parsed.step === "number" && Number.isInteger(parsed.step) && parsed.step >= 1
           ? parsed.step
           : 1,
+      done: Array.isArray(parsed.done) ? parsed.done.filter(isTourSequence) : [],
     };
   } catch {
     return TOUR_DEFAULT;
@@ -98,46 +112,54 @@ export function tipFor(i: {
   if (!i.hydrated || i.state.off || i.setBannerOpen || i.welcomeOpen) return null;
   if (i.kitMode && i.step === 1) return null;
   const sequence = sequenceForContext(i.kitMode, i.step);
+  if (i.state.done.includes(sequence)) return null;
   const n = (i.state.seq === sequence ? i.state.step : 1) as 1 | 2 | 3;
   return { sequence, n };
 }
 
 /**
- * Advances a sequence's own tip. `step1` and `step2`'s last tip hand off
- * straight into the next step (`seq: null`, so `tipFor` re-derives
- * `step2`/`step3`/`kit3` fresh, starting at 1) without ever going through
- * `off` — going through `off` is global and would also silence whatever
- * comes next. `step3`/`kit3`'s last tip is Done: it turns tips off for good,
- * there being no further step.
+ * Advances a sequence's own tip. Before the last one, just moves the
+ * counter. On the last one (T5: every sequence, not only step3/kit3) —
+ * Done — it adds THIS sequence to `done` and clears `seq`, so `tipFor`
+ * re-derives the next context fresh, starting at 1, the moment the visitor
+ * actually reaches it; staying put just keeps `tipFor` returning null for
+ * this (now-done) sequence, no more endless "Next" (see `TourState.done`).
  */
 export function next(state: TourState, sequence: TourSequence): TourState {
   const current = state.seq === sequence ? state.step : 1;
   if (current < TIPS[sequence]) {
-    return { off: false, seq: sequence, step: current + 1 };
+    return { ...state, off: false, seq: sequence, step: current + 1 };
   }
-  if (sequence === "step1" || sequence === "step2") {
-    return { off: false, seq: null, step: 1 };
-  }
-  return turnOff(state);
+  return {
+    ...state,
+    off: false,
+    seq: null,
+    step: 1,
+    done: state.done.includes(sequence) ? state.done : [...state.done, sequence],
+  };
 }
 
-/** The ✕ (or the last tip's Done): definitive, for this visitor. */
+/** The ✕: definitive, for this visitor, every sequence at once. */
 export function turnOff(state: TourState): TourState {
   return { ...state, off: true };
 }
 
-/**
- * Does this tip's Next button read "Done" and end the tour? Only `step3`
- * and `kit3` ever finish something — `step1` and `step2` hand off into the
- * next step instead of ending, so their last tip still reads "Next".
- */
+/** Does this tip's Next button read "Done"? Every sequence's own last tip
+ *  does now (T5) — Done only mutes THAT sequence, so there's no reason for
+ *  step1/step2 to still say "Next" on theirs. */
 export function isLastTip(tip: { sequence: TourSequence; n: number }): boolean {
-  return (
-    (tip.sequence === "step3" || tip.sequence === "kit3") && tip.n === TIPS[tip.sequence]
-  );
+  return tip.n === TIPS[tip.sequence];
 }
 
-/** «Show me how» / a fresh landing on a sequence: always starts at 1, tips on. */
-export function start(sequence: TourSequence): TourState {
-  return { off: false, seq: sequence, step: 1 };
+/** «Show me how» / the header's replay: always starts THIS sequence at 1,
+ *  tips on globally, and un-does it if a previous "Done" had muted it —
+ *  every OTHER sequence's own `done`/progress is untouched. */
+export function start(state: TourState, sequence: TourSequence): TourState {
+  return {
+    ...state,
+    off: false,
+    seq: sequence,
+    step: 1,
+    done: state.done.filter((s) => s !== sequence),
+  };
 }
