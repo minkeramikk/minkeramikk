@@ -1134,6 +1134,18 @@ export function ConfiguratorClient({
   const canSaveDraft = !matchedPalette;
 
   /**
+   * R5-PALETTE-PLACE — desktop's own guard, on top of `canSaveDraft`: true
+   * for every category still on the design's OWN default option, the same
+   * one `resolveSelections` above seeds the draft with before any tap. The
+   * draft chip and the Save invite are for an actual choice, not the
+   * design's own starting point — mobile's strip/Save keep reading
+   * `canSaveDraft` alone, untouched (out of scope, R5-PALETTE-PLACE).
+   */
+  const isAtDefaultSelection = detail.categories.every(
+    (cat) => selections[cat.slug] === (pickDefaultOption(cat.options)?.id ?? "")
+  );
+
+  /**
    * R5-BASKET-HOST task 1 — step 2 publishes the same `CurrentConfig` shape
    * step 3 does (ceramics-step.tsx), so the header drawer (outside this
    * subtree, later task) can render its own preview chip. Published ONLY
@@ -1462,6 +1474,12 @@ export function ConfiguratorClient({
       onRenameCancel={() => setRenamingPaletteCode(null)}
       onDelete={() => deletePalette(matchedPalette.code)}
     />
+  ) : isAtDefaultSelection ? (
+    // R5-PALETTE-PLACE — desktop only (see `isAtDefaultSelection`): nothing
+    // chosen yet is nothing to call a draft. `otherPaletteChips` (already
+    // saved palettes) still render regardless — only this synthetic
+    // "Unsaved" tile is conditional.
+    null
   ) : (
     <PaletteChip
       key="draft"
@@ -2597,13 +2615,21 @@ export function ConfiguratorClient({
                 its own `step2-palette-strip` below, untouched. Header: the
                 card's own eyebrow title + ONLY the de-emphasised `h-8` Save,
                 gated on `canSaveDraft = !matchedPalette` — no +New (every
-                option change is already a new draft). */}
-            <div className="relative hidden md:block">
+                option change is already a new draft).
+                R5-PALETTE-PLACE: `md:order-3` — this wrapper had none, so it
+                sat at the flex default `order: 0` and floated above every
+                sibling that DOES carry an explicit order (colours, the Text
+                field at `md:order-2`, the nav row at `md:order-4`) — a
+                regression the comment above already described the intended
+                position for, just never encoded. `order-3` lands it after
+                Text and any custom-notes/colour-lock in that same bucket
+                (DOM order breaks the tie), before the nav row. */}
+            <div className="relative hidden md:order-3 md:block">
               <PaletteCard
-                chips={[leadPaletteChip, ...otherPaletteChips]}
+                chips={[leadPaletteChip, ...otherPaletteChips].filter(Boolean)}
                 saved={palettes.length}
                 actions={
-                  canSaveDraft && (
+                  canSaveDraft && !isAtDefaultSelection && (
                     <button
                       type="button"
                       data-testid="save-palette"

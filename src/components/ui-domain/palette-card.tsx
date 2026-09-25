@@ -209,6 +209,22 @@ export function PaletteCard({ chips, actions, saved, now }: PaletteCardProps) {
             )}
           </div>
         )
+      ) : visible.length === 0 ? (
+        // R5-PALETTE-PLACE — zero saved palettes + no choice yet: a hint,
+        // never an absent card and never the header (nothing to manage or
+        // help-explain yet). The caller already keeps this in step with
+        // "no choice yet" (the draft chip only reaches `chips` once the
+        // customer picks something) — this only covers the zero-saved case
+        // on top of that.
+        <div
+          data-testid="palette-card-empty"
+          className="flex items-center gap-2.5 rounded-[11px] border border-dashed border-border px-3 py-2.5"
+        >
+          {/* TODO:nb-review — palettes.card.libraryEmptyHint, new copy */}
+          <p className="min-w-0 flex-1 text-[12px] leading-snug text-muted-foreground">
+            {t("libraryEmptyHint")}
+          </p>
+        </div>
       ) : (
         <>
           <div className="mb-2.5 flex items-center gap-2">

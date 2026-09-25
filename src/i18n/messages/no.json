@@ -430,6 +430,7 @@
       "showAll": "Vis alle {count}",
       "showFewer": "Vis færre",
       "emptyHint": "Ingen andre paletter å bytte til ennå. Lagre en fra fargesteget, så vises den her.",
+      "libraryEmptyHint": "Velg en farge for å se paletten din her.",
       "help": "Om paletter",
       "helpClose": "Lukk",
       "helpManage": "Fargene du velger blir en <b>palett</b>. <b>Lagre den</b> for å bruke den igjen på andre stykker — opptil {max}. Lagrede paletter blir værende her, så du kan bytte mellom dem.",

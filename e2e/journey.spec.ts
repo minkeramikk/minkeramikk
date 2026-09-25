@@ -33,10 +33,17 @@ test("step 1 → 2 (palette saved) → 3 (painted, unpainted, painted again) →
   await page.getByTestId("next-step-mobile").click();
   await expect(page).toHaveURL(/[?&]step=2/);
 
-  // step 2: one option, then save the draft as a palette
+  // step 2: one option DIFFERENT from the design's own default (R5-PALETTE-PLACE:
+  // the draft/Save only appear once a choice actually differs from it — the
+  // grid's first button IS that default on some designs, which used to save
+  // a no-op "palette" indistinguishable from not having chosen anything),
+  // then save the draft as a palette.
   const step2 = page.getByTestId("details-step");
   const grid = step2.getByTestId("option-grid").filter({ visible: true }).first();
-  await grid.locator("button").first().click();
+  // colour categories are a radiogroup of Swatches (`aria-checked`), other
+  // categories a plain grid of `OptionCard`s (`aria-pressed`) — either shape,
+  // "not pressed/checked" is "not the one already selected".
+  await grid.locator('[aria-checked="false"], button[aria-pressed="false"]').first().click();
   await expect(page).toHaveURL(/opt_/);
   // desktop: the PaletteCard's own Save · mobile: the strip's Save
   const save = page.getByTestId(mobile ? "save-palette-mobile" : "save-palette");
