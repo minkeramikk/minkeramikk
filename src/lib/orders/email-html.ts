@@ -308,8 +308,10 @@ export function journeyHtml(
     return `<tr>
       <td width="20" valign="top" style="width:20px;padding:0 11px 0 0;">
         <table role="presentation" cellpadding="0" cellspacing="0" width="20" style="width:20px;"><tr>
-          <td align="center" width="20" height="20" style="width:20px;height:20px;border-radius:50%;font-family:Helvetica,Arial,sans-serif;font-size:11px;line-height:20px;${dot}">${
-            done ? "&#10003;" : "&nbsp;"
+          <td align="center" valign="middle" width="20" height="20" style="width:20px;height:20px;border-radius:50%;font-family:Helvetica,Arial,sans-serif;font-size:12px;line-height:1;mso-line-height-rule:exactly;${dot}">${
+            done
+              ? '<span style="display:inline-block;line-height:1;">&#10003;</span>'
+              : "&nbsp;"
           }</td></tr></table>${rail}
       </td>
       <td valign="top" style="padding-bottom:13px;font-family:Helvetica,Arial,sans-serif;">

@@ -63,6 +63,17 @@ test("step 1 → 2 (palette saved) → 3 (painted, unpainted, painted again) →
   await page.getByTestId("cart-checkout").click();
   await page.getByTestId("order-form").waitFor();
   await fillOrderForm(page, "Kari Nordmann", "kari@example.no");
+
+  // legal links open in a sheet without leaving the order form — the form
+  // (and Turnstile's token) stays mounted underneath, closing the sheet
+  // leaves it exactly as filled.
+  await page.getByTestId("order-terms-link").click();
+  await expect(page.getByTestId("legal-sheet")).toBeVisible();
+  await page.getByTestId("legal-sheet-close").click();
+  await expect(page.getByTestId("legal-sheet")).toBeHidden();
+  await expect(page.getByTestId("order-name")).toHaveValue("Kari Nordmann");
+  await expect(page.getByTestId("order-terms")).toBeChecked();
+
   await page.getByTestId("order-submit").click();
   await expect(page.getByTestId("order-confirmation")).toBeVisible();
   const code = await page.getByTestId("order-code").innerText();

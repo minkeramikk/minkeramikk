@@ -174,7 +174,7 @@
       }
     },
     "yourSelection": {
-      "pairCaption": "This ceramic + your design"
+      "pairCaption": "This ceramic + {name}"
     },
     "designSwitch": {
       "label": "Design",
@@ -191,8 +191,7 @@
       "popular": "Most chosen",
       "inCartShort": "{qty} pcs in basket",
       "foot": "The discount is applied automatically in the basket.",
-      "step": "Choose {qty} pieces, −{pct}%",
-      "excluded": "This ceramic is not part of the quantity discount."
+      "step": "Choose {qty} pieces, −{pct}%"
     }
   },
   "orderForm": {
@@ -352,6 +351,9 @@
       "bottom": "Bottom",
       "back": "Back"
     }
+  },
+  "product": {
+    "description": "Description"
   },
   "kit": {
     "strip": {

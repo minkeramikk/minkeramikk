@@ -1978,19 +1978,6 @@ export function ConfiguratorClient({
             // anchor).
             ref={step1AnchorRef}
           >
-            {/* R5-TUTORIAL round 3 — step 1's tip 1, always on the design
-                grid. Tip 2 (round 4) anchors on the "Continue" pill below
-                instead, once a design is selected. */}
-            {tourTip && tip && tip.sequence === "step1" && tip.n === 1 && (
-              <Hotspot
-                n={1}
-                text={tourTip.text}
-                last={tourTip.last}
-                onNext={handleTourNext}
-                onHighlight={handleTourHighlight}
-                onOff={() => tour.turnOff()}
-              />
-            )}
             <p className="text-[11px] uppercase tracking-[0.06em] text-muted-foreground">
               {t("stepIndicator", { step: 1 })}
             </p>
@@ -1998,17 +1985,45 @@ export function ConfiguratorClient({
             <div className="mb-5 grid grid-cols-2 gap-2.5 sm:grid-cols-3">
               {designs.map((d, i) => (
                 <Fragment key={d.id}>
-                  <OptionCard
-                    label={designName(d)}
-                    // CA-7: design-as-a-button — composited plate from the same
-                    // default layers the preview uses (zero new assets).
-                    layers={d.defaultLayers.map((l) => ({
-                      src: assetUrl(l.src),
-                      recolor: l.blend === "multiply",
-                    }))}
-                    selected={d.slug === selected.slug}
-                    onSelect={() => selectDesign(d)}
-                  />
+                  {i === 0 ? (
+                    // R5-TUTORIAL round 3 fix (TL 25/9) — tip 1 anchored to the
+                    // FIRST design card ("Pick a design"), not the column: the
+                    // badge used to sit on the grid's outer wrapper and float
+                    // in the gap above the cards.
+                    <span className="relative block">
+                      <OptionCard
+                        label={designName(d)}
+                        layers={d.defaultLayers.map((l) => ({
+                          src: assetUrl(l.src),
+                          recolor: l.blend === "multiply",
+                        }))}
+                        selected={d.slug === selected.slug}
+                        onSelect={() => selectDesign(d)}
+                      />
+                      {tourTip && tip && tip.sequence === "step1" && tip.n === 1 && (
+                        <Hotspot
+                          n={1}
+                          text={tourTip.text}
+                          last={tourTip.last}
+                          onNext={handleTourNext}
+                          onHighlight={handleTourHighlight}
+                          onOff={() => tour.turnOff()}
+                        />
+                      )}
+                    </span>
+                  ) : (
+                    <OptionCard
+                      label={designName(d)}
+                      // CA-7: design-as-a-button — composited plate from the same
+                      // default layers the preview uses (zero new assets).
+                      layers={d.defaultLayers.map((l) => ({
+                        src: assetUrl(l.src),
+                        recolor: l.blend === "multiply",
+                      }))}
+                      selected={d.slug === selected.slug}
+                      onSelect={() => selectDesign(d)}
+                    />
+                  )}
                   {i === contextBlockAfter && (
                     // R3-B23: contextual block under the SELECTED card's row —
                     // name + per-locale description + explicit next-step CTA.

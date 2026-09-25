@@ -173,7 +173,7 @@
       }
     },
     "yourSelection": {
-      "pairCaption": "Denne keramikken + ditt design"
+      "pairCaption": "Denne keramikken + {name}"
     },
     "designSwitch": {
       "label": "Design",
@@ -190,8 +190,7 @@
       "popular": "Mest valgt",
       "inCartShort": "{qty} stk i kurven",
       "foot": "Rabatten beregnes automatisk i handlekurven.",
-      "step": "Velg {qty} stk, −{pct} %",
-      "excluded": "Denne keramikken er ikke med i mengderabatten."
+      "step": "Velg {qty} stk, −{pct} %"
     }
   },
   "orderForm": {
@@ -351,6 +350,9 @@
       "bottom": "Bunn",
       "back": "Bakside"
     }
+  },
+  "product": {
+    "description": "Beskrivelse"
   },
   "kit": {
     "strip": {

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { ZoomIn } from "lucide-react";
+import { ZoomIn, ChevronDown } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { DesignRound } from "@/components/ui-domain/design-round";
@@ -14,10 +14,6 @@ import { PRODUCT_THUMB_WIDTH } from "@/lib/asset-variants";
 import { formatMoney, money, multiply, percentOf, subtract } from "@/lib/money/money";
 import { displayPhotos } from "@/lib/catalog/product-photos";
 import { ATTR_ICON } from "@/components/ui-domain/attribute-icons";
-// ponytail: imported across the tree from the configurator route. It belongs
-// in components/ui-domain now that two callers share it — a move, not a fix,
-// so it waits for a card that has a reason to touch both files.
-import { DesignDescription } from "@/app/[locale]/(public)/configurator/design-description";
 import {
   attributeLabel,
   formatAttributeValue,
@@ -53,6 +49,7 @@ export function ProductSheet({
   onQty,
   onAdd,
   designLayers,
+  paletteName,
   ladder,
   ladderExcluded,
   inCartQty,
@@ -68,6 +65,10 @@ export function ProductSheet({
   onAdd: () => void;
   /** F37: current config layers (empty → no composed pair rendered). */
   designLayers: CartLayer[];
+  /** TL feedback 25/9: the pair caption names what's actually painting — the
+   *  same `paintingLabel` the caller already computes for the draft chip and
+   *  the basket header (`ceramics-step.tsx`), not a generic "your design". */
+  paletteName: string;
   /** R4-UPSELL-POST-ADD ②: NO offers here, at any quantity. They live behind
    *  «Legg i handlekurv», in the caller's post-add panel — see `AddedSheet`. */
   /** R4-SCONTI-2 §C: the quantity scale, computed over CART + SELECTOR by the
@@ -81,6 +82,7 @@ export function ProductSheet({
   // TODO:nb-review NO copy: productSheet.close
   const tCfg = useTranslations("configurator");
   const tCart = useTranslations("cart");
+  const tProduct = useTranslations("product");
   // which photo the lightbox shows (null = closed). Nested inside the sheet's
   // content, so Radix's dismissable-layer stack gives us §3.19's "Esc closes the
   // lightbox first, then the sheet" for free.
@@ -255,7 +257,7 @@ export function ProductSheet({
                 {/* R4-FIX: was `text-primary` (the violet) — same ruling as the
                     subtitle above: this line is body copy, so it is the DS black. */}
                 <p className="min-w-0 font-medium text-foreground">
-                  {tCfg("yourSelection.pairCaption")}
+                  {tCfg("yourSelection.pairCaption", { name: paletteName })}
                 </p>
               </div>
             )}
@@ -326,15 +328,24 @@ export function ProductSheet({
               </ul>
             )}
 
-            {/* R4-BUGS-C1 Ⓔ: clamped to 3 lines with a «Vis mer» toggle — a long
-                description used to push the ladder and the buy row out of view.
-                Same component as step 2, which keeps its mobile-only clamp. */}
+            {/* R4-BUGS-C1 Ⓔ, revised (TL feedback 25/9): the description is
+                CLOSED by default and opens in full with one toggle — no more
+                3-line clamp + «Vis mer»/«Vis mindre» in the text itself.
+                Native <details>/<summary> (ladder: platform before JS).
+                `key={p.id}` re-mounts it closed whenever the open product
+                changes. Step 2's own `DesignDescription` (mobile-only clamp)
+                is a different context and keeps its own behaviour. */}
             {description && (
-              <DesignDescription
-                text={description}
-                clamp="always"
-                testId="product-details"
-              />
+              // TODO:nb-review NO copy: product.description
+              <details key={p.id} className="group" data-testid="product-details">
+                <summary className="flex cursor-pointer list-none items-center gap-1 text-sm font-medium text-foreground [&::-webkit-details-marker]:hidden">
+                  {tProduct("description")}
+                  <ChevronDown className="size-4 text-muted-foreground transition-transform group-open:rotate-180" aria-hidden />
+                </summary>
+                <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
+                  {description}
+                </p>
+              </details>
             )}
 
             {/* §3.26: the scale, then the buy row, and nothing between them —

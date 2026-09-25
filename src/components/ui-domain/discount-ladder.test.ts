@@ -139,7 +139,7 @@ it("no basket, no pill", () => {
   expect(render(1, 0)).not.toContain("ladder-in-cart");
 });
 
-it("no scale → no frame at all; excluded → one line and nothing else", () => {
+it("no scale → no frame at all; excluded → nothing at all (TL 25/9: no complaint note)", () => {
   const empty = renderToStaticMarkup(
     h(NextIntlClientProvider, {
       locale: "en",
@@ -158,6 +158,5 @@ it("no scale → no frame at all; excluded → one line and nothing else", () =>
       children: h(DiscountLadder, { ladder: ladderFor(4, PROD), excluded: true, inCart: 0, onSetQty: () => {} }),
     })
   );
-  expect(excluded).toContain("not part of the quantity discount");
-  expect(excluded).not.toContain("ladder-step");
+  expect(excluded).toBe("");
 });
