@@ -1,9 +1,9 @@
 "use client";
 
 import { useLocale, useTranslations } from "next-intl";
-import { Link } from "@/i18n/navigation";
 import { formatMoney, type Money } from "@/lib/money/money";
 import { freeShippingThreshold, shippingStatus } from "@/lib/cart/shipping";
+import { LegalSheet } from "@/components/ui-domain/legal-sheet";
 
 /**
  * Insured shipping row (R3-B4/R5-GARANZIA, DESIGN-SYSTEM §3.12/§3.14). Shared
@@ -38,13 +38,16 @@ export function CartShippingRow({ net, shipping }: { net: Money; shipping: Money
       {status.included ? (
         <p className="text-xs leading-relaxed text-muted-foreground">
           {t("policyShort")}{" "}
-          <Link
-            href="/terms"
-            data-testid="cart-shipping-readmore"
-            className="underline underline-offset-2 hover:text-foreground"
-          >
-            {t("readMore")}
-          </Link>
+          <LegalSheet doc="terms">
+            <button
+              type="button"
+              data-testid="cart-shipping-readmore"
+              aria-haspopup="dialog"
+              className="underline underline-offset-2 hover:text-foreground"
+            >
+              {t("readMore")}
+            </button>
+          </LegalSheet>
         </p>
       ) : (
         <p
