@@ -3,7 +3,6 @@
 import type { ReactNode } from "react";
 import { XIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import { LegalArticle } from "@/components/site/legal-article";
 import { Sheet, SheetClose, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
@@ -28,8 +27,6 @@ export function LegalSheet({
 }) {
   const t = useTranslations(`legal.${doc}`);
   const tInsurance = useTranslations("cart.insurance");
-  const tLegal = useTranslations("legal");
-  const href = doc === "terms" ? "/terms" : "/privacy";
   // R3-B4: same append the /terms route makes — never re-typed into legal.terms.body.
   const body = doc === "terms" ? `${t("body")}\n\n${tInsurance("policyTerms")}` : t("body");
 
@@ -40,7 +37,7 @@ export function LegalSheet({
         side="right"
         showCloseButton={false}
         data-testid="legal-sheet"
-        className="w-full gap-0 overflow-y-auto p-0 sm:max-w-md"
+        className="w-full gap-0 overflow-y-auto p-0 sm:max-w-xl"
       >
         {/* Radix requires a title for a11y; `LegalArticle` already renders the
             same text as its visible <h1>, so this one stays screen-reader-only. */}
@@ -56,13 +53,11 @@ export function LegalSheet({
             <span className="sr-only">Close</span>
           </Button>
         </SheetClose>
-        <LegalArticle title={t("title")} body={body} />
-        <Link
-          href={href}
-          className="mx-6 mb-8 block text-sm underline underline-offset-2 hover:text-foreground"
-        >
-          {tLegal("openAsPage")}
-        </Link>
+        {/* PublicShell's own page gutter (§4) — LegalArticle has none of its
+            own, it normally sits inside that shell's padded `main`. */}
+        <div className="px-6 sm:px-8">
+          <LegalArticle title={t("title")} body={body} />
+        </div>
       </SheetContent>
     </Sheet>
   );
