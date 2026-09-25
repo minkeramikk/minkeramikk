@@ -177,7 +177,6 @@
     },
     "designSwitch": {
       "label": "Design",
-      "covers": "{count, plural, one {dekker # keramikk} other {dekker # keramikk}}",
       "coversShort": "{count, plural, one {# keramikk} other {# keramikk}}",
       "sheetTitle": "Velg design",
       "sheetSubtitle": "Fargene lastes på nytt",

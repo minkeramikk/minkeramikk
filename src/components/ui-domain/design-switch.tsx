@@ -114,9 +114,6 @@ export function DesignSwitch({
               ▾
             </span>
           </span>
-          <span className="text-[11.5px] text-muted-foreground">
-            {t("covers", { count: productCounts[current.slug] ?? 0 })}
-          </span>
         </button>
       </div>
 
