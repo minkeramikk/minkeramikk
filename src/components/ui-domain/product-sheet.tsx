@@ -337,7 +337,7 @@ export function ProductSheet({
                 is a different context and keeps its own behaviour. */}
             {description && (
               <details key={p.id} className="group" data-testid="product-details">
-                <summary className="-mx-4 flex w-full cursor-pointer list-none items-center justify-between gap-2 border-y border-border px-4 py-2.5 text-[15px] font-medium text-foreground outline-none transition-colors hover:bg-secondary focus-visible:ring-3 focus-visible:ring-ring/50 [&::-webkit-details-marker]:hidden">
+                <summary className="flex w-full cursor-pointer list-none items-center justify-between gap-2 border-y border-border py-2.5 text-[15px] font-medium text-foreground outline-none transition-colors hover:bg-secondary focus-visible:ring-3 focus-visible:ring-ring/50 [&::-webkit-details-marker]:hidden">
                   {tProduct("description")}
                   <ChevronDown className="size-5 text-muted-foreground transition-transform group-open:rotate-180" aria-hidden />
                 </summary>
