@@ -211,6 +211,11 @@ export function PaletteCard({ chips, actions, saved, now }: PaletteCardProps) {
         )
       ) : (
         <>
+          {/* R5-PALETTE-PLACE — reviewer fix: the mockup (mockup.html, scene
+              1) keeps the header (eyebrow + count + "?") even at 0 saved +
+              no choice yet — only the chip row below it swaps for a hint.
+              Never drop the header just because there's nothing to browse
+              yet: "0 av 10 lagret" is itself the answer to "how many". */}
           <div className="mb-2.5 flex items-center gap-2">
             <span className="text-[10.5px] font-semibold uppercase tracking-[0.06em] text-primary">
               {tBar("eyebrowManage")}
@@ -219,7 +224,19 @@ export function PaletteCard({ chips, actions, saved, now }: PaletteCardProps) {
             <PaletteHelp mode="manage" saved={saved} />
             {slot}
           </div>
-          <div className="flex flex-wrap gap-2">{visible}</div>
+          {visible.length === 0 ? (
+            <div
+              data-testid="palette-card-empty"
+              className="rounded-[11px] border border-dashed border-border px-3 py-2.5"
+            >
+              {/* TODO:nb-review — palettes.card.libraryEmptyHint, new copy */}
+              <p className="text-[12px] leading-snug text-muted-foreground">
+                {t("libraryEmptyHint")}
+              </p>
+            </div>
+          ) : (
+            <div className="flex flex-wrap gap-2">{visible}</div>
+          )}
         </>
       )}
     </div>

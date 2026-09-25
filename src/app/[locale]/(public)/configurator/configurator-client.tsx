@@ -49,7 +49,10 @@ import {
   toCodecDesign,
   type CodecDesign,
 } from "@/lib/configurator/config-code";
-import { pickDefaultOption } from "@/lib/configurator/default-option";
+import {
+  pickDefaultOption,
+  isAtDefaultSelection as computeIsAtDefaultSelection,
+} from "@/lib/configurator/default-option";
 import { fullRowInsertIndex } from "@/lib/configurator/grid-rows";
 import { keyboardSafeScrollDelta } from "@/lib/configurator/keyboard-safe-scroll";
 import { MAX_CUSTOM_NOTE, MAX_CUSTOM_TEXT } from "@/lib/orders/schema";
@@ -1134,6 +1137,18 @@ export function ConfiguratorClient({
   const canSaveDraft = !matchedPalette;
 
   /**
+   * R5-PALETTE-PLACE — desktop's own guard, on top of `canSaveDraft`: true
+   * for every category still on the design's OWN default option, the same
+   * one `resolveSelections` above seeds the draft with before any tap. The
+   * draft chip and the Save invite are for an actual choice, not the
+   * design's own starting point — mobile's strip/Save keep reading
+   * `canSaveDraft` alone, untouched (out of scope, R5-PALETTE-PLACE).
+   * Logic lives in `default-option.ts` (unit-tested there — this component
+   * has no render test of its own).
+   */
+  const isAtDefaultSelection = computeIsAtDefaultSelection(detail.categories, selections);
+
+  /**
    * R5-BASKET-HOST task 1 — step 2 publishes the same `CurrentConfig` shape
    * step 3 does (ceramics-step.tsx), so the header drawer (outside this
    * subtree, later task) can render its own preview chip. Published ONLY
@@ -1462,6 +1477,12 @@ export function ConfiguratorClient({
       onRenameCancel={() => setRenamingPaletteCode(null)}
       onDelete={() => deletePalette(matchedPalette.code)}
     />
+  ) : isAtDefaultSelection ? (
+    // R5-PALETTE-PLACE — desktop only (see `isAtDefaultSelection`): nothing
+    // chosen yet is nothing to call a draft. `otherPaletteChips` (already
+    // saved palettes) still render regardless — only this synthetic
+    // "Unsaved" tile is conditional.
+    null
   ) : (
     <PaletteChip
       key="draft"
@@ -1990,7 +2011,19 @@ export function ConfiguratorClient({
                     // FIRST design card ("Pick a design"), not the column: the
                     // badge used to sit on the grid's outer wrapper and float
                     // in the gap above the cards.
-                    <span className="relative block">
+                    <span className="relative flex w-full">
+                      {/* HOTFIX (TL, "ultra mega bug" 25/9): the grid item is
+                          this <span> now, not the <button> — a grid stretches
+                          its OWN item to the column's full width AND the
+                          row's full height by default, regardless of the
+                          item's own display type, but the <button> inside is
+                          an ordinary child that shrink-wraps to its content
+                          on BOTH axes like any other button — first caught as
+                          a width mismatch, then (measured: 190px vs siblings'
+                          210px) a height one too, the row's page background
+                          showing through under a shorter card. `flex` on the
+                          span + `w-full` on the button stretches it to fill
+                          the span on both axes, same as a direct grid child. */}
                       <OptionCard
                         label={designName(d)}
                         layers={d.defaultLayers.map((l) => ({
@@ -1999,6 +2032,7 @@ export function ConfiguratorClient({
                         }))}
                         selected={d.slug === selected.slug}
                         onSelect={() => selectDesign(d)}
+                        className="w-full"
                       />
                       {tourTip && tip && tip.sequence === "step1" && tip.n === 1 && (
                         <Hotspot
@@ -2584,13 +2618,21 @@ export function ConfiguratorClient({
                 its own `step2-palette-strip` below, untouched. Header: the
                 card's own eyebrow title + ONLY the de-emphasised `h-8` Save,
                 gated on `canSaveDraft = !matchedPalette` — no +New (every
-                option change is already a new draft). */}
-            <div className="relative hidden md:block">
+                option change is already a new draft).
+                R5-PALETTE-PLACE: `md:order-3` — this wrapper had none, so it
+                sat at the flex default `order: 0` and floated above every
+                sibling that DOES carry an explicit order (colours, the Text
+                field at `md:order-2`, the nav row at `md:order-4`) — a
+                regression the comment above already described the intended
+                position for, just never encoded. `order-3` lands it after
+                Text and any custom-notes/colour-lock in that same bucket
+                (DOM order breaks the tie), before the nav row. */}
+            <div className="relative hidden md:order-3 md:block">
               <PaletteCard
-                chips={[leadPaletteChip, ...otherPaletteChips]}
+                chips={[leadPaletteChip, ...otherPaletteChips].filter(Boolean)}
                 saved={palettes.length}
                 actions={
-                  canSaveDraft && (
+                  canSaveDraft && !isAtDefaultSelection && (
                     <button
                       type="button"
                       data-testid="save-palette"

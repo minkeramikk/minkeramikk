@@ -178,7 +178,6 @@
     },
     "designSwitch": {
       "label": "Design",
-      "covers": "{count, plural, one {covers # ceramic} other {covers # ceramics}}",
       "coversShort": "{count, plural, one {# ceramic} other {# ceramics}}",
       "sheetTitle": "Choose design",
       "sheetSubtitle": "The colours reload with it",
@@ -432,6 +431,7 @@
       "showAll": "Show all {count}",
       "showFewer": "Show fewer",
       "emptyHint": "No other palettes to switch to yet. Save one from the colour step and it shows up here.",
+      "libraryEmptyHint": "Choose a colour to see your palette here.",
       "help": "About palettes",
       "helpClose": "Close",
       "helpManage": "The colours you pick become a <b>palette</b>. <b>Save it</b> to reuse it on other pieces — up to {max}. Saved ones stay here to switch between.",
