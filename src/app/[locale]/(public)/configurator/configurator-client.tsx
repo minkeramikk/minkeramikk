@@ -917,9 +917,11 @@ export function ConfiguratorClient({
     featured: featuredSlot !== null,
   });
   const handleTourNext = () => {
-    if (!tip || !tourTip) return;
-    if (tourTip.last) tour.turnOff();
-    else tour.next(tip.sequence);
+    if (!tip) return;
+    // T5 (QA round 2, TL ruling 25/9): `next()` itself now decides what a
+    // sequence's own last tip does — mutes THAT sequence only (`done`), not
+    // every tour globally. `turnOff()` stays for the ✕ alone.
+    tour.next(tip.sequence);
   };
   // R5-TUTORIAL round 2 (plan Task B) — "active guidance": Next no longer
   // just changes tour state, it scrolls to + pulses (`.tour-pulse`, reused)

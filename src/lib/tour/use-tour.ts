@@ -86,8 +86,8 @@ export function useTour() {
   }, []);
 
   const runStart = useCallback((sequence: TourSequence) => {
-    setState(() => {
-      const n = start(sequence);
+    setState((s) => {
+      const n = start(s, sequence);
       persist(n);
       return n;
     });

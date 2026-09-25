@@ -1085,9 +1085,11 @@ export function CeramicsStep({
   // SAME expression the `PaletteCard`'s own `saved` prop already uses below.
   const tourTip = useTourTip(tip, { count: unpaintedPieces(cart), saved: palettes.length });
   const handleTourNext = () => {
-    if (!tip || !tourTip) return;
-    if (tourTip.last) tour.turnOff();
-    else tour.next(tip.sequence);
+    if (!tip) return;
+    // T5 (QA round 2, TL ruling 25/9): `next()` itself now decides what a
+    // sequence's own last tip does — mutes THAT sequence only (`done`), not
+    // every tour globally. `turnOff()` stays for the ✕ alone.
+    tour.next(tip.sequence);
   };
   // R5-TUTORIAL round 2 (plan Task B) — the LAST tip of step3/kit3 ("pick
   // your ceramics" / "want more? tap a ceramic") is the one this page adds
