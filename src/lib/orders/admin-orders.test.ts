@@ -32,6 +32,7 @@ function item(p: Partial<AdminOrderItem> = {}): AdminOrderItem {
     configSnapshot: p.configSnapshot ?? null,
     productImage: p.productImage ?? null,
     productSlug: p.productSlug ?? null,
+    productNameEn: p.productNameEn ?? null,
     productWeightGrams: p.productWeightGrams ?? null,
     discountPct: p.discountPct ?? null,
     discountCents: p.discountCents ?? 0,
@@ -76,7 +77,7 @@ describe("mapOrderRow", () => {
           product_name_snapshot: "Flat", price_cents_snapshot: 50000,
           currency_snapshot: "NOK", quantity: 2, config_code: "MK-A-K3",
           config_snapshot: { designName: "Blomster 1", selections: [] },
-          product_id: "p1", products: { image: "products/flat.png", slug: "flat", product_attributes: [{ key: "weight", value_num: 800 }] },
+          product_id: "p1", products: { image: "products/flat.png", slug: "flat", name_en: "Flat Plate", product_attributes: [{ key: "weight", value_num: 800 }] },
           discount_pct: null, discount_cents: 0, discount_source: null },
       ],
     };
@@ -100,7 +101,7 @@ describe("mapOrderRow", () => {
           product_name_snapshot: "Flat", price_cents_snapshot: 50000,
           currency_snapshot: "NOK", quantity: 1, config_code: null,
           config_snapshot: null,
-          product_id: "p1", products: { image: "products/flat.png", slug: "flat", product_attributes: [{ key: "weight", value_num: 800 }] },
+          product_id: "p1", products: { image: "products/flat.png", slug: "flat", name_en: "Flat Plate", product_attributes: [{ key: "weight", value_num: 800 }] },
           discount_pct: null, discount_cents: 0, discount_source: null },
         // product deleted/reimported (product_id NULL) → degrade, no photo
         { id: "i2", supplier_id: "s1", supplier_name_snapshot: "Vietri",
@@ -114,7 +115,7 @@ describe("mapOrderRow", () => {
           product_name_snapshot: "Mug", price_cents_snapshot: 20000,
           currency_snapshot: "NOK", quantity: 1, config_code: null,
           config_snapshot: null,
-          product_id: "p3", products: { image: null, slug: "mug", product_attributes: null },
+          product_id: "p3", products: { image: null, slug: "mug", name_en: "Mug", product_attributes: null },
           discount_pct: null, discount_cents: 0, discount_source: null },
       ],
     };
@@ -315,6 +316,7 @@ describe("order totals with discounts (R4-SCONTI)", () => {
     id: "i1", supplierId: "s", supplierName: "Vietri", productName: "Plate",
     priceCentsSnapshot: 74900, currency: "NOK" as const, quantity: 8,
     configCode: null, configSnapshot: null, productImage: null, productSlug: null,
+    productNameEn: null,
     productWeightGrams: null, discountPct: null, discountCents: 0,
     discountSource: null, ...over,
   });
