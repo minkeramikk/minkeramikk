@@ -213,7 +213,7 @@ export default async function ConfiguratorPage({
       // `div#S:0` at the end of <body>, briefly leaving TWO copies of the
       // step in the DOM (flaky Playwright strict-mode violations).
       return (
-        <section>
+        <section data-configurator>
           <h1 className="sr-only">{t("pageTitle")}</h1>
           <CeramicsStep
               products={products.map((p) => ({
@@ -297,7 +297,9 @@ export default async function ConfiguratorPage({
     // R4-RESTYLE: plain section again — the mobile editor's height chain (and
     // the globals.css `:has([data-editor="mobile"])` block that drove it) is
     // gone; step 2 is an ordinary page scroller with a sticky canvas.
-    <section>
+    // `data-configurator`: the site footer hides under md while this page is
+    // on screen (site-footer.tsx) — both sections carry it.
+    <section data-configurator>
       <h1 className="sr-only">{t("pageTitle")}</h1>
       {/* no <Suspense>: see the step-3 note above */}
       <ConfiguratorClient

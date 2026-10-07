@@ -10,7 +10,14 @@ export function SiteFooter() {
   const t = useTranslations();
 
   return (
-    <footer data-site-footer className="mt-auto border-t">
+    // Bug (client, 7/10): on a phone the configurator must end at its own
+    // «Neste»/order bar, not scroll past it into a footer — hidden under md
+    // whenever the page carries `data-configurator` (configurator/page.tsx).
+    // Legal links stay reachable from the order form itself.
+    <footer
+      data-site-footer
+      className="mt-auto border-t max-md:[body:has([data-configurator])_&]:hidden"
+    >
       <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-center gap-x-4 gap-y-1 px-4 py-4 text-xs text-muted-foreground">
         <span className="font-heading text-sm text-foreground">
           {t("common.siteName")}

@@ -68,7 +68,7 @@ export function DesignPhotoStrip({
         ref={stripRef}
         // same gesture contract as the option lanes: the swipe here is
         // horizontal, and its end of travel must not scroll the page.
-        className="flex touch-pan-x snap-x snap-mandatory gap-2.5 overflow-x-auto overscroll-x-contain scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="flex touch-pan-x touch-pan-y snap-x snap-mandatory gap-2.5 overflow-x-auto overscroll-x-contain scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         {images.map((img, i) => (
           // F41: the <img> is unchanged, it just gained a button wrapper that

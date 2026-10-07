@@ -1761,10 +1761,7 @@ export function ConfiguratorClient({
             farebbe 40px sotto una testata. */}
         {step === 2 && (
           <div data-testid="step2-heading-mobile" className="md:hidden">
-            <p className="text-[11px] uppercase tracking-[0.06em] text-muted-foreground">
-              {t("stepIndicator", { step: 2 })}
-            </p>
-            <h2 className="mb-4 mt-1 text-xl font-semibold">
+            <h2 className="mb-4 text-xl font-semibold">
               {t("step2.titleDetails")}
             </h2>
           </div>
@@ -1979,10 +1976,7 @@ export function ConfiguratorClient({
             // anchor).
             ref={step1AnchorRef}
           >
-            <p className="text-[11px] uppercase tracking-[0.06em] text-muted-foreground">
-              {t("stepIndicator", { step: 1 })}
-            </p>
-            <h2 className="mb-4 mt-1 text-xl font-semibold">{t("step1.title")}</h2>
+            <h2 className="mb-4 text-xl font-semibold">{t("step1.title")}</h2>
             <div className="mb-5 grid grid-cols-2 gap-2.5 sm:grid-cols-3">
               {designs.map((d, i) => (
                 <Fragment key={d.id}>
@@ -2200,15 +2194,18 @@ export function ConfiguratorClient({
                 onKeyDown={onTabsKeyDown}
                 data-testid="category-tabs"
                 // B1: `touch-pan-x` dice al browser che qui il gesto è
-                // orizzontale (niente pan verticale rubato), `overscroll-x-contain`
-                // impedisce che il fine corsa si propaghi all'antenato.
+                // orizzontale, `overscroll-x-contain` impedisce che il fine
+                // corsa si propaghi all'antenato. Bug 7/10: `pan-x` da solo
+                // VIETA il pan verticale iniziato qui (dito sulle foto o sulle
+                // icone = pagina bloccata), quindi `touch-pan-y` lo riammette:
+                // l'asse lo sceglie il browser dalla direzione iniziale.
                 // R4-ARROWS: `scroll-px-11` = 44px, la larghezza del disco
                 // freccia più la sua area toccabile. È scroll-padding, non
                 // padding: non sposta niente, dice solo a snap e all'auto-scroll
                 // DOVE fermarsi, così un tab non RIPOSA mai sotto un disco.
                 // Passarci sotto DURANTE lo scorrimento resta com'è: è il
                 // segnale che c'è dell'altro.
-                className="flex touch-pan-x snap-x snap-proximity gap-1 overflow-x-auto overscroll-x-contain scroll-smooth scroll-px-11 px-1 pb-0.5 pt-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                className="flex touch-pan-x touch-pan-y snap-x snap-proximity gap-1 overflow-x-auto overscroll-x-contain scroll-smooth scroll-px-11 px-1 pb-0.5 pt-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
               >
                 {visibleCategories.map((cat) => {
                   const sel = selections[cat.slug];
@@ -2355,10 +2352,7 @@ export function ConfiguratorClient({
                 `alt` della preview), quindi scende a riga piccola qui sotto:
                 questo blocco è già desktop-only. */}
             <div className="max-md:hidden">
-              <p className="text-[11px] uppercase tracking-[0.06em] text-muted-foreground">
-                {t("stepIndicator", { step: 2 })}
-              </p>
-              <h2 className="mt-1 text-xl font-semibold">{t("step2.titleDetails")}</h2>
+              <h2 className="text-xl font-semibold">{t("step2.titleDetails")}</h2>
               <p className="mt-0.5 text-sm text-muted-foreground">
                 {designName(selected)}
               </p>
@@ -3006,7 +3000,7 @@ function CategoryLane({
             // card si fermava incollata al bordo destro. Niente `flex-1`: la
             // corsia è alta quanto le sue card, così nessuna sborda (vedi il
             // fieldset).
-            "max-md:min-w-0 max-md:items-start max-md:touch-pan-x max-md:overflow-x-auto max-md:overscroll-x-contain max-md:scroll-px-11 max-md:px-3 max-md:py-3 max-md:snap-x max-md:snap-proximity max-md:[scrollbar-width:none] max-md:[&::-webkit-scrollbar]:hidden",
+            "max-md:min-w-0 max-md:items-start max-md:touch-pan-x max-md:touch-pan-y max-md:overflow-x-auto max-md:overscroll-x-contain max-md:scroll-px-11 max-md:px-3 max-md:py-3 max-md:snap-x max-md:snap-proximity max-md:[scrollbar-width:none] max-md:[&::-webkit-scrollbar]:hidden",
             dense
               ? // mockup `.opts.dense`: due righe che scorrono insieme
                 "max-md:grid max-md:grid-flow-col max-md:justify-start max-md:gap-x-2.5 max-md:gap-y-1 max-md:py-2 max-md:[grid-template-rows:auto_auto]"
@@ -3086,7 +3080,7 @@ function CategoryLane({
             // ogni card interamente dentro la corsia, la prima interamente
             // visibile all'apertura (lo `scrollLeft` che centra la corsia si
             // attiva solo sui gruppi colore, che espongono `aria-checked`).
-            "max-md:flex max-md:min-w-0 max-md:gap-3 max-md:touch-pan-x max-md:overflow-x-auto max-md:overscroll-x-contain max-md:scroll-px-11 max-md:px-3 max-md:py-3 max-md:snap-x max-md:snap-proximity max-md:[scrollbar-width:none] max-md:[&::-webkit-scrollbar]:hidden"
+            "max-md:flex max-md:min-w-0 max-md:gap-3 max-md:touch-pan-x max-md:touch-pan-y max-md:overflow-x-auto max-md:overscroll-x-contain max-md:scroll-px-11 max-md:px-3 max-md:py-3 max-md:snap-x max-md:snap-proximity max-md:[scrollbar-width:none] max-md:[&::-webkit-scrollbar]:hidden"
           )}
         >
           {cat.options.map((o) => (
