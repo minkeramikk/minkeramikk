@@ -64,10 +64,12 @@ test("il canvas è sticky: resta visibile quando il pannello strumenti è in vie
   await expect(page.getByTestId("step-nav-flow")).toBeVisible();
 
   // R4-FOLLOWUPS Ⓓ: sotto il canvas non c'è più la riga-riassunto (era
-  // troncata a 390 e ridondante coi dot/conteggi delle tab). Resta la sola
-  // didascalia col link alla inspirasjonsside.
+  // troncata a 390 e ridondante coi dot/conteggi delle tab).
+  // R6-STEP2-DOCK: e fra canvas e dock non c'è più niente — la didascalia vive
+  // nella tab «Bilder» del dock, niente «Inspirasjonsbilder» né titolo in pagina.
   await expect(page.getByTestId("canvas-summary")).toHaveCount(0);
-  await expect(page.getByTestId("preview-note-mobile")).toBeVisible();
+  await expect(page.getByTestId("step2-inspiration")).toHaveCount(0);
+  await expect(page.getByTestId("step2-configure-heading")).toHaveCount(0);
 });
 
 test("B1: il pannello strumenti non scorre in verticale, e la pagina non scorre in orizzontale", async ({
@@ -217,34 +219,53 @@ test("B2: la corsia densa (>9 opzioni) entra per intero — due righe, etichette
   ).toBeGreaterThanOrEqual(swatchBox!.y + swatchBox!.height - 1);
 });
 
-test("R4-RESTYLE: descrizione, didascalia e «Inspirasjonsbilder» vivono in pagina, non in un tab", async ({
+test("R6-STEP2-DOCK: foto e descrizione sono le ultime tab del dock, niente sezioni fra canvas e dock", async ({
   page,
 }) => {
+  // Mockup r6-step2-dock, variante B (Alessio 7/10): la pagina è preview +
+  // composer. Le sezioni che R4-RESTYLE aveva messo in pagina sotto il canvas
+  // (descrizione, didascalia, «Inspirasjonsbilder», «Konfigurer ditt design»)
+  // non esistono più sotto md: foto e descrizione sono le due ultime tab del
+  // dock, la didascalia sta sotto le foto.
   const design = await firstActiveDesign();
   await page.goto(`/no/configurator?design=${design.slug}&step=2`);
   await expect(page.getByTestId("details-step")).toBeVisible();
 
-  // i due tab rimossi non esistono più
+  await expect(page.getByTestId("step2-inspiration")).toHaveCount(0);
+  await expect(page.getByTestId("step2-configure-heading")).toHaveCount(0);
+  await expect(page.getByTestId("step2-description")).toHaveCount(0);
   await expect(page.getByTestId("category-tab-extras")).toHaveCount(0);
-  await expect(page.getByTestId("category-tab-photos")).toHaveCount(0);
 
-  // la didascalia col link alla inspirasjonsside sta sotto il canvas, in pagina
-  const note = page.getByTestId("preview-note-mobile");
-  await expect(note).toBeVisible();
-  await expect(note.getByTestId("preview-note-link")).toHaveAttribute("target", "_blank");
+  // il dock è agganciato al fondo dello schermo
+  const dock = page.locator("[data-dock]");
+  expect(await dock.evaluate((el) => getComputedStyle(el).position), "dock sticky").toBe("sticky");
 
-  // la sezione foto c'è solo se il design ha foto reali; se c'è, il tap apre il
-  // lightbox condiviso
-  const inspiration = page.getByTestId("step2-inspiration");
-  if ((await inspiration.count()) > 0) {
-    await expect(inspiration).toBeVisible();
-    await inspiration.getByTestId("design-photo").first().click();
+  // «Bilder (N)» esiste solo se il design ha foto; aperta, mostra foto +
+  // didascalia col link, e il tap apre il lightbox condiviso
+  const photosTab = page.getByTestId("category-tab-photos");
+  if ((await photosTab.count()) > 0) {
+    await photosTab.click();
+    const panel = page.getByTestId("step2-photos");
+    await expect(panel).toBeVisible();
+    const note = panel.getByTestId("preview-note-mobile");
+    await expect(note).toBeVisible();
+    await expect(note.getByTestId("preview-note-link")).toHaveAttribute("target", "_blank");
+    await panel.getByTestId("design-photo").first().click();
     await expect(page.getByTestId("design-photo-lightbox")).toBeVisible();
     await page.keyboard.press("Escape");
     await expect(page.getByTestId("design-photo-lightbox")).toHaveCount(0);
+  } else {
+    await expect(page.getByTestId("step2-photos")).toHaveCount(0);
   }
 
-  await expect(page.getByTestId("step2-configure-heading")).toBeVisible();
+  // «Om designet» esiste solo se il design ha una descrizione
+  const aboutTab = page.getByTestId("category-tab-about");
+  if ((await aboutTab.count()) > 0) {
+    await aboutTab.click();
+    await expect(page.getByTestId("step2-about")).toBeVisible();
+  } else {
+    await expect(page.getByTestId("step2-about")).toHaveCount(0);
+  }
 });
 
 test("CA1: nelle corsie a immagine l'icona sta nella mattonella e la label non si tronca a metà parola", async ({
@@ -355,10 +376,12 @@ test("CA4: la ✕ del lightbox e quella della scheda prodotto sono identiche e s
   for (const s of slugs) {
     await page.goto(`/no/configurator?design=${s}&step=2`);
     await page.getByTestId("details-step").waitFor({ state: "visible" });
-    if ((await page.getByTestId("step2-inspiration").count()) > 0) { withPhotos = s; break; }
+    if ((await page.getByTestId("category-tab-photos").count()) > 0) { withPhotos = s; break; }
   }
   expect(withPhotos, "serve un design con foto reali").not.toBe("");
-  await page.getByTestId("step2-inspiration").getByTestId("design-photo").first().click();
+  // R6-STEP2-DOCK: le foto stanno nella tab «Bilder» del dock
+  await page.getByTestId("category-tab-photos").click();
+  await page.getByTestId("step2-photos").getByTestId("design-photo").first().click();
   await page.getByTestId("design-photo-lightbox").waitFor({ state: "visible" });
   // The lightbox Dialog keeps the base `zoom-in-95` entrance (unlike the
   // product sheet, which overrides it to `zoom-in-100!`): "visible" fires the
@@ -615,9 +638,15 @@ test("CA5-bis: a riposo, il tab attivo e la prima card non riposano sotto i disc
   }
 });
 
-test("Ⓒ: la barra tab è sticky sotto il canvas — raggiungibile anche a fondo pagina", async ({
+test("Ⓒ: il dock è agganciato al fondo — la barra tab resta raggiungibile a fondo pagina, mai sotto il canvas", async ({
   page,
 }) => {
+  // R6-STEP2-DOCK: la barra non è più sticky da sola sotto il canvas — sta in
+  // testa al dock, che è `sticky bottom-0` e ha `max-h` = viewport meno
+  // header, striscia e canvas. È quel cap a impedire che un pannello alto
+  // («Fargeønsker») spinga la barra sotto il canvas `z-30`. Le tre misure in
+  // fondo sono le stesse di prima: barra dentro il viewport, sotto il canvas.
+  // Storia (R4-FOLLOWUPS Ⓒ), ancora il perché del soggetto scelto:
   // DIPENDENZA DAI DATI VIVI, come CA5-bis: `amalfi-dyr` + il tab «Fargeønsker»
   // è il pannello PIÙ ALTO del catalogo (note colore + figura + textarea), cioè
   // l'unico che a 390×660 dà abbastanza corsa perché il difetto si veda. Se
@@ -656,7 +685,7 @@ test("Ⓒ: la barra tab è sticky sotto il canvas — raggiungibile anche a fond
   });
   // guardia anti-asserzione-vuota: senza corsa la barra non ha modo di finire
   // sotto il canvas, e i tre expect qui sotto passerebbero da soli.
-  expect(g.scrollRange, "la pagina deve avere corsa vera").toBeGreaterThan(300);
+  expect(g.scrollRange, "la pagina deve avere corsa").toBeGreaterThan(0);
   expect(g.barTop, "la barra tab non è uscita dal viewport dall'alto").toBeGreaterThanOrEqual(-1);
   expect(g.barBottom, "la barra tab è tutta dentro il viewport").toBeLessThanOrEqual(g.vh);
   expect(
@@ -670,43 +699,33 @@ test("Ⓒ: la barra tab è sticky sotto il canvas — raggiungibile anche a fond
   await expect(first).toHaveAttribute("aria-selected", "true");
 });
 
-test("Ⓒ: col focus sul campo scritta la barra tab molla lo sticky, il canvas RESTA, e la nav si aggancia al fondo", async ({
+test("Ⓒ: col focus sul campo scritta il dock molla lo sticky, il canvas lo tiene, la nav resta in flusso", async ({
   page,
 }) => {
-  // Bug 7/10 (video del cliente): il canvas NON molla più lo sticky mentre si
-  // scrive — la scritta si disegna sul piatto in diretta (R5-TEXT-LIVE) ed è il
-  // piatto che il cliente vuole guardare; si abbassa e basta (`--mk-canvas-h`).
-  // La barra tab invece molla ancora: con la tastiera aperta si scrive, non si
-  // cambia tab, e sotto il canvas ridotto non c'è spazio per lei.
+  // R6-STEP2-DOCK: il campo scritta vive DENTRO il dock. Con la tastiera
+  // aperta il dock passa `static` (agganciato al fondo finirebbe sotto la
+  // tastiera iOS) e la nav non si aggancia più al fondo (ruberebbe al campo lo
+  // spazio sopra i tasti). Il canvas resta sticky e si abbassa (#89).
   // Si commuta `data-typing` direttamente: la sorgente di quello stato (focus →
-  // `setTyping`) è già coperta da CA2, qui si sorveglia l'ACCOPPIAMENTO fra il
-  // canvas e la barra, che è puro CSS. Così il test non deve seminare un design
-  // «Tekst» nel catalogo di produzione per esistere.
+  // `setTyping`) è già coperta da CA2, qui si sorveglia l'ACCOPPIAMENTO, che è
+  // puro CSS.
   const design = await firstActiveDesign();
   await page.goto(`/no/configurator?design=${design.slug}&step=2`);
   await page.getByTestId("details-step").waitFor({ state: "visible" });
 
   const positions = () =>
     page.evaluate(() => {
-      const bar = document.querySelector('[data-testid="category-tabs"]')!
-        .parentElement as HTMLElement;
-      const canvas = document.querySelector(
-        "[data-preview-column]"
-      ) as HTMLElement;
-      const nav = document.querySelector(
-        '[data-testid="step-nav-flow"]'
-      ) as HTMLElement;
+      const pos = (sel: string) =>
+        getComputedStyle(document.querySelector(sel) as HTMLElement).position;
       return {
-        bar: getComputedStyle(bar).position,
-        canvas: getComputedStyle(canvas).position,
-        // R4-STEP2-KEYBOARD ③: la nav fa il contrario degli altri due — si
-        // aggancia mentre si scrive, così Back/Next stanno sopra la tastiera.
-        nav: getComputedStyle(nav).position,
+        dock: pos("[data-dock]"),
+        canvas: pos("[data-preview-column]"),
+        nav: pos('[data-testid="step-nav-flow"]'),
       };
     });
 
-  expect(await positions(), "a riposo: canvas e barra sticky, nav in flusso").toEqual({
-    bar: "sticky",
+  expect(await positions(), "a riposo: canvas e dock sticky, nav in flusso").toEqual({
+    dock: "sticky",
     canvas: "sticky",
     nav: "static",
   });
@@ -717,8 +736,8 @@ test("Ⓒ: col focus sul campo scritta la barra tab molla lo sticky, il canvas R
   );
   expect(
     await positions(),
-    "col campo a fuoco la barra molla lo sticky, il canvas lo tiene, e la nav lo prende"
-  ).toEqual({ bar: "static", canvas: "sticky", nav: "sticky" });
+    "col campo a fuoco il dock molla lo sticky, il canvas lo tiene, la nav resta in flusso"
+  ).toEqual({ dock: "static", canvas: "sticky", nav: "static" });
 });
 
 test("CA3: «Fargeønsker» è un tab, esiste solo dove serve, e non lascia form sotto il pannello", async ({

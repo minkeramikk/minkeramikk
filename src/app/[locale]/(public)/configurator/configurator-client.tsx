@@ -104,6 +104,11 @@ const WISHES_TAB = "__wishes";
  * «Fargeønsker»: due posti diversi per la stessa cosa. Un posto solo, ora.
  */
 const INSCRIPTION_TAB = "__inscription";
+/** R6-STEP2-DOCK: under md the design's photos and its description are no
+ *  longer sections in the page flow — they are the two last tabs of the
+ *  dock (Alessio, 7/10: «the dock is only preview + composer»). */
+const PHOTOS_TAB = "__photos";
+const ABOUT_TAB = "__about";
 
 /**
  * R5-DESIGN-SWITCH loader: minimo visibile 500ms a ogni cambio design
@@ -271,6 +276,13 @@ export function ConfiguratorClient({
   const urlSlug = searchParams.get("design");
   const selected =
     designs.find((d) => d.slug === urlSlug) ?? designs[0]; // sort_order=1 default (AC1)
+  /** R6-STEP1-PICK (Daniele, 7/10): step 1 opens with NO card highlighted and
+   *  no context block — the customer picks, THEN the «Neste» pill appears
+   *  under the chosen row. `selected` keeps its default for everything that
+   *  needs a design (preview, strip, palettes, steps 2–3 via the stepper);
+   *  this flag only governs what step 1 SHOWS. True as soon as `?design=`
+   *  is in the URL — `selectDesign` writes it, back from step 2 keeps it. */
+  const hasExplicitDesign = urlSlug !== null;
   // R5-DESIGN-SWITCH loader — UN SOLO STATO: `pending = {slug, startedAt} |
   // null`. Il canvas mostra il loader se e solo se `pending != null`
   // (+ `reduced-motion` off). Un solo trigger (`startDesignTransition`,
@@ -1243,7 +1255,10 @@ export function ConfiguratorClient({
   }
 
   function selectDesign(d: DesignChoice | DesignSwitchChoice) {
-    if (d.slug === selected.slug) return;
+    // R6-STEP1-PICK: tapping the DEFAULT design on a fresh step 1 must still
+    // write `?design=` — that is what highlights the card and opens the
+    // context block — so the early return only fires on a real no-op.
+    if (d.slug === selected.slug && hasExplicitDesign) return;
     // Cambio design esplicito: navigazione RSC, il canvas cambia solo DOPO
     // il round-trip — il loader parte subito da qui (`pending`, sopra).
     // TL ruling 25/9: available in kit-mode too now — `params` starts from
@@ -1731,7 +1746,21 @@ export function ConfiguratorClient({
             // on heading, description, caption, photos, tool heading). The
             // tab lane still releases: with the keyboard up one types, one
             // does not switch tabs.
-            "max-md:flex max-md:flex-col max-md:items-stretch max-md:gap-0 max-md:data-[typing=1]:[&_[data-tabs-bar]]:static"
+            // R6-STEP2-DOCK: the tab lane lives in the bottom dock now, so
+            // there is no `[data-tabs-bar]` sticky left to release here.
+            // R6-STEP2-DOCK fix 2: at least one screen tall, so the panel
+            // can grow (`flex-1`) and push palette strip + nav to the bottom
+            // edge when the step is short (TL screenshot: cream gap under the
+            // nav on a tall phone). 187px = everything above this grid at
+            // 390: header 56 + main `pt-7` 28 + «Maler med» strip 61 + step
+            // bar band 42 — MEASURED, same band math as `docked-cart-panel`;
+            // the panel's `-mb-7` already eats main's `pb-7`. Move it with
+            // the strip or the step bar.
+            // `--mk-coach-h` (below): while a tutorial tip shows, its fixed
+            // CoachBar takes the bottom of the screen — the column is that
+            // much shorter and the panel pads by the same amount, so the nav
+            // sits ABOVE the bar without a scroll.
+            "max-md:flex max-md:min-h-[calc(100svh-187px-var(--mk-coach-h))] max-md:flex-col max-md:items-stretch max-md:gap-0"
         )}
         data-typing={step === 2 && typing ? "1" : undefined}
         style={
@@ -1743,9 +1772,12 @@ export function ConfiguratorClient({
                 // on an 852pt iPhone ~450pt stay visible: header 56 + canvas
                 // ≤150 + the docked nav row ~60 leave ~180 for the field.
                 // Measured on device by the TL before merge, not assumed.
+                // R6-STEP2-DOCK: 32svh, not 38 — the dock pinned at the bottom
+                // (~160px) needs the room; 270 on an 852pt iPhone, 213 on an
+                // SE. Measured on device by the TL before merge.
                 "--mk-canvas-h": typing
                   ? "clamp(110px,18svh,150px)"
-                  : "clamp(200px,38svh,300px)",
+                  : "clamp(190px,32svh,270px)",
                 // TL "menu sopra come step3": `<PaintingStrip>` is now a
                 // SECOND sticky layer above the canvas (mobile only), so
                 // both the canvas's own `top` and the tab lane's `top` below
@@ -1767,6 +1799,12 @@ export function ConfiguratorClient({
                 // the canvas — now still sticky — must pin to the header
                 // alone, or it floats 61px under it.
                 "--mk-strip-h": typing ? "0px" : "61px",
+                // R6-STEP2-DOCK fix 2: the tutorial CoachBar's height, 79px
+                // MEASURED at 375 (two text lines; 61 at 390 with one — the
+                // taller wins, the nav just gets 18px of air there). 0 when
+                // no tip is showing. Read by the grid's `min-h` and the
+                // panel's `pb` together.
+                "--mk-coach-h": tourTip && tip ? "79px" : "0px",
               } as React.CSSProperties)
             : undefined
         }
@@ -1795,11 +1833,8 @@ export function ConfiguratorClient({
             canvas — scorre via com'è nello sketch del cliente. Su desktop resta
             dov'era, in cima al pannello (`md:hidden` qui, `max-md:hidden` là):
             un solo nodo visibile per volta, mai due. */}
-        {step === 2 && step2Description && (
-          <div data-testid="step2-description" className="mb-3 md:hidden max-md:group-data-[typing=1]/step2:hidden">
-            <DesignDescription text={step2Description} />
-          </div>
-        )}
+        {/* R6-STEP2-DOCK: the mobile description node is gone from here — it
+            is the dock's «Om designet» tab now (desktop node unchanged). */}
 
         {/* LEFT: the persistent preview — never remounts across steps (AC2).
             F15: sticky so it stays visible while the option list scrolls; on
@@ -1911,7 +1946,10 @@ export function ConfiguratorClient({
               })}
               caption={previewNote}
               className={cn(step === 2 && "max-md:contents")}
-              layers={previewLayers}
+              // R6-STEP1-PICK: on a fresh step 1 the plate is empty until the
+              // customer picks — showing the default design's layers would
+              // say «chosen» while no card is highlighted.
+              layers={step === 1 && !hasExplicitDesign ? [] : previewLayers}
               // Post-review revision: senza una posizione scelta niente arriva
               // al piatto — mai inventare "centre" solo perché è il default in JS.
               inscription={textPosition !== undefined ? liveInscription : undefined}
@@ -1940,49 +1978,11 @@ export function ConfiguratorClient({
           </div>
         </div>
 
-        {/* R4-RESTYLE (c): la didascalia col link alla inspirasjonsside — sotto
-            il canvas e SCORRE VIA (il canvas resta). Stesso nodo `t.rich` della
-            caption desktop, che sotto md è spenta dentro `PreviewCanvas`. */}
-        {step === 2 && (
-          <p
-            data-testid="preview-note-mobile"
-            className="mt-2.5 text-xs italic text-muted-foreground md:hidden max-md:group-data-[typing=1]/step2:hidden"
-          >
-            {previewNote}
-          </p>
-        )}
-
-        {/* R4-RESTYLE (d): «Inspirasjonsbilder» — le foto REALI del design, in
-            carosello orizzontale con frecce ‹ › ai bordi (stesso stato
-            can-l/can-r delle fade) e lightbox condiviso. Design senza foto →
-            sezione assente, non un riquadro vuoto. */}
-        {step === 2 && hasImages && (
-          <section
-            data-testid="step2-inspiration"
-            aria-labelledby="step2-inspiration-heading"
-            className="mt-5 md:hidden max-md:group-data-[typing=1]/step2:hidden"
-          >
-            <h2
-              id="step2-inspiration-heading"
-              className="mb-2 text-[11px] font-semibold uppercase tracking-[0.06em]"
-            >
-              {/* TODO:nb-review — step2.inspirationPhotos */}
-              {t("step2.inspirationPhotos")}
-            </h2>
-            <DesignPhotoStrip images={detail.images} alt={designName(selected)} />
-          </section>
-        )}
-
-        {/* R4-RESTYLE (e): il titolo che apre la sezione strumenti. */}
-        {step === 2 && (
-          <h2
-            data-testid="step2-configure-heading"
-            className="mt-6 mb-2 text-base font-semibold md:hidden max-md:group-data-[typing=1]/step2:hidden"
-          >
-            {/* TODO:nb-review — step2.configureHeading */}
-            {t("step2.configureHeading")}
-          </h2>
-        )}
+        {/* R6-STEP2-DOCK: caption, «Inspirasjonsbilder» and the «Konfigurer
+            ditt design» heading used to sit here, between canvas and panel.
+            Under md the page is preview + composer now: the caption and the
+            photos live in the dock's «Bilder» tab, the heading is gone (the
+            dock explains itself). */}
 
         {/* RIGHT: panel swaps with the step */}
         {step === 1 ? (
@@ -2028,7 +2028,7 @@ export function ConfiguratorClient({
                           src: assetUrl(l.src),
                           recolor: l.blend === "multiply",
                         }))}
-                        selected={d.slug === selected.slug}
+                        selected={hasExplicitDesign && d.slug === selected.slug}
                         onSelect={() => selectDesign(d)}
                         className="w-full"
                       />
@@ -2056,7 +2056,7 @@ export function ConfiguratorClient({
                       onSelect={() => selectDesign(d)}
                     />
                   )}
-                  {i === contextBlockAfter && (
+                  {hasExplicitDesign && i === contextBlockAfter && (
                     // R3-B23: contextual block under the SELECTED card's row —
                     // name + per-locale description + explicit next-step CTA.
                     // Replaces the old fixed bottom bar (it sat under the thumb).
@@ -2165,7 +2165,17 @@ export function ConfiguratorClient({
               // che è condivisa da ogni pagina pubblica. La separazione dal
               // footer la fa il `border-t` che il footer ha già
               // (site-footer.tsx): nessuna hairline in più, sarebbero due.
-              "max-md:-mx-5 max-md:-mb-7 max-md:gap-0 max-md:rounded-t-[var(--radius)] max-md:border-t-[1.5px] max-md:border-border max-md:bg-[var(--mk-canvas)] max-md:px-3 max-md:pt-1 max-md:shadow-[0_-6px_18px_color-mix(in_oklab,var(--mk-dark)_8%,transparent)]"
+              // R6-STEP2-DOCK: the sheet surface (border, radius, shadow,
+              // white) moved onto `[data-dock]` below; this wrapper only
+              // keeps the bleed and the gutter. `pb-[45svh]` while typing:
+              // the field is inside the dock, which goes static with the
+              // keyboard up, and `keepClearOfKeyboard` needs page to scroll
+              // into — on iOS the layout viewport does not shrink.
+              // R6-STEP2-DOCK fix 2: `pb-[var(--mk-coach-h)]` clears the
+              // tutorial's fixed CoachBar while a tip shows (0 otherwise);
+              // typing's `pb-[45svh]` wins when both apply (group variant,
+              // higher specificity).
+              "max-md:-mx-5 max-md:-mb-7 max-md:flex-1 max-md:gap-0 max-md:px-3 max-md:pb-[var(--mk-coach-h)] max-md:group-data-[typing=1]/step2:pb-[45svh]"
             )}
             data-testid="details-step"
             data-color-lock={colorLock ? "1" : "0"}
@@ -2206,9 +2216,32 @@ export function ConfiguratorClient({
                 quindi le fade `absolute` qui sotto continuano a risolversi
                 su questo wrapper (R4-FIX 5) — e il wrapper è `md:hidden`,
                 non esiste da md in su. */}
+            {/* R6-STEP2-DOCK (mockup r6-step2-dock, Alessio 7/10): under md
+                the tab lane + the active lane are ONE block pinned to the
+                bottom of the screen (`sticky bottom-0`), always visible —
+                plate on top, composer at the bottom, the rest scrolls between
+                them. It carries the sheet surface the panel used to have. In
+                flow after it: palette strip and nav row. From md `contents`:
+                the children stay direct flex items of the panel with their
+                `md:order-*`, desktop does not change by a pixel. While typing
+                the dock goes `static`: the field is inside it, and a sticky
+                bottom would park it under the iOS keyboard.
+                `max-h` = what is left under header + strip + canvas, with
+                `overflow-y-auto`: a tall panel («Fargeønsker» on an SE) would
+                otherwise push the dock's top under the `z-30` canvas. Inside
+                that scroller the tab bar is `sticky top-0`, so it never
+                scrolls away; when nothing overflows neither rule does a
+                thing. */}
+            <div
+              data-dock
+              className="md:contents max-md:sticky max-md:bottom-0 max-md:z-20 max-md:-mx-3 max-md:flex max-md:flex-col max-md:gap-0 max-md:rounded-t-[var(--radius)] max-md:border-t-[1.5px] max-md:border-border max-md:bg-[var(--mk-canvas)] max-md:px-3 max-md:pb-2 max-md:pt-2.5 max-md:shadow-[0_-6px_18px_color-mix(in_oklab,var(--mk-dark)_8%,transparent)] max-md:max-h-[calc(100svh-3.5rem-var(--mk-strip-h)-var(--mk-canvas-h))] max-md:overflow-y-auto max-md:overscroll-y-contain max-md:group-data-[typing=1]/step2:static max-md:group-data-[typing=1]/step2:max-h-none max-md:group-data-[typing=1]/step2:overflow-visible"
+            >
+            {/* R4-FIX 5 still holds: `relative`, so the fades below resolve
+                against this wrapper. No `sticky` any more (R6-STEP2-DOCK): the
+                bar sits inside the dock, which is what pins now. */}
             <div
               data-tabs-bar
-              className="sticky top-[calc(3.5rem+var(--mk-strip-h)+var(--mk-canvas-h))] z-20 -mx-3 flex-none bg-[var(--mk-canvas)] px-3 md:hidden"
+              className="sticky top-0 z-10 -mx-3 flex-none bg-[var(--mk-canvas)] px-3 md:hidden"
             >
               <div
                 ref={tabsRef}
@@ -2251,7 +2284,7 @@ export function ConfiguratorClient({
                         // ha già (`px-1`/`gap-1`), così il punto di riposo
                         // eredita il ritmo della barra invece di incollarsi al
                         // bordo della fascia libera.
-                        "flex min-h-11 flex-none snap-start scroll-mx-1 items-center gap-2 rounded-full px-3.5 text-[12.5px]",
+                        "flex min-h-11 flex-none snap-start scroll-mx-1 items-center gap-2 rounded-full px-3 text-[12.5px]",
                         "focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring",
                         on
                           ? "bg-secondary font-semibold text-primary"
@@ -2287,7 +2320,7 @@ export function ConfiguratorClient({
                     data-testid="category-tab-inscription"
                     onClick={() => setActiveTab(INSCRIPTION_TAB)}
                     className={cn(
-                      "flex min-h-11 flex-none snap-start scroll-mx-1 items-center rounded-full px-3.5 text-[12.5px]",
+                      "flex min-h-11 flex-none snap-start scroll-mx-1 items-center rounded-full px-3 text-[12.5px]",
                       "focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring",
                       activeTab === INSCRIPTION_TAB
                         ? "bg-secondary font-semibold text-primary"
@@ -2312,7 +2345,7 @@ export function ConfiguratorClient({
                     data-testid="category-tab-wishes"
                     onClick={() => setActiveTab(WISHES_TAB)}
                     className={cn(
-                      "flex min-h-11 flex-none snap-start scroll-mx-1 items-center rounded-full px-3.5 text-[12.5px]",
+                      "flex min-h-11 flex-none snap-start scroll-mx-1 items-center rounded-full px-3 text-[12.5px]",
                       "focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring",
                       activeTab === WISHES_TAB
                         ? "bg-secondary font-semibold text-primary"
@@ -2321,6 +2354,53 @@ export function ConfiguratorClient({
                   >
                     {/* TODO:nb-review — step2.wishesTab */}
                     {t("step2.wishesTab")}
+                  </button>
+                )}
+                {/* R6-STEP2-DOCK: the design's photos and description close
+                    the lane — reference, after every real choice. Both only
+                    when there is something to show, like «Fargeønsker». */}
+                {hasImages && (
+                  <button
+                    type="button"
+                    id={tabId(PHOTOS_TAB)}
+                    role={isDesktop ? undefined : "tab"}
+                    aria-selected={isDesktop ? undefined : activeTab === PHOTOS_TAB}
+                    aria-controls={isDesktop ? undefined : tabPanelId(PHOTOS_TAB)}
+                    tabIndex={activeTab === PHOTOS_TAB ? 0 : -1}
+                    data-testid="category-tab-photos"
+                    onClick={() => setActiveTab(PHOTOS_TAB)}
+                    className={cn(
+                      "flex min-h-11 flex-none snap-start scroll-mx-1 items-center rounded-full px-3 text-[12.5px]",
+                      "focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring",
+                      activeTab === PHOTOS_TAB
+                        ? "bg-secondary font-semibold text-primary"
+                        : "text-muted-foreground"
+                    )}
+                  >
+                    {/* TODO:nb-review — step2.tabPhotos */}
+                    {t("step2.tabCount", { name: t("step2.tabPhotos"), count: detail.images.length })}
+                  </button>
+                )}
+                {step2Description && (
+                  <button
+                    type="button"
+                    id={tabId(ABOUT_TAB)}
+                    role={isDesktop ? undefined : "tab"}
+                    aria-selected={isDesktop ? undefined : activeTab === ABOUT_TAB}
+                    aria-controls={isDesktop ? undefined : tabPanelId(ABOUT_TAB)}
+                    tabIndex={activeTab === ABOUT_TAB ? 0 : -1}
+                    data-testid="category-tab-about"
+                    onClick={() => setActiveTab(ABOUT_TAB)}
+                    className={cn(
+                      "flex min-h-11 flex-none snap-start scroll-mx-1 items-center rounded-full px-3 text-[12.5px]",
+                      "focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring",
+                      activeTab === ABOUT_TAB
+                        ? "bg-secondary font-semibold text-primary"
+                        : "text-muted-foreground"
+                    )}
+                  >
+                    {/* TODO:nb-review — step2.tabAbout */}
+                    {t("step2.tabAbout")}
                   </button>
                 )}
               </div>
@@ -2610,6 +2690,45 @@ export function ConfiguratorClient({
 
             </div>
 
+            {/* R6-STEP2-DOCK: «Bilder» — the same `DesignPhotoStrip` desktop
+                shows in the extras (above), mobile-only here, plus the caption
+                with the inspirasjonsside link that used to sit under the
+                canvas. `preview-note-mobile` keeps its testid. */}
+            {hasImages && (
+              <div
+                id={tabPanelId(PHOTOS_TAB)}
+                role={isDesktop ? undefined : "tabpanel"}
+                aria-labelledby={isDesktop ? undefined : tabId(PHOTOS_TAB)}
+                data-testid="step2-photos"
+                className={cn(
+                  "flex flex-col gap-2.5 px-1 pt-3 md:hidden",
+                  activeTab !== PHOTOS_TAB && "max-md:hidden"
+                )}
+              >
+                <DesignPhotoStrip images={detail.images} alt={designName(selected)} />
+                <p
+                  data-testid="preview-note-mobile"
+                  className="text-xs italic text-muted-foreground"
+                >
+                  {previewNote}
+                </p>
+              </div>
+            )}
+            {/* R6-STEP2-DOCK: «Om designet» — the description, mobile-only;
+                the desktop node is the one in the extras above. */}
+            {step2Description && (
+              <div
+                id={tabPanelId(ABOUT_TAB)}
+                role={isDesktop ? undefined : "tabpanel"}
+                aria-labelledby={isDesktop ? undefined : tabId(ABOUT_TAB)}
+                data-testid="step2-about"
+                className={cn("px-1 pt-3 md:hidden", activeTab !== ABOUT_TAB && "max-md:hidden")}
+              >
+                <DesignDescription text={step2Description} />
+              </div>
+            )}
+            </div>
+
             {/* R5-NEW-PALETTE: the SAME `PaletteCard` as step 3, in-flow in
                 the options column — after colours + the Text field, before
                 the nav row. Desktop-only (`hidden md:block`); mobile keeps
@@ -2707,7 +2826,14 @@ export function ConfiguratorClient({
                 // TODO:nb-review — step2.paletteStripUnsaved / step2.paletteStripSaved */}
             <div
               data-testid="step2-palette-strip"
-              className="md:hidden flex min-h-11 items-center gap-2 px-1 pb-2 text-[13px]"
+              // R6-STEP2-DOCK fix 1: `pt-3`, air between the dock's bottom
+              // edge and this row (TL screenshot: «Save as palette» glued to
+              // the dock). `mt-auto` (fix 2): on a phone where the whole
+              // step fits the screen, this row + the nav sit at the BOTTOM
+              // of the viewport, not mid-air with a cream gap under the nav —
+              // the panel is `flex-1` in a grid that is at least one screen
+              // tall (see both).
+              className="md:hidden flex min-h-11 items-center gap-2 px-1 pb-2 pt-3 text-[13px] max-md:mt-auto"
             >
               <DesignRound layers={activePaletteLayers} className="size-6" />
               <span className="min-w-0 flex-1 truncate">
@@ -2743,7 +2869,10 @@ export function ConfiguratorClient({
               // opzioni al primo paint. Campitura e safe-area ci sono già; la
               // hairline serve solo da agganciata, sul contenuto che le scorre
               // sotto.
-              className="@container md:order-4 max-md:z-10 max-md:-mx-3 max-md:mt-3 max-md:bg-[var(--mk-canvas)] max-md:px-3 max-md:pb-[calc(0.75rem+env(safe-area-inset-bottom))] max-md:pt-2 max-md:group-data-[typing=1]/step2:sticky max-md:group-data-[typing=1]/step2:bottom-0 max-md:group-data-[typing=1]/step2:z-20 max-md:group-data-[typing=1]/step2:border-t max-md:group-data-[typing=1]/step2:border-border"
+              // R6-STEP2-DOCK: the «sticky bottom while typing» rule is gone —
+              // the field sits inside the dock now, and a nav pinned under it
+              // would take the field's own room above the keyboard.
+              className="@container md:order-4 max-md:z-10 max-md:-mx-3 max-md:mt-3 max-md:bg-[var(--mk-canvas)] max-md:px-3 max-md:pb-[calc(0.75rem+env(safe-area-inset-bottom))] max-md:pt-2"
               data-testid="step-nav-flow"
             >
             <div className="flex flex-col-reverse gap-3 md:@md:flex-row md:@md:items-stretch max-md:flex-row max-md:gap-2.5">
@@ -3024,7 +3153,7 @@ function CategoryLane({
             // card si fermava incollata al bordo destro. Niente `flex-1`: la
             // corsia è alta quanto le sue card, così nessuna sborda (vedi il
             // fieldset).
-            "max-md:min-w-0 max-md:items-start max-md:touch-pan-x max-md:touch-pan-y max-md:overflow-x-auto max-md:overscroll-x-contain max-md:scroll-px-11 max-md:px-3 max-md:py-3 max-md:snap-x max-md:snap-proximity max-md:[scrollbar-width:none] max-md:[&::-webkit-scrollbar]:hidden",
+            "max-md:min-w-0 max-md:items-start max-md:touch-pan-x max-md:touch-pan-y max-md:overflow-x-auto max-md:overscroll-x-contain max-md:scroll-px-11 max-md:px-3 max-md:py-2 max-md:snap-x max-md:snap-proximity max-md:[scrollbar-width:none] max-md:[&::-webkit-scrollbar]:hidden",
             dense
               ? // mockup `.opts.dense`: due righe che scorrono insieme
                 "max-md:grid max-md:grid-flow-col max-md:justify-start max-md:gap-x-2.5 max-md:gap-y-1 max-md:py-2 max-md:[grid-template-rows:auto_auto]"
@@ -3042,7 +3171,7 @@ function CategoryLane({
                 // lo Swatch torna a essere figlio diretto della griglia, esattamente
                 // come oggi (desktop invariato al pixel).
                 "md:contents max-md:flex max-md:flex-none max-md:snap-start max-md:flex-col max-md:items-center",
-                dense ? "max-md:w-14 max-md:gap-0.5" : "max-md:w-16 max-md:gap-1"
+                dense ? "max-md:w-12 max-md:gap-0.5" : "max-md:w-14 max-md:gap-1"
               )}
             >
               <Swatch
@@ -3104,7 +3233,7 @@ function CategoryLane({
             // ogni card interamente dentro la corsia, la prima interamente
             // visibile all'apertura (lo `scrollLeft` che centra la corsia si
             // attiva solo sui gruppi colore, che espongono `aria-checked`).
-            "max-md:flex max-md:min-w-0 max-md:gap-3 max-md:touch-pan-x max-md:touch-pan-y max-md:overflow-x-auto max-md:overscroll-x-contain max-md:scroll-px-11 max-md:px-3 max-md:py-3 max-md:snap-x max-md:snap-proximity max-md:[scrollbar-width:none] max-md:[&::-webkit-scrollbar]:hidden"
+            "max-md:flex max-md:min-w-0 max-md:gap-3 max-md:touch-pan-x max-md:touch-pan-y max-md:overflow-x-auto max-md:overscroll-x-contain max-md:scroll-px-11 max-md:px-3 max-md:py-2 max-md:snap-x max-md:snap-proximity max-md:[scrollbar-width:none] max-md:[&::-webkit-scrollbar]:hidden"
           )}
         >
           {cat.options.map((o) => (
@@ -3122,7 +3251,7 @@ function CategoryLane({
               // unbreakable word was hard-clipped («Krabbe/», «Marihon»).
               // The selector targets `[data-option-label]`, not `>span`: the old
               // one also line-clamped the icon tile and killed its centring.
-              className="max-md:w-20 max-md:flex-none max-md:snap-start max-md:px-2 max-md:py-2 max-md:[&_[data-option-label]]:truncate max-md:[&_[data-option-label]]:text-[10px] max-md:[&_[data-option-label]]:leading-[1.2]"
+              className="max-md:w-16 max-md:flex-none max-md:snap-start max-md:px-1.5 max-md:py-1.5 max-md:[&_[data-option-label]]:truncate max-md:[&_[data-option-label]]:text-[10px] max-md:[&_[data-option-label]]:leading-[1.2]"
             />
           ))}
           {hotspot}
