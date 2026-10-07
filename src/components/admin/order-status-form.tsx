@@ -194,7 +194,12 @@ export function OrderStatusForm({
                 </label>
                 <pre
                   data-testid="email-preview"
-                  className="max-h-56 overflow-auto rounded-sm border border-border bg-card p-2.5 text-xs whitespace-pre-wrap"
+                  // `overflow-wrap:anywhere` (bug 5/10): a pasted tracking URL
+                  // has no break opportunity, and `pre-wrap` alone left its
+                  // min-content as wide as the URL — wide enough to blow the
+                  // page grid's column. `anywhere` lets it break and counts
+                  // the break when sizing, unlike `break-word`.
+                  className="max-h-56 overflow-auto rounded-sm border border-border bg-card p-2.5 text-xs whitespace-pre-wrap [overflow-wrap:anywhere]"
                 >
                   {`${preview.subject}\n\n${preview.text}`}
                 </pre>
