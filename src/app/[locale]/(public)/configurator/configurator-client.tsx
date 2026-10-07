@@ -553,13 +553,17 @@ export function ConfiguratorClient({
         onBlur={() => setTyping(false)}
         aria-label={t("customText.title")}
         aria-describedby="custom-text-helper"
-        // `scroll-mt-14` = header only. TL round 3 made `<PaintingStrip>`
-        // release its own `sticky` at the same moment the canvas does
-        // (`group-data-[typing=1]/step2:static`, wired where the strip
-        // renders) specifically so this stays true instead of growing a
-        // second constant: while typing, the top of the page is STILL just
-        // the header, exactly as it was before the strip existed.
-        className="w-full rounded-sm border border-input bg-card p-2 text-base focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring md:text-sm max-md:scroll-mt-14"
+        // Bug 7/10 (client video): iOS read this as a name field and parked
+        // its floating contact-autofill pill exactly over it — the customer
+        // could not see what they typed. An inscription is not a contact,
+        // and it is hand-painted as written, so no autocorrect either.
+        autoComplete="off"
+        autoCorrect="off"
+        spellCheck={false}
+        // Bug 7/10: while typing the canvas STAYS sticky (grid above), so the
+        // top of the page is header + canvas, not the header alone — this is
+        // the margin `keepClearOfKeyboard` reads back to place the field.
+        className="w-full rounded-sm border border-input bg-card p-2 text-base focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring md:text-sm max-md:scroll-mt-14 max-md:group-data-[typing=1]/step2:scroll-mt-[calc(3.5rem+var(--mk-canvas-h)+0.5rem)]"
       />
       <div className="mt-1 flex items-start justify-between gap-3">
         <p
@@ -1719,13 +1723,29 @@ export function ConfiguratorClient({
           // quarto selettore discendente.
           step === 2 && "group/step2",
           step === 2 &&
-            "max-md:flex max-md:flex-col max-md:items-stretch max-md:gap-0 max-md:data-[typing=1]:[&>[data-preview-column]]:static max-md:data-[typing=1]:[&_[data-tabs-bar]]:static"
+            // Bug 7/10 (client video): the canvas no longer releases its
+            // sticky while typing — R5-TEXT-LIVE draws the words on the
+            // plate, so the plate IS what the customer wants to watch. It
+            // shrinks instead (`--mk-canvas-h` below) and everything between
+            // it and the field hides (`group-data-[typing=1]/step2:hidden`
+            // on heading, description, caption, photos, tool heading). The
+            // tab lane still releases: with the keyboard up one types, one
+            // does not switch tabs.
+            "max-md:flex max-md:flex-col max-md:items-stretch max-md:gap-0 max-md:data-[typing=1]:[&_[data-tabs-bar]]:static"
         )}
         data-typing={step === 2 && typing ? "1" : undefined}
         style={
           step === 2
             ? ({
-                "--mk-canvas-h": "clamp(200px,38svh,300px)",
+                // Bug 7/10: while typing the canvas is a THIRD of the
+                // screen, not a half — iOS keeps the layout viewport at full
+                // height with the keyboard up (`svh` does not shrink), so
+                // on an 852pt iPhone ~450pt stay visible: header 56 + canvas
+                // ≤150 + the docked nav row ~60 leave ~180 for the field.
+                // Measured on device by the TL before merge, not assumed.
+                "--mk-canvas-h": typing
+                  ? "clamp(110px,18svh,150px)"
+                  : "clamp(200px,38svh,300px)",
                 // TL "menu sopra come step3": `<PaintingStrip>` is now a
                 // SECOND sticky layer above the canvas (mobile only), so
                 // both the canvas's own `top` and the tab lane's `top` below
@@ -1742,7 +1762,11 @@ export function ConfiguratorClient({
                 // (measured, devtools, with a dedication on screen) is
                 // UNCHANGED at 61px — this constant already had the slack
                 // for it, one number, still.
-                "--mk-strip-h": "61px",
+                // Bug 7/10: the strip goes static while typing (its own
+                // `group-data-[typing=1]/step2:static`) and scrolls away, so
+                // the canvas — now still sticky — must pin to the header
+                // alone, or it floats 61px under it.
+                "--mk-strip-h": typing ? "0px" : "61px",
               } as React.CSSProperties)
             : undefined
         }
@@ -1760,7 +1784,7 @@ export function ConfiguratorClient({
             lo porta — il pannello è `flex flex-col gap-6` e sommare i due
             farebbe 40px sotto una testata. */}
         {step === 2 && (
-          <div data-testid="step2-heading-mobile" className="md:hidden">
+          <div data-testid="step2-heading-mobile" className="md:hidden max-md:group-data-[typing=1]/step2:hidden">
             <h2 className="mb-4 text-xl font-semibold">
               {t("step2.titleDetails")}
             </h2>
@@ -1772,7 +1796,7 @@ export function ConfiguratorClient({
             dov'era, in cima al pannello (`md:hidden` qui, `max-md:hidden` là):
             un solo nodo visibile per volta, mai due. */}
         {step === 2 && step2Description && (
-          <div data-testid="step2-description" className="mb-3 md:hidden">
+          <div data-testid="step2-description" className="mb-3 md:hidden max-md:group-data-[typing=1]/step2:hidden">
             <DesignDescription text={step2Description} />
           </div>
         )}
@@ -1922,7 +1946,7 @@ export function ConfiguratorClient({
         {step === 2 && (
           <p
             data-testid="preview-note-mobile"
-            className="mt-2.5 text-xs italic text-muted-foreground md:hidden"
+            className="mt-2.5 text-xs italic text-muted-foreground md:hidden max-md:group-data-[typing=1]/step2:hidden"
           >
             {previewNote}
           </p>
@@ -1936,7 +1960,7 @@ export function ConfiguratorClient({
           <section
             data-testid="step2-inspiration"
             aria-labelledby="step2-inspiration-heading"
-            className="mt-5 md:hidden"
+            className="mt-5 md:hidden max-md:group-data-[typing=1]/step2:hidden"
           >
             <h2
               id="step2-inspiration-heading"
@@ -1953,7 +1977,7 @@ export function ConfiguratorClient({
         {step === 2 && (
           <h2
             data-testid="step2-configure-heading"
-            className="mt-6 mb-2 text-base font-semibold md:hidden"
+            className="mt-6 mb-2 text-base font-semibold md:hidden max-md:group-data-[typing=1]/step2:hidden"
           >
             {/* TODO:nb-review — step2.configureHeading */}
             {t("step2.configureHeading")}

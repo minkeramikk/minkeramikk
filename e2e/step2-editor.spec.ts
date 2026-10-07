@@ -670,13 +670,14 @@ test("Ⓒ: la barra tab è sticky sotto il canvas — raggiungibile anche a fond
   await expect(first).toHaveAttribute("aria-selected", "true");
 });
 
-test("Ⓒ: col focus sul campo scritta la barra tab molla lo sticky insieme al canvas, e la nav si aggancia al fondo", async ({
+test("Ⓒ: col focus sul campo scritta la barra tab molla lo sticky, il canvas RESTA, e la nav si aggancia al fondo", async ({
   page,
 }) => {
-  // La barra è agganciata AL CANVAS: quando il canvas molla (`data-typing`,
-  // R4-POLISH voce 8), molla anche lei. Agganciata all'header resterebbe a
-  // 56px, cioè esattamente sulla striscia in cui `keepClearOfKeyboard` porta il
-  // campo scritta, e lo coprirebbe.
+  // Bug 7/10 (video del cliente): il canvas NON molla più lo sticky mentre si
+  // scrive — la scritta si disegna sul piatto in diretta (R5-TEXT-LIVE) ed è il
+  // piatto che il cliente vuole guardare; si abbassa e basta (`--mk-canvas-h`).
+  // La barra tab invece molla ancora: con la tastiera aperta si scrive, non si
+  // cambia tab, e sotto il canvas ridotto non c'è spazio per lei.
   // Si commuta `data-typing` direttamente: la sorgente di quello stato (focus →
   // `setTyping`) è già coperta da CA2, qui si sorveglia l'ACCOPPIAMENTO fra il
   // canvas e la barra, che è puro CSS. Così il test non deve seminare un design
@@ -716,8 +717,8 @@ test("Ⓒ: col focus sul campo scritta la barra tab molla lo sticky insieme al c
   );
   expect(
     await positions(),
-    "col campo a fuoco la barra molla lo sticky INSIEME al canvas, e la nav lo prende"
-  ).toEqual({ bar: "static", canvas: "static", nav: "sticky" });
+    "col campo a fuoco la barra molla lo sticky, il canvas lo tiene, e la nav lo prende"
+  ).toEqual({ bar: "static", canvas: "sticky", nav: "sticky" });
 });
 
 test("CA3: «Fargeønsker» è un tab, esiste solo dove serve, e non lascia form sotto il pannello", async ({
