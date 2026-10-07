@@ -1424,7 +1424,7 @@ export function CeramicsStep({
       } as React.CSSProperties}
     >
       {/* Fix wave PR3 finding 7: the mockup (`Phone3`) puts `MobStrip`
-          directly under the header, above the "Step 3 of 3" kicker — this
+          directly under the header, above the step heading — this
           used to render inside the left column, below both the stepper and
           the `<h2>`. For a `sticky` element DOM order IS scroll order, so
           that wasn't cosmetic: it mirrors the desktop card right
@@ -1445,7 +1445,8 @@ export function CeramicsStep({
             → the heading block pins at `top-[67px]`, one pixel INTO the band
               rather than below it: a gap of even 1px reads as a hairline,
               because what scrolls behind is the white product cards.
-            → the rail pins at `top-[131px]` = 67 + the 64.5px of kicker+h2.
+            → the rail pins at `top-[111px]` = 67 + the 44px of h2 + `mb-4`
+              (the «Steg 3 av 3» kicker went on 7/10, client request).
             Measured at 1280; the bar lost 7px when the Back pill went. */}
       <div className={STEP_NAV_STICKY} data-testid="step-nav">
         <Stepper
@@ -1628,10 +1629,7 @@ export function CeramicsStep({
               any other in-flow spacing. The card's rounded corners still
               sit ON this background, so nothing peeks through them. */}
           <div className="md:sticky md:top-[67px] md:z-20 md:-mx-3 md:bg-background md:px-3">
-            <p className="text-[11px] uppercase tracking-[0.06em] text-muted-foreground">
-              {tc("stepIndicator", { step: 3 })}
-            </p>
-            <h2 className="mb-4 mt-1 text-xl font-semibold">{t("title")}</h2>
+            <h2 className="mb-4 text-xl font-semibold">{t("title")}</h2>
 
             {/* R5-NEW-PALETTE (DS §3.31): the card IS the switch — the
                 painting palette lives in the NowBlock above, the saved ones
@@ -1733,10 +1731,11 @@ export function CeramicsStep({
         {/* RIGHT (from `lg`): docked cart always visible.
             mockup v5 `.cols`: the rail's top edge sits level with the catalog
             column's first series heading. Here the left column carries the
-            kicker + <h2> above the grid, so the rail is nudged down by their
-            combined height (measured 64.5px at md and above — both are
-            fixed-size text blocks, so one constant covers every breakpoint).
-            Update this if that heading block changes.
+            <h2> above the grid, so the rail is nudged down by its height +
+            `mb-4` (measured 44px at md and above — a fixed-size text block,
+            so one constant covers every breakpoint; it was 64.5 with the
+            «Steg 3 av 3» kicker, removed 7/10). Update this if that heading
+            block changes.
             R5-PALETTE-IN-ACTION T2: the global bar is gone, so the second
             sticky has nothing to slide under — the card pins in the LEFT
             column (`top-4`), the rail in the RIGHT, and the two columns never
@@ -1744,13 +1743,15 @@ export function CeramicsStep({
             room.
             R5-POLISH-STEP23 T2 (feedback 2+7): the rail pins level with the
             palette card, so the two top borders line up. The LEFT block pins
-            at 74px (band math at the nav cluster) and its kicker+h2 measure
-            64.5px, so the card's top edge lands at 138.5px: `top-[138px]`,
-            half a pixel out and invisible. Measured at 1280 — move it with
-            the other two. Surface = palette-card.tsx:71 verbatim (white
-            canvas, primary/20 border). */}
+            at 67px (band math at the nav cluster) and its h2 block measures
+            44px, so the card's top edge lands at 111px: `top-[111px]`.
+            Measured at 1280 on 7/10 — move it with the other two.
+            Bug (client, 7/10): `max-h` = viewport minus that top minus 1rem,
+            and the panel is a flex column, so `Basket`'s docked list scrolls
+            INSIDE the rail and «Bestill» never leaves the screen. Surface =
+            palette-card.tsx:71 verbatim (white canvas, primary/20 border). */}
         <div
-          className="relative hidden min-w-0 rounded-lg border border-primary/20 bg-[var(--mk-canvas)] p-4 lg:mt-16 lg:block lg:sticky lg:top-[131px] lg:self-start"
+          className="relative hidden min-w-0 rounded-lg border border-primary/20 bg-[var(--mk-canvas)] p-4 lg:mt-11 lg:flex lg:max-h-[calc(100dvh-111px-1rem)] lg:flex-col lg:sticky lg:top-[111px] lg:self-start"
           data-testid="docked-cart-panel"
         >
           {/* R5-TUTORIAL — kit3's tip 1 ("paint what you have"). Plan

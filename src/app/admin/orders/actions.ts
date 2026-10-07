@@ -25,13 +25,19 @@ import { ORDER_STATUSES } from "@/lib/orders/order-status";
 /** Shared result shape used with React's useActionState. */
 export type ActionResult = { error?: string; notice?: string };
 
+/** Shared by the status dialog and «Save tracking» — one ceiling, see the
+ *  field comment below. */
+const TRACKING_MAX = 500;
+
 const statusSchema = z.object({
   id: z.string().uuid(),
   status: z.enum(ORDER_STATUSES),
   /** Explicit admin decision, taken in the confirm dialog next to the preview. */
   sendEmail: z.boolean(),
-  /** Optional tracking typed in the dialog when moving to shipped. */
-  trackingCode: z.string().trim().max(120).optional(),
+  /** Optional tracking typed in the dialog when moving to shipped. 500, not
+   *  120 (bug 5/10): the shop pastes the carrier's full tracking URL, ~250
+   *  chars for UPS — a clickable link in the mail is better than a bare code. */
+  trackingCode: z.string().trim().max(TRACKING_MAX).optional(),
   /** Explicit acknowledgement of shipping without a tracking code. */
   ackNoTracking: z.boolean(),
 });
@@ -55,7 +61,16 @@ export async function updateOrderStatus(
     trackingCode: (formData.get("trackingCode") as string | null) ?? undefined,
     ackNoTracking: formData.get("ackNoTracking") === "on",
   });
-  if (!parsed.success) return { error: "Invalid status value." };
+  if (!parsed.success) {
+    // Bug 5/10: the one field an admin can actually get wrong is the tracking
+    // code — say so, instead of blaming the status they just picked.
+    const onTracking = parsed.error.issues.some((i) => i.path[0] === "trackingCode");
+    return {
+      error: onTracking
+        ? `Tracking code too long (max ${TRACKING_MAX} characters).`
+        : "Invalid status value.",
+    };
+  }
   const { id, status, sendEmail, trackingCode, ackNoTracking } = parsed.data;
 
   const order = await getOrder(id);
@@ -249,7 +264,7 @@ export async function updateOrderNotes(
 
 const trackingSchema = z.object({
   id: z.string().uuid(),
-  trackingCode: z.string().trim().max(120),
+  trackingCode: z.string().trim().max(TRACKING_MAX),
 });
 
 /** Carrier tracking code, typed by hand (ADR 0021). Empty clears it. */

@@ -125,7 +125,11 @@ export default async function OrderDetailPage({
           {order.status === "cancelled" && <OrderStatusBadge status="cancelled" />}
         </div>
 
-        <div className="grid grid-cols-1 gap-5 lg:grid-cols-[2fr_1fr]">
+        {/* `minmax(0,1fr)`, not `1fr` (bug 5/10): a bare `1fr` is
+            `minmax(auto,1fr)` and follows the column's min-content, so one
+            unbreakable tracking URL in the status dialog widened the rail and
+            crushed the items table to four lines per name. */}
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-[2fr_minmax(0,1fr)]">
           {/* LEFT: items + notes */}
           <div className="flex flex-col gap-5">
             <section className="rounded-lg border border-border bg-card p-5">

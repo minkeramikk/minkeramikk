@@ -69,7 +69,16 @@ export function focusFirstUnpaintedRow(root: ParentNode): boolean {
   const row = Array.from(rows).find((r) => r.offsetParent !== null);
   if (!row) return false;
   row.scrollIntoView({ behavior: "smooth", block: "center" });
-  row.querySelector<HTMLElement>('[data-testid="paint-line"]')?.focus({ preventScroll: true });
+  const paint = row.querySelector<HTMLElement>('[data-testid="paint-line"]');
+  paint?.focus({ preventScroll: true });
+  // Bug (client, 7/10): on a kit the row is already in view and a programmatic
+  // focus after a mouse click draws no ring, so «Mal N stk først» looked dead.
+  // Borrow the tutorial's pulse (globals.css `.tour-pulse`, 2s cycle) on the
+  // row's Paint button for two beats: the eye lands on the one thing to do.
+  if (paint) {
+    paint.classList.add("tour-pulse");
+    setTimeout(() => paint.classList.remove("tour-pulse"), 4000);
+  }
   return true;
 }
 
@@ -647,15 +656,21 @@ export function Basket({
       )}
     </div>
   ) : (
-    <div className="flex flex-col gap-0" data-testid="docked-cart" ref={rootRef}>
+    // Bug (client, 7/10): the desktop rail is a flex column capped by its
+    // host (`docked-cart-panel`'s `max-h`), so a long basket scrolls HERE,
+    // inside the rail, and the totals + «Bestill» stay in view — before, the
+    // customer had to scroll the whole catalog past to reach the CTA.
+    <div className="flex min-h-0 flex-1 flex-col gap-0" data-testid="docked-cart" ref={rootRef}>
       {header}
       {count === 0 ? (
         <p className="py-6 text-sm text-muted-foreground">{t("empty")}</p>
       ) : (
         <>
-          {list}
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            {list}
 
-          <CartSuggestion />
+            <CartSuggestion />
+          </div>
 
           {/* R4-BTN-SCALE AC1: `gap-3` ripristinato. Era stato tolto da
               R4-SCONTI con la motivazione «CartTotals now owns a single child

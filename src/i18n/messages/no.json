@@ -61,7 +61,6 @@
   },
   "configurator": {
     "pageTitle": "Bygg din design",
-    "stepIndicator": "Steg {step} av 3",
     "back": "Tilbake",
     "previewNote": "Dette er en illustrasjon av den håndmalte stilen. Motivet vises her på en tallerken, men kan lages på alle produkter. Hver del blir håndmalt kun for deg, og er derfor unik (<link>se ferdige produkter på vår inspirasjonsside ↗</link>).",
     "step1": {
