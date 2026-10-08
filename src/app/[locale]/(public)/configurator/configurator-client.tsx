@@ -615,9 +615,16 @@ export function ConfiguratorClient({
 
   // ── R4-STEP2: corsia tab del pannello mobile ──────────────────────────────
   const tabsRef = useRef<HTMLDivElement>(null);
+  // `step` in the deps (TL, 8/10: «spesso le freccette non si vedono»): the
+  // tab bar exists only at step 2, but this component is mounted from step 1.
+  // Coming from step 1 to 2 with the same design, nothing else in the key
+  // changed, so the hook had run once with `ref.current === null` and never
+  // again — no scroll listener, no ResizeObserver, arrows and fades frozen
+  // off until a design switch. Same component, same design, new element:
+  // the key has to say so.
   const tabFades = useLaneFades(
     tabsRef,
-    `${selected.slug}:${detail.categories.length}`
+    `${step}:${selected.slug}:${detail.categories.length}`
   );
   const tabId = (key: string) => `step2-tab-${key}`;
   const tabPanelId = (key: string) => `step2-panel-${key}`;
