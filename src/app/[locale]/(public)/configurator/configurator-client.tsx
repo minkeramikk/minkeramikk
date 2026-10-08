@@ -276,13 +276,6 @@ export function ConfiguratorClient({
   const urlSlug = searchParams.get("design");
   const selected =
     designs.find((d) => d.slug === urlSlug) ?? designs[0]; // sort_order=1 default (AC1)
-  /** R6-STEP1-PICK (Daniele, 7/10): step 1 opens with NO card highlighted and
-   *  no context block — the customer picks, THEN the «Neste» pill appears
-   *  under the chosen row. `selected` keeps its default for everything that
-   *  needs a design (preview, strip, palettes, steps 2–3 via the stepper);
-   *  this flag only governs what step 1 SHOWS. True as soon as `?design=`
-   *  is in the URL — `selectDesign` writes it, back from step 2 keeps it. */
-  const hasExplicitDesign = urlSlug !== null;
   // R5-DESIGN-SWITCH loader — UN SOLO STATO: `pending = {slug, startedAt} |
   // null`. Il canvas mostra il loader se e solo se `pending != null`
   // (+ `reduced-motion` off). Un solo trigger (`startDesignTransition`,
@@ -1255,10 +1248,7 @@ export function ConfiguratorClient({
   }
 
   function selectDesign(d: DesignChoice | DesignSwitchChoice) {
-    // R6-STEP1-PICK: tapping the DEFAULT design on a fresh step 1 must still
-    // write `?design=` — that is what highlights the card and opens the
-    // context block — so the early return only fires on a real no-op.
-    if (d.slug === selected.slug && hasExplicitDesign) return;
+    if (d.slug === selected.slug) return;
     // Cambio design esplicito: navigazione RSC, il canvas cambia solo DOPO
     // il round-trip — il loader parte subito da qui (`pending`, sopra).
     // TL ruling 25/9: available in kit-mode too now — `params` starts from
@@ -1748,19 +1738,22 @@ export function ConfiguratorClient({
             // does not switch tabs.
             // R6-STEP2-DOCK: the tab lane lives in the bottom dock now, so
             // there is no `[data-tabs-bar]` sticky left to release here.
-            // R6-STEP2-DOCK fix 2: at least one screen tall, so the panel
-            // can grow (`flex-1`) and push palette strip + nav to the bottom
-            // edge when the step is short (TL screenshot: cream gap under the
-            // nav on a tall phone). 187px = everything above this grid at
-            // 390: header 56 + main `pt-7` 28 + «Maler med» strip 61 + step
-            // bar band 42 — MEASURED, same band math as `docked-cart-panel`;
-            // the panel's `-mb-7` already eats main's `pb-7`. Move it with
-            // the strip or the step bar.
-            // `--mk-coach-h` (below): while a tutorial tip shows, its fixed
-            // CoachBar takes the bottom of the screen — the column is that
-            // much shorter and the panel pads by the same amount, so the nav
-            // sits ABOVE the bar without a scroll.
-            "max-md:flex max-md:min-h-[calc(100svh-187px-var(--mk-coach-h))] max-md:flex-col max-md:items-stretch max-md:gap-0"
+            // R6-STEP2-DOCK fix 2 (Alessio video 8/10, «scrolla oltre il
+            // footer»): the column's minimum height is sized for the moment
+            // the canvas PINS, not for scroll 0. Above the canvas only the
+            // step bar and the «Velg detaljer» heading scroll away; once
+            // they have, the visible stack is header 3.5rem + strip
+            // (`--mk-strip-h`) + canvas + the rest of this column minus the
+            // heading (44px: h2 28 + `mb-4`). So: viewport − header − strip
+            // + heading. The page then scrolls EXACTLY the band + heading,
+            // the canvas pins as the nav reaches the bottom edge, and the
+            // dock's natural position lands flush under the pinned canvas —
+            // no cream below the nav, no dock sliding under the canvas. A
+            // `100svh − 187px` (sized at scroll 0) left both. `--mk-coach-h`
+            // (below): the tutorial's fixed CoachBar takes the bottom of the
+            // screen while a tip shows — the column is that much shorter and
+            // the panel pads by the same amount.
+            "max-md:flex max-md:min-h-[calc(100svh-3.5rem-var(--mk-strip-h)+44px-var(--mk-coach-h))] max-md:flex-col max-md:items-stretch max-md:gap-0"
         )}
         data-typing={step === 2 && typing ? "1" : undefined}
         style={
@@ -1946,10 +1939,7 @@ export function ConfiguratorClient({
               })}
               caption={previewNote}
               className={cn(step === 2 && "max-md:contents")}
-              // R6-STEP1-PICK: on a fresh step 1 the plate is empty until the
-              // customer picks — showing the default design's layers would
-              // say «chosen» while no card is highlighted.
-              layers={step === 1 && !hasExplicitDesign ? [] : previewLayers}
+              layers={previewLayers}
               // Post-review revision: senza una posizione scelta niente arriva
               // al piatto — mai inventare "centre" solo perché è il default in JS.
               inscription={textPosition !== undefined ? liveInscription : undefined}
@@ -2028,7 +2018,7 @@ export function ConfiguratorClient({
                           src: assetUrl(l.src),
                           recolor: l.blend === "multiply",
                         }))}
-                        selected={hasExplicitDesign && d.slug === selected.slug}
+                        selected={d.slug === selected.slug}
                         onSelect={() => selectDesign(d)}
                         className="w-full"
                       />
@@ -2056,7 +2046,7 @@ export function ConfiguratorClient({
                       onSelect={() => selectDesign(d)}
                     />
                   )}
-                  {hasExplicitDesign && i === contextBlockAfter && (
+                  {i === contextBlockAfter && (
                     // R3-B23: contextual block under the SELECTED card's row —
                     // name + per-locale description + explicit next-step CTA.
                     // Replaces the old fixed bottom bar (it sat under the thumb).
@@ -2231,10 +2221,12 @@ export function ConfiguratorClient({
                 otherwise push the dock's top under the `z-30` canvas. Inside
                 that scroller the tab bar is `sticky top-0`, so it never
                 scrolls away; when nothing overflows neither rule does a
-                thing. */}
+                thing. `top` = header + strip + canvas as well (sticky with
+                BOTH edges): the dock can never slide under the `z-30`
+                canvas while the heading above scrolls away. */}
             <div
               data-dock
-              className="md:contents max-md:sticky max-md:bottom-0 max-md:z-20 max-md:-mx-3 max-md:flex max-md:flex-col max-md:gap-0 max-md:rounded-t-[var(--radius)] max-md:border-t-[1.5px] max-md:border-border max-md:bg-[var(--mk-canvas)] max-md:px-3 max-md:pb-2 max-md:pt-2.5 max-md:shadow-[0_-6px_18px_color-mix(in_oklab,var(--mk-dark)_8%,transparent)] max-md:max-h-[calc(100svh-3.5rem-var(--mk-strip-h)-var(--mk-canvas-h))] max-md:overflow-y-auto max-md:overscroll-y-contain max-md:group-data-[typing=1]/step2:static max-md:group-data-[typing=1]/step2:max-h-none max-md:group-data-[typing=1]/step2:overflow-visible"
+              className="md:contents max-md:sticky max-md:top-[calc(3.5rem+var(--mk-strip-h)+var(--mk-canvas-h))] max-md:bottom-0 max-md:z-20 max-md:-mx-3 max-md:flex max-md:flex-col max-md:gap-0 max-md:rounded-t-[var(--radius)] max-md:border-t-[1.5px] max-md:border-border max-md:bg-[var(--mk-canvas)] max-md:px-3 max-md:pb-2 max-md:pt-2.5 max-md:shadow-[0_-6px_18px_color-mix(in_oklab,var(--mk-dark)_8%,transparent)] max-md:max-h-[calc(100svh-3.5rem-var(--mk-strip-h)-var(--mk-canvas-h))] max-md:overflow-y-auto max-md:overscroll-y-contain max-md:group-data-[typing=1]/step2:static max-md:group-data-[typing=1]/step2:max-h-none max-md:group-data-[typing=1]/step2:overflow-visible"
             >
             {/* R4-FIX 5 still holds: `relative`, so the fades below resolve
                 against this wrapper. No `sticky` any more (R6-STEP2-DOCK): the

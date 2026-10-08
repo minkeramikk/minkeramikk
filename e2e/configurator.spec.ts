@@ -143,8 +143,6 @@ test("AC4: english locale renders english labels", async ({ page }) => {
   ).toBeVisible();
   // R-EXTRA: allo step 1 il solo CTA è la pillola nel blocco contestuale; il
   // "Next step" ora è la sua caption, non il prefisso della label.
-  // R6-STEP1-PICK: il blocco compare solo DOPO aver scelto un design.
-  await designCards(page).first().click();
   await expect(page.getByTestId("next-step-mobile")).toContainText("Next step");
 });
 
@@ -319,9 +317,6 @@ test("R-EXTRA: the next-step pills are real buttons and walk the funnel", async 
   await page.goto("/no/configurator");
 
   // Step 1: UN SOLO percorso avanti — la pillola nel blocco contestuale.
-  // R6-STEP1-PICK: niente design preselezionato — la pillola compare dopo il tap.
-  await expect(page.getByTestId("design-context-block")).toHaveCount(0);
-  await designCards(page).first().click();
   const pill1 = page.getByTestId("next-step-mobile");
   await expect(pill1).toBeVisible();
   expect(await pill1.evaluate((el) => el.tagName)).toBe("BUTTON");
