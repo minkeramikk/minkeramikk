@@ -2160,23 +2160,28 @@ export function ConfiguratorClient({
               // R6-STEP2-DOCK (mockup r6-step2-dock, Alessio 7/10; fix 3, TL
               // 8/10): under md THIS PANEL is the sheet — tab lane, active
               // lane, Inskripsjon/Fargeønsker/Bilder/Om designet panels,
-              // palette strip and nav row, one block. `sticky` on BOTH edges:
-              // `top` = header + strip + canvas (never under the z-30
-              // canvas), `bottom` = the tutorial CoachBar's height while a
-              // tip shows, 0 otherwise. `mt-auto` in the one-screen-tall grid
-              // puts it on the bottom edge on arrival, so «Velg keramikk» is
-              // never below the fold; its containing block is the GRID (not
-              // a wrapper starting at the sheet's own top), which is what
-              // lets the bottom constraint pull it up over the heading's
-              // scrolled-away slot. `max-h` = the room between those two
-              // edges with an inner scroller (tab bar `sticky top-0` inside):
-              // a tall panel on a short phone scrolls INSIDE the sheet, nav
-              // included, never over the canvas or off the screen. While
+              // palette strip and nav row, one block. `sticky` with the TOP
+              // edge only: `top` = header + strip + canvas, so once the
+              // heading has scrolled away the sheet parks flush under the
+              // pinned z-30 canvas and never slides beneath it. NO `bottom`
+              // constraint (TL, Pixel 8, 8/10): at scroll 0 the canvas sits
+              // LOWER than its pin position by the band + heading, and a
+              // `bottom-0` pulled the sheet up over it whenever the content
+              // was taller than the screen — tab bar half under the plate,
+              // the Inskripsjon panel entirely. When the step fits the screen
+              // `mt-auto` in the one-screen-tall grid already puts the sheet
+              // on the bottom edge, nav visible; when it does not, the sheet
+              // starts under the canvas and the page scrolls like any page
+              // until the canvas pins and the sheet pins with it. `max-h` =
+              // the room under the pinned canvas (minus the CoachBar while a
+              // tip shows) with an inner scroller (tab bar `sticky top-0`
+              // inside): a tall panel on a short phone scrolls INSIDE the
+              // sheet, nav included, never off the screen. While
               // typing it goes static (the field is inside it; a sticky
               // bottom would park it under the iOS keyboard) with `pb-[45svh]`
               // of page to scroll into for `keepClearOfKeyboard`. From md
               // none of this applies: the desktop panel is unchanged.
-              "max-md:mt-auto max-md:sticky max-md:top-[calc(3.5rem+var(--mk-strip-h)+var(--mk-canvas-h))] max-md:bottom-[var(--mk-coach-h)] max-md:z-20 max-md:-mx-5 max-md:gap-0 max-md:rounded-t-[var(--radius)] max-md:border-t-[1.5px] max-md:border-border max-md:bg-[var(--mk-canvas)] max-md:px-3 max-md:pb-0 max-md:pt-2.5 max-md:shadow-[0_-6px_18px_color-mix(in_oklab,var(--mk-dark)_8%,transparent)] max-md:max-h-[calc(100dvh-3.5rem-var(--mk-strip-h)-var(--mk-canvas-h)-var(--mk-coach-h))] max-md:overflow-y-auto max-md:overscroll-y-contain",
+              "max-md:mt-auto max-md:sticky max-md:top-[calc(3.5rem+var(--mk-strip-h)+var(--mk-canvas-h))] max-md:z-20 max-md:-mx-5 max-md:gap-0 max-md:rounded-t-[var(--radius)] max-md:border-t-[1.5px] max-md:border-border max-md:bg-[var(--mk-canvas)] max-md:px-3 max-md:pb-0 max-md:pt-2.5 max-md:shadow-[0_-6px_18px_color-mix(in_oklab,var(--mk-dark)_8%,transparent)] max-md:max-h-[calc(100dvh-3.5rem-var(--mk-strip-h)-var(--mk-canvas-h)-var(--mk-coach-h))] max-md:overflow-y-auto max-md:overscroll-y-contain",
               "max-md:group-data-[typing=1]/step2:static max-md:group-data-[typing=1]/step2:max-h-none max-md:group-data-[typing=1]/step2:overflow-visible max-md:group-data-[typing=1]/step2:pb-[45svh]"
             )}
             data-testid="details-step"
