@@ -79,7 +79,7 @@
       "tabCount": "{name} ({count})",
       "wishesTab": "Fargeønsker",
       "paletteStripUnsaved": "· ulagret",
-      "paletteStripSaved": "· lagret · denne paletten brukes på nye keramikker",
+      "paletteStripSaved": "· lagret · denne kombinasjonen brukes på nye keramikker",
       "tabPhotos": "Bilder",
       "tabAbout": "Om designet",
       "scrollTabsBack": "Bla kategorier bakover",
@@ -142,12 +142,13 @@
       "curated": "utvalgt av butikken",
       "prev": "Forrige",
       "next": "Neste",
-      "kitBadge": "Kit · {count, plural, one {# del} other {# deler}}",
-      "coloursYours": "Farger: <b>du velger</b>",
-      "coloursReady": "Farger: klare til bestilling",
+      "kitBadge": "Design selv · {count, plural, one {# del} other {# deler}}",
+      "setBadge": "Ferdig sett · {count, plural, one {# del} other {# deler}}",
+      "coloursYours": "Valgfritt design på hver del",
+      "coloursReady": "Samme design på {count, plural, one {den ene delen} other {alle # deler}}",
       "buildYourOwn": "Design · lag ditt eget",
-      "colourKit": "Fargelegg dette kittet",
-      "seeSet": "Se settet"
+      "colourKit": "Tilpass delene",
+      "seeSet": "Se ferdig sett"
     },
     "customNotes": {
       "title": "Egne fargeønsker",
@@ -163,10 +164,10 @@
       "helper": "Forhåndsvisningen viser ordene og hvor de står. Verkstedet bekrefter teksten og maler den for hånd.",
       "counter": "{count}/{max}",
       "position": {
-        "centre": "Midten",
+        "centre": "På forsiden",
         "top": "Topp",
         "bottom": "Bunn",
-        "back": "Bakside",
+        "back": "På baksiden",
         "backHelper": "Baksiden vises ikke i forhåndsvisningen — verkstedet maler den der i stedet.",
         "required": "Velg hvor ordene skal stå før du går videre."
       }
@@ -275,19 +276,19 @@
       "ceramic": "Keramikk",
       "customText": "Tekst",
       "config": "Konfigurasjon",
-      "palette": "Palett",
+      "palette": "Kombinasjon",
       "price": "Pris",
       "code": "Kode",
       "pieces": "{count, plural, one {# del} other {# deler}}"
     },
     "unpainted": {
       "label": "Umalt",
-      "note": "{count, plural, one {# del er fortsatt umalt} other {# deler er fortsatt umalte}} — velg en palett på raden, og trykk Mal.",
+      "note": "{count, plural, one {# del er fortsatt umalt} other {# deler er fortsatt umalte}} — velg en kombinasjon på raden, og trykk Mal.",
       "removeAll": "Fjern alle",
       "paint": "Mal",
       "cta": "Mal {count} stk først",
       "paintCount": "Hvor mange å male",
-      "pickerLabel": "Velg en palett",
+      "pickerLabel": "Velg en kombinasjon",
       "notCovered": "{design} dekker ikke denne keramikken",
       "notCoveredSuffix": "· dekker ikke"
     },
@@ -350,9 +351,8 @@
     "welcome": {
       "eyebrow": "Et sett fra minkeramikk",
       "title": "{count, plural, one {# del} other {# deler}} venter på dine farger",
-      "body": "De ligger allerede i handlekurven. Velg fargene her — én gang for alle, eller del for del.",
-      "show": "Vis meg hvordan",
-      "self": "Jeg ser selv"
+      "body": "De ligger allerede i handlekurven. Velg om alle delene skal ha samme design og farger, eller tilpass hver del for seg.",
+      "cta": "Tilpass settet"
     }
   },
   "order": {
@@ -397,54 +397,54 @@
     "chip": {
       "unsaved": "Ulagret",
       "rename": "Endre navn",
-      "renameLabel": "Palettnavn",
-      "delete": "Slett palett",
+      "renameLabel": "Navn på kombinasjon",
+      "delete": "Slett kombinasjon",
       "confirmDelete": "Slette? Trykk igjen"
     },
     "bar": {
-      "eyebrowManage": "Dine paletter",
+      "eyebrowManage": "Dine kombinasjoner",
       "eyebrowPaint": "Maler med",
       "manageCount": "{count} av {max} lagret",
       "paintHintDraft": "Disse fargene er ikke lagret ennå",
       "paintHintSaved": "Trykk på en chip for å bytte",
-      "save": "Lagre som palett",
-      "new": "Ny palett"
+      "save": "Lagre kombinasjon",
+      "new": "Ny kombinasjon"
     },
     "card": {
-      "paintingNow": "Maler nå",
+      "paintingNow": "{saved, plural, =0 {Valgt design} other {Valgt kombinasjon}}",
       "switchTo": "Bytt til",
       "editColours": "Rediger farger",
       "showAll": "Vis alle {count}",
       "showFewer": "Vis færre",
-      "emptyHint": "Ingen andre paletter å bytte til ennå. Lagre en fra fargesteget, så vises den her.",
-      "libraryEmptyHint": "Velg en farge for å se paletten din her.",
-      "help": "Om paletter",
+      "emptyHint": "Trykk på «Rediger farger» for å tilpasse designet og lagre flere kombinasjoner",
+      "libraryEmptyHint": "Velg en farge for å se kombinasjonen din her.",
+      "help": "Om kombinasjoner",
       "helpClose": "Lukk",
-      "helpManage": "Fargene du velger blir en <b>palett</b>. <b>Lagre den</b> for å bruke den igjen på andre stykker — opptil {max}. Lagrede paletter blir værende her, så du kan bytte mellom dem.",
-      "helpNow": "Dette er paletten du maler med.{saved, plural, =0 {} one {} other { Trykk på en annen lagret palett for å bytte — neste keramikk du trykker på, får de fargene.}}"
+      "helpManage": "Fargene du velger blir en <b>kombinasjon</b>. <b>Lagre den</b> for å bruke den igjen på andre stykker — opptil {max}. Lagrede kombinasjoner blir værende her, så du kan bytte mellom dem.",
+      "helpNow": "Dette er kombinasjonen du bruker.{saved, plural, =0 {} one {} other { Trykk på en annen lagret kombinasjon for å bytte — neste keramikk du trykker på, får de fargene.}}"
     },
     "sheet": {
-      "trigger": "Paletter",
+      "trigger": "Kombinasjoner",
       "newHint": "åpner steg 2",
       "hintSaved": "Trykk på en rute for å bytte"
     }
   },
   "tour": {
     "next": "Neste ›",
-    "done": "Ferdig",
+    "done": "Lukk",
     "off": "Skru av tips",
     "replay": "Vis tipsene igjen",
     "step1": {
-      "1": "Velg en <b>design</b> og bygg din egen.{featured, select, yes { Eller ta et ferdig <b>sett eller kit</b> over.} other {}}",
-      "2": "Klar? Trykk <b>Fortsett</b>."
+      "1": "{featured, select, yes {Velg et <b>sett</b> over, eller utforsk designene under – enten du vil tilpasse selv eller velge et ferdig design.} other {Utforsk <b>designene</b> under og tilpass det du liker.}}",
+      "2": "Klar? Trykk <b>Velg detaljer</b> under."
     },
     "step2": {
-      "1": "Velg <b>ett alternativ per rad</b>. Fatet over viser dem med en gang.",
-      "2": "Ferdig? <b>Gå til keramikken din</b>{count, plural, =0 {.} one { — # stykke venter der, klart til å males.} other { — # stykker venter der, klare til å males.}}"
+      "1": "Velg <b>ett alternativ per rad</b> for å tilpasse designet. Tallerkenen oppdateres med en gang.",
+      "2": "Klar? Trykk <b>Velg keramikk</b> under."
     },
     "step3": {
-      "1": "Du maler med <b>denne paletten</b>.{saved, plural, =0 {} one {} other { Bytt til en annen lagret når som helst.}}",
-      "2": "<b>Velg keramikken din</b>: trykk på en, den får denne paletten."
+      "1": "{saved, plural, =0 {Du har valgt <b>dette designet</b>.} one {Du har valgt <b>dette designet</b>.} other {Du bruker nå <b>denne kombinasjonen</b>. Bytt til en annen lagret kombinasjon når som helst.}}",
+      "2": "<b>Velg keramikken din</b>: trykk på en, den får denne kombinasjonen."
     },
     "kit3": {
       "1": "Disse <b>{count, plural, one {# stykket} other {# stykkene}}</b> har ingen farger ennå. <b>Mal</b> dem."

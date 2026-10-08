@@ -49,7 +49,8 @@ test("?kit= lands on step 2: welcome, kit strip, pieces in the basket", async ({
 
   const welcome = page.getByTestId("kit-welcome");
   await expect(welcome).toBeVisible();
-  await welcome.getByTestId("kit-welcome-self").click();
+  // copy review 8/10: one CTA («Tilpass settet»), the «Jeg ser selv» button is gone
+  await welcome.getByTestId("kit-welcome-show").click();
   await expect(welcome).toBeHidden();
   await expect(page.getByTestId("details-step")).toBeVisible();
   await expect(page.getByTestId("kit-strip")).toBeVisible();

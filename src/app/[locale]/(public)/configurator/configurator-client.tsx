@@ -1605,7 +1605,6 @@ export function ConfiguratorClient({
         // customers get there); «I'll have a look myself» turns tips off
         // for good.
         onShowMeHow={() => tour.start("step2")}
-        onLookMyself={() => tour.turnOff()}
       />
 
       {/* R5-TUTORIAL — 390: the tip lives in a strip, never anchored (DS
