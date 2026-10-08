@@ -1738,22 +1738,24 @@ export function ConfiguratorClient({
             // does not switch tabs.
             // R6-STEP2-DOCK: the tab lane lives in the bottom dock now, so
             // there is no `[data-tabs-bar]` sticky left to release here.
-            // R6-STEP2-DOCK fix 2 (Alessio video 8/10, «scrolla oltre il
-            // footer»): the column's minimum height is sized for the moment
-            // the canvas PINS, not for scroll 0. Above the canvas only the
-            // step bar and the «Velg detaljer» heading scroll away; once
-            // they have, the visible stack is header 3.5rem + strip
-            // (`--mk-strip-h`) + canvas + the rest of this column minus the
-            // heading (44px: h2 28 + `mb-4`). So: viewport − header − strip
-            // + heading. The page then scrolls EXACTLY the band + heading,
-            // the canvas pins as the nav reaches the bottom edge, and the
-            // dock's natural position lands flush under the pinned canvas —
-            // no cream below the nav, no dock sliding under the canvas. A
-            // `100svh − 187px` (sized at scroll 0) left both. `--mk-coach-h`
-            // (below): the tutorial's fixed CoachBar takes the bottom of the
-            // screen while a tip shows — the column is that much shorter and
-            // the panel pads by the same amount.
-            "max-md:flex max-md:min-h-[calc(100svh-3.5rem-var(--mk-strip-h)+44px-var(--mk-coach-h))] max-md:flex-col max-md:items-stretch max-md:gap-0"
+            // R6-STEP2-DOCK fix 2+3: at least one screen tall AT SCROLL 0
+            // (187px = header 56 + main `pt-7` 28 + strip 61 + step bar band
+            // 42, measured at 390), so the sheet (`[data-dock]`, `mt-auto`)
+            // sits on the bottom edge on arrival — «Velg keramikk» visible
+            // without hunting (TL, 8/10). `dvh`, not `svh`: on iOS the
+            // toolbar collapses while scrolling and the viewport grows; a
+            // column sized with `svh` left ~85px of cream under the sheet
+            // (Alessio's video). With `dvh` the column grows with it and the
+            // sheet follows the edge; the slack lands ABOVE the sheet, under
+            // the plate. A pin-point formula (`− header − strip + heading`)
+            // was tried and dropped: it pushed the nav 114px below the fold
+            // on tall phones. `--mk-coach-h` (below): the tutorial's fixed
+            // CoachBar takes the bottom while a tip shows — the column is
+            // that much shorter and the panel pads by the same amount —
+            // here as the grid's own `pb` (border-box: inside the `min-h`).
+            // `-mb-7` eats main's `pb-7` (it used to sit on the panel, which
+            // is sticky now and must not carry a negative margin).
+            "max-md:flex max-md:min-h-[calc(100dvh-187px)] max-md:pb-[var(--mk-coach-h)] max-md:-mb-7 max-md:flex-col max-md:items-stretch max-md:gap-0"
         )}
         data-typing={step === 2 && typing ? "1" : undefined}
         style={
@@ -2155,19 +2157,30 @@ export function ConfiguratorClient({
               // che è condivisa da ogni pagina pubblica. La separazione dal
               // footer la fa il `border-t` che il footer ha già
               // (site-footer.tsx): nessuna hairline in più, sarebbero due.
-              // R6-STEP2-DOCK: the sheet surface (border, radius, shadow,
-              // white) moved onto `[data-dock]` below; this wrapper only
-              // keeps the bleed and the gutter. `pb-[45svh]` while typing:
-              // the field is inside the dock, which goes static with the
-              // keyboard up, and `keepClearOfKeyboard` needs page to scroll
-              // into — on iOS the layout viewport does not shrink.
-              // R6-STEP2-DOCK fix 2: `pb-[var(--mk-coach-h)]` clears the
-              // tutorial's fixed CoachBar while a tip shows (0 otherwise);
-              // typing's `pb-[45svh]` wins when both apply (group variant,
-              // higher specificity).
-              "max-md:-mx-5 max-md:-mb-7 max-md:flex-1 max-md:gap-0 max-md:px-3 max-md:pb-[var(--mk-coach-h)] max-md:group-data-[typing=1]/step2:pb-[45svh]"
+              // R6-STEP2-DOCK (mockup r6-step2-dock, Alessio 7/10; fix 3, TL
+              // 8/10): under md THIS PANEL is the sheet — tab lane, active
+              // lane, Inskripsjon/Fargeønsker/Bilder/Om designet panels,
+              // palette strip and nav row, one block. `sticky` on BOTH edges:
+              // `top` = header + strip + canvas (never under the z-30
+              // canvas), `bottom` = the tutorial CoachBar's height while a
+              // tip shows, 0 otherwise. `mt-auto` in the one-screen-tall grid
+              // puts it on the bottom edge on arrival, so «Velg keramikk» is
+              // never below the fold; its containing block is the GRID (not
+              // a wrapper starting at the sheet's own top), which is what
+              // lets the bottom constraint pull it up over the heading's
+              // scrolled-away slot. `max-h` = the room between those two
+              // edges with an inner scroller (tab bar `sticky top-0` inside):
+              // a tall panel on a short phone scrolls INSIDE the sheet, nav
+              // included, never over the canvas or off the screen. While
+              // typing it goes static (the field is inside it; a sticky
+              // bottom would park it under the iOS keyboard) with `pb-[45svh]`
+              // of page to scroll into for `keepClearOfKeyboard`. From md
+              // none of this applies: the desktop panel is unchanged.
+              "max-md:mt-auto max-md:sticky max-md:top-[calc(3.5rem+var(--mk-strip-h)+var(--mk-canvas-h))] max-md:bottom-[var(--mk-coach-h)] max-md:z-20 max-md:-mx-5 max-md:gap-0 max-md:rounded-t-[var(--radius)] max-md:border-t-[1.5px] max-md:border-border max-md:bg-[var(--mk-canvas)] max-md:px-3 max-md:pb-0 max-md:pt-2.5 max-md:shadow-[0_-6px_18px_color-mix(in_oklab,var(--mk-dark)_8%,transparent)] max-md:max-h-[calc(100dvh-3.5rem-var(--mk-strip-h)-var(--mk-canvas-h)-var(--mk-coach-h))] max-md:overflow-y-auto max-md:overscroll-y-contain",
+              "max-md:group-data-[typing=1]/step2:static max-md:group-data-[typing=1]/step2:max-h-none max-md:group-data-[typing=1]/step2:overflow-visible max-md:group-data-[typing=1]/step2:pb-[45svh]"
             )}
             data-testid="details-step"
+            data-dock
             data-color-lock={colorLock ? "1" : "0"}
           >
             {/* R4-FIX 1: nessun trattino in testa al pannello. Non trascinava
@@ -2206,28 +2219,6 @@ export function ConfiguratorClient({
                 quindi le fade `absolute` qui sotto continuano a risolversi
                 su questo wrapper (R4-FIX 5) — e il wrapper è `md:hidden`,
                 non esiste da md in su. */}
-            {/* R6-STEP2-DOCK (mockup r6-step2-dock, Alessio 7/10): under md
-                the tab lane + the active lane are ONE block pinned to the
-                bottom of the screen (`sticky bottom-0`), always visible —
-                plate on top, composer at the bottom, the rest scrolls between
-                them. It carries the sheet surface the panel used to have. In
-                flow after it: palette strip and nav row. From md `contents`:
-                the children stay direct flex items of the panel with their
-                `md:order-*`, desktop does not change by a pixel. While typing
-                the dock goes `static`: the field is inside it, and a sticky
-                bottom would park it under the iOS keyboard.
-                `max-h` = what is left under header + strip + canvas, with
-                `overflow-y-auto`: a tall panel («Fargeønsker» on an SE) would
-                otherwise push the dock's top under the `z-30` canvas. Inside
-                that scroller the tab bar is `sticky top-0`, so it never
-                scrolls away; when nothing overflows neither rule does a
-                thing. `top` = header + strip + canvas as well (sticky with
-                BOTH edges): the dock can never slide under the `z-30`
-                canvas while the heading above scrolls away. */}
-            <div
-              data-dock
-              className="md:contents max-md:sticky max-md:top-[calc(3.5rem+var(--mk-strip-h)+var(--mk-canvas-h))] max-md:bottom-0 max-md:z-20 max-md:-mx-3 max-md:flex max-md:flex-col max-md:gap-0 max-md:rounded-t-[var(--radius)] max-md:border-t-[1.5px] max-md:border-border max-md:bg-[var(--mk-canvas)] max-md:px-3 max-md:pb-2 max-md:pt-2.5 max-md:shadow-[0_-6px_18px_color-mix(in_oklab,var(--mk-dark)_8%,transparent)] max-md:max-h-[calc(100svh-3.5rem-var(--mk-strip-h)-var(--mk-canvas-h))] max-md:overflow-y-auto max-md:overscroll-y-contain max-md:group-data-[typing=1]/step2:static max-md:group-data-[typing=1]/step2:max-h-none max-md:group-data-[typing=1]/step2:overflow-visible"
-            >
             {/* R4-FIX 5 still holds: `relative`, so the fades below resolve
                 against this wrapper. No `sticky` any more (R6-STEP2-DOCK): the
                 bar sits inside the dock, which is what pins now. */}
@@ -2719,7 +2710,6 @@ export function ConfiguratorClient({
                 <DesignDescription text={step2Description} />
               </div>
             )}
-            </div>
 
             {/* R5-NEW-PALETTE: the SAME `PaletteCard` as step 3, in-flow in
                 the options column — after colours + the Text field, before
@@ -2818,14 +2808,11 @@ export function ConfiguratorClient({
                 // TODO:nb-review — step2.paletteStripUnsaved / step2.paletteStripSaved */}
             <div
               data-testid="step2-palette-strip"
-              // R6-STEP2-DOCK fix 1: `pt-3`, air between the dock's bottom
-              // edge and this row (TL screenshot: «Save as palette» glued to
-              // the dock). `mt-auto` (fix 2): on a phone where the whole
-              // step fits the screen, this row + the nav sit at the BOTTOM
-              // of the viewport, not mid-air with a cream gap under the nav —
-              // the panel is `flex-1` in a grid that is at least one screen
-              // tall (see both).
-              className="md:hidden flex min-h-11 items-center gap-2 px-1 pb-2 pt-3 text-[13px] max-md:mt-auto"
+              // R6-STEP2-DOCK fix 1: `pt-3`, air between the lane and this
+              // row (TL screenshot: «Save as palette» glued to the lane).
+              // Fix 3: this row lives inside the sheet (`[data-dock]`) now,
+              // so it rides with it to the bottom edge.
+              className="md:hidden flex min-h-11 items-center gap-2 px-1 pb-2 pt-3 text-[13px]"
             >
               <DesignRound layers={activePaletteLayers} className="size-6" />
               <span className="min-w-0 flex-1 truncate">

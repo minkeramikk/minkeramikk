@@ -82,10 +82,20 @@ test("B1: il pannello strumenti non scorre in verticale, e la pagina non scorre 
 
   // il pannello è una colonna rigida: nessuna corsa verticale da rubare allo
   // swipe orizzontale delle corsie
-  const panelScroll = await panel.evaluate(
-    (el) => el.scrollHeight - el.clientHeight
-  );
-  expect(panelScroll, "il pannello non deve avere scroll verticale").toBeLessThanOrEqual(0);
+  // R6-STEP2-DOCK fix 3: il pannello è il foglio agganciato fra canvas e
+  // fondo, con `max-h` = lo spazio fra i due. Scorre dentro di sé SOLO quando
+  // il contenuto supera quello spazio (telefono corto + corsia densa): in
+  // quel caso è alto esattamente quanto il suo tetto. Altrimenti, come
+  // prima, nessuna corsa verticale da rubare allo swipe delle corsie.
+  const g = await panel.evaluate((el) => ({
+    scroll: el.scrollHeight - el.clientHeight,
+    h: el.getBoundingClientRect().height,
+    maxH: parseFloat(getComputedStyle(el).maxHeight),
+  }));
+  expect(
+    g.scroll <= 0 || Math.abs(g.h - g.maxH) <= 1,
+    `il pannello scorre dentro di sé solo se capped (scroll ${g.scroll}, h ${g.h}, max ${g.maxH})`
+  ).toBe(true);
 
   // e non deborda mai in larghezza
   const box = (await panel.boundingBox())!;
