@@ -80,7 +80,7 @@
       "tabCount": "{name} ({count})",
       "wishesTab": "Colour wishes",
       "paletteStripUnsaved": "· unsaved",
-      "paletteStripSaved": "· saved · this palette paints new ceramics",
+      "paletteStripSaved": "· saved · this combination paints new ceramics",
       "tabPhotos": "Pictures",
       "tabAbout": "About the design",
       "scrollTabsBack": "Scroll categories back",
@@ -143,12 +143,13 @@
       "curated": "curated by the shop",
       "prev": "Previous",
       "next": "Next",
-      "kitBadge": "Kit · {count, plural, one {# piece} other {# pieces}}",
-      "coloursYours": "Colours: <b>yours to choose</b>",
-      "coloursReady": "Colours: ready to order",
+      "kitBadge": "Design it yourself · {count, plural, one {# piece} other {# pieces}}",
+      "setBadge": "Ready set · {count, plural, one {# piece} other {# pieces}}",
+      "coloursYours": "Your choice of design on each piece",
+      "coloursReady": "Same design on {count, plural, one {the piece} other {all # pieces}}",
       "buildYourOwn": "Design · build your own",
-      "colourKit": "Colour this kit",
-      "seeSet": "See the set"
+      "colourKit": "Customise the pieces",
+      "seeSet": "See the ready set"
     },
     "customNotes": {
       "title": "Your colour notes",
@@ -164,10 +165,10 @@
       "helper": "The preview shows the words and where they sit. The workshop confirms the wording and paints it by hand.",
       "counter": "{count}/{max}",
       "position": {
-        "centre": "Centre",
+        "centre": "On the front",
         "top": "Top",
         "bottom": "Bottom",
-        "back": "Back",
+        "back": "On the back",
         "backHelper": "The back isn't shown in the preview — the workshop paints it there instead.",
         "required": "Pick where the words go before moving on."
       }
@@ -276,19 +277,19 @@
       "ceramic": "Ceramic",
       "customText": "Inscription",
       "config": "Config",
-      "palette": "Palette",
+      "palette": "Combination",
       "price": "Price",
       "code": "Code",
       "pieces": "{count, plural, one {# piece} other {# pieces}}"
     },
     "unpainted": {
       "label": "Unpainted",
-      "note": "{count, plural, one {# piece is} other {# pieces are}} still unpainted — choose a palette on the row, then Paint.",
+      "note": "{count, plural, one {# piece is} other {# pieces are}} still unpainted — choose a combination on the row, then Paint.",
       "removeAll": "Remove all",
       "paint": "Paint",
       "cta": "Paint {count, plural, one {# piece} other {# pieces}} first",
       "paintCount": "How many to paint",
-      "pickerLabel": "Choose a palette",
+      "pickerLabel": "Choose a combination",
       "notCovered": "{design} doesn't cover this ceramic",
       "notCoveredSuffix": "· doesn't cover"
     },
@@ -351,9 +352,8 @@
     "welcome": {
       "eyebrow": "A kit from minkeramikk",
       "title": "{count, plural, one {# piece} other {# pieces}}, waiting for your colours",
-      "body": "They're already in your basket. Choose the colours here — once for all of them, or piece by piece.",
-      "show": "Show me how",
-      "self": "I'll have a look myself"
+      "body": "They're already in your basket. Choose whether all the pieces get the same design and colours, or customise each piece on its own.",
+      "cta": "Customise the set"
     }
   },
   "order": {
@@ -398,54 +398,54 @@
     "chip": {
       "unsaved": "Unsaved",
       "rename": "Rename",
-      "renameLabel": "Palette name",
-      "delete": "Delete palette",
+      "renameLabel": "Combination name",
+      "delete": "Delete combination",
       "confirmDelete": "Delete? Tap again"
     },
     "bar": {
-      "eyebrowManage": "Your palettes",
+      "eyebrowManage": "Your combinations",
       "eyebrowPaint": "Painting with",
       "manageCount": "{count} of {max} saved",
       "paintHintDraft": "These colours aren't saved yet",
       "paintHintSaved": "Tap a chip to switch",
-      "save": "Save as palette",
-      "new": "New palette"
+      "save": "Save combination",
+      "new": "New combination"
     },
     "card": {
-      "paintingNow": "Painting now",
+      "paintingNow": "{saved, plural, =0 {Chosen design} other {Chosen combination}}",
       "switchTo": "Switch to",
       "editColours": "Edit colours",
       "showAll": "Show all {count}",
       "showFewer": "Show fewer",
-      "emptyHint": "No other palettes to switch to yet. Save one from the colour step and it shows up here.",
-      "libraryEmptyHint": "Choose a colour to see your palette here.",
-      "help": "About palettes",
+      "emptyHint": "Tap «Edit colours» to customise the design and save more combinations",
+      "libraryEmptyHint": "Choose a colour to see your combination here.",
+      "help": "About combinations",
       "helpClose": "Close",
-      "helpManage": "The colours you pick become a <b>palette</b>. <b>Save it</b> to reuse it on other pieces — up to {max}. Saved ones stay here to switch between.",
-      "helpNow": "This is the palette you're painting with.{saved, plural, =0 {} one {} other { Tap another saved one to switch — the next ceramic you tap comes in those colours.}}"
+      "helpManage": "The colours you pick become a <b>combination</b>. <b>Save it</b> to reuse it on other pieces — up to {max}. Saved ones stay here to switch between.",
+      "helpNow": "This is the combination you're using.{saved, plural, =0 {} one {} other { Tap another saved one to switch — the next ceramic you tap comes in those colours.}}"
     },
     "sheet": {
-      "trigger": "Palettes",
+      "trigger": "Combinations",
       "newHint": "opens step 2",
       "hintSaved": "Tap a tile to switch"
     }
   },
   "tour": {
     "next": "Next ›",
-    "done": "Done",
+    "done": "Close",
     "off": "Turn tips off",
     "replay": "Show me the tips again",
     "step1": {
-      "1": "Pick a <b>design</b> and build your own.{featured, select, yes { Or take a ready-made <b>set or kit</b> above.} other {}}",
-      "2": "All set? Tap <b>Continue</b>."
+      "1": "{featured, select, yes {Pick a <b>set</b> above, or explore the designs below – whether you want to customise yourself or choose a ready design.} other {Explore the <b>designs</b> below and customise the one you like.}}",
+      "2": "Ready? Tap <b>Choose details</b> below."
     },
     "step2": {
-      "1": "Pick <b>one option per lane</b>. The plate above shows them straight away.",
-      "2": "Done? <b>Go to your ceramics</b>{count, plural, =0 {.} one { — # piece is waiting there, ready to paint.} other { — # pieces are waiting there, ready to paint.}}"
+      "1": "Pick <b>one option per lane</b> to customise the design. The plate updates straight away.",
+      "2": "Ready? Tap <b>Pick your ceramics</b> below."
     },
     "step3": {
-      "1": "You're painting with <b>this palette</b>.{saved, plural, =0 {} one {} other { Switch to another saved one any time.}}",
-      "2": "<b>Pick your ceramics</b>: tap one, it comes in this palette."
+      "1": "{saved, plural, =0 {You have chosen <b>this design</b>.} one {You have chosen <b>this design</b>.} other {You are using <b>this combination</b>. Switch to another saved combination any time.}}",
+      "2": "<b>Pick your ceramics</b>: tap one, it comes in this combination."
     },
     "kit3": {
       "1": "These <b>{count, plural, one {# piece} other {# pieces}}</b> have no colours yet. <b>Paint</b> them."

@@ -35,7 +35,6 @@ export interface FeaturedStripItem {
  */
 export function FeaturedStrip({ items }: { items: FeaturedStripItem[] }) {
   const t = useTranslations("configurator.featured");
-  const tc = useTranslations("configurator");
   const locale = useLocale();
   const designName = (f: FeaturedStripItem) =>
     locale === "no" ? f.designName : f.designNameEn;
@@ -51,7 +50,7 @@ export function FeaturedStrip({ items }: { items: FeaturedStripItem[] }) {
     const custom = locale === "no" ? f.labelNo : f.labelEn;
     if (custom) return custom;
     return f.kind === "set" && f.setCount != null
-      ? tc("setBadge", { count: f.setCount })
+      ? t("setBadge", { count: f.setCount })
       : designName(f);
   };
 
@@ -148,7 +147,7 @@ export function FeaturedStrip({ items }: { items: FeaturedStripItem[] }) {
                     >
                       {f.kind === "kit"
                         ? t("kitBadge", { count: f.setCount })
-                        : tc("setBadge", { count: f.setCount })}
+                        : t("setBadge", { count: f.setCount })}
                     </span>
                   )}
                   {/* eslint-disable-next-line @next/next/no-img-element -- pre-composed thumb from storage */}
@@ -178,7 +177,7 @@ export function FeaturedStrip({ items }: { items: FeaturedStripItem[] }) {
                     {f.kind === "kit" ? (
                       t.rich("coloursYours", { b: (c) => <b key="b">{c}</b> })
                     ) : f.kind === "set" ? (
-                      t("coloursReady")
+                      t("coloursReady", { count: f.setCount ?? 0 })
                     ) : (
                       t("buildYourOwn")
                     )}

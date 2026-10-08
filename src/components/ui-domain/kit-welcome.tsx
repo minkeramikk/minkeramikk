@@ -23,7 +23,6 @@ export function KitWelcome({
   imageCustom = false,
   eyebrow,
   onShowMeHow,
-  onLookMyself,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -39,7 +38,6 @@ export function KitWelcome({
    *  component still compiles standalone. */
   onShowMeHow?: () => void;
   /** R5-TUTORIAL — passo 0: turns the tour off for good (0.1-8). */
-  onLookMyself?: () => void;
 }) {
   const t = useTranslations("kit.welcome");
   return (
@@ -101,31 +99,21 @@ export function KitWelcome({
             </span>
           ))}
         </div>
-        <div className="flex flex-col gap-2">
-          <Button
-            type="button"
-            data-testid="kit-welcome-show"
-            className="h-11 rounded-full bg-primary"
-            onClick={() => {
-              onShowMeHow?.();
-              onOpenChange(false);
-            }}
-          >
-            {t("show")}
-          </Button>
-          <Button
-            type="button"
-            data-testid="kit-welcome-self"
-            variant="ghost"
-            className="h-10 text-muted-foreground"
-            onClick={() => {
-              onLookMyself?.();
-              onOpenChange(false);
-            }}
-          >
-            {t("self")}
-          </Button>
-        </div>
+        {/* Alessio (copy review 8/10): ONE button, «Tilpass settet». It keeps
+            the primary action the old «Vis meg hvordan» had — close and start
+            the tour; the dialog's own × is the way out without tips. The
+            «Jeg ser selv» (tips off for good) button is gone with it. */}
+        <Button
+          type="button"
+          data-testid="kit-welcome-show"
+          className="h-11 rounded-full bg-primary"
+          onClick={() => {
+            onShowMeHow?.();
+            onOpenChange(false);
+          }}
+        >
+          {t("cta")}
+        </Button>
       </DialogContent>
     </Dialog>
   );

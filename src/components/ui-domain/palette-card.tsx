@@ -145,7 +145,7 @@ export function PaletteCard({ chips, actions, saved, now }: PaletteCardProps) {
               <div className="min-w-0 flex-1">
                 <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-[0.07em] text-primary">
                   <Brush aria-hidden className="size-[11px]" strokeWidth={2.4} />
-                  {t("paintingNow")}
+                  {t("paintingNow", { saved })}
                 </p>
                 <p className="truncate text-[16px] font-semibold leading-tight text-foreground">
                   {now.name}
