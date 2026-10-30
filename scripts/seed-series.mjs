@@ -31,7 +31,7 @@ if (!url || !key) throw new Error(`manca NEXT_PUBLIC_SUPABASE_URL / SUPABASE_SER
 const SERIES = [
   { no: "Sett", en: "Sets", slugs: ["vietri-dyp-flat", "vietri-asjett-dyp-flat", "tacosett"] },
   { no: "Tallerkener", en: "Plates", slugs: ["deluxe-tallerken", "irregular-asjett", "irregular-dyp", "irregular-stor", "vietri-asjett", "vietri-dyp", "vietri-flat"] },
-  { no: "Servering og skåler", en: "Serving & bowls", slugs: ["bat-serveringsfat", "bat-serveringsfat-sma", "serveringsfat-liten", "serveringsfat-stor", "salatskal", "salatskal-stor", "ildfastform-firkant"] },
+  { no: "Serveringsfat og skåler", en: "Serving & bowls", slugs: ["bat-serveringsfat", "bat-serveringsfat-sma", "serveringsfat-liten", "serveringsfat-stor", "salatskal", "salatskal-stor", "ildfastform-firkant"] },
   { no: "Karafler og kopper", en: "Jugs & cups", slugs: ["karaffel-vietri", "vietri-karaffel-sma", "kaffekopp", "cappuccinokopp"] },
   { no: "Tilbehør", en: "Accessories", slugs: ["gryteunderlag", "redskapstativ"] },
 ];
