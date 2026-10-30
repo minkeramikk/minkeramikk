@@ -67,22 +67,25 @@ function TourActions({
   primaryClassName: string;
 }) {
   const t = useTranslations("tour");
+  // R5-FEEDBACK-COPY (Alessio, 30/10): the last tip showed "Lukk" AND ✕ — two
+  // ways to close. Only ✕ stays, and on the last tip it does what "Done" did
+  // (mutes THIS sequence, `next`), not `turnOff`: otherwise finishing step 1's
+  // tour would silence step 2's and step 3's tips for good.
+  const advance = () => {
+    onHighlight?.();
+    onNext();
+  };
   return (
     <>
+      {!last && (
+        <button type="button" onClick={advance} className={primaryClassName}>
+          {t("next")}
+        </button>
+      )}
       <button
         type="button"
-        onClick={() => {
-          onHighlight?.();
-          onNext();
-        }}
-        className={primaryClassName}
-      >
-        {last ? t("done") : t("next")}
-      </button>
-      <button
-        type="button"
-        onClick={onOff}
-        aria-label={t("off")}
+        onClick={last ? advance : onOff}
+        aria-label={last ? t("done") : t("off")}
         data-testid="tour-dismiss"
         className="shrink-0 text-muted-foreground"
       >

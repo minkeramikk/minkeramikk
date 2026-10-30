@@ -89,7 +89,7 @@
       "optionsLabel": "Farger og motiv"
     },
     "tabs": {
-      "inscription": "Inskripsjon"
+      "inscription": "Tekst"
     },
     "photos": {
       "photosLabel": "Bilder av designet",
@@ -168,7 +168,7 @@
         "top": "Topp",
         "bottom": "Bunn",
         "back": "På baksiden",
-        "backHelper": "Baksiden vises ikke i forhåndsvisningen — verkstedet maler den der i stedet.",
+        "backHelper": "Teksten på baksiden forhåndsvises ikke, men males på verkstedet.",
         "required": "Velg hvor ordene skal stå før du går videre."
       }
     },
@@ -283,7 +283,7 @@
     },
     "unpainted": {
       "label": "Umalt",
-      "note": "{count, plural, one {# del er fortsatt umalt} other {# deler er fortsatt umalte}} — velg en kombinasjon på raden, og trykk Mal.",
+      "note": "{count, plural, one {# del er umalt} other {# deler er umalte}} — velg et design og trykk Mal.",
       "removeAll": "Fjern alle",
       "paint": "Mal",
       "cta": "Mal {count} stk først",
@@ -293,18 +293,18 @@
       "notCoveredSuffix": "· dekker ikke"
     },
     "unpaint": {
-      "action": "Gjør umalt…"
+      "action": "Fjern design…"
     },
     "unpaintDialog": {
-      "eyebrow": "Gjør umalt",
-      "title": "Ta bort fargene — behold keramikken.",
-      "body": "{unit} går tilbake til <b>umalt</b> i handlekurven, samme pris og rabatt. Du kan male dem igjen senere.",
+      "eyebrow": "Fjern design",
+      "title": "Fjern designet — behold keramikken.",
+      "body": "Varen endres til umalt keramikk i handlekurven. Samme pris og rabatt — du kan velge nytt design når som helst.",
       "unitPiece": "{count, plural, one {del} other {deler}}",
       "unitSet": "{count, plural, one {sett} other {sett}}",
       "howMany": "Hvor mange?",
       "all": "Alle {n}",
-      "confirm": "Gjør {n} {unit} umalt",
-      "keepPainted": "Behold dem malt"
+      "confirm": "Fjern design på {n} {unit}",
+      "keepPainted": "Behold designet"
     },
     "colourBadge": {
       "custom": "Egendefinerte farger",
@@ -351,7 +351,7 @@
     "welcome": {
       "eyebrow": "Et sett fra minkeramikk",
       "title": "{count, plural, one {# del} other {# deler}} venter på dine farger",
-      "body": "De ligger allerede i handlekurven. Velg om alle delene skal ha samme design og farger, eller tilpass hver del for seg.",
+      "body": "Keramikkdelene ligger allerede i handlekurven. Velg om alle skal ha samme design og farger, eller tilpass hver del for seg.",
       "cta": "Tilpass settet"
     }
   },
@@ -436,15 +436,15 @@
     "replay": "Vis tipsene igjen",
     "step1": {
       "1": "{featured, select, yes {Velg et <b>sett</b> over, eller utforsk designene under – enten du vil tilpasse selv eller velge et ferdig design.} other {Utforsk <b>designene</b> under og tilpass det du liker.}}",
-      "2": "Klar? Trykk <b>Velg detaljer</b> under."
+      "2": "Klar? Trykk <b>Velg detaljer</b>."
     },
     "step2": {
-      "1": "Velg <b>ett alternativ per rad</b> for å tilpasse designet. Tallerkenen oppdateres med en gang.",
+      "1": "Sett ditt eget preg på keramikken. Visningen oppdateres med en gang.",
       "2": "Klar? Trykk <b>Velg keramikk</b> under."
     },
     "step3": {
       "1": "{saved, plural, =0 {Du har valgt <b>dette designet</b>.} one {Du har valgt <b>dette designet</b>.} other {Du bruker nå <b>denne kombinasjonen</b>. Bytt til en annen lagret kombinasjon når som helst.}}",
-      "2": "<b>Velg keramikken din</b>: trykk på en, den får denne kombinasjonen."
+      "2": "Velg keramikken du vil gi dette designet."
     },
     "kit3": {
       "1": "Disse <b>{count, plural, one {# stykket} other {# stykkene}}</b> har ingen farger ennå. <b>Mal</b> dem."
