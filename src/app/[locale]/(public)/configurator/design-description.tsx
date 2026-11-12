@@ -14,7 +14,18 @@ import { useTranslations } from "next-intl";
  * its description in full via a native <details> toggle instead, so
  * `clamp="always"` is unused there now. Step 2 keeps its own mobile-only
  * clamp, unchanged.
+ *
+ * R5-FEEDBACK-UX: on mobile this lives in the «Om designet» tab panel, which is
+ * `display:none` until the tab is picked — measured once at mount it read 0/0
+ * and the toggle never came, so the text stayed cut. A ResizeObserver measures
+ * again when the panel shows (and on rotation).
  */
+
+/** True when the clamp is hiding text. A hidden element (0/0) hides nothing. */
+export function clampHidesText(el: { scrollHeight: number; clientHeight: number }) {
+  return el.scrollHeight - el.clientHeight > 1;
+}
+
 export function DesignDescription({
   text,
   clamp = "mobile",
@@ -32,7 +43,12 @@ export function DesignDescription({
 
   useEffect(() => {
     const el = ref.current;
-    if (el) setOverflows(el.scrollHeight - el.clientHeight > 1);
+    if (!el) return;
+    const measure = () => setOverflows(clampHidesText(el));
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
   }, [text]);
 
   return (
@@ -48,8 +64,10 @@ export function DesignDescription({
       >
         {text}
       </p>
-      {/* toggle only when the clamp actually hides text (TODO:nb-review NO copy: showMore/showLess) */}
-      {overflows && (
+      {/* toggle only when the clamp actually hides text («Les mer» / «Vis mindre») */}
+      {/* `|| expanded`: expanded has no clamp left to overflow, and «Vis mindre»
+          must stay */}
+      {(overflows || expanded) && (
         <button
           type="button"
           onClick={() => setExpanded((v) => !v)}

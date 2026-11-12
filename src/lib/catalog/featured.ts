@@ -57,6 +57,9 @@ export interface ValidatedFeatured extends FeaturedRow {
   price: FeaturedPrice | null;
   /** true when the thumb is a custom upload (fills the frame) */
   customImage: boolean;
+  /** kits only: storage path of the first piece's (white) photo — what the
+   *  preview shows instead of the stored thumb (`kitWhitePiece`) */
+  pieceImage: string | null;
 }
 
 export type PayloadValidation =
@@ -220,6 +223,7 @@ async function loadValidatedFeatured(): Promise<ValidatedFeatured[]> {
   // live prices, once per render: sets and kits of the same pieces share the
   // same rows → the same price by construction (AC5). Designs carry no price.
   const bySlug: Record<string, { id: string; priceCents: number; currency: Currency }> = {};
+  const imageBySlug: Record<string, string | null> = {};
   const activeDesigns = await getActiveDesigns();
   const supplierIds = [...new Set(activeDesigns.map((d) => d.supplierId))];
   const perSupplier = await Promise.all(supplierIds.map((id) => getSupplierProducts(id)));
@@ -230,6 +234,7 @@ async function loadValidatedFeatured(): Promise<ValidatedFeatured[]> {
         priceCents: p.price.amountCents,
         currency: p.price.currency,
       };
+      imageBySlug[p.slug] = p.image;
     }
   }
   const discountConfig = await getDiscountConfig();
@@ -239,7 +244,7 @@ async function loadValidatedFeatured(): Promise<ValidatedFeatured[]> {
       const customImage = isCustomThumb(row.thumbImage);
       const v = await validateFeaturedPayload(row.kind, row.payload);
       if (!v.ok) {
-        return { ...row, valid: false, reason: v.reason, designName: null, designNameEn: null, setCount: null, price: null, customImage };
+        return { ...row, valid: false, reason: v.reason, designName: null, designNameEn: null, setCount: null, price: null, customImage, pieceImage: null };
       }
       const price =
         row.kind === "design"
@@ -258,6 +263,10 @@ async function loadValidatedFeatured(): Promise<ValidatedFeatured[]> {
         setCount: v.setCount,
         price,
         customImage,
+        pieceImage:
+          row.kind === "kit"
+            ? (imageBySlug[decodeKitParam(row.payload).entries[0]?.productSlug] ?? null)
+            : null,
       };
     })
   );

@@ -74,7 +74,7 @@
     "step2": {
       "titleDetails": "Choose details",
       "titleBorders": "Choose borders",
-      "showMore": "Show more",
+      "showMore": "Read more",
       "showLess": "Show less",
       "tabsLabel": "Categories",
       "tabCount": "{name} ({count})",
@@ -217,7 +217,8 @@
       "title": "Added to the basket",
       "line": "{qty} × {name}",
       "add": "Add · {total}",
-      "continue": "Keep shopping"
+      "continue": "Keep shopping",
+      "goToCart": "Go to the basket"
     },
     "cartTitle": "Basket",
     "chooseColours": "Choose colours in step 2 ›",
