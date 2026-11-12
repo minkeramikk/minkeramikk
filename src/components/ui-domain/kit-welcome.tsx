@@ -11,6 +11,18 @@ import {
 import { Button } from "@/components/ui/button";
 
 /**
+ * R5-KIT-WELCOME-COPY — which `kit.welcome.*` keys each landing reads. A kit
+ * still has colours to choose; a shared set is already designed, so it gets
+ * its own title, body and CTA.
+ * TODO:nb-review — NO copy is ours (card), unreviewed: kit.welcome.body,
+ * kit.welcome.setTitle, kit.welcome.setBody, kit.welcome.setCta.
+ */
+export const KIT_WELCOME_KEYS = {
+  kit: { title: "title", body: "body", cta: "cta" },
+  set: { title: "setTitle", body: "setBody", cta: "setCta" },
+} as const;
+
+/**
  * R5-KIT — passo 0: the welcome dialog on a kit landing, and (R5-KIT-CONFIRM)
  * on a shared-set landing too. It only LISTS the pieces: nothing is in the
  * cart until the CTA. `onConfirm` is the CTA and nothing else; ×, Esc and the
@@ -25,6 +37,7 @@ export function KitWelcome({
   image = null,
   imageCustom = false,
   eyebrow,
+  variant = "kit",
   onConfirm,
 }: {
   open: boolean;
@@ -37,11 +50,14 @@ export function KitWelcome({
   imageCustom?: boolean;
   /** the resolved shop-window label (caller reads it via `kitTitle`) */
   eyebrow: string;
-  /** «Tilpass settet»: the caller adds the listed pieces, closes, and (kit)
+  /** which copy: a kit (colours to choose) or an already designed set */
+  variant?: keyof typeof KIT_WELCOME_KEYS;
+  /** the CTA («Tilpass settet» on a kit, «Legg i handlekurven» on a set): the caller adds the listed pieces, closes, and (kit)
    *  starts the tour (R5-TUTORIAL passo 0). */
   onConfirm: () => void;
 }) {
   const t = useTranslations("kit.welcome");
+  const keys = KIT_WELCOME_KEYS[variant];
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
@@ -72,8 +88,8 @@ export function KitWelcome({
               />
             </span>
           )}
-          <DialogTitle className="text-[19px]">{t("title", { count: total })}</DialogTitle>
-          <DialogDescription className="text-[13.5px]">{t("body")}</DialogDescription>
+          <DialogTitle className="text-[19px]">{t(keys.title, { count: total })}</DialogTitle>
+          <DialogDescription className="text-[13.5px]">{t(keys.body)}</DialogDescription>
         </DialogHeader>
         {/* R5-TUTORIAL round 2 (plan Task D) — the per-row photos become
             protagonists: bigger (size-10 → size-16, ~64px) and in colour
@@ -112,7 +128,7 @@ export function KitWelcome({
           className="h-11 rounded-full bg-primary"
           onClick={onConfirm}
         >
-          {t("cta")}
+          {t(keys.cta)}
         </Button>
       </DialogContent>
     </Dialog>
