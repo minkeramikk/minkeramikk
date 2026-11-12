@@ -346,8 +346,11 @@
     "welcome": {
       "eyebrow": "Et sett fra minkeramikk",
       "title": "{count, plural, one {# del} other {# deler}} venter på dine farger",
-      "body": "Keramikkdelene ligger allerede i handlekurven. Velg om alle skal ha samme design og farger, eller tilpass hver del for seg.",
-      "cta": "Tilpass settet"
+      "body": "Trykk på «Tilpass settet» for å legge keramikkdelene i handlekurven. Deretter velger du om alle skal ha samme design og farger, eller tilpasser hver del for seg.",
+      "cta": "Tilpass settet",
+      "setTitle": "Et ferdig sett med {count, plural, one {# del} other {# deler}}",
+      "setBody": "Delene er ferdig designet. Legg dem i handlekurven for å bestille settet.",
+      "setCta": "Legg i handlekurven"
     }
   },
   "order": {
