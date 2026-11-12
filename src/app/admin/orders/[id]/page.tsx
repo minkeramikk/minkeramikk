@@ -82,7 +82,7 @@ export default async function OrderDetailPage({
   const currentIndex = STATUS_PIPELINE.indexOf(order.status);
   const modified = order.updatedAt !== order.createdAt;
   // R2-6 D: rebuild this order as a CA-3 shared set → reopen the basket at
-  // step 3 (live prices, 3-way banner if the visitor's cart isn't empty).
+  // step 3 (live prices; the welcome dialog lists the pieces, its CTA merges them into the visitor's cart).
   const replica = buildReplicaSet(order);
   const replicaLocale = order.locale === "en" ? "en" : "no";
 

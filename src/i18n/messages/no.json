@@ -262,12 +262,6 @@
       "notShareable": "{count, plural, one {# vare kan ikke deles} other {# varer kan ikke deles}}"
     },
     "sharedSet": {
-      "badge": "Delt sett",
-      "loaded": "Sett lastet inn: {designs, plural, one {# design} other {# design}} · {pieces, plural, one {# stk} other {# stk}}",
-      "choiceTitle": "Denne lenken inneholder et sett med {designs, plural, one {# design} other {# design}}. I handlekurven din har du allerede {items, plural, one {# vare} other {# varer}}.",
-      "add": "Legg til i handlekurven min",
-      "replace": "Erstatt handlekurven",
-      "ignore": "Ignorer",
       "unavailable": "{count, plural, one {# vare er ikke lenger tilgjengelig} other {# varer er ikke lenger tilgjengelige}}"
     },
     "line": {

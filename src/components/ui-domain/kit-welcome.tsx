@@ -11,8 +11,11 @@ import {
 import { Button } from "@/components/ui/button";
 
 /**
- * R5-KIT — passo 0: the welcome dialog on a kit landing. Both buttons close
- * (the tour R5-TUTORIAL wires them later); no persistence here.
+ * R5-KIT — passo 0: the welcome dialog on a kit landing, and (R5-KIT-CONFIRM)
+ * on a shared-set landing too. It only LISTS the pieces: nothing is in the
+ * cart until the CTA. `onConfirm` is the CTA and nothing else; ×, Esc and the
+ * overlay reach the caller as `onOpenChange(false)` — a dismiss. The caller
+ * owns `open`, so it closes the dialog itself in both. No persistence here.
  */
 export function KitWelcome({
   open,
@@ -22,7 +25,7 @@ export function KitWelcome({
   image = null,
   imageCustom = false,
   eyebrow,
-  onShowMeHow,
+  onConfirm,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -34,10 +37,9 @@ export function KitWelcome({
   imageCustom?: boolean;
   /** the resolved shop-window label (caller reads it via `kitTitle`) */
   eyebrow: string;
-  /** R5-TUTORIAL — passo 0: starts the kit2 tour (0.1-8). Optional so this
-   *  component still compiles standalone. */
-  onShowMeHow?: () => void;
-  /** R5-TUTORIAL — passo 0: turns the tour off for good (0.1-8). */
+  /** «Tilpass settet»: the caller adds the listed pieces, closes, and (kit)
+   *  starts the tour (R5-TUTORIAL passo 0). */
+  onConfirm: () => void;
 }) {
   const t = useTranslations("kit.welcome");
   return (
@@ -101,16 +103,14 @@ export function KitWelcome({
         </div>
         {/* Alessio (copy review 8/10): ONE button, «Tilpass settet». It keeps
             the primary action the old «Vis meg hvordan» had — close and start
-            the tour; the dialog's own × is the way out without tips. The
-            «Jeg ser selv» (tips off for good) button is gone with it. */}
+            the tour; the «Jeg ser selv» (tips off for good) button is gone
+            with it. R5-KIT-CONFIRM: it is also the ONLY thing that puts the
+            pieces in the cart — the dialog's own × leaves it untouched. */}
         <Button
           type="button"
           data-testid="kit-welcome-show"
           className="h-11 rounded-full bg-primary"
-          onClick={() => {
-            onShowMeHow?.();
-            onOpenChange(false);
-          }}
+          onClick={onConfirm}
         >
           {t("cta")}
         </Button>

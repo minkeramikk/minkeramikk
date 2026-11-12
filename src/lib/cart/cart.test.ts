@@ -11,6 +11,7 @@ import {
   lineSubtotal,
   paintLines,
   removeLine,
+  settleLanding,
   unpaintedPieces,
   unpaintLines,
   updateQuantity,
@@ -211,6 +212,45 @@ describe("bundle transaction (R4-upsell, D-C2)", () => {
 
     expect(folded).toHaveLength(1);
     expect(folded[0].quantity).toBe(5);
+  });
+});
+
+describe("kit / shared-set landing (R5-KIT-CONFIRM)", () => {
+  // a kit lists unpainted pieces, a shared set painted ones
+  const kitLines: NewCartLine[] = [
+    { ...vietriFlat, configCode: null, configSnapshot: null, quantity: 4 },
+    { ...servering, configCode: null, configSnapshot: null, quantity: 2 },
+  ];
+  const setLines: NewCartLine[] = [
+    { ...vietriFlat, configCode: "MK-SET-A", quantity: 3 },
+    { ...servering, configCode: "MK-SET-B", quantity: 1 },
+  ];
+  const two = addManyToCart([], [vietriFlat, { ...servering, quantity: 2 }]);
+
+  it.each([
+    ["kit", kitLines],
+    ["set", setLines],
+  ])("AC1 — %s: opened and dismissed leaves the cart as it was", (_kind, lines) => {
+    const before = structuredClone(two);
+    expect(settleLanding(two, lines, false)).toEqual(before);
+    expect(settleLanding([], lines, false)).toEqual([]);
+  });
+
+  it.each([
+    ["kit", kitLines],
+    ["set", setLines],
+  ])("AC2 — %s: confirm on an empty cart holds exactly the listed pieces", (_kind, lines) => {
+    const cart = settleLanding([], lines, true);
+    expect(cart.map((l) => [l.productId, l.configCode, l.quantity])).toEqual(
+      lines.map((l) => [l.productId, l.configCode, l.quantity])
+    );
+  });
+
+  it("AC3 — 2 rows + a set of N: confirm merges to 2 + N, the 2 untouched", () => {
+    const before = structuredClone(two);
+    const cart = settleLanding(two, setLines, true);
+    expect(cart).toHaveLength(2 + setLines.length);
+    expect(cart.slice(0, 2)).toEqual(before);
   });
 });
 

@@ -263,12 +263,6 @@
       "notShareable": "{count, plural, one {# item can't be shared} other {# items can't be shared}}"
     },
     "sharedSet": {
-      "badge": "Shared set",
-      "loaded": "Set loaded: {designs, plural, one {# design} other {# designs}} · {pieces, plural, one {# piece} other {# pieces}}",
-      "choiceTitle": "This link contains a set of {designs, plural, one {# design} other {# designs}}. Your basket already has {items, plural, one {# item} other {# items}}.",
-      "add": "Add to my basket",
-      "replace": "Replace my basket",
-      "ignore": "Ignore",
       "unavailable": "{count, plural, one {# item is no longer available} other {# items are no longer available}}"
     },
     "line": {

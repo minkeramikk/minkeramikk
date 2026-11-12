@@ -13,7 +13,6 @@ import { nameFor, paletteFor } from "@/lib/palettes/palettes";
 import { paletteMatchingCode } from "@/lib/configurator/save-gate";
 import type { PaletteWords } from "@/lib/palettes/name-lists";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
 import { assetUrl } from "@/lib/storage";
 import { PRODUCT_CARD_WIDTH, PRODUCT_THUMB_WIDTH } from "@/lib/asset-variants";
 import { formatMoney, money } from "@/lib/money/money";
@@ -54,6 +53,7 @@ import { ProductSheet } from "@/components/ui-domain/product-sheet";
 import { AddedSheet } from "@/components/ui-domain/added-sheet";
 import { ShareDialog, type ShareKind } from "@/components/ui-domain/share-dialog";
 import { KitStrip } from "@/components/ui-domain/kit-strip";
+import { KitWelcome, kitWelcomeRows } from "@/components/ui-domain/kit-welcome";
 import { kitStripCounts } from "@/lib/cart/kit-label";
 import { clearKitContext, kitTitle, readKitContext } from "@/lib/cart/kit-context";
 import { DesignRound } from "@/components/ui-domain/design-round";
@@ -238,7 +238,7 @@ export function CeramicsStep({
     cart,
     hydrated,
     add,
-    clear,
+    settle,
     discount,
     discountConfig,
     setCurrentConfig,
@@ -406,7 +406,7 @@ export function CeramicsStep({
     setActiveCode(code);
     // Fix wave A finding 1: build from the CURRENT params, the way `goToStep`
     // below already does — a from-scratch URL was dropping note=/text=
-    // and set=/origin=set (the shared-set banner), silently losing the
+    // and set=/origin=set (the shared-set landing), silently losing the
     // customer's own words and the shared basket on every chip tap.
     // R5-TEXT-IDENTITY final-review round 2 (finding 5a — this comment used
     // to claim `note=`/`text=` were "the ONLY carrier for both at step 3",
@@ -536,12 +536,13 @@ export function CeramicsStep({
     | { kind: "tooBig" }
     | { kind: "none" }
   >(null);
-  /** CA-3 D: landing banner for a `?set=` arrival. */
-  const [setBanner, setSetBanner] = useState<
-    | null
-    | { kind: "choice"; designs: number; unavailable: number }
-    | { kind: "loaded"; designs: number; pieces: number; unavailable: number }
-  >(null);
+  /** CA-3 D + R5-KIT-CONFIRM: a `?set=` arrival. `welcome` = the dialog is
+   *  open and the set is NOT in the cart yet; `unavailable` feeds the one
+   *  notice that survives the old banner. */
+  const [setLanding, setSetLanding] = useState<null | {
+    welcome: boolean;
+    unavailable: number;
+  }>(null);
   const setConsumedRef = useRef(false);
 
   useEffect(
@@ -945,15 +946,11 @@ export function CeramicsStep({
   const sharePieces = cartPieces(cart);
   const shareKitThumb = cart.find((l) => l.plateImage)?.plateImage ?? null;
 
-  // ── CA-3 D: landing from a shared link. The server resolved `set=` into
-  // ready lines (live prices); here we apply (empty basket) or ask (3-way
-  // banner) and consume the param once — same decode-once pattern as ?code=.
-  const sharedDesigns = sharedSet
-    ? new Set(sharedSet.lines.map((l) => l.configSnapshot?.designSlug)).size
-    : 0;
-  const sharedPieces = sharedSet
-    ? sharedSet.lines.reduce((n, l) => n + l.quantity, 0)
-    : 0;
+  // ── CA-3 D + R5-KIT-CONFIRM: landing from a shared link. The server
+  // resolved `set=` into ready lines (live prices); here the welcome dialog
+  // lists them and the cart stays as it is until its CTA. Confirm MERGES into
+  // whatever the basket holds — never replaces, never asks — and the param is
+  // consumed once, on the customer's answer (decode-once, like ?code=).
 
   function consumeSetParam() {
     const params = new URLSearchParams(searchParams.toString());
@@ -978,16 +975,16 @@ export function CeramicsStep({
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
   }
 
-  function applySharedSet(mode: "add" | "replace") {
-    if (!sharedSet) return;
-    if (mode === "replace") clear();
-    for (const line of sharedSet.lines) add(line);
-    setSetBanner({
-      kind: "loaded",
-      designs: sharedDesigns,
-      pieces: sharedPieces,
-      unavailable: sharedSet.unavailable,
-    });
+  /** The set welcome was answered — CTA (`true`) or dismissed. */
+  function settleSharedSet(confirmed: boolean) {
+    if (!sharedSet || !setLanding?.welcome) return;
+    settle(sharedSet.lines, confirmed);
+    // a declined set leaves nothing to say, unless rows had already dropped
+    setSetLanding(
+      confirmed || sharedSet.unavailable > 0
+        ? { welcome: false, unavailable: sharedSet.unavailable }
+        : null
+    );
     consumeSetParam();
   }
 
@@ -995,31 +992,17 @@ export function CeramicsStep({
     if (!sharedSet || !hydrated || setConsumedRef.current) return;
     if (!searchParams.get("set")) return; // already consumed (back/forward)
     setConsumedRef.current = true;
-    if (sharedSet.lines.length === 0) {
-      // nothing usable survived the parse/resolution — inform and consume
-      setSetBanner({
-        kind: "loaded",
-        designs: 0,
-        pieces: 0,
-        unavailable: sharedSet.unavailable,
-      });
-      consumeSetParam();
-    } else if (cart.length === 0) {
-      applySharedSet("add");
-    } else {
-      // never overwrite silently: the set stays UNapplied until a choice;
-      // `set=` survives a refresh on purpose (the banner must come back)
-      setSetBanner({
-        kind: "choice",
-        designs: sharedDesigns,
-        unavailable: sharedSet.unavailable,
-      });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot apply on arrival
+    // `set=` survives a refresh while the welcome is open on purpose (it must
+    // come back). Nothing usable survived the parse/resolution → no welcome,
+    // just inform and consume.
+    const welcome = sharedSet.lines.length > 0;
+    setSetLanding({ welcome, unavailable: sharedSet.unavailable });
+    if (!welcome) consumeSetParam();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot welcome on arrival
   }, [sharedSet, hydrated]);
 
   // R5-KIT fix 8: the strip reads the persisted shop-window context (label +
-  // image saved at the step-2 apply). Lazy state: storage only, never per
+  // image saved at the step-2 confirm). Lazy state: storage only, never per
   // render. No match (hand-made link) → generic fallback + design thumb.
   // fix 9 (was missing): setKitCtx on clear — otherwise the title/thumb stay
   // stale after completion.
@@ -1067,16 +1050,16 @@ export function CeramicsStep({
   }, [kitMode, hydrated]);
 
   // R5-TUTORIAL — same `tipFor` (pure, tour.ts) steps 1-2 use; step 3 is the
-  // only page that ever has a `setBanner`, so it's the only caller that
-  // passes a real value for it (AC3: a set landing shows nothing). No
-  // `KitWelcome` on this page, so `welcomeOpen` is always false here.
+  // only page that ever has a set landing, so it's the only caller that
+  // passes a real value for it (AC3: a set landing shows nothing — during
+  // the welcome and after it).
   const tour = useTour();
   const tip = tipFor({
     state: tour.state,
     hydrated: tour.hydrated,
     kitMode,
-    welcomeOpen: false,
-    setBannerOpen: setBanner !== null,
+    welcomeOpen: setLanding?.welcome ?? false,
+    setBannerOpen: setLanding !== null,
     step: 3,
   });
   // `unpaintedPieces`, not the kit's total: kit3.1 says "these {count} pieces
@@ -1429,7 +1412,7 @@ export function CeramicsStep({
           the `<h2>`. For a `sticky` element DOM order IS scroll order, so
           that wasn't cosmetic: it mirrors the desktop card right
           above (also ahead of the nav cluster), and doesn't fight anything
-          here — the nav cluster and shared-set banner below are ordinary
+          here — the nav cluster and shared-set notice below are ordinary
           in-flow siblings, no sticky/z-index of their own to collide with. */}
       {paintingStrip}
 
@@ -1482,80 +1465,29 @@ export function CeramicsStep({
         </div>
       )}
 
-      {/* CA-3 D: shared-set landing banner (frames 3–4). The 3-way choice
-          never applies the set silently; `set=` is consumed after auto-load
-          or after the choice (decode-once, like ?code=). */}
-      {setBanner && (
-        <div
-          data-testid="shared-set-banner"
+      {/* R5-KIT-CONFIRM: the «Delt sett» choice box is gone — the welcome
+          below is the only question a set landing asks. What stays is the
+          one thing the dialog cannot say: rows of the link that no longer
+          resolve. */}
+      {setLanding && setLanding.unavailable > 0 && (
+        <p
+          data-testid="shared-set-unavailable"
           aria-live="polite"
-          className="mb-4 flex flex-col gap-2.5 rounded-sm border border-primary/50 bg-primary/5 p-3.5"
+          className="mb-4 rounded-sm border border-primary/50 bg-primary/5 p-3.5 text-xs text-muted-foreground"
         >
-          <p className="text-sm">
-            <span className="mr-2 rounded-full border border-primary px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.06em] text-primary">
-              {t("sharedSet.badge")}
-            </span>
-            {setBanner.kind === "choice" ? (
-              <span data-testid="shared-set-choice-text">
-                {t("sharedSet.choiceTitle", {
-                  designs: setBanner.designs,
-                  items: count,
-                })}
-              </span>
-            ) : (
-              setBanner.pieces > 0 && (
-                <span data-testid="shared-set-loaded-text">
-                  {t("sharedSet.loaded", {
-                    designs: setBanner.designs,
-                    pieces: setBanner.pieces,
-                  })}
-                </span>
-              )
-            )}
-          </p>
-          {setBanner.unavailable > 0 && (
-            <p
-              data-testid="shared-set-unavailable"
-              className="text-xs text-muted-foreground"
-            >
-              {t("sharedSet.unavailable", { count: setBanner.unavailable })}
-            </p>
-          )}
-          {setBanner.kind === "choice" && (
-            <div className="flex flex-wrap items-center gap-2">
-              <Button
-                type="button"
-                size="sm"
-                data-testid="shared-set-add"
-                onClick={() => applySharedSet("add")}
-              >
-                {t("sharedSet.add")}
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                data-testid="shared-set-replace"
-                onClick={() => applySharedSet("replace")}
-              >
-                {t("sharedSet.replace")}
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                data-testid="shared-set-ignore"
-                onClick={() => {
-                  setSetBanner(null);
-                  consumeSetParam();
-                }}
-              >
-                {t("sharedSet.ignore")}
-              </Button>
-            </div>
-          )}
-        </div>
+          {t("sharedSet.unavailable", { count: setLanding.unavailable })}
+        </p>
       )}
+      <KitWelcome
+        open={setLanding?.welcome ?? false}
+        onOpenChange={(o) => !o && settleSharedSet(false)}
+        rows={sharedSet ? kitWelcomeRows(sharedSet.lines, locale) : []}
+        total={
+          sharedSet?.lines.reduce((n, l) => n + l.quantity * (l.pieces ?? 1), 0) ?? 0
+        }
+        eyebrow={tKit("welcome.eyebrow")}
+        onConfirm={() => settleSharedSet(true)}
+      />
 
       {/* R4-CTA-STICKY — fixed order bar, MOBILE ONLY.
           A sticky summary bar was removed here in a past round ("stray action
