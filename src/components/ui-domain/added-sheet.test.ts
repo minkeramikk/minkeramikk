@@ -26,11 +26,12 @@ vi.mock("@/components/ui/button", () => ({
 
 const render = (locale: "no" | "en", handlers = { onContinue: () => {}, onGoToCart: () => {} }) =>
   renderToStaticMarkup(
-    h(
-      NextIntlClientProvider,
-      { locale, messages: locale === "no" ? no : en },
-      h(AddedSheetActions, handlers)
-    )
+    h(NextIntlClientProvider, {
+      locale,
+      messages: locale === "no" ? no : en,
+      timeZone: "Europe/Oslo",
+      children: h(AddedSheetActions, handlers),
+    })
   );
 
 describe("AddedSheetActions", () => {

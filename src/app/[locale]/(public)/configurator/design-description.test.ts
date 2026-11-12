@@ -32,11 +32,12 @@ describe("clampHidesText", () => {
 describe("DesignDescription", () => {
   it("collapsed: 3 lines on mobile, full text from sm", () => {
     const html = renderToStaticMarkup(
-      h(
-        NextIntlClientProvider,
-        { locale: "no", messages: no },
-        h(DesignDescription, { text: "Sitroner fra Amalfi." })
-      )
+      h(NextIntlClientProvider, {
+        locale: "no",
+        messages: no,
+        timeZone: "Europe/Oslo",
+        children: h(DesignDescription, { text: "Sitroner fra Amalfi." }),
+      })
     );
     expect(html).toContain("line-clamp-3 sm:line-clamp-none");
     expect(html).toContain("Sitroner fra Amalfi.");
