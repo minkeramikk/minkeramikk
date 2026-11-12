@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import {
   addManyToCart,
   addToCart,
+  settleLanding,
   paintLines,
   removeLine,
   unpaintLines,
@@ -64,6 +65,10 @@ export function useCart() {
   const addMany = useCallback((lines: NewCartLine[]) => {
     setCart((c) => addManyToCart(c, lines));
   }, []);
+  /** R5-KIT-CONFIRM: a kit/set welcome was closed — adds only when confirmed. */
+  const settle = useCallback((lines: NewCartLine[], confirmed: boolean) => {
+    setCart((c) => settleLanding(c, lines, confirmed));
+  }, []);
   const setQuantity = useCallback((id: string, qty: number) => {
     setCart((c) => updateQuantity(c, id, qty));
   }, []);
@@ -97,5 +102,5 @@ export function useCart() {
     setCart((c) => unpaintLines(c, lineId, n));
   }, []);
 
-  return { cart, hydrated, add, addMany, setQuantity, remove, clear, paint, unpaint };
+  return { cart, hydrated, add, addMany, settle, setQuantity, remove, clear, paint, unpaint };
 }

@@ -173,6 +173,21 @@ export function addManyToCart(cart: Cart, lines: NewCartLine[]): Cart {
   return lines.reduce((acc, l) => addToCart(acc, l), cart);
 }
 
+/**
+ * R5-KIT-CONFIRM — the ONE decision behind a kit (`?kit=`) or shared-set
+ * (`?set=`) landing: the welcome dialog lists `lines`, and the cart only moves
+ * when the customer confirms. Dismissed → the very same cart; confirmed → the
+ * lines MERGE into whatever is there (never replace: nothing the customer
+ * already has is lost).
+ */
+export function settleLanding(
+  cart: Cart,
+  lines: NewCartLine[],
+  confirmed: boolean
+): Cart {
+  return confirmed ? addManyToCart(cart, lines) : cart;
+}
+
 /** Set a line's quantity; quantity ≤ 0 removes the line. */
 export function updateQuantity(cart: Cart, id: string, quantity: number): Cart {
   if (quantity <= 0) return removeLine(cart, id);
