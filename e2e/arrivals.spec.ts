@@ -27,34 +27,46 @@ async function firstCeramicSlug(page: Page): Promise<string> {
   return id!.replace(/^product-/, "");
 }
 
-test("?set= on a non-empty basket: the banner offers the set, «add» merges its pieces", async ({
+// R5-KIT-CONFIRM: both landings open the welcome dialog and leave the basket
+// alone; only its CTA («Tilpass settet») adds the listed pieces.
+
+test("?set= on a non-empty basket: the welcome lists the set, its CTA merges the pieces", async ({
   page,
 }) => {
   const slug = await firstCeramicSlug(page);
-  await addFirstCeramic(page); // a non-empty basket → the 3-way choice, never a silent apply
+  await addFirstCeramic(page);
   await expect(page.getByTestId("cart-badge")).toHaveText("1");
 
   const set = encodeSetParam([{ configCode: `MK-${design.code}`, productSlug: slug, quantity: 1 }]);
   await page.goto(`/no/configurator?step=3&set=${encodeURIComponent(set)}`);
-  await expect(page.getByTestId("shared-set-banner")).toBeVisible();
-  await page.getByTestId("shared-set-add").click();
+  const welcome = page.getByTestId("kit-welcome");
+  await expect(welcome).toBeVisible();
+  // the «Delt sett» choice box is gone: no question, always a merge
+  await expect(page.getByTestId("shared-set-banner")).toHaveCount(0);
+  await expect(page.getByTestId("shared-set-add")).toHaveCount(0);
+  await expect(page.getByTestId("cart-badge")).toHaveText("1"); // untouched while open
+
+  await welcome.getByTestId("kit-welcome-show").click();
+  await expect(welcome).toBeHidden();
   await expect(page.getByTestId("cart-badge")).toHaveText("2");
   await expect(page).not.toHaveURL(/[?&]set=/); // consumed once
 });
 
-test("?kit= lands on step 2: welcome, kit strip, pieces in the basket", async ({ page }, testInfo) => {
+test("?kit= lands on step 2: welcome first, then kit strip and pieces in the basket", async ({ page }, testInfo) => {
   const slug = await firstCeramicSlug(page);
   const kit = encodeKitParam(design.code!, [{ productSlug: slug, quantity: 2 }]);
   await page.goto(`/no/configurator?step=2&kit=${encodeURIComponent(kit)}`);
 
   const welcome = page.getByTestId("kit-welcome");
   await expect(welcome).toBeVisible();
+  await expect(page.getByTestId("cart-badge")).toHaveCount(0); // still empty while open
   // copy review 8/10: one CTA («Tilpass settet»), the «Jeg ser selv» button is gone
   await welcome.getByTestId("kit-welcome-show").click();
   await expect(welcome).toBeHidden();
   await expect(page.getByTestId("details-step")).toBeVisible();
   await expect(page.getByTestId("kit-strip")).toBeVisible();
   await expect(page.getByTestId("cart-badge")).toHaveText("2");
+  await expect(page).not.toHaveURL(/[?&]kit=/);
 
   // TL ruling 25/9 (reverses R5-KIT T5): the design switch stays available in
   // kit-mode — the customer can paint the kit's pieces with different designs.
@@ -62,4 +74,20 @@ test("?kit= lands on step 2: welcome, kit strip, pieces in the basket", async ({
   await expect(
     page.getByTestId(isMobile ? "design-switch-badge" : "design-switch-row")
   ).toBeVisible();
+});
+
+test("?kit= dismissed: the basket is untouched and the kit is gone from the URL", async ({ page }) => {
+  const slug = await firstCeramicSlug(page);
+  await addFirstCeramic(page);
+  await expect(page.getByTestId("cart-badge")).toHaveText("1");
+  const kit = encodeKitParam(design.code!, [{ productSlug: slug, quantity: 2 }]);
+  await page.goto(`/no/configurator?step=2&kit=${encodeURIComponent(kit)}`);
+
+  const welcome = page.getByTestId("kit-welcome");
+  await expect(welcome).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(welcome).toBeHidden();
+  await expect(page).not.toHaveURL(/[?&]kit=/);
+  await expect(page.getByTestId("cart-badge")).toHaveText("1");
+  await expect(page.getByTestId("kit-strip")).toHaveCount(0);
 });
