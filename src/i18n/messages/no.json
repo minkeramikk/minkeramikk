@@ -348,6 +348,7 @@
       "title": "{count, plural, one {# del} other {# deler}} venter på dine farger",
       "body": "Trykk på «Tilpass settet» for å legge keramikkdelene i handlekurven. Deretter velger du om alle skal ha samme design og farger, eller tilpasser hver del for seg.",
       "cta": "Tilpass settet",
+      "setEyebrow": "Et sett fra minkeramikk",
       "setTitle": "Et ferdig sett med {count, plural, one {# del} other {# deler}}",
       "setBody": "Delene er ferdig designet. Legg dem i handlekurven for å bestille settet.",
       "setCta": "Legg i handlekurven"

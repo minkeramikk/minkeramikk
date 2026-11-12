@@ -15,7 +15,8 @@ import { Button } from "@/components/ui/button";
  * still has colours to choose; a shared set is already designed, so it gets
  * its own title, body and CTA.
  * TODO:nb-review — NO copy is ours (card), unreviewed: kit.welcome.body,
- * kit.welcome.setTitle, kit.welcome.setBody, kit.welcome.setCta.
+ * kit.welcome.setTitle, kit.welcome.setBody, kit.welcome.setCta, and
+ * kit.welcome.setEyebrow (the set's caller reads it: `ceramics-step.tsx`).
  */
 export const KIT_WELCOME_KEYS = {
   kit: { title: "title", body: "body", cta: "cta" },
