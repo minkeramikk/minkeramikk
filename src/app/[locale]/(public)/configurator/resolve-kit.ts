@@ -98,7 +98,7 @@ export async function resolveKit(raw: string): Promise<ResolvedKit> {
       : featured
         ? assetUrl(featured.thumbImage)
         : null,
-    imageCustom: featured?.customImage ?? false,
+    imageCustom: white ? false : (featured?.customImage ?? false),
     label: featured
       ? { no: featured.labelNo, en: featured.labelEn }
       : null,

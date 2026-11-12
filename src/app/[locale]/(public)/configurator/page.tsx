@@ -333,7 +333,8 @@ export default async function ConfiguratorPage({
                   designNameEn: f.designNameEn ?? "",
                   setCount: f.setCount,
                   price: f.price ?? null,
-                  customImage: f.customImage,
+                  // the white piece is a product photo: round, like a composed thumb
+                  customImage: white ? false : f.customImage,
                 };
               })}
             />

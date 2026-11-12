@@ -58,7 +58,7 @@ export interface ValidatedFeatured extends FeaturedRow {
   /** true when the thumb is a custom upload (fills the frame) */
   customImage: boolean;
   /** kits only: storage path of the first piece's (white) photo — what the
-   *  preview shows instead of the painted thumb (`kitWhitePiece`) */
+   *  preview shows instead of the stored thumb (`kitWhitePiece`) */
   pieceImage: string | null;
 }
 
