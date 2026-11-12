@@ -27,9 +27,10 @@ import { cn } from "@/lib/utils";
  * «{qty} × {name}»), then the offers as cards, then one button that closes.
  * The upsell is always a CHOICE: nothing here is added on the customer's
  * behalf, and «Legg til» on a card does not close the panel — only «Fortsett å
- * handle» (and ✕, Esc, the backdrop) does. There is no «Se handlekurven»: the
- * basket is one tap away in the header and a second route out of this panel
- * would be a fork nobody asked for.
+ * handle» (and ✕, Esc, the backdrop) does. R5-FEEDBACK-UX (Alessio 30/10):
+ * «Gå til handlekurven» sits next to it — the customer asked for the way to the
+ * basket right here. It closes this panel and opens the basket: in sequence,
+ * same rule as above.
  *
  * TODO:nb-review NO copy: cart.added.*
  */
@@ -41,6 +42,7 @@ export function AddedSheet({
   offers,
   takenRuleIds,
   onTake,
+  onGoToCart,
   locale,
 }: {
   open: boolean;
@@ -53,6 +55,8 @@ export function AddedSheet({
   offers: ActiveSuggestion[];
   takenRuleIds: string[];
   onTake: (offer: ActiveSuggestion) => void;
+  /** «Gå til handlekurven»: the caller closes this panel and opens the basket. */
+  onGoToCart: () => void;
   locale: "no" | "en";
 }) {
   const t = useTranslations("cart.added");
@@ -139,16 +143,47 @@ export function AddedSheet({
             onTake={onTake}
           />
 
-          <Button
-            size="lg"
-            className="min-h-11 w-full"
-            data-testid="added-sheet-continue"
-            onClick={() => onOpenChange(false)}
-          >
-            {t("continue")}
-          </Button>
+          <AddedSheetActions
+            onContinue={() => onOpenChange(false)}
+            onGoToCart={onGoToCart}
+          />
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/**
+ * The panel's two ways out, side by side. Its own component because the panel
+ * cannot be string-rendered (Radix portal) and this row can — see the test.
+ */
+export function AddedSheetActions({
+  onContinue,
+  onGoToCart,
+}: {
+  onContinue: () => void;
+  onGoToCart: () => void;
+}) {
+  const t = useTranslations("cart.added");
+  return (
+    <div className="flex gap-2">
+      <Button
+        size="lg"
+        variant="outline"
+        className="min-h-11 min-w-0 flex-1 px-2"
+        data-testid="added-sheet-go-to-cart"
+        onClick={onGoToCart}
+      >
+        {t("goToCart")}
+      </Button>
+      <Button
+        size="lg"
+        className="min-h-11 min-w-0 flex-1 px-2"
+        data-testid="added-sheet-continue"
+        onClick={onContinue}
+      >
+        {t("continue")}
+      </Button>
+    </div>
   );
 }

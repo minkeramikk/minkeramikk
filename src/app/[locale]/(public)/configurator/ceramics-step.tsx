@@ -1803,6 +1803,10 @@ export function CeramicsStep({
           offers={addedOffers}
           takenRuleIds={takenRuleIds}
           onTake={takeOffer}
+          onGoToCart={() => {
+            setAddedOpen(false);
+            openCart();
+          }}
           locale={locale}
         />
       )}

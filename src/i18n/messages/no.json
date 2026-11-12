@@ -216,7 +216,8 @@
       "title": "Lagt i handlekurven",
       "line": "{qty} × {name}",
       "add": "Legg til · {total}",
-      "continue": "Fortsett å handle"
+      "continue": "Fortsett å handle",
+      "goToCart": "Gå til handlekurven"
     },
     "cartTitle": "Handlekurv",
     "chooseColours": "Velg farger i steg 2 ›",
