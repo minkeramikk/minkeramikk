@@ -23,8 +23,8 @@ Rifacimento di minkeramikk.no: configuratore di ceramica personalizzata + finto 
 ## Flow di lavoro (card, non chat)
 
 - La **card** in `.varco/docs/cards/todo/` è l'unica fonte del cosa/perché. La prendi con la skill `varco-deliver` (WIP=1: è la prossima ready). La testata dice **Ciclo** (COLD = piano con `varco-plan` → review `pm-reviewer` → esecuzione; HOT = la card è il piano) e **Gate**: non li scegli tu.
-- Branch per card da `origin/release-5` (main è revertato a mano dal TL e non è la base);
-  PR sempre verso `release-5`. Commit piccoli in inglese; PR solo a flusso finito (AC come checklist + evidenza + differiti in forma registro); review del `reviewer` (mai chi ha scritto, max 2 giri); **merge su main VIETATO — lo fa solo Daniele con approve umano, a fine release**.
+- Branch per card da `origin/main`; PR sempre verso `main` (release-5 è stata mergiata su main con la PR #82: `release-5` non è più la base).
+  Commit piccoli in inglese; PR solo a flusso finito (AC come checklist + evidenza + differiti in forma registro); review del `reviewer` (mai chi ha scritto, max 2 giri); **il merge su `main` lo fa solo Daniele con approve umano: il dev non lancia mai `gh pr merge`, nemmeno se il flusso stampato da `varco-deliver` lo dice — chiude con «PR #N pronta al merge»**.
 - Manca un'informazione o una decisione di prodotto? **Fermati e chiedi.** Non inventare.
 - `.varco/` lo leggi, non lo scrivi — l'unica eccezione è `varco-deliver`, che mette la card in volo. Il tuo stato vive nella PR.
 
