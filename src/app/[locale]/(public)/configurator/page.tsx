@@ -5,6 +5,7 @@ import { getActiveDesigns } from "@/lib/catalog/designs";
 import { getDesignDetail, type DesignDetail } from "@/lib/catalog/design-options";
 import { getDesignProducts } from "@/lib/catalog/products";
 import { assetUrl } from "@/lib/storage";
+import { PRODUCT_THUMB_WIDTH } from "@/lib/asset-variants";
 import { buildConfigLinePayload } from "@/lib/configurator/line-payload";
 import { pickDefaultOption } from "@/lib/configurator/default-option";
 import {
@@ -19,6 +20,7 @@ import {
   type TextPosition,
 } from "@/lib/configurator/text-position";
 import { getFeaturedConfigs } from "@/lib/catalog/featured";
+import { kitWhitePiece } from "@/lib/catalog/kit-preview";
 import { getAdminUser } from "@/lib/auth/admin";
 import { shareAllowed } from "@/lib/auth/share-gate";
 import { paletteWords } from "@/lib/palettes/name-lists";
@@ -316,19 +318,24 @@ export default async function ConfiguratorPage({
           featured.length > 0 ? (
             <FeaturedStrip
               key="featured-strip"
-              items={featured.map((f) => ({
-                id: f.id,
-                kind: f.kind,
-                payload: f.payload,
-                thumbUrl: assetUrl(f.thumbImage),
-                labelNo: f.labelNo,
-                labelEn: f.labelEn,
-                designName: f.designName ?? "",
-                designNameEn: f.designNameEn ?? "",
-                setCount: f.setCount,
-                price: f.price ?? null,
-                customImage: f.customImage,
-              }))}
+              items={featured.map((f) => {
+                const white = kitWhitePiece(f);
+                return {
+                  id: f.id,
+                  kind: f.kind,
+                  payload: f.payload,
+                  thumbUrl: white
+                    ? assetUrl(white, { width: PRODUCT_THUMB_WIDTH })
+                    : assetUrl(f.thumbImage),
+                  labelNo: f.labelNo,
+                  labelEn: f.labelEn,
+                  designName: f.designName ?? "",
+                  designNameEn: f.designNameEn ?? "",
+                  setCount: f.setCount,
+                  price: f.price ?? null,
+                  customImage: f.customImage,
+                };
+              })}
             />
           ) : null
         }

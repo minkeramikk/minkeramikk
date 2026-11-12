@@ -8,6 +8,7 @@ import { PRODUCT_THUMB_WIDTH } from "@/lib/asset-variants";
 import { decodeKitParam, encodeKitParam } from "@/lib/cart/kit-code";
 import { toKitLines } from "@/lib/cart/kit-lines";
 import { getFeaturedConfigs } from "@/lib/catalog/featured";
+import { kitWhitePiece } from "@/lib/catalog/kit-preview";
 import type { SharedSetLine } from "./resolve-shared-set";
 
 /**
@@ -81,6 +82,7 @@ export async function resolveKit(raw: string): Promise<ResolvedKit> {
         (f) => f.kind === "kit" && f.valid && f.payload === canonical
       )
     : undefined;
+  const white = featured ? kitWhitePiece(featured) : null;
   return {
     lines,
     unavailable: dropped + unavailable,
@@ -91,7 +93,11 @@ export async function resolveKit(raw: string): Promise<ResolvedKit> {
       nameEn: design.nameEn,
     },
     pieces,
-    image: featured ? assetUrl(featured.thumbImage) : null,
+    image: white
+      ? assetUrl(white, { width: PRODUCT_THUMB_WIDTH })
+      : featured
+        ? assetUrl(featured.thumbImage)
+        : null,
     imageCustom: featured?.customImage ?? false,
     label: featured
       ? { no: featured.labelNo, en: featured.labelEn }
