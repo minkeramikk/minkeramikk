@@ -1485,7 +1485,7 @@ export function CeramicsStep({
         total={
           sharedSet?.lines.reduce((n, l) => n + l.quantity * (l.pieces ?? 1), 0) ?? 0
         }
-        eyebrow={tKit("welcome.eyebrow")}
+        eyebrow={tKit("welcome.setEyebrow")}
         variant="set"
         onConfirm={() => settleSharedSet(true)}
       />

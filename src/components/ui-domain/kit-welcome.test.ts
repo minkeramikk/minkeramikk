@@ -54,6 +54,13 @@ describe("KitWelcome copy", () => {
     });
   });
 
+  it("the set's eyebrow says «set» in both languages; the kit's is untouched", () => {
+    expect(no.kit.welcome.setEyebrow).toBe("Et sett fra minkeramikk");
+    expect(en.kit.welcome.setEyebrow).toBe("A set from minkeramikk");
+    expect(no.kit.welcome.eyebrow).toBe("Et sett fra minkeramikk");
+    expect(en.kit.welcome.eyebrow).toBe("A kit from minkeramikk");
+  });
+
   it("AC2 — the set never speaks of colours to choose or of pieces already in the basket", () => {
     for (const locale of ["no", "en"] as const) {
       const text = Object.values(copy(locale, "set", 2)).join(" ");

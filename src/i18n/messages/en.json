@@ -349,6 +349,7 @@
       "title": "{count, plural, one {# piece} other {# pieces}}, waiting for your colours",
       "body": "Press «Customise the set» to add the pieces to your basket. Then choose whether all of them get the same design and colours, or customise each piece on its own.",
       "cta": "Customise the set",
+      "setEyebrow": "A set from minkeramikk",
       "setTitle": "A finished set of {count, plural, one {# piece} other {# pieces}}",
       "setBody": "The pieces are already designed. Add them to your basket to order the set.",
       "setCta": "Add to basket"
