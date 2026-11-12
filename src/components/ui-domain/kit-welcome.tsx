@@ -52,7 +52,7 @@ export function KitWelcome({
   eyebrow: string;
   /** which copy: a kit (colours to choose) or an already designed set */
   variant?: keyof typeof KIT_WELCOME_KEYS;
-  /** «Tilpass settet»: the caller adds the listed pieces, closes, and (kit)
+  /** the CTA («Tilpass settet» on a kit, «Legg i handlekurven» on a set): the caller adds the listed pieces, closes, and (kit)
    *  starts the tour (R5-TUTORIAL passo 0). */
   onConfirm: () => void;
 }) {
