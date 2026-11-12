@@ -1002,7 +1002,7 @@ export function CeramicsStep({
   }, [sharedSet, hydrated]);
 
   // R5-KIT fix 8: the strip reads the persisted shop-window context (label +
-  // image saved at the step-2 apply). Lazy state: storage only, never per
+  // image saved at the step-2 confirm). Lazy state: storage only, never per
   // render. No match (hand-made link) → generic fallback + design thumb.
   // fix 9 (was missing): setKitCtx on clear — otherwise the title/thumb stay
   // stale after completion.

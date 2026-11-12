@@ -237,7 +237,7 @@ export function ConfiguratorClient({
    * result down, so an operator's override still reaches the customer's save.
    */
   paletteWords: PaletteWords;
-  /** R5-KIT: server-resolved `?kit=` landing (T5 consumes it into the cart). */
+  /** R5-KIT: server-resolved `?kit=` landing (the welcome's CTA adds it to the cart). */
   kit?: import("./resolve-kit").ResolvedKit | null;
 }) {
   const t = useTranslations("configurator");
@@ -873,8 +873,8 @@ export function ConfiguratorClient({
     (searchParams.get("origin") === "kit" ||
       Boolean(kit && searchParams.get("kit"))) &&
     (!hydrated || unpaintedPieces(cart) > 0);
-  // fix 9 (was missing): the lazy kitCtx below must refresh when the apply
-  // effect saves a new context — otherwise the strip keeps the PREVIOUS kit
+  // fix 9 (was missing): the lazy kitCtx below must refresh when `settleKit`
+  // saves a new context — otherwise the strip keeps the PREVIOUS kit
   // (or the fallback on first landing).
   const [kitCtx, setKitCtx] = useState<KitContext | null>(() => readKitContext());
   const kitClearedRef = useRef(false);

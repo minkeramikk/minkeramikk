@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useState } from "react";
 import {
-  addManyToCart,
   addToCart,
   settleLanding,
   paintLines,
@@ -56,16 +55,8 @@ export function useCart() {
   const add = useCallback((line: NewCartLine) => {
     setCart((c) => addToCart(c, line));
   }, []);
-  /**
-   * Add several lines in ONE state update. Two `add()` calls are two renders and
-   * a cart the customer can see in an intermediate state — with a bundle that
-   * means the base line appearing alone for a frame before its discounted
-   * companion. One `setCart`, one render, one cart.
-   */
-  const addMany = useCallback((lines: NewCartLine[]) => {
-    setCart((c) => addManyToCart(c, lines));
-  }, []);
-  /** R5-KIT-CONFIRM: a kit/set welcome was closed — adds only when confirmed. */
+  /** R5-KIT-CONFIRM: a kit/set welcome was closed — adds only when confirmed,
+   *  all lines in ONE state update (one render, never a half-added set). */
   const settle = useCallback((lines: NewCartLine[], confirmed: boolean) => {
     setCart((c) => settleLanding(c, lines, confirmed));
   }, []);
@@ -102,5 +93,5 @@ export function useCart() {
     setCart((c) => unpaintLines(c, lineId, n));
   }, []);
 
-  return { cart, hydrated, add, addMany, settle, setQuantity, remove, clear, paint, unpaint };
+  return { cart, hydrated, add, settle, setQuantity, remove, clear, paint, unpaint };
 }
