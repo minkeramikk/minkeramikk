@@ -849,21 +849,23 @@ export function ConfiguratorClient({
     setKeyboardOpen: publishKeyboardOpen,
     cart,
     hydrated,
-    addMany,
+    settle,
   } = useCartContext();
-  // R5-KIT T5: one-shot landing — add the resolved lines once (even onto a
-  // non-empty cart: an unpainted row never overwrites anything), show passo 0,
-  // then consume `kit=` and pin `origin=kit` (the kit-mode). Empty kit:
-  // consume silently, no welcome.
-  // The welcome snapshots the resolved lines at apply time: the
-  // router.replace below re-renders the page with `kit = null` (a server
-  // prop), so reading `kit?.lines` at the mount would show «0 pieces».
+  // R5-KIT T5 + R5-KIT-CONFIRM: one-shot landing — show passo 0 with the
+  // resolved lines and leave the cart ALONE. Only the welcome's CTA
+  // (`settleKit(true)`) adds them (even onto a non-empty cart: an unpainted
+  // row never overwrites anything), consumes `kit=` and pins `origin=kit`
+  // (the kit-mode); a dismiss adds nothing and goes back to step 1. `kit=`
+  // stays in the URL while the welcome is open, so a refresh brings it back.
+  // Empty kit: consume silently, no welcome.
+  // The welcome snapshots the resolved kit at landing time: the
+  // router.replace in `settleKit` re-renders the page with `kit = null` (a
+  // server prop), so reading `kit?.lines` at the mount would show «0 pieces».
   const kitConsumedRef = useRef<string | null>(null);
   const [kitWelcome, setKitWelcome] = useState<{
+    kit: NonNullable<typeof kit>;
     rows: { qty: number; name: string; image?: string }[];
     total: number;
-    image: string | null;
-    imageCustom: boolean;
   } | null>(null);
   // fix 11: kit-mode ends when everything is painted (PM 23/9) — no unpainted
   // pieces left means the kit's job is done: the strip goes, «Design ▾» back.
@@ -880,24 +882,19 @@ export function ConfiguratorClient({
     if (!kit || !hydrated || !searchParams.get("kit")) return;
     const raw = searchParams.get("kit")!;
     // one kit at a time, but EVERY kit: a second kit from the home (same
-    // component mounted) applies, shows its own welcome and overwrites the
-    // context with the LAST kit — the counter counts the whole basket anyway.
+    // component mounted) shows its own welcome and, once confirmed, overwrites
+    // the context with the LAST kit — the counter counts the whole basket
+    // anyway. The ref also keeps back/forward from offering a confirmed kit
+    // twice.
     if (kitConsumedRef.current === raw) return;
     kitConsumedRef.current = raw;
     if (kit.lines.length > 0) {
-      addMany(kit.lines);
       setKitWelcome({
+        kit,
         rows: kitWelcomeRows(kit.lines, locale as "no" | "en"),
         total: kit.lines.reduce((n, l) => n + l.quantity * (l.pieces ?? 1), 0),
-        image: kit.image,
-        imageCustom: kit.imageCustom,
       });
-      // the strip + welcome keep the shop-window label/image for the whole
-      // journey (step 3 is a separate server render that never sees the
-      // resolver) — read back lazily below, never per render.
-      const ctx = { label: kit.label, image: kit.image, custom: kit.imageCustom };
-      saveKitContext(ctx);
-      setKitCtx(ctx);
+      return; // `kit=` is consumed by `settleKit`, on the customer's answer
     }
     const params = new URLSearchParams(searchParams.toString());
     params.delete("kit");
@@ -907,11 +904,39 @@ export function ConfiguratorClient({
       params.set("origin", "kit");
     }
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot apply on arrival
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot welcome on arrival
   }, [kit, hydrated]);
+  /** R5-KIT-CONFIRM: the welcome was answered — CTA (`true`) or dismissed. */
+  function settleKit(confirmed: boolean) {
+    if (!kitWelcome) return;
+    const k = kitWelcome.kit;
+    setKitWelcome(null);
+    settle(k.lines, confirmed);
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("kit");
+    if (confirmed) {
+      // the strip + welcome keep the shop-window label/image for the whole
+      // journey (step 3 is a separate server render that never sees the
+      // resolver) — read back lazily below, never per render.
+      const ctx = { label: k.label, image: k.image, custom: k.imageCustom };
+      saveKitContext(ctx);
+      setKitCtx(ctx);
+      if (k.design) {
+        params.set("design", k.design.slug);
+        params.set("step", "2");
+        params.set("origin", "kit");
+      }
+    } else {
+      // declined: no kit-mode, back to step 1 — and the same kit can be
+      // opened again from the shop window (same component stays mounted)
+      kitConsumedRef.current = null;
+      params.delete("step");
+    }
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  }
   const kitCounts = kitStripCounts(cart);
   // R5-TUTORIAL round 3 — `tipFor` (pure, tour.ts) is the ONE place that
-  // decides whether a tip shows; this page never has a `setBanner` (that's
+  // decides whether a tip shows; this page never has a set landing (that's
   // step 3's own), so it's always `setBannerOpen: false` here. Steps 1-2
   // only, so `sequence` here is only ever "step1" or "step2" — normal and
   // kit share both, `kit3` lives on step 3.
@@ -968,7 +993,15 @@ export function ConfiguratorClient({
     else if (tip.sequence === "step2" && tip.n === 2) pulse("nextStep", nextStepAnchorRef);
   };
   const kitShownTitle = kitTitle(kitCtx, locale as "no" | "en", tKit("strip.title"));
-  const kitShownEyebrow = kitTitle(kitCtx, locale as "no" | "en", tKit("welcome.eyebrow"));
+  // R5-KIT-CONFIRM: the context is only saved on confirm, so the OPEN welcome
+  // reads its own kit's label — `kitCtx` could still be a previous kit's.
+  const kitShownEyebrow = kitTitle(
+    kitWelcome
+      ? { label: kitWelcome.kit.label, image: kitWelcome.kit.image, custom: kitWelcome.kit.imageCustom }
+      : kitCtx,
+    locale as "no" | "en",
+    tKit("welcome.eyebrow")
+  );
   // fix 11: everything painted → the kit's job is done: clear the persisted
   // context once (the strip already hides via kitMode above), «Design ▾» back.
   useEffect(() => {
@@ -1594,17 +1627,19 @@ export function ConfiguratorClient({
           is a grey disc. */}
       <KitWelcome
         open={kitWelcome !== null}
-        onOpenChange={(o) => !o && setKitWelcome(null)}
+        onOpenChange={(o) => !o && settleKit(false)}
         rows={kitWelcome?.rows ?? []}
         total={kitWelcome?.total ?? 0}
-        image={kitWelcome?.image}
-        imageCustom={kitWelcome?.imageCustom}
+        image={kitWelcome?.kit.image}
+        imageCustom={kitWelcome?.kit.imageCustom}
         eyebrow={kitShownEyebrow}
-        // R5-TUTORIAL 0.1-8 — passo 0: «Show me how» starts the tour at
-        // step 2 (round 3: `step2` is the very same sequence normal
-        // customers get there); «I'll have a look myself» turns tips off
-        // for good.
-        onShowMeHow={() => tour.start("step2")}
+        // R5-KIT-CONFIRM: the CTA adds the pieces; R5-TUTORIAL 0.1-8 — passo
+        // 0: it also starts the tour at step 2 (round 3: `step2` is the very
+        // same sequence normal customers get there).
+        onConfirm={() => {
+          settleKit(true);
+          tour.start("step2");
+        }}
       />
 
       {/* R5-TUTORIAL — 390: the tip lives in a strip, never anchored (DS

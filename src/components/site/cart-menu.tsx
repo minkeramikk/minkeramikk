@@ -59,7 +59,7 @@ export function CartMenu() {
   // §3.32). This mount only ever cares about `sequence === "kit3"` — `step`
   // is fixed at 3 on purpose (the only step this drawer's own tour reaches;
   // a step2 tip stays on the page, `configurator-client.tsx`), and there's
-  // no `KitWelcome`/`setBanner` state to read from here (the kit's own
+  // no `KitWelcome`/set-landing state to read from here (the kit's own
   // welcome never coincides with kit3 — it's step 2's passo 0 — and a set
   // landing never sets `origin=kit`, so `kitMode` is false for it).
   const kitMode = searchParams.get("origin") === "kit" && (!hydrated || unpainted > 0);
